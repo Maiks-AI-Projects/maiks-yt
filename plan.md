@@ -6,7 +6,20 @@ Maiks.yt is a multi-purpose ecosystem designed to centralize gaming, streaming, 
 - **Primary Site:** [maiks.yt](https://maiks.yt)
 - **Development Site:** [dev.maiks.yt](https://dev.maiks.yt)
 
-## 2. Technology Stack
+## 2. Detailed Project Plans
+Detailed documentation for specific project components can be found in the [`plans/`](./plans/) directory:
+- [**Channel Vision**](./plans/channels.md): Subdomain-specific hobbies and unique skinning.
+- [**Donation System**](./plans/donations.md): 'Pots', hardware transparency, and public ledger.
+- [**Project Logic**](./plans/projects.md): Nested projects, funding redistribution, and tracking.
+- [**Stream Overlays**](./plans/overlays.md): Design, notifications, and chat integration.
+- [**Viewer Profiles**](./plans/profiles.md): Features, badges, and dynamic profile pictures.
+- [**OAuth & Auth**](./plans/oauth.md): WorkOS integration and game account verification.
+
+## 3. Current Status
+- **Production Readiness:** The `main` branch in `/var/projects/maiks-yt` is production-ready and features an auto-update watcher for seamless deployment.
+- **Development Environment:** [dev.maiks.yt](https://dev.maiks.yt) is live and pointing to the Docker container at `192.168.187.21:3000`.
+
+## 4. Technology Stack
 - **Frontend Framework:** Next.js (App Router)
 - **Styling:** Tailwind CSS + CSS Variables (to support dynamic skinning/theming)
 - **State Management:** React Context / Zustand
@@ -18,13 +31,13 @@ Maiks.yt is a multi-purpose ecosystem designed to centralize gaming, streaming, 
 - **Infrastructure:** Docker, Docker Compose, Cloudflared Tunnels
 - **Network:** br187 Mesh Network (IP Range: 192.168.187.0/24)
 
-## 3. Architecture & Infrastructure
+## 5. Architecture & Infrastructure
 - **Containerization:** Every service (Web, DB, Redis, Overlays) will run in Docker containers.
 - **Routing:** A central reverse proxy (likely Nginx or Traefik) will manage subdomain routing based on Host headers.
 - **Connectivity:** Cloudflared will expose the application to the public internet securely without opening local ports.
 - **Inter-service Communication:** Will occur within the `br187` mesh network.
 
-## 4. Feature Roadmap
+## 6. Feature Roadmap
 
 ### Phase 1: Core Foundation
 - Setup Next.js mono-repo or project structure.
@@ -46,7 +59,7 @@ Maiks.yt is a multi-purpose ecosystem designed to centralize gaming, streaming, 
 - Animated overlay cards for donations and milestones.
 - Combined YouTube/Twitch chat interface for streamers.
 
-## 5. Deployment & Development Workflow
+## 7. Deployment & Development Workflow
 The project follows a standard "Stage-to-Production" lifecycle:
 
 1. **Development:** All features are initially built and tested in `/var/projects/maiks-yt-dev`.
