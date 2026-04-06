@@ -1,0 +1,24 @@
+services:
+  maiks-yt-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host
+    container_name: maiks-yt-dev
+    restart: unless-stopped
+    networks:
+      br187:
+        ipv4_address: 192.168.187.21
+    ports:
+      # Map 3000:3000, bound to localhost on host to avoid direct exposure on host IP (192.168.188.36)
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+    # Use development command for live reloading
+    command: npx next dev --webpack
+
+networks:
+  br187:
+    external: true
