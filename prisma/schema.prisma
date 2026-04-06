@@ -1,0 +1,136 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  workosId          String             @unique
+  profile           Profile?
+  accounts          Account[]
+  gameVerifications GameVerification[]
+  donations         Donation[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Profile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username     String   @unique
+  bio          String?  @db.Text
+  profileImage String?
+  gameAccounts Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider          String
+  providerAccountId String
+  metadata          Json?
+
+  @@unique([provider, providerAccountId])
+}
+
+model GameVerification {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform   String   // e.g., "Minecraft", "Hytale"
+  externalId String   // UUID from the game
+  verified   Boolean  @default(false)
+  badges     Json?    // Specific badges earned or status
+}
+
+enum ProjectStatus {
+  ACTIVE
+  MOTHBALLED
+}
+
+model Project {
+  id          String         @id @default(uuid())
+  name        String
+  description String?        @db.Text
+  status      ProjectStatus  @default(ACTIVE)
+  parentId    String?
+  parent      Project?       @relation("SubProjects", fields: [parentId], references: [id])
+  children    Project[]      @relation("SubProjects")
+  parts       ProjectPart[]
+  actions     ProjectAction[]
+  donations   Donation[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model ProjectPart {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?  @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  link        String?
+  image       String?
+  funded      Decimal  @default(0) @db.Decimal(10, 2)
+}
+
+enum ActionStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model ProjectAction {
+  id          String       @id @default(uuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?      @db.Text
+  status      ActionStatus @default(TODO)
+}
+
+model Donation {
+  id            String   @id @default(uuid())
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  amount        Decimal  @db.Decimal(10, 2)
+  message       String?  @db.Text
+  timestamp     DateTime @default(now())
+  verifiedUsage Boolean  @default(false)
+}
+
+enum LedgerType {
+  INCOME
+  EXPENSE
+}
+
+enum LedgerCategory {
+  TECH
+  CLOTHING
+  GROCERIES
+  DONATION
+}
+
+model Ledger {
+  id          String         @id @default(uuid())
+  type        LedgerType
+  category    LedgerCategory
+  amount      Decimal        @db.Decimal(10, 2)
+  description String?        @db.Text
+  proofLink   String?
+  timestamp   DateTime       @default(now())
+}
