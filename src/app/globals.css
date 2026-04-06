@@ -3,11 +3,110 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* Default Theme Variables */
+  --primary: #3b82f6;
+  --secondary: #64748b;
+  --accent: #f59e0b;
+}
+
+/* Minecraft Green Preset */
+.theme-mc {
+  --primary: #10b981;
+  --secondary: #059669;
+  --accent: #f59e0b;
+}
+
+/* Hytale Amber Preset */
+.theme-ht {
+  --primary: #f59e0b;
+  --secondary: #d97706;
+  --accent: #3b82f6;
+}
+
+/* Starfield Blue Preset */
+.theme-sf {
+  --primary: #3b82f6;
+  --secondary: #2563eb;
+  --accent: #ef4444;
+}
+
+/* Talking Points Red Preset */
+.theme-talking {
+  --primary: #ef4444;
+  --secondary: #dc2626;
+  --accent: #10b981;
+}
+
+/* WoW Purple Preset */
+.theme-wow {
+  --primary: #8b5cf6;
+  --secondary: #7c3aed;
+  --accent: #f59e0b;
+}
+
+/* Electronics Orange Preset */
+.theme-electronics {
+  --primary: #f97316;
+  --secondary: #ea580c;
+  --accent: #06b6d4;
+}
+
+/* Printing Slate Preset */
+.theme-printing {
+  --primary: #64748b;
+  --secondary: #475569;
+  --accent: #f59e0b;
+}
+
+/* Coding Cyan Preset */
+.theme-coding {
+  --primary: #06b6d4;
+  --secondary: #0891b2;
+  --accent: #ec4899;
+}
+
+/* Brain Pink Preset */
+.theme-brain {
+  --primary: #ec4899;
+  --secondary: #db2777;
+  --accent: #a855f7;
+}
+
+/* Tech Zinc Preset */
+.theme-tech {
+  --primary: #71717a;
+  --secondary: #52525b;
+  --accent: #3b82f6;
+}
+
+/* AI Purple Preset */
+.theme-ai {
+  --primary: #a855f7;
+  --secondary: #9333ea;
+  --accent: #10b981;
+}
+
+/* Outdoors Green Preset */
+.theme-outdoors {
+  --primary: #22c55e;
+  --secondary: #16a34a;
+  --accent: #f59e0b;
+}
+
+/* OddJobs Amber Preset */
+.theme-oddjobs {
+  --primary: #78350f;
+  --secondary: #451a03;
+  --accent: #3b82f6;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-secondary: var(--secondary);
+  --color-accent: var(--accent);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
