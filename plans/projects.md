@@ -7,11 +7,23 @@ Example:
   - **Game Servers** (Sub-project)
     - **Hosting** (Leaf Project)
 
-## Funding Redistribution
-When a leaf project (e.g., Hosting) is funded beyond its goal, the surplus can be automatically redistributed to its parent project (e.g., Game Servers) or other related sub-projects. This ensures that the entire ecosystem benefits from successful initiatives.
+## Project Components
+- **Parts (Items)**: A list of hardware or software components needed for the project.
+- **Actions (Work)**: Specific tasks or milestones (e.g., "Build the frame", "Configure the API").
+- **Progress Tracking**: Both financial progress (funding) and operational progress (actions completed).
 
-## Progress Tracking
+## Funding Redistribution and Logic
+When a leaf project is funded beyond its goal, the surplus can be automatically redistributed.
+
+### Mothballing and Refunds
+- **Mothballing**: If a project is cancelled or indefinitely paused, funds can be moved to a "Project Recovery Fund."
+- **Refund Logic**: If a project fails to meet its goal within a set timeframe or is cancelled, donors can choose to:
+  - Refund the donation (minus transaction fees).
+  - Redirect the donation to a different active project.
+  - Leave the donation in a general "Support the Creator" pot.
+
+## Progress Tracking Details
 Each project (at any level) will have:
 - A progress bar (Percentage of goal reached).
-- A timeline of milestones.
-- Status updates (e.g., "Planning", "In Development", "Testing", "Completed").
+- A timeline of milestones (Actions completed vs. pending).
+- Status updates (e.g., "Planning", "In Development", "Mothballed", "Completed").
