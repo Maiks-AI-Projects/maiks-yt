@@ -8,12 +8,13 @@ Maiks.yt is a multi-purpose ecosystem designed to centralize gaming, streaming, 
 
 ## 2. Detailed Project Plans
 Detailed documentation for specific project components can be found in the [`plans/`](./plans/) directory:
-- [**Channel Vision**](./plans/channels.md): Subdomain-specific hobbies and unique skinning.
-- [**Donation System**](./plans/donations.md): 'Pots', hardware transparency, and public ledger.
-- [**Project Logic**](./plans/projects.md): Nested projects, funding redistribution, and tracking.
-- [**Stream Overlays**](./plans/overlays.md): Design, notifications, and chat integration.
-- [**Viewer Profiles**](./plans/profiles.md): Features, badges, and dynamic profile pictures.
-- [**OAuth & Auth**](./plans/oauth.md): WorkOS integration and game account verification.
+- [**Channel Vision**](./plans/channels.md): Subdomain-specific hobbies (13 total), unique skinning, and server access.
+  - [**Individual Channels**](./plans/channels/): Detailed plans for each hobby (Minecraft, HyTale, AI, etc.).
+- [**Donation System**](./plans/donations.md): 'Pots', transparency vision (income/expense), and usage verification.
+- [**Project Logic**](./plans/projects.md): Nested projects, parts (items), actions (work), and refund/mothballing logic.
+- [**Stream Overlays**](./plans/overlays.md): Reusable components, scene-specific layouts, and comprehensive control panel.
+- [**Viewer Profiles**](./plans/profiles.md): Customization (images/characters), donation history, and AI safety checks.
+- [**OAuth & Auth**](./plans/oauth.md): Refined strategy (WorkOS/alternatives), multi-platform verification badges, and cross-platform auth.
 
 ## 3. Current Status
 - **Production Readiness:** The `main` branch in `/var/projects/maiks-yt` is production-ready and features an auto-update watcher for seamless deployment.
@@ -25,7 +26,7 @@ Detailed documentation for specific project components can be found in the [`pla
 - **State Management:** React Context / Zustand
 - **Database:** MariaDB (Production) / SQLite (Development local)
 - **ORM:** Prisma
-- **Authentication:** WorkOS (for OAuth 2.0 / SSO)
+- **Authentication:** WorkOS (for OAuth 2.0 / SSO) or self-hosted alternatives.
 - **Backend/API:** Next.js API Routes (Node.js)
 - **Real-time:** Socket.io or Server-Sent Events (SSE) for overlays
 - **Infrastructure:** Docker, Docker Compose, Cloudflared Tunnels
@@ -39,25 +40,29 @@ Detailed documentation for specific project components can be found in the [`pla
 
 ## 6. Feature Roadmap
 
-### Phase 1: Core Foundation
+### Phase 1: Core Foundation (Expanded)
 - Setup Next.js mono-repo or project structure.
 - Implementation of Subdomain Routing logic.
-- Basic Theme system (Dynamic CSS Variables).
+- Basic Theme system (Dynamic CSS Variables) for all 13 initial hobbies.
+- Reusable overlay components and basic control panel.
 
 ### Phase 2: Authentication & Identity
-- Integration with WorkOS for OAuth.
+- Integration with WorkOS or alternative OAuth providers.
 - Identity verification system (linking Minecraft UUIDs, HyTale accounts, etc.).
-- Global profile system with character badges.
+- Global profile system with character badges and multi-platform verification.
+- AI-driven safety checks for custom profile content.
 
 ### Phase 3: Donation & Financial Transparency
 - "Pots" system (Nested pots for specific goals like Hardware, Servers, etc.).
-- Public ledger for donation transparency.
+- Detailed project parts (items) and actions (work) tracking.
+- Public ledger with income/expense tracking and proof-of-purchase verification.
 - Stripe/PayPal integration for automated processing.
 
 ### Phase 4: Stream Overlays & Engagement
 - Real-time notification system (using WebSockets).
 - Animated overlay cards for donations and milestones.
 - Combined YouTube/Twitch chat interface for streamers.
+- Comprehensive moderation actions directly from the control panel.
 
 ## 7. Deployment & Development Workflow
 The project follows a standard "Stage-to-Production" lifecycle:

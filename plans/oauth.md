@@ -1,13 +1,19 @@
 # OAuth and Authentication
 
-## Integration with WorkOS
-- Centralized authentication using WorkOS for a seamless and secure login experience.
-- Support for multiple social providers (GitHub, Discord, Google).
+## Refined Auth Strategy
+- **WorkOS Implementation**: For enterprise-grade authentication and social login (GitHub, Discord, Google).
+- **Authentication Alternatives**: Exploring lightweight, self-hosted alternatives (e.g., Auth0, Supabase Auth, or custom solutions) for greater control and cost-efficiency.
+- **Cross-Platform Authentication**: A unified login system that works seamlessly across all subdomains and integrated services.
+
+## Verification Badges and Badges
+- **Multi-Platform Badges**: Users who link their accounts (Discord, X (Twitter), Twitch, YouTube) will receive unique verification badges on their profile.
+- **Badge Tiers**: Progressive badges based on platform activity or duration of verification.
 
 ## Game Account Verification
-- **Minecraft**: Verify ownership through a unique server command or a specific skin change.
-- **HyTale**: Implementation pending official API availability, focusing on secure linking.
+- **Minecraft**: Secure ownership verification using a unique server-side command or skin change.
+- **HyTale**: Future-proofing for the official HyTale API with a focus on secure profile linking.
+- **Cross-Game ID**: A single "Maiks-YT ID" that links all game accounts, donations, and profile data.
 
-## OAuth 2.0 Flows
-- Secure implementation of standard OAuth 2.0 flows for both internal and external integrations.
-- Role-based access control (RBAC) to manage permissions across the platform.
+## Security and Compliance
+- **Role-Based Access Control (RBAC)**: Fine-grained permissions for users, moderators, and administrators.
+- **Encryption**: Industry-standard encryption for all sensitive user data and authentication tokens.
