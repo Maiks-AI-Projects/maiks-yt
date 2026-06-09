@@ -1,0 +1,26 @@
+{
+  "name": "@maiks-yt/database",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "mysql2": "3.22.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.2",
+    "drizzle-kit": "0.31.10",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

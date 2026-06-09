@@ -10,6 +10,8 @@
     "build": "turbo run build",
     "check": "pnpm typecheck && pnpm test && pnpm check:architecture",
     "check:architecture": "node scripts/check-architecture.mjs",
+    "db:generate": "pnpm --filter @maiks-yt/database db:generate",
+    "db:migrate": "pnpm --filter @maiks-yt/database db:migrate",
     "dev": "turbo run dev --parallel",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"

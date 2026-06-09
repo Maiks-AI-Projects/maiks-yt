@@ -13,7 +13,7 @@ Use a TypeScript monorepo with:
 - Vite + React for the live control panel
 - Fastify for the API/realtime backend
 - MySQL for the database
-- Prisma for database access
+- Drizzle ORM for database access and SQL migrations
 - Zod for runtime validation
 - Vitest for unit/domain tests
 - Playwright for browser/overlay/control-panel tests
@@ -106,11 +106,11 @@ Stream simulator fixtures, fake events, and shared test helpers.
 Recommended start:
 
 - MySQL
-- Prisma
+- Drizzle ORM
 - local primary database
 - backup database or backup target
 
-Prisma is recommended first because it is readable, TypeScript-friendly, and has clear MySQL support. If later ledger or reporting work needs more direct SQL control, we can use raw SQL for those specific queries or reconsider Drizzle.
+Drizzle is the chosen starting point because it is TypeScript-friendly, keeps generated SQL migrations visible, and stays close to the database shape. That fits the project rule that the codebase should be easy to navigate and audit.
 
 ## Runtime Validation
 
@@ -184,7 +184,6 @@ Later, if jobs become complex, add a queue system.
 - exact Next.js version
 - exact React/Vite setup
 - Auth.js versus custom OAuth flow details
-- Prisma versus Drizzle final decision
 - plain WebSocket versus Socket.IO
 - Tailwind versus CSS modules for app UI
 - i18n library

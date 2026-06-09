@@ -27,8 +27,8 @@ This is the working checklist. We should work down it in order unless a new idea
 
 - [x] Choose monorepo tooling.
 - [x] Choose web framework.
-- [ ] Choose database approach.
-- [ ] Confirm local MySQL direction.
+- [x] Choose database approach.
+- [x] Confirm local MySQL direction.
 - [x] Choose validation/type contract library.
 - [x] Decide API/realtime backend shape.
 - [x] Decide whether overlay/control panel use Vite + React.
