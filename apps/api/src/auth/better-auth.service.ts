@@ -62,6 +62,7 @@ if (process.env.NODE_ENV === "production" && !betterAuthSecret) {
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
+  basePath: "/auth",
   secret: betterAuthSecret ?? "development-only-better-auth-secret-change-before-production",
   trustedOrigins: getTrustedOrigins(),
   database: drizzleAdapter(database, {
