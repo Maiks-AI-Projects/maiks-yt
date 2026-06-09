@@ -30,7 +30,7 @@ Not every event deserves the same amount of screen space. Priority zones keep th
 
 ## Build Requirements
 
-- notification queue
+- queue-first notification system
 - priority system
 - top notification zone
 - center notification zone
@@ -43,9 +43,26 @@ Not every event deserves the same amount of screen space. Priority zones keep th
 
 Notification priority should be part of the event definition. A typed event can declare whether it is allowed to display in `top`, `center`, or both.
 
+## Queue-first Rule
+
+Notifications should always enter a queue before display. Even urgent notifications should go through queue rules so the overlay remains predictable during event storms.
+
+The queue can still support priority, interruption, grouping, skipping, manual approval, and emergency suppression. The important rule is that notification rendering should not be a free-for-all where every event tries to display immediately.
+
+## V1 Reference
+
+There is a local V1 copy at:
+
+```txt
+A:\laravel-projects\maiks-yt
+```
+
+When implementing top notifications, inspect the V1 top notification design because the streamer liked how those looked. Rebuild the concept in the new TypeScript/overlay system rather than copying old code blindly.
+
 ## Open Questions
 
 - Which events are important enough for center-screen display?
 - Can a paid message force center-screen placement?
 - Should center-screen alerts be disabled during competitive/focused scenes?
-- Should multiple notifications stack or queue one at a time?
+- Which events can interrupt the current queue item?
+- Which events should be grouped or summarized during event storms?

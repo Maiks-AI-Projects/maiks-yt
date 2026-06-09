@@ -12,6 +12,7 @@ Possible events:
 - paid messages
 - stream goal progress
 - notification bursts
+- notification queue pressure
 - sponsor toggles
 - layout/theme switches
 - chat spam waves
@@ -64,6 +65,7 @@ Examples:
 
 - Twitch raid plus fake YouTube chat burst plus project milestone update
 - donation alert plus center-screen notification plus sponsor visibility toggle
+- multiple top notifications arriving faster than they can display
 - backend reconnect while overlay keeps last-known state
 - private-message AI preamble while public chat continues
 
@@ -89,3 +91,4 @@ The simulator should use the same typed event contracts as the real system. Fake
 - Should real stream sessions be recordable for later replay?
 - How much sensitive data should be stripped from recorded events?
 - Which event storm presets are needed first?
+- Which notification queue scenarios should be tested first?
