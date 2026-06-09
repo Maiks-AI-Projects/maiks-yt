@@ -1,0 +1,22 @@
+{
+  "name": "maiks-yt",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "check": "pnpm typecheck && pnpm test && pnpm check:architecture",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "dev": "turbo run dev --parallel",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "2.9.16",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

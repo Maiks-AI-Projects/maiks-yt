@@ -1,0 +1,16 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/config" },
+    { "path": "./packages/domain" },
+    { "path": "./packages/events" },
+    { "path": "./packages/integrations" },
+    { "path": "./packages/testing" },
+    { "path": "./packages/themes" },
+    { "path": "./packages/ui" },
+    { "path": "./apps/api" },
+    { "path": "./apps/control-panel" },
+    { "path": "./apps/overlay" },
+    { "path": "./apps/web" }
+  ]
+}

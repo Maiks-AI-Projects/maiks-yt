@@ -1,0 +1,20 @@
+body {
+  background: #0f1419;
+  color: #f4f7fb;
+  font-family: Arial, sans-serif;
+  margin: 0;
+}
+
+button {
+  background: #d64545;
+  border: 0;
+  color: white;
+  font: inherit;
+  padding: 0.75rem 1rem;
+}
+
+.surface {
+  display: grid;
+  gap: 1rem;
+  padding: 2rem;
+}

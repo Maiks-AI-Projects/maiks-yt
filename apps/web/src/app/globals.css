@@ -1,0 +1,14 @@
+body {
+  background: #f5f7fb;
+  color: #141920;
+  font-family: Arial, sans-serif;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+main {
+  padding: 2rem;
+}

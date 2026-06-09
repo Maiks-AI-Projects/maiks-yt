@@ -1,0 +1,34 @@
+@import "@maiks-yt/themes/default.css";
+
+body {
+  background: transparent;
+  color: var(--maiks-fg);
+  font-family: Arial, sans-serif;
+  margin: 0;
+  overflow: hidden;
+}
+
+.overlay {
+  min-height: 100vh;
+  position: relative;
+}
+
+.top-notification {
+  background: color-mix(in srgb, var(--maiks-bg) 88%, transparent);
+  border-bottom: 2px solid var(--maiks-accent);
+  left: 0;
+  padding: 1rem 2rem;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.center-notification {
+  background: color-mix(in srgb, var(--maiks-bg) 80%, transparent);
+  border: 2px solid var(--maiks-accent);
+  left: 50%;
+  padding: 1.5rem 2rem;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}

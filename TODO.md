@@ -25,13 +25,13 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 2. Technical Foundation
 
-- [ ] Choose monorepo tooling.
-- [ ] Choose web framework.
+- [x] Choose monorepo tooling.
+- [x] Choose web framework.
 - [ ] Choose database approach.
 - [ ] Confirm local MySQL direction.
-- [ ] Choose validation/type contract library.
-- [ ] Decide API/realtime backend shape.
-- [ ] Decide whether overlay/control panel use Vite + React.
+- [x] Choose validation/type contract library.
+- [x] Decide API/realtime backend shape.
+- [x] Decide whether overlay/control panel use Vite + React.
 - [ ] Decide how real-time overlay state will work.
 - [ ] Decide local production hosting shape for `cloudflared`.
 - [ ] Decide dev server auto-build/deploy workflow after pushed commits.
@@ -44,7 +44,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Decide stream simulator/event replayer shape.
 - [ ] Add localization structure from the start.
 - [ ] Add minimal analytics/security logging boundaries.
-- [ ] Add initial architecture/file-boundary rule checker.
+- [x] Add initial architecture/file-boundary rule checker.
 - [ ] Add rule violation report workflow for next-session review.
 - [ ] Decide whether rule violations warn or block commits during early development.
 
