@@ -35,6 +35,20 @@ Already built:
   - `/health/database`
 - Six-hour rule violation automation.
 
+## Current Milestone
+
+Current phase: Phase 1, Developer Safety and Rule Monitoring.
+
+Goal:
+
+- Make the project rules visible at the start of each session.
+- Generate a clear rule violation report.
+- Decide which violations are warnings and which should block work.
+
+Next after that:
+
+- Phase 2, Core Data Model Draft.
+
 ## Phase 0: Roadmap and Scope Gate
 
 Build:
@@ -51,8 +65,8 @@ Test:
 
 Done when:
 
-- Version-one scope is approved enough to build against.
-- The next phase is obvious without needing to reread every idea card.
+- Version-one scope is approved enough to build against. Complete.
+- The next phase is obvious without needing to reread every idea card. Complete.
 
 ## Phase 1: Developer Safety and Rule Monitoring
 

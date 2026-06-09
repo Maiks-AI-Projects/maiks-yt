@@ -17,7 +17,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Confirm first version focuses on overlays, control panel, profiles/accounts, projects/milestones, links hub, and basic content.
 - [x] Write a version-one feature list.
 - [x] Write an explicit "not in version one" list.
-- [ ] Review and finalize version one scope draft.
+- [x] Review and finalize version one scope draft.
 - [x] Decide when to initialize git.
 - [x] Make the first git commit a planning baseline.
 - [x] Use direct small commits on `main` during early solo development.

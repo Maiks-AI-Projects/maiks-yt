@@ -1,6 +1,6 @@
-# Version One Scope Draft
+# Version One Working Scope
 
-This is a draft for discussion, not a final locked scope.
+This is the approved working scope for Version One. It can still change when testing proves something wrong, but changes should be intentional and reflected in the roadmap.
 
 ## Version One Goal
 
@@ -19,6 +19,8 @@ V1 should prove:
 
 ## Included in Version One
 
+V1 includes enough implementation to prove the core platform works. It does not mean every idea is complete, polished, or public-ready.
+
 ### Project Foundation
 
 - TypeScript monorepo
@@ -26,9 +28,12 @@ V1 should prove:
 - file naming and boundary rules
 - first architecture/rule checker
 - local development scripts
-- local production-like run scripts
+- dev server deployment through `codex-server-1`
 - localization structure with English first
 - minimal analytics/security logging boundaries
+- Drizzle + MariaDB database foundation
+- database migration workflow
+- API database health check
 
 ### Apps
 
@@ -48,6 +53,8 @@ V1 should prove:
 - basic profile page
 - basic linked-account/provider capability model
 - account deletion/anonymization design, even if not fully automated yet
+- roles and permissions foundation
+- scoped URL token gates for non-public surfaces
 
 ### Projects
 
@@ -93,6 +100,7 @@ Not allowed yet:
 - center notification zone
 - active project/goal progress widget
 - OBS scene-switch testing
+- V1 top notification design review from `A:\laravel-projects\maiks-yt`
 
 ### Control Panel
 
@@ -197,6 +205,8 @@ Implementation can be partial in version one if the architecture is ready and a 
 - realtime transport abstraction
 - early WebSocket/SSE cloudflared spike
 - no raw dev server exposure as normal public setup
+- Docker services on `br187` with fixed container IPs
+- V2 dev database separate from the old V1 database
 
 ## Explicitly Not in Version One
 
@@ -216,10 +226,11 @@ Implementation can be partial in version one if the architecture is ready and a 
 - mobile app
 - advanced analytics
 - production branch workflow
+- public production launch
 
 ## First Build Milestone
 
-The first meaningful build milestone should be:
+The original first build milestone was:
 
 - monorepo scaffold
 - website shell
@@ -233,6 +244,13 @@ The first meaningful build milestone should be:
 This proves the core loop:
 
 control panel -> typed event -> backend/realtime -> overlay render -> website/project state
+
+This milestone is partially complete. The remaining useful proof is now:
+
+- fake event simulator
+- one overlay notification shown from a control panel test button
+- one basic project with one milestone shown on website and overlay
+- initial realtime transport decision through a tunnel spike
 
 ## Done Enough To Test
 
@@ -254,13 +272,20 @@ Version one is ready for serious local testing when:
 - no real money is accepted
 - known limitations are documented
 
-## Decisions To Discuss Before Finalizing
+## Resolved V1 Decisions
 
-- Should action panel be part of `apps/web` in version one?
-- Should AI assistant implementation be fake/mock first, or connect to a real provider early?
-- Which OAuth provider comes first?
+- Action/admin pages start inside `apps/web` unless they clearly need a separate app later.
+- AI assistant starts with fake/test flows and provider-ready architecture before live public behavior.
+- Twitch/YouTube chat ingestion is not required for V1; fake/local chat comes first.
+- The first tunnel spike happens after the scaffold and dev deployment foundation.
+- Dev deploy starts as a manual script pulling the `dev` branch.
+- Control/admin pages require scoped URL token gates plus login for privileged surfaces.
+- Cloudflare Access remains optional and can be added later if token plus login is not enough.
+- The first real OAuth provider is still open, but the identity model should not depend on the provider choice.
+- The first game/hobby theme is still open and can be chosen when Phase 8 starts.
+
+## Open V1 Choices
+
+- Which OAuth provider should be implemented first?
 - Which first game/hobby theme should be built?
-- Should Twitch/YouTube chat ingestion be version one or version two?
-- Should the first tunnel spike happen before or after monorepo scaffold?
-- Should dev deploy trigger by webhook, scheduled pull, or manual command first?
-- Should control/admin pages require Cloudflare Access in addition to token plus login?
+- How much of the AI assistant should connect to a real provider during V1 after fake/test flows work?
