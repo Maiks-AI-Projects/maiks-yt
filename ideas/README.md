@@ -43,6 +43,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [User profiles and verified game names](./user-profiles-verified-game-names.md)
 - [Supporter profile recognition](./supporter-profile-recognition.md)
 - [Privacy, data retention, and account deletion](./privacy-data-retention-and-account-deletion.md)
+- [URL token access gates](./url-token-access-gates.md)
 
 ## Content and Channels
 

@@ -96,6 +96,7 @@ Not allowed yet:
 
 ### Control Panel
 
+- URL token access gate before control panel login
 - authenticated control panel
 - connected overlay state
 - test notification controls
@@ -192,6 +193,7 @@ Implementation can be partial in version one if the architecture is ready and a 
 - cloudflared deployment plan
 - dev server auto-build script after pushed commits
 - dev hostnames through cloudflared for realistic testing
+- URL token gates for non-public surfaces
 - realtime transport abstraction
 - early WebSocket/SSE cloudflared spike
 - no raw dev server exposure as normal public setup
@@ -246,6 +248,7 @@ Version one is ready for serious local testing when:
 - one project/milestone can be updated and displayed
 - one theme/layout can be switched
 - login/linking flow works with at least one provider or a local fake provider
+- non-public surfaces use scoped URL token gates
 - public pages are navigable
 - critical controls are low-distraction
 - no real money is accepted
@@ -260,3 +263,4 @@ Version one is ready for serious local testing when:
 - Should Twitch/YouTube chat ingestion be version one or version two?
 - Should the first tunnel spike happen before or after monorepo scaffold?
 - Should dev deploy trigger by webhook, scheduled pull, or manual command first?
+- Should control/admin pages require Cloudflare Access in addition to token plus login?

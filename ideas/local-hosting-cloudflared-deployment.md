@@ -24,6 +24,7 @@ Preferred:
 - use fixed ports only
 - use clear hostnames per surface
 - keep OBS/local-only surfaces private unless they need public access
+- protect non-public surfaces with scoped URL token gates, and require login after the token for privileged pages
 
 Example hostnames:
 
@@ -110,7 +111,7 @@ The app should depend on typed events and a transport abstraction, so switching 
 - Cloudflare edge updates can terminate WebSocket connections.
 - WebSockets need heartbeats to avoid idle timeouts.
 - Public traffic now reaches a local machine, so security must be serious.
-- Control panel should be protected strongly, ideally with login and possibly Cloudflare Access.
+- Control panel should be protected strongly with URL token gate, login, roles, and possibly Cloudflare Access.
 - Development servers should not expose source code or unsafe dev endpoints.
 - Vite HMR through a tunnel can be fragile.
 - OBS overlays should handle backend/realtime connection loss gracefully.
@@ -131,6 +132,7 @@ The app should depend on typed events and a transport abstraction, so switching 
 - startup health checks
 - local backup strategy
 - protected control panel access
+- URL token access gates for non-public surfaces
 - no raw dev server exposure for normal public use
 
 ## Example Port Plan
@@ -163,5 +165,6 @@ The exact ports can change, but they should be fixed and documented.
 - Should overlay/control panel be public hostnames or local-only for OBS/control devices?
 - Which realtime transport survives `cloudflared` and OBS best?
 - Should Cloudflare Access protect the control panel?
+- Which surfaces require token plus login, and which only need scoped overlay token?
 - Should cloudflared run as a Windows service?
 - Should all apps run behind one local reverse proxy instead of multiple tunnel ingress rules?

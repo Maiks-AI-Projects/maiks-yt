@@ -38,6 +38,7 @@ The control panel is also the place where automation and manual override meet.
 
 ## Build Requirements
 
+- URL token access gate before login
 - authenticated control page
 - real-time connection to overlays
 - overlay registration/heartbeat
@@ -68,6 +69,8 @@ Possible design approaches:
 
 Control actions should be typed commands. Overlay state should be a typed snapshot that the control panel and overlay renderer both understand.
 
+Access tokens should be typed by scope. A token that can load an OBS overlay should not be accepted as a control-panel token.
+
 ## Control Complexity Modes
 
 For this project, the default control panel should be low-distraction because high-energy operation is not a realistic personal target.
@@ -83,3 +86,4 @@ If this later becomes a product, the foundation can support multiple complexity 
 - Should moderators have access to a limited control panel?
 - What is the emergency clean mode: hide chat only, or hide chat, alerts, sponsors, and AI?
 - Which controls belong in the low-distraction default view?
+- Should the control panel always require both URL token and login?
