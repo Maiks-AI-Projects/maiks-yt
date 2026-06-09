@@ -6,7 +6,8 @@
   "exports": {
     ".": "./dist/index.js",
     "./identity": "./dist/identity/index.js",
-    "./projects": "./dist/projects/index.js"
+    "./projects": "./dist/projects/index.js",
+    "./value": "./dist/value/index.js"
   },
   "scripts": {
     "build": "tsc -b",

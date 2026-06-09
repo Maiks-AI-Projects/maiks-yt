@@ -53,14 +53,14 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Draft user/account model.
 - [x] Draft linked account/provider model.
 - [x] Draft roles and permissions model.
-- [ ] Draft project/item/milestone model.
+- [x] Draft project/item/milestone model.
 - [x] Draft project category model.
 - [x] Draft overlay event model.
-- [ ] Draft theme contract.
+- [x] Draft theme contract.
 - [x] Draft stream schedule/session model.
 - [x] Draft action panel item model.
 - [x] Draft event replay/session recording model.
-- [ ] Draft multi-currency/value-source model.
+- [x] Draft multi-currency/value-source model.
 
 ## 4. Identity and Privacy
 

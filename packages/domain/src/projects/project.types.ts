@@ -1,5 +1,6 @@
 import type { Milestone } from "./milestone.types.js";
 import type { ProjectCategory } from "./project-category.types.js";
+import type { ProjectItem } from "./project-item.types.js";
 
 export type ProjectType =
   | "one-time-purchase"
@@ -18,4 +19,5 @@ export type Project = {
   category: ProjectCategory;
   status: ProjectStatus;
   milestones: readonly Milestone[];
+  items: readonly ProjectItem[];
 };

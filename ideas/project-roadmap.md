@@ -37,17 +37,19 @@ Already built:
 
 ## Current Milestone
 
-Current phase: Phase 2, Core Data Model Draft.
+Current phase: Phase 3, Identity, Roles, and Privacy Foundation.
 
 Goal:
 
-- Draft the first real schema for identity, roles, projects, streams, overlays, actions, and replay sessions.
-- Keep the migration reviewable before applying it.
-- Add enough seed data to prove the next overlay/control-panel work.
+- Implement the first safe identity foundation.
+- Keep profiles private by default.
+- Support multiple linked accounts with explicit `Allow login` controls.
+- Prevent losing the last usable sign-in method.
+- Add scoped URL-token gates for private overlay/control/admin surfaces.
 
 Next after that:
 
-- Phase 3, Identity, Roles, and Privacy Foundation.
+- Phase 4, Stream Simulator and Event Replayer.
 
 ## Phase 0: Roadmap and Scope Gate
 
@@ -92,7 +94,7 @@ Done when:
 Build:
 
 - Draft schema files for users, linked accounts, roles, projects, milestones, overlay events, stream sessions, action items, and replay sessions.
-- Keep this as a draft migration until reviewed.
+- Add project items, external item links, value sources, and a CSS-first theme contract.
 - Add domain types/rules beside the schema where useful.
 - Add seed data for local/dev testing.
 

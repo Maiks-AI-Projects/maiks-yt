@@ -123,6 +123,70 @@ export const projectMilestones = mysqlTable(
   (table) => [index("project_milestones_project_id_idx").on(table.projectId)]
 );
 
+export const projectItems = mysqlTable(
+  "project_items",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    projectId: varchar("project_id", { length: 36 }).notNull(),
+    parentItemId: varchar("parent_item_id", { length: 36 }),
+    title: varchar("title", { length: 191 }).notNull(),
+    description: text("description"),
+    kind: mysqlEnum("kind", ["product", "service", "subscription", "task", "wishlist", "other"]).notNull(),
+    status: mysqlEnum("status", ["planned", "active", "acquired", "completed", "removed"]).notNull().default("planned"),
+    quantity: int("quantity").notNull().default(1),
+    estimatedMinorAmount: int("estimated_minor_amount"),
+    currencyCode: varchar("currency_code", { length: 3 }),
+    sortOrder: int("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("project_items_project_id_idx").on(table.projectId),
+    index("project_items_parent_item_id_idx").on(table.parentItemId),
+    index("project_items_status_idx").on(table.status)
+  ]
+);
+
+export const projectItemLinks = mysqlTable(
+  "project_item_links",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    projectItemId: varchar("project_item_id", { length: 36 }).notNull(),
+    provider: varchar("provider", { length: 80 }).notNull(),
+    url: varchar("url", { length: 1024 }).notNull(),
+    label: varchar("label", { length: 191 }).notNull(),
+    relationship: mysqlEnum("relationship", ["store-product", "wishlist-entry", "reference", "receipt"]).notNull(),
+    lastSeenMinorAmount: int("last_seen_minor_amount"),
+    currencyCode: varchar("currency_code", { length: 3 }),
+    checkedAt: timestamp("checked_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("project_item_links_project_item_id_idx").on(table.projectItemId),
+    index("project_item_links_provider_idx").on(table.provider)
+  ]
+);
+
+export const valueSources = mysqlTable(
+  "value_sources",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    key: varchar("key", { length: 80 }).notNull().unique(),
+    label: varchar("label", { length: 191 }).notNull(),
+    provider: varchar("provider", { length: 80 }).notNull(),
+    sourceType: mysqlEnum("source_type", ["direct", "platform", "manual", "affiliate", "sponsor", "internal"]).notNull(),
+    valueKind: mysqlEnum("value_kind", ["money", "restricted-credit", "non-monetary"]).notNull(),
+    currencyCode: varchar("currency_code", { length: 3 }),
+    payoutEligible: boolean("payout_eligible").notNull().default(false),
+    enabled: boolean("enabled").notNull().default(true),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [index("value_sources_provider_idx").on(table.provider), index("value_sources_source_type_idx").on(table.sourceType)]
+);
+
 export const streamSessions = mysqlTable(
   "stream_sessions",
   {

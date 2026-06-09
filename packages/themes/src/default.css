@@ -1,5 +1,12 @@
 :root {
   --maiks-bg: #101418;
   --maiks-fg: #f4f7fb;
+  --maiks-muted: #9fb0bd;
+  --maiks-panel: #182027;
   --maiks-accent: #23c483;
+  --maiks-danger: #f05d5e;
+  --maiks-warning: #f2b84b;
+  --maiks-success: #23c483;
+  --maiks-notification-bg: rgba(16, 20, 24, 0.92);
+  --maiks-notification-fg: #f4f7fb;
 }
