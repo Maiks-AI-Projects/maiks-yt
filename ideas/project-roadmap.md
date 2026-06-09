@@ -37,17 +37,17 @@ Already built:
 
 ## Current Milestone
 
-Current phase: Phase 1, Developer Safety and Rule Monitoring.
+Current phase: Phase 2, Core Data Model Draft.
 
 Goal:
 
-- Make the project rules visible at the start of each session.
-- Generate a clear rule violation report.
-- Decide which violations are warnings and which should block work.
+- Draft the first real schema for identity, roles, projects, streams, overlays, actions, and replay sessions.
+- Keep the migration reviewable before applying it.
+- Add enough seed data to prove the next overlay/control-panel work.
 
 Next after that:
 
-- Phase 2, Core Data Model Draft.
+- Phase 3, Identity, Roles, and Privacy Foundation.
 
 ## Phase 0: Roadmap and Scope Gate
 
