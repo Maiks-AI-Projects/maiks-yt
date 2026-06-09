@@ -18,9 +18,9 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Write a version-one feature list.
 - [x] Write an explicit "not in version one" list.
 - [ ] Review and finalize version one scope draft.
-- [ ] Decide when to initialize git.
-- [ ] Make the first git commit a planning baseline.
-- [ ] Use direct small commits on `main` during early solo development.
+- [x] Decide when to initialize git.
+- [x] Make the first git commit a planning baseline.
+- [x] Use direct small commits on `main` during early solo development.
 - [ ] Start using branches once live, in serious testing, or making risky/long-running changes.
 
 ## 2. Technical Foundation
@@ -35,6 +35,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Decide how real-time overlay state will work.
 - [ ] Decide local production hosting shape for `cloudflared`.
 - [ ] Decide dev server auto-build/deploy workflow after pushed commits.
+- [ ] Use `dev` branch as the dev-server auto-deploy target.
 - [ ] Define fixed local port plan.
 - [ ] Decide whether to use separate hostnames or one local reverse proxy.
 - [ ] Create a realtime transport abstraction before choosing WebSocket or SSE.

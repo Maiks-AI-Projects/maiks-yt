@@ -41,15 +41,18 @@ Suggested workflow:
 1. Work locally in this repository.
 2. Commit small changes to `main`.
 3. Push to the remote repository.
-4. Dev server receives the push signal or runs a pull/build script.
-5. Dev server installs dependencies if needed.
-6. Dev server builds the apps.
-7. Dev server restarts the services.
-8. `cloudflared` exposes the dev services for realistic testing.
+4. Update/push `dev` when a commit should auto-deploy to the dev server.
+5. Dev server receives the `dev` push signal or runs a pull/build script.
+6. Dev server installs dependencies if needed.
+7. Dev server builds the apps.
+8. Dev server restarts the services.
+9. `cloudflared` exposes the dev services for realistic testing.
 
 This gives a repeatable test environment that behaves more like the eventual hosted setup than raw local development.
 
 The dev server script should keep logs and fail safely. A failed build should not replace the last working dev deployment.
+
+Use the `dev` branch as the dev-server auto-deploy target. Early solo work can still use small direct commits on `main`; `dev` exists specifically so deployment can be controlled without inventing a full branch workflow too early.
 
 ## Cloudflared Routing Notes
 
