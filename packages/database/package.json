@@ -10,6 +10,7 @@
     "build": "tsc -b",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:seed": "pnpm build && node dist/seed-dev.service.js",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -b --pretty false"
   },

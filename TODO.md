@@ -50,16 +50,16 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 3. Core Data Model Draft
 
-- [ ] Draft user/account model.
-- [ ] Draft linked account/provider model.
-- [ ] Draft roles and permissions model.
+- [x] Draft user/account model.
+- [x] Draft linked account/provider model.
+- [x] Draft roles and permissions model.
 - [ ] Draft project/item/milestone model.
-- [ ] Draft project category model.
-- [ ] Draft overlay event model.
+- [x] Draft project category model.
+- [x] Draft overlay event model.
 - [ ] Draft theme contract.
-- [ ] Draft stream schedule/session model.
-- [ ] Draft action panel item model.
-- [ ] Draft event replay/session recording model.
+- [x] Draft stream schedule/session model.
+- [x] Draft action panel item model.
+- [x] Draft event replay/session recording model.
 - [ ] Draft multi-currency/value-source model.
 
 ## 4. Identity and Privacy
