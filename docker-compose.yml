@@ -1,0 +1,30 @@
+services:
+  maiks-yt-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host
+    container_name: maiks-yt-dev
+    restart: unless-stopped
+    networks:
+      br187:
+        ipv4_address: 192.168.187.21
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - TURBO_TELEMETRY_DISABLED=1
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - maiks_yt_dev_node_modules:/app/node_modules
+      - maiks_yt_dev_pnpm_store:/pnpm/store
+    command: sh -lc "pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile && pnpm dev"
+
+networks:
+  br187:
+    external: true
+
+volumes:
+  maiks_yt_dev_node_modules:
+  maiks_yt_dev_pnpm_store:

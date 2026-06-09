@@ -1,0 +1,17 @@
+.git
+.turbo
+node_modules
+**/node_modules
+
+.next
+**/.next
+dist
+**/dist
+dist-types
+**/dist-types
+coverage
+reports
+
+*.log
+tsconfig.tsbuildinfo
+**/tsconfig.tsbuildinfo

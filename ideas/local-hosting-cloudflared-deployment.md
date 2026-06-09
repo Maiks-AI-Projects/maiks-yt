@@ -21,6 +21,7 @@ Preferred:
 - have the dev server automatically pull/build/restart after pushes
 - run local production builds
 - expose stable local ports through `cloudflared`
+- put Docker services on the server's shared `br187` network with their own `192.168.187.0/24` IP addresses
 - use fixed ports only
 - use clear hostnames per surface
 - keep OBS/local-only surfaces private unless they need public access
@@ -60,6 +61,8 @@ Use the `dev` branch as the dev-server auto-deploy target. Early solo work can s
 Cloudflare Tunnel maps public hostnames to local services, such as `https://example.com` to `http://localhost:8080`.
 
 Multiple public hostnames can point to different local services through one tunnel using ingress rules.
+
+On `codex-server-1`, Docker services should use the external `br187` network and a fixed container IP. For the dev stack, route tunnel ingress to `192.168.187.21` rather than relying on host `127.0.0.1` port publishing.
 
 Every tunnel config should have a final catch-all rule, usually `http_status:404`.
 
@@ -144,6 +147,10 @@ The app should depend on typed events and a transport abstraction, so switching 
 - `3306` local MySQL, not exposed through public tunnel
 
 The exact ports can change, but they should be fixed and documented.
+
+Dev container IP:
+
+- `192.168.187.21` for `maiks-yt-dev`
 
 ## Dev Server Script Requirements
 
