@@ -14,6 +14,7 @@ const defaultTrustedOrigins = [
 
 export const configuredAuthProviderIds = [
   process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? "github" : undefined,
+  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? "google" : undefined,
   process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET ? "discord" : undefined,
   process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET ? "twitch" : undefined
 ].filter((providerId): providerId is string => Boolean(providerId));
@@ -40,6 +41,14 @@ const createSocialProviders = () => ({
       discord: {
         clientId: process.env.DISCORD_CLIENT_ID,
         clientSecret: process.env.DISCORD_CLIENT_SECRET
+      }
+    }
+    : {}),
+  ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ? {
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET
       }
     }
     : {}),
@@ -80,7 +89,7 @@ export const auth = betterAuth({
     modelName: "authAccounts",
     accountLinking: {
       enabled: true,
-      trustedProviders: ["github", "discord", "twitch"],
+      trustedProviders: ["github", "google", "discord", "twitch"],
       allowDifferentEmails: false
     }
   },
