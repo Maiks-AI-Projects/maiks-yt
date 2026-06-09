@@ -27,6 +27,89 @@ export const users = mysqlTable("users", {
   updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
 });
 
+export const authUsers = mysqlTable(
+  "auth_users",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    name: varchar("name", { length: 191 }).notNull(),
+    email: varchar("email", { length: 191 }).notNull(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: varchar("image", { length: 1024 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [uniqueIndex("auth_users_email_uidx").on(table.email)]
+);
+
+export const authSessions = mysqlTable(
+  "auth_sessions",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    token: varchar("token", { length: 191 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    ipAddress: varchar("ip_address", { length: 191 }),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("auth_sessions_token_uidx").on(table.token),
+    index("auth_sessions_user_id_idx").on(table.userId),
+    index("auth_sessions_expires_at_idx").on(table.expiresAt)
+  ]
+);
+
+export const authAccounts = mysqlTable(
+  "auth_accounts",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    accountId: varchar("account_id", { length: 191 }).notNull(),
+    providerId: varchar("provider_id", { length: 80 }).notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    scope: text("scope"),
+    idToken: text("id_token"),
+    password: text("password"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("auth_accounts_user_id_idx").on(table.userId),
+    uniqueIndex("auth_accounts_provider_account_uidx").on(table.providerId, table.accountId)
+  ]
+);
+
+export const authVerifications = mysqlTable(
+  "auth_verifications",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    identifier: varchar("identifier", { length: 191 }).notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [index("auth_verifications_identifier_idx").on(table.identifier)]
+);
+
+export const authUserLinks = mysqlTable(
+  "auth_user_links",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    authUserId: varchar("auth_user_id", { length: 36 }).notNull(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (table) => [
+    uniqueIndex("auth_user_links_auth_user_id_uidx").on(table.authUserId),
+    uniqueIndex("auth_user_links_user_id_uidx").on(table.userId)
+  ]
+);
+
 export const linkedAccounts = mysqlTable(
   "linked_accounts",
   {

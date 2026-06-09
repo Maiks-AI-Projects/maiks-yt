@@ -152,12 +152,16 @@ Overlay themes should remain CSS-driven. Tailwind can still be useful for admin/
 
 ## Auth
 
-Open decision:
+Current direction:
 
-- evaluate Auth.js for OAuth sign-in
+- spike Better Auth for OAuth sign-in and sessions
+- keep Better Auth tables separate with an `auth_` prefix
 - keep our own domain model for linked accounts, provider capabilities, `Allow login`, deletion, and account claiming
+- bridge auth users to domain users through `auth_user_links`
 
 Auth tooling can help with OAuth, but it should not define the whole identity model.
+
+See `ideas/auth-provider-decision.md` for the detailed decision notes.
 
 ## Testing
 
@@ -200,6 +204,7 @@ Later, if jobs become complex, add a queue system.
 - Zod docs
 - Fastify TypeScript docs
 - Auth.js docs
+- Better Auth docs
 - Playwright TypeScript docs
 - Vitest docs
 - pnpm docs

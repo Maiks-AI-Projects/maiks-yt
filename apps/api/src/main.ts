@@ -4,8 +4,12 @@ import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
 import type { RealtimeEvent } from "@maiks-yt/events";
+import fastifyCors from "@fastify/cors";
+import { fromNodeHeaders } from "better-auth/node";
 import Fastify from "fastify";
 import { z } from "zod";
+
+import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
 
 const config = createRuntimeConfig({
   environment: "development",
@@ -15,6 +19,13 @@ const config = createRuntimeConfig({
 
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
+
+await server.register(fastifyCors, {
+  origin: getTrustedOrigins(),
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
+});
 
 const urlAccessTokenRequestSchema = z.object({
   token: z.string().min(24),
@@ -141,6 +152,47 @@ server.get("/identity/dev/creator", async (_request, reply) => {
       ok: false,
       reason: "identity_unavailable"
     };
+  }
+});
+
+server.get("/auth/dev/status", async () => ({
+  ok: true,
+  authProvider: "better-auth",
+  configuredProviders: configuredAuthProviderIds,
+  domainIdentityModel: "maiks-linked-accounts"
+}));
+
+server.route({
+  method: ["GET", "POST"],
+  url: "/api/auth/*",
+  async handler(request, reply) {
+    try {
+      const forwardedProto = request.headers["x-forwarded-proto"];
+      const protocol = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+      const requestUrl = new URL(request.url, `${protocol ?? "http"}://${request.headers.host}`);
+      const body = request.method === "GET" || request.method === "HEAD"
+        ? undefined
+        : JSON.stringify(request.body ?? {});
+      const authRequest = new Request(requestUrl.toString(), {
+        method: request.method,
+        headers: fromNodeHeaders(request.headers),
+        ...(body ? { body } : {})
+      });
+      const authResponse = await auth.handler(authRequest);
+
+      reply.status(authResponse.status);
+      authResponse.headers.forEach((value, key) => reply.header(key, value));
+
+      return reply.send(authResponse.body ? await authResponse.text() : null);
+    } catch (error) {
+      server.log.error({ err: error }, "Authentication route failed.");
+      reply.code(500);
+
+      return {
+        ok: false,
+        reason: "auth_route_failed"
+      };
+    }
   }
 });
 

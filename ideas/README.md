@@ -37,6 +37,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 
 ## Identity and Privacy
 
+- [Auth provider decision](./auth-provider-decision.md)
 - [OAuth multi-account identity](./oauth-multi-account-identity.md)
 - [External platform account linking and perks](./external-platform-account-linking-and-perks.md)
 - [Gaming platform account linking](./gaming-platform-account-linking.md)
