@@ -58,6 +58,15 @@ The dev server script should keep logs and fail safely. A failed build should no
 
 Use the `dev` branch as the dev-server auto-deploy target. Early solo work can still use small direct commits on `main`; `dev` exists specifically so deployment can be controlled without inventing a full branch workflow too early.
 
+Current dev deployment:
+
+- local work is committed on `main`
+- `main` is pushed to GitHub
+- `main` is mirrored to `dev` when it should deploy
+- `/var/projects/maiks-yt-dev/scripts/deploy-dev.sh` pulls `origin/dev`
+- Docker Compose rebuilds and force-recreates the `maiks-yt-dev` container
+- `.env` remains local to the server and is not tracked by git
+
 ## Cloudflared Routing Notes
 
 Cloudflare Tunnel maps public hostnames to local services, such as `https://example.com` to `http://localhost:8080`.
@@ -153,6 +162,15 @@ The exact ports can change, but they should be fixed and documented.
 Dev container IP:
 
 - `192.168.187.21` for `maiks-yt-dev`
+
+Current public dev hostnames:
+
+- `web-dev.maiks.yt` -> `http://192.168.187.21:3000`
+- `api-dev.maiks.yt` -> `http://192.168.187.21:3001`
+- `overlay-dev.maiks.yt` -> `http://192.168.187.21:3002`
+- `control-dev.maiks.yt` -> `http://192.168.187.21:3003`
+
+These are configured in the `Maiks.yt` Cloudflare Tunnel and proxied DNS records point to the tunnel CNAME.
 
 ## Dev Server Script Requirements
 

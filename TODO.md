@@ -34,10 +34,10 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Decide whether overlay/control panel use Vite + React.
 - [ ] Decide how real-time overlay state will work.
 - [ ] Decide local production hosting shape for `cloudflared`.
-- [ ] Decide dev server auto-build/deploy workflow after pushed commits.
-- [ ] Use `dev` branch as the dev-server auto-deploy target.
-- [ ] Define fixed local port plan.
-- [ ] Decide whether to use separate hostnames or one local reverse proxy.
+- [x] Decide dev server auto-build/deploy workflow after pushed commits.
+- [x] Use `dev` branch as the dev-server auto-deploy target.
+- [x] Define fixed local port plan.
+- [x] Decide whether to use separate hostnames or one local reverse proxy.
 - [ ] Create a realtime transport abstraction before choosing WebSocket or SSE.
 - [ ] Run an early `cloudflared` tunnel spike for WebSocket and SSE.
 - [ ] Decide local development strategy for fake events.
