@@ -13,6 +13,7 @@
   "dependencies": {
     "@maiks-yt/config": "workspace:*",
     "@maiks-yt/database": "workspace:*",
+    "@maiks-yt/domain": "workspace:*",
     "@maiks-yt/events": "workspace:*",
     "fastify": "5.8.5",
     "zod": "4.4.3"

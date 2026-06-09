@@ -70,6 +70,28 @@ export const userRoles = mysqlTable(
   ]
 );
 
+export const urlAccessTokens = mysqlTable(
+  "url_access_tokens",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    label: varchar("label", { length: 191 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    surface: mysqlEnum("surface", ["overlay", "control-panel", "admin", "api"]).notNull(),
+    scopes: json("scopes").$type<string[]>().notNull(),
+    requiresLogin: boolean("requires_login").notNull().default(true),
+    expiresAt: timestamp("expires_at"),
+    revokedAt: timestamp("revoked_at"),
+    lastUsedAt: timestamp("last_used_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("url_access_tokens_surface_idx").on(table.surface),
+    index("url_access_tokens_expires_at_idx").on(table.expiresAt),
+    index("url_access_tokens_revoked_at_idx").on(table.revokedAt)
+  ]
+);
+
 export const projects = mysqlTable(
   "projects",
   {

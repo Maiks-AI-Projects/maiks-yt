@@ -26,6 +26,9 @@ importers:
       '@maiks-yt/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@maiks-yt/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@maiks-yt/events':
         specifier: workspace:*
         version: link:../../packages/events

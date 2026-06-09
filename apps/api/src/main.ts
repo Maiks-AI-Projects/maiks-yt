@@ -1,7 +1,11 @@
+import { createHash } from "node:crypto";
+
 import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
+import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
 import type { RealtimeEvent } from "@maiks-yt/events";
 import Fastify from "fastify";
+import { z } from "zod";
 
 const config = createRuntimeConfig({
   environment: "development",
@@ -11,6 +15,14 @@ const config = createRuntimeConfig({
 
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
+
+const urlAccessTokenRequestSchema = z.object({
+  token: z.string().min(24),
+  surface: z.enum(["overlay", "control-panel", "admin", "api"]),
+  scope: z.string().min(1)
+});
+
+const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
 
 const parseJsonArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -128,6 +140,81 @@ server.get("/identity/dev/creator", async (_request, reply) => {
     return {
       ok: false,
       reason: "identity_unavailable"
+    };
+  }
+});
+
+server.post("/access/url-token/validate", async (request, reply) => {
+  const parsedRequest = urlAccessTokenRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      valid: false,
+      reason: "invalid_request"
+    };
+  }
+
+  try {
+    const pool = getDatabasePool();
+    const tokenHash = hashToken(parsedRequest.data.token);
+    const [tokenRows] = await pool.execute(
+      "SELECT id, surface, scopes, requires_login AS requiresLogin, expires_at AS expiresAt, revoked_at AS revokedAt FROM url_access_tokens WHERE token_hash = ? LIMIT 1",
+      [tokenHash]
+    );
+    const row = Array.isArray(tokenRows)
+      ? tokenRows[0] as {
+        id: string;
+        surface: UrlAccessSurface;
+        scopes: unknown;
+        requiresLogin: number | boolean;
+        expiresAt?: Date | null;
+        revokedAt?: Date | null;
+      } | undefined
+      : undefined;
+
+    if (!row) {
+      return {
+        ok: true,
+        valid: false,
+        reason: "token_not_found"
+      };
+    }
+
+    const tokenRecord = {
+      id: row.id,
+      surface: row.surface,
+      scopes: parseJsonArray(row.scopes).filter((scope): scope is string => typeof scope === "string"),
+      requiresLogin: Boolean(row.requiresLogin)
+    };
+    const valid = canUseUrlAccessToken({
+      ...tokenRecord,
+      ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
+      ...(row.revokedAt ? { revokedAt: row.revokedAt } : {})
+    }, {
+      surface: parsedRequest.data.surface,
+      scope: parsedRequest.data.scope,
+      now: new Date()
+    });
+
+    if (valid) {
+      await pool.execute("UPDATE url_access_tokens SET last_used_at = NOW() WHERE id = ?", [row.id]);
+    }
+
+    return {
+      ok: true,
+      valid,
+      requiresLogin: Boolean(row.requiresLogin)
+    };
+  } catch (error) {
+    server.log.warn({ err: error }, "URL access token validation failed.");
+    reply.code(503);
+
+    return {
+      ok: false,
+      valid: false,
+      reason: "token_validation_unavailable"
     };
   }
 });

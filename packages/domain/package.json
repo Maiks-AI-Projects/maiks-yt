@@ -7,6 +7,7 @@
     ".": "./dist/index.js",
     "./identity": "./dist/identity/index.js",
     "./projects": "./dist/projects/index.js",
+    "./security": "./dist/security/index.js",
     "./value": "./dist/value/index.js"
   },
   "scripts": {
