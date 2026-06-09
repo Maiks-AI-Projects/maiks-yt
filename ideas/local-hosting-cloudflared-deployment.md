@@ -29,12 +29,14 @@ Preferred:
 
 Example hostnames:
 
-- `dev.maiks.yt` -> dev web app
-- `api.dev.maiks.yt` -> dev API/realtime backend
-- `overlay.dev.maiks.yt` -> dev overlay app if needed
-- `control.dev.maiks.yt` -> dev control panel, protected
+- `web-dev.maiks.yt` -> dev web app
+- `api-dev.maiks.yt` -> dev API/realtime backend
+- `overlay-dev.maiks.yt` -> dev overlay app if needed
+- `control-dev.maiks.yt` -> dev control panel, protected
 
 Production hostnames can come later when the site is ready for real use.
+
+Use hyphenated dev hostnames instead of nested `*.dev.maiks.yt` names, because the nested shape has caused routing/certificate trouble before.
 
 ## Dev Server Auto-build Flow
 
