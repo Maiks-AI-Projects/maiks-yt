@@ -170,6 +170,7 @@ server.route({
       const forwardedProto = request.headers["x-forwarded-proto"];
       const protocol = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
       const requestUrl = new URL(request.url, `${protocol ?? "http"}://${request.headers.host}`);
+      requestUrl.pathname = requestUrl.pathname.replace(/^\/auth(?=\/|$)/, "") || "/";
       const body = request.method === "GET" || request.method === "HEAD"
         ? undefined
         : JSON.stringify(request.body ?? {});
