@@ -7,6 +7,7 @@ import {
   actionItems,
   eventReplayEvents,
   eventReplaySessions,
+  linkedAccounts,
   overlayStates,
   projectItemLinks,
   projectItems,
@@ -14,6 +15,7 @@ import {
   projects,
   roles,
   streamSessions,
+  userRoles,
   users,
   valueSources
 } from "./database.schema.js";
@@ -22,7 +24,9 @@ const pool = createDatabasePool();
 const database = createDatabase(pool);
 
 const creatorUserId = "00000000-0000-4000-8000-000000000001";
+const creatorLinkedAccountId = "00000000-0000-4000-8000-000000000002";
 const ownerRoleId = "00000000-0000-4000-8000-000000000010";
+const ownerUserRoleId = "00000000-0000-4000-8000-000000000011";
 const projectId = "00000000-0000-4000-8000-000000000020";
 const milestoneId = "00000000-0000-4000-8000-000000000021";
 const projectItemId = "00000000-0000-4000-8000-000000000022";
@@ -42,6 +46,23 @@ await database.insert(users).values({
   }
 });
 
+await database.insert(linkedAccounts).values({
+  id: creatorLinkedAccountId,
+  userId: creatorUserId,
+  provider: "dev",
+  providerAccountId: "maiks-dev",
+  displayName: "Maiks",
+  allowLogin: true,
+  capabilities: ["login", "profile-avatar", "ign-verification"],
+  verifiedAt: new Date()
+}).onDuplicateKeyUpdate({
+  set: {
+    displayName: "Maiks",
+    allowLogin: true,
+    capabilities: ["login", "profile-avatar", "ign-verification"]
+  }
+});
+
 await database.insert(roles).values({
   id: ownerRoleId,
   key: "owner",
@@ -51,6 +72,17 @@ await database.insert(roles).values({
   set: {
     name: "Owner",
     permissions: ["*"]
+  }
+});
+
+await database.insert(userRoles).values({
+  id: ownerUserRoleId,
+  userId: creatorUserId,
+  roleId: ownerRoleId
+}).onDuplicateKeyUpdate({
+  set: {
+    userId: creatorUserId,
+    roleId: ownerRoleId
   }
 });
 

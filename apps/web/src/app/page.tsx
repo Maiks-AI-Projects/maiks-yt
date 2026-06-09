@@ -6,6 +6,7 @@ const starterProject: Project = {
   type: "stream-work-project",
   category: "software-project",
   status: "active",
+  items: [],
   milestones: [
     {
       id: "foundation",
