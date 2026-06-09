@@ -12,6 +12,23 @@ const config = createRuntimeConfig({
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
 
+const parseJsonArray = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 const getDatabasePool = (): DatabasePool => {
   databasePool ??= createDatabasePool();
   return databasePool;
@@ -68,7 +85,7 @@ server.get("/identity/dev/creator", async (_request, reply) => {
     }
 
     const [linkedAccountRows] = await pool.execute(
-      "SELECT provider, display_name AS displayName, allow_login AS allowLogin, capabilities FROM linked_accounts WHERE user_id = ? ORDER BY provider",
+      "SELECT id, provider, display_name AS displayName, allow_login AS allowLogin, capabilities FROM linked_accounts WHERE user_id = ? ORDER BY provider",
       [creatorUserId]
     );
     const [roleRows] = await pool.execute(
@@ -79,8 +96,30 @@ server.get("/identity/dev/creator", async (_request, reply) => {
     return {
       ok: true,
       user,
-      linkedAccounts: Array.isArray(linkedAccountRows) ? linkedAccountRows : [],
-      roles: Array.isArray(roleRows) ? roleRows : []
+      linkedAccounts: Array.isArray(linkedAccountRows)
+        ? linkedAccountRows.map((account) => {
+          const typedAccount = account as { id: string; provider: string; displayName: string; allowLogin: number | boolean; capabilities: unknown };
+
+          return {
+            id: typedAccount.id,
+            provider: typedAccount.provider,
+            displayName: typedAccount.displayName,
+            allowLogin: Boolean(typedAccount.allowLogin),
+            capabilities: parseJsonArray(typedAccount.capabilities)
+          };
+        })
+        : [],
+      roles: Array.isArray(roleRows)
+        ? roleRows.map((role) => {
+          const typedRole = role as { key: string; name: string; permissions: unknown };
+
+          return {
+            key: typedRole.key,
+            name: typedRole.name,
+            permissions: parseJsonArray(typedRole.permissions)
+          };
+        })
+        : []
     };
   } catch (error) {
     server.log.warn({ err: error }, "Dev identity snapshot failed.");
