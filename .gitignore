@@ -4,9 +4,11 @@ node_modules/
 # Build outputs
 .next/
 .turbo/
+dist-types/
 dist/
 build/
 coverage/
+tsconfig.tsbuildinfo
 
 # Environment files
 .env
