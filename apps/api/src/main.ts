@@ -36,7 +36,7 @@ server.get("/health/database", async (_request, reply) => {
       database: firstRow?.databaseName ?? null
     };
   } catch (error) {
-    server.log.warn({ error }, "Database health check failed.");
+    server.log.warn({ err: error }, "Database health check failed.");
     reply.code(503);
 
     return {
