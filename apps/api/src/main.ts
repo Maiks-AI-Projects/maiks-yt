@@ -164,7 +164,7 @@ server.get("/auth/dev/status", async () => ({
 
 server.route({
   method: ["GET", "POST"],
-  url: "/api/auth/*",
+  url: "/auth/*",
   async handler(request, reply) {
     try {
       const forwardedProto = request.headers["x-forwarded-proto"];
