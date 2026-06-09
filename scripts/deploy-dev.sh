@@ -23,7 +23,7 @@ echo "==> Building dev image"
 docker compose build maiks-yt-dev
 
 echo "==> Starting dev service"
-docker compose up -d maiks-yt-dev
+docker compose up -d --force-recreate maiks-yt-dev
 
 echo "==> Current status"
 docker compose ps
