@@ -71,13 +71,20 @@ Suggested workflow:
 
 ## Build Requirements
 
-- rule-check script
-- violation report file
+- rule-check script: `pnpm check:architecture`
+- start-of-session script: `pnpm review:start`
+- violation report file: `reports/rule-violations.md`
 - optional HTML/Markdown report
 - checklist integration
 - CI/pre-commit option later
 - clear severity levels
 - ability to mark intentional exceptions
+
+Initial severity policy:
+
+- blocking: architecture boundaries, unsafe tracked files, generated files committed to git, or file/folder structure that makes the project harder to navigate
+- warning: documentation/planning drift that should be reviewed soon
+- note: informational findings that should not block work
 
 ## Suggested Report Location
 
@@ -94,7 +101,6 @@ Rules can be represented as typed checks with stable IDs. Each violation should 
 ## Open Questions
 
 - Should checks run manually, scheduled, or both?
-- Should violations block commits, or only warn during early development?
 - Which rules should be enforced first?
 - Should the report be committed to git or kept local?
 - Should ignored/deferred violations expire and come back later?

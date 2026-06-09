@@ -45,8 +45,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Add localization structure from the start.
 - [ ] Add minimal analytics/security logging boundaries.
 - [x] Add initial architecture/file-boundary rule checker.
-- [ ] Add rule violation report workflow for next-session review.
-- [ ] Decide whether rule violations warn or block commits during early development.
+- [x] Add rule violation report workflow for next-session review.
+- [x] Decide whether rule violations warn or block commits during early development.
 
 ## 3. Core Data Model Draft
 
