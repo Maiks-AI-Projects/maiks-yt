@@ -11,4 +11,54 @@ a {
 
 main {
   padding: 2rem;
+  max-width: 48rem;
+}
+
+section {
+  margin-block: 2rem;
+}
+
+.auth-panel {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.25rem;
+}
+
+.auth-panel h2 {
+  margin-block: 0 0.5rem;
+}
+
+.auth-panel p {
+  color: #4b5966;
+  margin: 0;
+}
+
+.auth-actions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+button {
+  background: #141920;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.secondary-action {
+  background: #e5ebf1;
+  color: #141920;
 }
