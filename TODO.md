@@ -40,10 +40,13 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Decide whether to use separate hostnames or one local reverse proxy.
 - [ ] Create a realtime transport abstraction before choosing WebSocket or SSE.
 - [ ] Run an early `cloudflared` tunnel spike for WebSocket and SSE.
-- [ ] Investigate suspicious script injection on public Cloudflare dev routes.
+- [x] Investigate suspicious script injection on public Cloudflare dev routes.
   - Public `https://web-dev.maiks.yt/...` responses included an unexpected script referencing `bsc-testnet-rpc.publicnode.com` and `eval`.
   - The script was not found in the repo or app worktree and did not appear when fetching the Next app directly from inside the app container.
-  - Treat this as security-relevant before trusting public dev URLs.
+  - Found Cloudflare Worker route `*maiks.yt/*` pointing at `worker-damp-waterfall-45e4`.
+  - Worker content matched the injector pattern and inserted a BSC-testnet-loaded script into HTML responses.
+  - Removed the Worker route and deleted the Worker. Public dev pages verified clean afterward.
+  - Follow up: rotate Cloudflare credentials/tokens and review Cloudflare account audit/activity logs.
 - [ ] Decide local development strategy for fake events.
 - [ ] Decide stream simulator/event replayer shape.
 - [ ] Add localization structure from the start.
