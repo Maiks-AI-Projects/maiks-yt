@@ -1,6 +1,6 @@
 import type { Project } from "@maiks-yt/domain";
 
-import OAuthLoginPanel from "./oauth-login-panel.js";
+import OAuthLoginPanel from "./oauth-login-panel";
 
 const starterProject: Project = {
   id: "maiks-yt-v2",
