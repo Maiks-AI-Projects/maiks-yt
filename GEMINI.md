@@ -13,6 +13,7 @@ Do not work directly on `main` or `dev`.
 ## Allowed Changes
 
 - Markdown drafts in `ideas/`.
+- Layout experiments in `apps/web/src/app/gemini-lab/`.
 - Theme briefs and CSS token proposals.
 - Landing page copy drafts.
 - Overlay style notes.
@@ -25,7 +26,7 @@ Do not work directly on `main` or `dev`.
 
 Do not edit:
 
-- `apps/`
+- `apps/`, except `apps/web/src/app/gemini-lab/`
 - `packages/`
 - `scripts/`
 - `docker-compose.yml`
