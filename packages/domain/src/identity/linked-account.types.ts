@@ -10,6 +10,9 @@ export type LinkedAccount = {
   provider: string;
   providerAccountId: string;
   displayName: string;
+  purposeLabel?: string;
+  audienceKey?: string;
+  channelKey?: string;
   capabilities: readonly ProviderCapability[];
   allowLogin: boolean;
 };

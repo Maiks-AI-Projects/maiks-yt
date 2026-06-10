@@ -6,6 +6,8 @@ Make signup and login as painless as possible by using OAuth for most identity f
 
 Users can link multiple external accounts from multiple platforms and sign in with whichever one is convenient.
 
+Users can also link multiple accounts from the same provider. For example, one person may have separate Twitch or YouTube accounts for Satisfactory, Minecraft, coding, or personal channels.
+
 Each linked account can have an `Allow login` toggle. This lets a user link an account for perks, identity, profile display, or verification without necessarily allowing that account to be used as a sign-in method.
 
 Possible providers:
@@ -31,6 +33,8 @@ Multiple linked accounts also make the account system more resilient. A user is 
 - linked OAuth providers
 - provider account IDs
 - provider display names
+- optional purpose labels, such as "Satisfactory channel" or "Minecraft channel"
+- optional audience/channel keys for routing notifications and perks
 - provider avatar URLs
 - provider email if available
 - login history
@@ -44,6 +48,8 @@ Multiple linked accounts also make the account system more resilient. A user is 
 
 - OAuth login
 - multiple provider linking
+- multiple accounts from the same provider
+- account purpose labels and channel/audience routing
 - provider unlinking
 - login with any linked provider
 - per-linked-account `Allow login` toggle

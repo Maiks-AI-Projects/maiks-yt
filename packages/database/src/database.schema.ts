@@ -118,6 +118,9 @@ export const linkedAccounts = mysqlTable(
     provider: varchar("provider", { length: 80 }).notNull(),
     providerAccountId: varchar("provider_account_id", { length: 191 }).notNull(),
     displayName: varchar("display_name", { length: 191 }).notNull(),
+    purposeLabel: varchar("purpose_label", { length: 191 }),
+    audienceKey: varchar("audience_key", { length: 80 }),
+    channelKey: varchar("channel_key", { length: 80 }),
     allowLogin: boolean("allow_login").notNull().default(true),
     capabilities: json("capabilities").$type<string[]>().notNull(),
     verifiedAt: timestamp("verified_at"),
@@ -126,6 +129,8 @@ export const linkedAccounts = mysqlTable(
   },
   (table) => [
     index("linked_accounts_user_id_idx").on(table.userId),
+    index("linked_accounts_audience_key_idx").on(table.audienceKey),
+    index("linked_accounts_channel_key_idx").on(table.channelKey),
     uniqueIndex("linked_accounts_provider_account_uidx").on(table.provider, table.providerAccountId)
   ]
 );

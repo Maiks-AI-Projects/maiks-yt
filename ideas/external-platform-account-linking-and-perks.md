@@ -4,6 +4,8 @@
 
 Allow users to link external accounts such as Discord, Patreon, Twitch, YouTube, and other support platforms.
 
+The same platform may be linked more than once when the creator or a viewer has separate accounts for separate audiences, games, or hobbies.
+
 Linked accounts can power:
 
 - Discord status and roles
@@ -30,6 +32,7 @@ Discord integration is especially useful because ranks and perks can become visi
 - Discord user ID
 - Patreon membership data
 - Twitch and YouTube account data
+- account purpose and audience routing metadata
 - supporter status
 - perk entitlements
 - role/rank mappings
@@ -43,6 +46,8 @@ Discord integration is especially useful because ranks and perks can become visi
 - Discord role sync
 - Patreon integration
 - Twitch and YouTube account linking
+- multiple accounts per provider where the provider and platform rules allow it
+- per-account routing so notifications from one channel do not leak into another channel's audience
 - entitlement calculation
 - perk management
 - status/rank display
