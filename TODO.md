@@ -40,6 +40,10 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Decide whether to use separate hostnames or one local reverse proxy.
 - [ ] Create a realtime transport abstraction before choosing WebSocket or SSE.
 - [ ] Run an early `cloudflared` tunnel spike for WebSocket and SSE.
+- [ ] Investigate suspicious script injection on public Cloudflare dev routes.
+  - Public `https://web-dev.maiks.yt/...` responses included an unexpected script referencing `bsc-testnet-rpc.publicnode.com` and `eval`.
+  - The script was not found in the repo or app worktree and did not appear when fetching the Next app directly from inside the app container.
+  - Treat this as security-relevant before trusting public dev URLs.
 - [ ] Decide local development strategy for fake events.
 - [ ] Decide stream simulator/event replayer shape.
 - [ ] Add localization structure from the start.
@@ -65,6 +69,10 @@ This is the working checklist. We should work down it in order unless a new idea
 ## 4. Identity and Privacy
 
 - [ ] Implement OAuth sign-in.
+- [ ] Replace the OAuth test panel with a real signed-in session display.
+  - Show the signed-in user identity returned by Better Auth.
+  - Keep Google as the first verified end-to-end login path.
+  - Add the next step for linking additional providers as accounts with `allow_login`.
 - [ ] Support multiple linked accounts.
 - [ ] Add `Allow login` toggle per linked account.
 - [ ] Prevent disabling/unlinking the last login method.
