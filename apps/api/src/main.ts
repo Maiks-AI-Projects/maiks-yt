@@ -32,6 +32,9 @@ const urlAccessTokenRequestSchema = z.object({
   surface: z.enum(["overlay", "control-panel", "admin", "api"]),
   scope: z.string().min(1)
 });
+const allowLoginRequestSchema = z.object({
+  allowLogin: z.boolean()
+});
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
 
@@ -421,6 +424,95 @@ server.post("/account/domain/sync", async (request, reply) => {
     return {
       ok: false,
       reason: "domain_account_sync_unavailable"
+    };
+  }
+});
+
+server.post<{ Params: { linkedAccountId: string } }>("/account/domain/linked-accounts/:linkedAccountId/allow-login", async (request, reply) => {
+  const session = await getAuthSession(request);
+
+  if (!session) {
+    reply.code(401);
+    return {
+      ok: false,
+      reason: "not_authenticated"
+    };
+  }
+
+  const parsedRequest = allowLoginRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  try {
+    const pool = getDatabasePool();
+    const { user } = await getDomainUserForAuthUser(pool, session.user, false);
+
+    if (!user) {
+      reply.code(404);
+      return {
+        ok: false,
+        reason: "domain_user_not_found"
+      };
+    }
+
+    const [linkedAccountRows] = await pool.execute(
+      "SELECT id, capabilities, allow_login AS allowLogin FROM linked_accounts WHERE id = ? AND user_id = ? LIMIT 1",
+      [request.params.linkedAccountId, user.id]
+    );
+    const linkedAccount = Array.isArray(linkedAccountRows)
+      ? linkedAccountRows[0] as { id: string; capabilities: unknown; allowLogin: number | boolean } | undefined
+      : undefined;
+
+    if (!linkedAccount) {
+      reply.code(404);
+      return {
+        ok: false,
+        reason: "linked_account_not_found"
+      };
+    }
+
+    const capabilities = parseJsonArray(linkedAccount.capabilities);
+    const isLoginCapable = capabilities.includes("login");
+
+    if (!parsedRequest.data.allowLogin && isLoginCapable && Boolean(linkedAccount.allowLogin)) {
+      const [loginAccountRows] = await pool.execute(
+        "SELECT id FROM linked_accounts WHERE user_id = ? AND allow_login = true AND JSON_CONTAINS(capabilities, JSON_QUOTE('login')) AND id <> ? LIMIT 1",
+        [user.id, linkedAccount.id]
+      );
+      const hasOtherAllowedLoginAccount = Array.isArray(loginAccountRows) && loginAccountRows.length > 0;
+
+      if (!hasOtherAllowedLoginAccount) {
+        reply.code(409);
+        return {
+          ok: false,
+          reason: "cannot_disable_last_login_account"
+        };
+      }
+    }
+
+    await pool.execute(
+      "UPDATE linked_accounts SET allow_login = ?, updated_at = NOW() WHERE id = ? AND user_id = ?",
+      [parsedRequest.data.allowLogin, linkedAccount.id, user.id]
+    );
+
+    return {
+      ok: true,
+      domainUser: user,
+      linkedAccounts: await getDomainLinkedAccounts(pool, user.id)
+    };
+  } catch (error) {
+    server.log.warn({ err: error }, "Allow-login update failed.");
+    reply.code(503);
+
+    return {
+      ok: false,
+      reason: "allow_login_update_unavailable"
     };
   }
 });

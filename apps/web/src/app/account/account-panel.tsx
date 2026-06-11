@@ -90,6 +90,7 @@ const AccountPanel = (): React.ReactNode => {
   const [domainSnapshot, setDomainSnapshot] = useState<DomainAccountSnapshot | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncingDomain, setSyncingDomain] = useState<boolean>(false);
+  const [busyLinkedAccountId, setBusyLinkedAccountId] = useState<string | null>(null);
   const [busyProvider, setBusyProvider] = useState<OAuthProviderId | null>(null);
   const [message, setMessage] = useState<string>("Loading account...");
 
@@ -208,6 +209,37 @@ const AccountPanel = (): React.ReactNode => {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Account linking failed.");
       setBusyProvider(null);
+    }
+  };
+
+  const updateAllowLogin = async (account: DomainLinkedAccount, allowLogin: boolean): Promise<void> => {
+    setBusyLinkedAccountId(account.id);
+    setMessage(`${allowLogin ? "Enabling" : "Disabling"} login for ${account.provider}...`);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/account/domain/linked-accounts/${account.id}/allow-login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ allowLogin })
+      });
+
+      if (response.status === 409) {
+        throw new Error("Cannot disable the last login-capable account.");
+      }
+
+      if (!response.ok) {
+        throw new Error(`Allow-login update failed with ${response.status}`);
+      }
+
+      setDomainSnapshot(await response.json() as DomainAccountSnapshot);
+      setMessage("Allow login updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Allow-login update failed.");
+    } finally {
+      setBusyLinkedAccountId(null);
     }
   };
 
@@ -349,7 +381,20 @@ const AccountPanel = (): React.ReactNode => {
                         </div>
                         <div>
                           <dt>Allow login</dt>
-                          <dd>{account.allowLogin ? "Enabled" : "Disabled"}</dd>
+                          <dd>
+                            <button
+                              type="button"
+                              className={account.allowLogin ? "toggle-action enabled" : "toggle-action"}
+                              onClick={() => void updateAllowLogin(account, !account.allowLogin)}
+                              disabled={busyLinkedAccountId !== null || !account.capabilities.includes("login")}
+                            >
+                              {busyLinkedAccountId === account.id
+                                ? "Updating..."
+                                : account.allowLogin
+                                  ? "Enabled"
+                                  : "Disabled"}
+                            </button>
+                          </dd>
                         </div>
                         <div>
                           <dt>Capabilities</dt>

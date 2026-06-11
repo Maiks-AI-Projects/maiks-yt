@@ -77,8 +77,8 @@ This is the working checklist. We should work down it in order unless a new idea
   - Keep Google as the first verified end-to-end login path.
   - Add the next step for linking additional providers as accounts with `allow_login`.
 - [ ] Support multiple linked accounts.
-- [ ] Add `Allow login` toggle per linked account.
-- [ ] Prevent disabling/unlinking the last login method.
+- [x] Add `Allow login` toggle per linked account.
+- [x] Prevent disabling/unlinking the last login method.
 - [ ] Add first-sign-in privacy choice.
 - [ ] Add account deletion/anonymization design.
 - [ ] Add provider capability model, such as login, perks, IGN verification, avatar, support claiming.

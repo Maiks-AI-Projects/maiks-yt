@@ -323,6 +323,18 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.toggle-action {
+  background: #e5ebf1;
+  color: #141920;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.8rem;
+}
+
+.toggle-action.enabled {
+  background: #238a55;
+  color: #ffffff;
+}
+
 @media (max-width: 680px) {
   .site-header {
     align-items: stretch;
