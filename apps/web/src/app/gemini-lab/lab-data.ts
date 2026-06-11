@@ -24,14 +24,14 @@ export const labThemes: readonly LabTheme[] = [
     subtitle: "Factory planning, automation, milestones, and community-funded builds.",
     kind: "landing",
     tokens: {
-      background: "#15120f",
-      foreground: "#f8f1e7",
-      muted: "#b9aa96",
-      panel: "#241d17",
-      accent: "#f2842f",
-      danger: "#e05252",
-      warning: "#f5c451",
-      success: "#76c66a"
+      background: "#1B2129",
+      foreground: "#F2F2F2",
+      muted: "#5E6975",
+      panel: "#242D38",
+      accent: "#E58E26",
+      danger: "#D35400",
+      warning: "#F1C40F",
+      success: "#27AE60"
     }
   },
   {
@@ -40,14 +40,14 @@ export const labThemes: readonly LabTheme[] = [
     subtitle: "Survival projects, server goals, verified IGN profiles, and build showcases.",
     kind: "landing",
     tokens: {
-      background: "#10180f",
-      foreground: "#f4f8ef",
-      muted: "#a9b99f",
-      panel: "#1d2a19",
-      accent: "#67b84f",
-      danger: "#d9534f",
-      warning: "#e6b84a",
-      success: "#7bd66f"
+      background: "#2C1B0E",
+      foreground: "#F0EAD6",
+      muted: "#8B8B8B",
+      panel: "#3D2B1F",
+      accent: "#55FF55",
+      danger: "#FF5555",
+      warning: "#FFAA00",
+      success: "#55FFFF"
     }
   },
   {
@@ -56,14 +56,14 @@ export const labThemes: readonly LabTheme[] = [
     subtitle: "Transparent software work, todos, milestones, and calm progress tracking.",
     kind: "landing",
     tokens: {
-      background: "#111417",
-      foreground: "#edf3f7",
-      muted: "#a3b0b9",
-      panel: "#1c2329",
-      accent: "#64b5f6",
-      danger: "#ff6b6b",
-      warning: "#ffd166",
-      success: "#5dd39e"
+      background: "#0D1117",
+      foreground: "#C9D1D9",
+      muted: "#484F58",
+      panel: "#161B22",
+      accent: "#58A6FF",
+      danger: "#F85149",
+      warning: "#D29922",
+      success: "#3FB950"
     }
   },
   {
@@ -72,14 +72,30 @@ export const labThemes: readonly LabTheme[] = [
     subtitle: "One home for streams, projects, profiles, links, and public transparency.",
     kind: "landing",
     tokens: {
-      background: "#17151b",
-      foreground: "#f7f2ff",
-      muted: "#b9adc7",
-      panel: "#24202b",
-      accent: "#d19df2",
-      danger: "#f06f75",
-      warning: "#f4c95d",
-      success: "#79d69f"
+      background: "#000000",
+      foreground: "#FFFFFF",
+      muted: "#888888",
+      panel: "#111111",
+      accent: "#4F9CFF",
+      danger: "#FF4F4F",
+      warning: "#FFD166",
+      success: "#45D483"
+    }
+  },
+  {
+    slug: "hytale",
+    title: "Hytale Adventure Hub",
+    subtitle: "Quest logs, voxel creations, community servers, and hand-painted magic.",
+    kind: "landing",
+    tokens: {
+      background: "#141c26",
+      foreground: "#f2f2f2",
+      muted: "#7e8c9d",
+      panel: "#1e2a35",
+      accent: "#5fccc9",
+      danger: "#e64a4a",
+      warning: "#f2b03d",
+      success: "#76d66f"
     }
   },
   {

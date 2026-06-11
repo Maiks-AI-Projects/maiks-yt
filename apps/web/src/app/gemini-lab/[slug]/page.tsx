@@ -165,13 +165,16 @@ const GeminiLabSlugPage = async ({ params }: LabPageProps): Promise<React.ReactN
 
   return (
     <main
-      className={styles.shell}
+      className={`${styles.shell} ${styles[`theme-${theme.slug}`] || ""}`}
       style={{
         "--lab-bg": theme.tokens.background,
         "--lab-fg": theme.tokens.foreground,
         "--lab-muted": theme.tokens.muted,
         "--lab-panel": theme.tokens.panel,
-        "--lab-accent": theme.tokens.accent
+        "--lab-accent": theme.tokens.accent,
+        "--lab-danger": theme.tokens.danger,
+        "--lab-warning": theme.tokens.warning,
+        "--lab-success": theme.tokens.success
       } as React.CSSProperties}
     >
       <div className={styles.inner}>
