@@ -42,6 +42,52 @@ section {
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
 }
 
+.session-card {
+  align-items: start;
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 1rem;
+}
+
+.session-card img,
+.session-avatar-placeholder {
+  border-radius: 50%;
+  height: 3rem;
+  width: 3rem;
+}
+
+.session-avatar-placeholder {
+  align-items: center;
+  background: #141920;
+  color: #ffffff;
+  display: flex;
+  font-weight: 700;
+  justify-content: center;
+}
+
+.session-card dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.session-card dt {
+  color: #4b5966;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.session-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 button {
   background: #141920;
   border: 0;

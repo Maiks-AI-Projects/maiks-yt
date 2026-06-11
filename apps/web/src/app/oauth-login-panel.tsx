@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type OAuthProvider = {
   id: "google" | "github" | "discord" | "twitch";
@@ -21,9 +21,26 @@ type SignInResponse = {
   redirect?: boolean;
 };
 
+type AuthSessionResponse = {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    emailVerified?: boolean | null;
+  };
+  session: {
+    id?: string;
+    userId?: string;
+    expiresAt?: string | Date | null;
+  };
+} | null;
+
 const OAuthLoginPanel = (): React.ReactNode => {
   const [busyProvider, setBusyProvider] = useState<OAuthProvider["id"] | null>(null);
-  const [message, setMessage] = useState<string>("Not signed in");
+  const [session, setSession] = useState<AuthSessionResponse>(null);
+  const [sessionLoading, setSessionLoading] = useState<boolean>(true);
+  const [message, setMessage] = useState<string>("Checking session...");
 
   const startSignIn = async (provider: OAuthProvider): Promise<void> => {
     setBusyProvider(provider.id);
@@ -60,8 +77,8 @@ const OAuthLoginPanel = (): React.ReactNode => {
     }
   };
 
-  const checkSession = async (): Promise<void> => {
-    setMessage("Checking session...");
+  const refreshSession = async (): Promise<void> => {
+    setSessionLoading(true);
 
     try {
       const response = await fetch(`${apiBaseUrl}/auth/get-session`, {
@@ -72,33 +89,91 @@ const OAuthLoginPanel = (): React.ReactNode => {
         throw new Error(`Session check failed with ${response.status}`);
       }
 
-      const session = await response.json() as unknown;
-      setMessage(session ? "Session found" : "No session found");
+      const nextSession = await response.json() as AuthSessionResponse;
+      setSession(nextSession);
+      setMessage(nextSession ? "Signed in" : "Not signed in");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Session check failed.");
+    } finally {
+      setSessionLoading(false);
     }
   };
+
+  const signOut = async (): Promise<void> => {
+    setMessage("Signing out...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/auth/sign-out`, {
+        method: "POST",
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        throw new Error(`Sign-out failed with ${response.status}`);
+      }
+
+      setSession(null);
+      setMessage("Signed out");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Sign-out failed.");
+    }
+  };
+
+  useEffect(() => {
+    void refreshSession();
+  }, []);
 
   return (
     <section className="auth-panel" aria-labelledby="auth-panel-title">
       <div>
-        <h2 id="auth-panel-title">OAuth Test Login</h2>
+        <h2 id="auth-panel-title">Account</h2>
         <p>{message}</p>
       </div>
+      {session ? (
+        <div className="session-card">
+          {session.user.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" src={session.user.image} />
+          ) : (
+            <div aria-hidden="true" className="session-avatar-placeholder">
+              {(session.user.name ?? session.user.email ?? "?").slice(0, 1).toUpperCase()}
+            </div>
+          )}
+          <dl>
+            <div>
+              <dt>Name</dt>
+              <dd>{session.user.name ?? "Unknown"}</dd>
+            </div>
+            <div>
+              <dt>Email</dt>
+              <dd>{session.user.email ?? "No email returned"}</dd>
+            </div>
+            <div>
+              <dt>User ID</dt>
+              <dd>{session.user.id}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
       <div className="auth-actions">
-        {providers.map((provider) => (
-          <button
-            key={provider.id}
-            type="button"
-            onClick={() => void startSignIn(provider)}
-            disabled={busyProvider !== null}
-          >
-            {busyProvider === provider.id ? "Opening..." : provider.label}
-          </button>
-        ))}
-        <button type="button" className="secondary-action" onClick={() => void checkSession()}>
-          Check session
+        {!session ? providers.map((provider) => (
+            <button
+              key={provider.id}
+              type="button"
+              onClick={() => void startSignIn(provider)}
+              disabled={busyProvider !== null || sessionLoading}
+            >
+              {busyProvider === provider.id ? "Opening..." : provider.label}
+            </button>
+          )) : null}
+        <button type="button" className="secondary-action" onClick={() => void refreshSession()}>
+          Refresh session
         </button>
+        {session ? (
+          <button type="button" className="secondary-action" onClick={() => void signOut()}>
+            Sign out
+          </button>
+        ) : null}
       </div>
     </section>
   );
