@@ -1,7 +1,5 @@
 import type { Project } from "@maiks-yt/domain";
 
-import OAuthLoginPanel from "./oauth-login-panel";
-
 const starterProject: Project = {
   id: "maiks-yt-v2",
   title: "Maiks.yt V2",
@@ -27,7 +25,6 @@ const HomePage = (): React.ReactNode => (
       <p>{starterProject.title}</p>
       <p>Milestone: {starterProject.milestones[0]?.title}</p>
     </section>
-    <OAuthLoginPanel />
   </main>
 );
 

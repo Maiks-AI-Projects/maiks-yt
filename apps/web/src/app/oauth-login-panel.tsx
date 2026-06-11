@@ -36,7 +36,11 @@ type AuthSessionResponse = {
   };
 } | null;
 
-const OAuthLoginPanel = (): React.ReactNode => {
+type OAuthLoginPanelProps = {
+  variant?: "panel" | "nav";
+};
+
+const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.ReactNode => {
   const [busyProvider, setBusyProvider] = useState<OAuthProvider["id"] | null>(null);
   const [session, setSession] = useState<AuthSessionResponse>(null);
   const [sessionLoading, setSessionLoading] = useState<boolean>(true);
@@ -126,6 +130,76 @@ const OAuthLoginPanel = (): React.ReactNode => {
   useEffect(() => {
     void refreshSession();
   }, []);
+
+  if (variant === "nav") {
+    const displayName = session?.user.name ?? session?.user.email ?? "Account";
+
+    return (
+      <section className="auth-nav" aria-label="Account">
+        {session ? (
+          <details className="account-menu">
+            <summary>
+              {session.user.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt="" src={session.user.image} />
+              ) : (
+                <span aria-hidden="true" className="session-avatar-placeholder">
+                  {displayName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <span>{displayName}</span>
+            </summary>
+            <div className="account-menu-panel">
+              <p>{message}</p>
+              <dl>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{session.user.email ?? "No email returned"}</dd>
+                </div>
+                <div>
+                  <dt>User ID</dt>
+                  <dd>{session.user.id}</dd>
+                </div>
+              </dl>
+              <div className="auth-actions compact">
+                <button type="button" className="secondary-action" onClick={() => void refreshSession()}>
+                  Refresh
+                </button>
+                <button type="button" className="secondary-action" onClick={() => void signOut()}>
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </details>
+        ) : (
+          <details className="account-menu">
+            <summary>
+              <span aria-hidden="true" className="session-avatar-placeholder">?</span>
+              <span>{sessionLoading ? "Checking..." : "Sign in"}</span>
+            </summary>
+            <div className="account-menu-panel">
+              <p>{message}</p>
+              <div className="auth-actions compact">
+                {providers.map((provider) => (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    onClick={() => void startSignIn(provider)}
+                    disabled={busyProvider !== null || sessionLoading}
+                  >
+                    {busyProvider === provider.id ? "Opening..." : provider.label}
+                  </button>
+                ))}
+                <button type="button" className="secondary-action" onClick={() => void refreshSession()}>
+                  Refresh
+                </button>
+              </div>
+            </div>
+          </details>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="auth-panel" aria-labelledby="auth-panel-title">
