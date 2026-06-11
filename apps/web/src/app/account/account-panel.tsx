@@ -29,6 +29,35 @@ type AuthAccount = {
   updatedAt?: string | Date;
 };
 
+type DomainLinkedAccount = {
+  id: string;
+  provider: string;
+  providerAccountId: string;
+  displayName: string;
+  purposeLabel: string | null;
+  audienceKey: string | null;
+  channelKey: string | null;
+  allowLogin: boolean;
+  capabilities: unknown[];
+  verifiedAt?: string | Date | null;
+  createdAt?: string | Date | null;
+};
+
+type DomainAccountSnapshot = {
+  ok: true;
+  authUserId: string;
+  domainUser: {
+    id: string;
+    displayName: string;
+    profileVisibility: string;
+  } | null;
+  linkedAccounts: DomainLinkedAccount[];
+  needsSync: boolean;
+} | {
+  ok: false;
+  reason: string;
+};
+
 type LinkSocialResponse = {
   url?: string;
   redirect?: boolean;
@@ -58,7 +87,9 @@ const formatDate = (value?: string | Date): string => {
 const AccountPanel = (): React.ReactNode => {
   const [session, setSession] = useState<AuthSession>(null);
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
+  const [domainSnapshot, setDomainSnapshot] = useState<DomainAccountSnapshot | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [syncingDomain, setSyncingDomain] = useState<boolean>(false);
   const [busyProvider, setBusyProvider] = useState<OAuthProviderId | null>(null);
   const [message, setMessage] = useState<string>("Loading account...");
 
@@ -79,6 +110,7 @@ const AccountPanel = (): React.ReactNode => {
 
       if (!nextSession) {
         setAccounts([]);
+        setDomainSnapshot(null);
         setMessage("Sign in to manage linked accounts.");
         return;
       }
@@ -92,11 +124,50 @@ const AccountPanel = (): React.ReactNode => {
       }
 
       setAccounts(await accountsResponse.json() as AuthAccount[]);
+      const domainResponse = await fetch(`${apiBaseUrl}/account/domain`, {
+        credentials: "include"
+      });
+
+      if (domainResponse.ok) {
+        setDomainSnapshot(await domainResponse.json() as DomainAccountSnapshot);
+      } else if (domainResponse.status === 401) {
+        setDomainSnapshot(null);
+      } else {
+        throw new Error(`Domain account snapshot failed with ${domainResponse.status}`);
+      }
+
       setMessage("Account loaded.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Account loading failed.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const syncDomainAccounts = async (): Promise<void> => {
+    setSyncingDomain(true);
+    setMessage("Syncing domain accounts...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/account/domain/sync`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({})
+      });
+
+      if (!response.ok) {
+        throw new Error(`Domain sync failed with ${response.status}`);
+      }
+
+      setDomainSnapshot(await response.json() as DomainAccountSnapshot);
+      setMessage("Domain accounts synced.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Domain sync failed.");
+    } finally {
+      setSyncingDomain(false);
     }
   };
 
@@ -234,6 +305,68 @@ const AccountPanel = (): React.ReactNode => {
                 </button>
               ))}
             </div>
+          </section>
+
+          <section className="account-section" aria-labelledby="domain-accounts-title">
+            <div className="account-section-heading-row">
+              <div>
+                <h2 id="domain-accounts-title">Domain Linked Accounts</h2>
+                <p className="account-section-note">
+                  These rows power stream display names, channel routing, perks, IGN verification, and the Allow login toggle.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => void syncDomainAccounts()}
+                disabled={syncingDomain}
+              >
+                {syncingDomain ? "Syncing..." : "Sync domain accounts"}
+              </button>
+            </div>
+            {domainSnapshot?.ok && domainSnapshot.domainUser ? (
+              <>
+                <div className="domain-user-strip">
+                  <span>Domain user</span>
+                  <strong>{domainSnapshot.domainUser.displayName}</strong>
+                  <span>{domainSnapshot.domainUser.profileVisibility}</span>
+                </div>
+                <div className="account-card-grid">
+                  {domainSnapshot.linkedAccounts.map((account) => (
+                    <article className="linked-account-card" key={account.id}>
+                      <div>
+                        <h3>{account.provider}</h3>
+                        <p>{account.displayName}</p>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>Provider account</dt>
+                          <dd>{account.providerAccountId}</dd>
+                        </div>
+                        <div>
+                          <dt>Purpose</dt>
+                          <dd>{account.purposeLabel ?? "Not set"}</dd>
+                        </div>
+                        <div>
+                          <dt>Allow login</dt>
+                          <dd>{account.allowLogin ? "Enabled" : "Disabled"}</dd>
+                        </div>
+                        <div>
+                          <dt>Capabilities</dt>
+                          <dd>{account.capabilities.length ? account.capabilities.join(", ") : "None"}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="account-section-note">
+                {domainSnapshot?.ok && domainSnapshot.needsSync
+                  ? "No domain user exists yet. Sync to create private domain records from your login accounts."
+                  : "Domain account data is not available yet."}
+              </p>
+            )}
           </section>
         </>
       ) : (

@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
@@ -6,7 +6,7 @@ import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/se
 import type { RealtimeEvent } from "@maiks-yt/events";
 import fastifyCors from "@fastify/cors";
 import { fromNodeHeaders } from "better-auth/node";
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
@@ -35,6 +35,48 @@ const urlAccessTokenRequestSchema = z.object({
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
 
+type AuthSessionSnapshot = {
+  user: {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+  };
+  session: {
+    id?: string;
+    userId?: string;
+  };
+} | null;
+
+type AuthAccountRow = {
+  id: string;
+  userId: string;
+  accountId: string;
+  providerId: string;
+  scope?: string | null;
+  createdAt?: Date | null;
+};
+
+type DomainUserRow = {
+  id: string;
+  displayName: string;
+  profileVisibility: string;
+};
+
+type LinkedAccountRow = {
+  id: string;
+  provider: string;
+  providerAccountId: string;
+  displayName: string;
+  purposeLabel?: string | null;
+  audienceKey?: string | null;
+  channelKey?: string | null;
+  allowLogin: number | boolean;
+  capabilities: unknown;
+  verifiedAt?: Date | null;
+  createdAt?: Date | null;
+};
+
 const parseJsonArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
     return value;
@@ -52,9 +94,122 @@ const parseJsonArray = (value: unknown): unknown[] => {
   }
 };
 
+const getRequestOrigin = (request: FastifyRequest): string => {
+  const forwardedProto = request.headers["x-forwarded-proto"];
+  const protocol = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+
+  return `${protocol ?? "http"}://${request.headers.host}`;
+};
+
+const getAuthSession = async (request: FastifyRequest): Promise<AuthSessionSnapshot> => {
+  const sessionRequest = new Request(new URL("/auth/get-session", getRequestOrigin(request)), {
+    method: "GET",
+    headers: fromNodeHeaders(request.headers)
+  });
+  const sessionResponse = await auth.handler(sessionRequest);
+
+  if (!sessionResponse.ok) {
+    return null;
+  }
+
+  return await sessionResponse.json() as AuthSessionSnapshot;
+};
+
 const getDatabasePool = (): DatabasePool => {
   databasePool ??= createDatabasePool();
   return databasePool;
+};
+
+const getDomainUserForAuthUser = async (
+  pool: DatabasePool,
+  authUser: NonNullable<AuthSessionSnapshot>["user"],
+  createMissing: boolean
+): Promise<{ user: DomainUserRow | null; created: boolean }> => {
+  const [linkRows] = await pool.execute(
+    "SELECT auth_user_links.user_id AS userId, users.display_name AS displayName, users.profile_visibility AS profileVisibility FROM auth_user_links INNER JOIN users ON users.id = auth_user_links.user_id WHERE auth_user_links.auth_user_id = ? AND users.deleted_at IS NULL LIMIT 1",
+    [authUser.id]
+  );
+  const existingLink = Array.isArray(linkRows)
+    ? linkRows[0] as { userId: string; displayName: string; profileVisibility: string } | undefined
+    : undefined;
+
+  if (existingLink) {
+    return {
+      created: false,
+      user: {
+        id: existingLink.userId,
+        displayName: existingLink.displayName,
+        profileVisibility: existingLink.profileVisibility
+      }
+    };
+  }
+
+  if (!createMissing) {
+    return {
+      created: false,
+      user: null
+    };
+  }
+
+  const userId = randomUUID();
+  const displayName = authUser.name ?? authUser.email ?? "Community Member";
+
+  await pool.execute(
+    "INSERT INTO users (id, display_name, profile_visibility, avatar_url) VALUES (?, ?, 'private', ?)",
+    [userId, displayName, authUser.image ?? null]
+  );
+  await pool.execute(
+    "INSERT INTO auth_user_links (id, auth_user_id, user_id) VALUES (?, ?, ?)",
+    [randomUUID(), authUser.id, userId]
+  );
+
+  return {
+    created: true,
+    user: {
+      id: userId,
+      displayName,
+      profileVisibility: "private"
+    }
+  };
+};
+
+const getDomainLinkedAccounts = async (pool: DatabasePool, userId: string): Promise<Array<{
+  id: string;
+  provider: string;
+  providerAccountId: string;
+  displayName: string;
+  purposeLabel: string | null;
+  audienceKey: string | null;
+  channelKey: string | null;
+  allowLogin: boolean;
+  capabilities: unknown[];
+  verifiedAt: Date | null;
+  createdAt: Date | null;
+}>> => {
+  const [linkedAccountRows] = await pool.execute(
+    "SELECT id, provider, provider_account_id AS providerAccountId, display_name AS displayName, purpose_label AS purposeLabel, audience_key AS audienceKey, channel_key AS channelKey, allow_login AS allowLogin, capabilities, verified_at AS verifiedAt, created_at AS createdAt FROM linked_accounts WHERE user_id = ? ORDER BY provider, created_at",
+    [userId]
+  );
+
+  return Array.isArray(linkedAccountRows)
+    ? linkedAccountRows.map((account) => {
+      const typedAccount = account as LinkedAccountRow;
+
+      return {
+        id: typedAccount.id,
+        provider: typedAccount.provider,
+        providerAccountId: typedAccount.providerAccountId,
+        displayName: typedAccount.displayName,
+        purposeLabel: typedAccount.purposeLabel ?? null,
+        audienceKey: typedAccount.audienceKey ?? null,
+        channelKey: typedAccount.channelKey ?? null,
+        allowLogin: Boolean(typedAccount.allowLogin),
+        capabilities: parseJsonArray(typedAccount.capabilities),
+        verifiedAt: typedAccount.verifiedAt ?? null,
+        createdAt: typedAccount.createdAt ?? null
+      };
+    })
+    : [];
 };
 
 server.get("/health", async () => ({
@@ -161,6 +316,114 @@ server.get("/auth/dev/status", async () => ({
   configuredProviders: configuredAuthProviderIds,
   domainIdentityModel: "maiks-linked-accounts"
 }));
+
+server.get("/account/domain", async (request, reply) => {
+  const session = await getAuthSession(request);
+
+  if (!session) {
+    reply.code(401);
+    return {
+      ok: false,
+      reason: "not_authenticated"
+    };
+  }
+
+  try {
+    const pool = getDatabasePool();
+    const { user } = await getDomainUserForAuthUser(pool, session.user, false);
+
+    return {
+      ok: true,
+      authUserId: session.user.id,
+      domainUser: user,
+      linkedAccounts: user ? await getDomainLinkedAccounts(pool, user.id) : [],
+      needsSync: !user
+    };
+  } catch (error) {
+    server.log.warn({ err: error }, "Domain account snapshot failed.");
+    reply.code(503);
+
+    return {
+      ok: false,
+      reason: "domain_account_unavailable"
+    };
+  }
+});
+
+server.post("/account/domain/sync", async (request, reply) => {
+  const session = await getAuthSession(request);
+
+  if (!session) {
+    reply.code(401);
+    return {
+      ok: false,
+      reason: "not_authenticated"
+    };
+  }
+
+  try {
+    const pool = getDatabasePool();
+    const { user, created: createdDomainUser } = await getDomainUserForAuthUser(pool, session.user, true);
+
+    if (!user) {
+      reply.code(500);
+      return {
+        ok: false,
+        reason: "domain_user_not_created"
+      };
+    }
+
+    const [authAccountRows] = await pool.execute(
+      "SELECT id, user_id AS userId, account_id AS accountId, provider_id AS providerId, scope, created_at AS createdAt FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
+      [session.user.id]
+    );
+    const authAccounts = Array.isArray(authAccountRows)
+      ? authAccountRows as AuthAccountRow[]
+      : [];
+    let createdLinkedAccounts = 0;
+
+    for (const authAccount of authAccounts) {
+      const [existingRows] = await pool.execute(
+        "SELECT id FROM linked_accounts WHERE provider = ? AND provider_account_id = ? LIMIT 1",
+        [authAccount.providerId, authAccount.accountId]
+      );
+      const existing = Array.isArray(existingRows) ? existingRows[0] : undefined;
+
+      if (existing) {
+        continue;
+      }
+
+      await pool.execute(
+        "INSERT INTO linked_accounts (id, user_id, provider, provider_account_id, display_name, purpose_label, allow_login, capabilities, verified_at) VALUES (?, ?, ?, ?, ?, 'Login account', true, ?, NOW())",
+        [
+          randomUUID(),
+          user.id,
+          authAccount.providerId,
+          authAccount.accountId,
+          session.user.name ?? session.user.email ?? authAccount.providerId,
+          JSON.stringify(["login"])
+        ]
+      );
+      createdLinkedAccounts += 1;
+    }
+
+    return {
+      ok: true,
+      createdDomainUser,
+      createdLinkedAccounts,
+      domainUser: user,
+      linkedAccounts: await getDomainLinkedAccounts(pool, user.id)
+    };
+  } catch (error) {
+    server.log.warn({ err: error }, "Domain account sync failed.");
+    reply.code(503);
+
+    return {
+      ok: false,
+      reason: "domain_account_sync_unavailable"
+    };
+  }
+});
 
 server.route({
   method: ["GET", "POST"],

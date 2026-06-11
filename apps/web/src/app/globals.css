@@ -257,6 +257,28 @@ button:disabled {
   margin: 0;
 }
 
+.account-section-heading-row {
+  align-items: start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.domain-user-strip {
+  align-items: center;
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+
+.domain-user-strip span {
+  color: #4b5966;
+}
+
 .account-card-grid {
   display: grid;
   gap: 1rem;
@@ -316,5 +338,10 @@ button:disabled {
   .account-menu-panel {
     left: 0;
     right: auto;
+  }
+
+  .account-page-header,
+  .account-section-heading-row {
+    flex-direction: column;
   }
 }
