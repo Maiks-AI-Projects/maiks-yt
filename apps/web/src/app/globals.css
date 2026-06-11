@@ -221,6 +221,86 @@ button:disabled {
   color: #141920;
 }
 
+.account-page-panel {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.account-page-header {
+  align-items: start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.account-page-header h1 {
+  margin-block: 0 0.5rem;
+}
+
+.account-page-header p,
+.account-section-note {
+  color: #4b5966;
+  margin: 0;
+}
+
+.account-section {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 1.25rem;
+}
+
+.account-section h2 {
+  margin: 0;
+}
+
+.account-card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.linked-account-card {
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.linked-account-card h3 {
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.linked-account-card p {
+  color: #4b5966;
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.linked-account-card dl {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.linked-account-card dt {
+  color: #4b5966;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.linked-account-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 680px) {
   .site-header {
     align-items: stretch;
