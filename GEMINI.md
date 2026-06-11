@@ -65,7 +65,7 @@ The root build and dev commands are listed in `package.json` for reference only.
 After layout edits, run:
 
 ```bash
-docker exec -w /app maiks-yt-dev corepack pnpm --filter @maiks-yt/web typecheck
+corepack pnpm --filter @maiks-yt/web typecheck
 ```
 
 If the typecheck fails, report the error and the files you changed. Do not make broad fixes outside `apps/web/src/app/gemini-lab/`.
