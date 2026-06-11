@@ -105,6 +105,10 @@ const OAuthLoginPanel = (): React.ReactNode => {
     try {
       const response = await fetch(`${apiBaseUrl}/auth/sign-out`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({}),
         credentials: "include"
       });
 
