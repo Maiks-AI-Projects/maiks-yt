@@ -72,7 +72,7 @@ This is the working checklist. We should work down it in order unless a new idea
 ## 4. Identity and Privacy
 
 - [ ] Implement OAuth sign-in.
-- [ ] Replace the OAuth test panel with a real signed-in session display.
+- [x] Replace the OAuth test panel with a real signed-in session display.
   - Show the signed-in user identity returned by Better Auth.
   - Keep Google as the first verified end-to-end login path.
   - Add the next step for linking additional providers as accounts with `allow_login`.
