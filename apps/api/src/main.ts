@@ -5,6 +5,7 @@ import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
 import type { RealtimeEvent } from "@maiks-yt/events";
 import fastifyCors from "@fastify/cors";
+import fastifyWebsocket from "@fastify/websocket";
 import { fromNodeHeaders } from "better-auth/node";
 import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -26,6 +27,7 @@ await server.register(fastifyCors, {
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 });
+await server.register(fastifyWebsocket);
 
 const urlAccessTokenRequestSchema = z.object({
   token: z.string().min(24),
@@ -90,6 +92,42 @@ type LinkedAccountRow = {
   verifiedAt?: Date | null;
   createdAt?: Date | null;
 };
+
+type RealtimeSpikeEvent = {
+  type: "realtime.spike.heartbeat" | "realtime.spike.echo";
+  payload: {
+    connectionId: string;
+    id: string;
+    sequence: number;
+    sentAt: string;
+    message: string;
+    transport: "sse" | "websocket";
+  };
+};
+
+const createRealtimeSpikeEvent = ({
+  connectionId,
+  sequence,
+  transport,
+  type = "realtime.spike.heartbeat",
+  message = "Realtime spike heartbeat"
+}: {
+  connectionId: string;
+  sequence: number;
+  transport: RealtimeSpikeEvent["payload"]["transport"];
+  type?: RealtimeSpikeEvent["type"];
+  message?: string;
+}): RealtimeSpikeEvent => ({
+  type,
+  payload: {
+    connectionId,
+    id: randomUUID(),
+    sequence,
+    sentAt: new Date().toISOString(),
+    message,
+    transport
+  }
+});
 
 const parseJsonArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -799,6 +837,81 @@ server.post<{ Body: RealtimeEvent }>("/events/test", async (request) => ({
   accepted: true,
   eventType: request.body.type
 }));
+
+server.get("/realtime/spike/sse", async (request, reply) => {
+  const connectionId = randomUUID();
+  let sequence = 0;
+
+  server.log.info({ connectionId, transport: "sse" }, "Realtime spike connection opened.");
+  reply.raw.writeHead(200, {
+    "cache-control": "no-cache, no-transform",
+    "connection": "keep-alive",
+    "content-type": "text/event-stream",
+    "x-accel-buffering": "no"
+  });
+  reply.hijack();
+
+  const sendEvent = (): void => {
+    sequence += 1;
+    const event = createRealtimeSpikeEvent({
+      connectionId,
+      sequence,
+      transport: "sse"
+    });
+
+    server.log.info({ connectionId, eventId: event.payload.id, sequence, transport: "sse" }, "Realtime spike event sent.");
+    reply.raw.write(`event: heartbeat\ndata: ${JSON.stringify(event)}\n\n`);
+  };
+
+  sendEvent();
+  const interval = setInterval(sendEvent, 5_000);
+
+  request.raw.on("close", () => {
+    clearInterval(interval);
+    server.log.info({ connectionId, sequence, transport: "sse" }, "Realtime spike connection closed.");
+    reply.raw.end();
+  });
+});
+
+server.get("/realtime/spike/ws", { websocket: true }, (connection) => {
+  const connectionId = randomUUID();
+  let sequence = 0;
+
+  server.log.info({ connectionId, transport: "websocket" }, "Realtime spike connection opened.");
+  const sendEvent = (event: RealtimeSpikeEvent): void => {
+    server.log.info(
+      { connectionId, eventId: event.payload.id, sequence: event.payload.sequence, transport: "websocket" },
+      "Realtime spike event sent."
+    );
+    connection.socket.send(JSON.stringify(event));
+  };
+  const createNextEvent = (
+    type?: RealtimeSpikeEvent["type"],
+    message?: string
+  ): RealtimeSpikeEvent => {
+    sequence += 1;
+
+    return createRealtimeSpikeEvent({
+      connectionId,
+      sequence,
+      transport: "websocket",
+      ...(type ? { type } : {}),
+      ...(message ? { message } : {})
+    });
+  };
+  const interval = setInterval(() => sendEvent(createNextEvent()), 5_000);
+
+  sendEvent(createNextEvent());
+
+  connection.socket.on("message", (message: { toString(): string }) => {
+    server.log.info({ connectionId, transport: "websocket" }, "Realtime spike message received.");
+    sendEvent(createNextEvent("realtime.spike.echo", message.toString()));
+  });
+  connection.socket.on("close", () => {
+    clearInterval(interval);
+    server.log.info({ connectionId, sequence, transport: "websocket" }, "Realtime spike connection closed.");
+  });
+});
 
 const start = async (): Promise<void> => {
   await server.listen({ host: "0.0.0.0", port: 3001 });

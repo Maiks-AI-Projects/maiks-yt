@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
+    "@fastify/websocket": "^11.2.0",
     "@maiks-yt/config": "workspace:*",
     "@maiks-yt/database": "workspace:*",
     "@maiks-yt/domain": "workspace:*",

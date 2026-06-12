@@ -49,6 +49,89 @@ button {
   padding: 0.25rem 0.6rem;
 }
 
+.realtime-probe {
+  background: #151d25;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.75rem;
+  max-width: 58rem;
+  padding: 1rem;
+}
+
+.realtime-probe h2,
+.realtime-probe p {
+  margin: 0;
+}
+
+.realtime-probe p {
+  color: #b8c4cf;
+}
+
+.probe-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.probe-actions button {
+  background: #25313d;
+}
+
+.probe-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.probe-grid article {
+  background: #0f1419;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.probe-status {
+  border-radius: 999px;
+  color: #071016;
+  justify-self: start;
+  padding: 0.2rem 0.55rem;
+}
+
+.probe-status.idle,
+.probe-status.closed {
+  background: #b8c4cf;
+}
+
+.probe-status.connecting {
+  background: #f2c94c;
+}
+
+.probe-status.open {
+  background: #4ade80;
+}
+
+.probe-status.failed {
+  background: #ff6b6b;
+}
+
+.probe-grid ol {
+  display: grid;
+  gap: 0.45rem;
+  list-style-position: inside;
+  margin: 0;
+  padding: 0;
+}
+
+.probe-grid li {
+  color: #b8c4cf;
+  font-family: Consolas, "Liberation Mono", monospace;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
 .event-preview-list {
   display: grid;
   gap: 0.6rem;
