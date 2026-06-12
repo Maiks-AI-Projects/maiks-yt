@@ -63,6 +63,16 @@ Possible token scopes:
 - audit logging for token use
 - safe redaction in logs
 
+## First Implementation Shape
+
+- Browser surfaces read `accessToken` from the URL.
+- The token is copied into local storage under a surface-specific key.
+- The token is removed from the address bar immediately after capture.
+- Overlay validates `surface=overlay` and `scope=overlay:connect`.
+- Control panel validates `surface=control-panel` and `scope=control:open`.
+- A valid control-panel token only opens the control panel shell; privileged actions still need login and role checks later.
+- Missing or invalid tokens show a locked state instead of booting the app.
+
 ## Security Notes
 
 URL tokens can appear in browser history, OBS settings, screenshots, logs, and referrers if not handled carefully.

@@ -83,7 +83,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add account deletion/anonymization design.
 - [x] Add provider capability model, such as login, perks, IGN verification, avatar, support claiming.
 - [x] Add identity conflict rules for claiming linked accounts.
-- [ ] Add scoped URL token gates for non-public surfaces.
+- [x] Add scoped URL token gates for non-public surfaces.
 - [ ] Require login after URL token for privileged control/admin pages.
 
 ## 5. Projects and Milestones

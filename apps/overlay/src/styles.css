@@ -13,6 +13,10 @@ body {
   position: relative;
 }
 
+.access-gate {
+  background: #05070a;
+}
+
 .top-notification {
   background: color-mix(in srgb, var(--maiks-bg) 88%, transparent);
   border-bottom: 2px solid var(--maiks-accent);

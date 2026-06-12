@@ -63,6 +63,9 @@ importers:
       '@maiks-yt/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@maiks-yt/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       react:
         specifier: 19.2.7
         version: 19.2.7
@@ -97,6 +100,9 @@ importers:
       '@maiks-yt/themes':
         specifier: workspace:*
         version: link:../../packages/themes
+      '@maiks-yt/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       react:
         specifier: 19.2.7
         version: 19.2.7
