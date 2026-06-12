@@ -32,7 +32,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Choose validation/type contract library.
 - [x] Decide API/realtime backend shape.
 - [x] Decide whether overlay/control panel use Vite + React.
-- [ ] Decide how real-time overlay state will work.
+- [x] Decide how real-time overlay state will work.
 - [ ] Decide local production hosting shape for `cloudflared`.
 - [x] Decide dev server auto-build/deploy workflow after pushed commits.
 - [x] Use `dev` branch as the dev-server auto-deploy target.
@@ -108,10 +108,10 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 6. Overlay Renderer
 
-- [ ] Build basic OBS browser-source overlay page.
-- [ ] Support URL parameters for scene/layout/theme/mode.
-- [ ] Load initial state snapshot on page load.
-- [ ] Connect to live state updates after loading.
+- [x] Build basic OBS browser-source overlay page.
+- [x] Support URL parameters for scene/layout/theme/mode.
+- [x] Load initial state snapshot on page load.
+- [x] Connect to live state updates after loading.
 - [ ] Create typed notification events.
 - [ ] Build notification queue before display rendering.
 - [ ] Add top notification zone.

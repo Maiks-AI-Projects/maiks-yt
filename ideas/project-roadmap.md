@@ -37,14 +37,15 @@ Already built:
 
 ## Current Milestone
 
-Current phase: Phase 5, Realtime Transport Spike.
+Current phase: Phase 6, Overlay Renderer V1.
 
 Goal:
 
-- Create a transport abstraction around typed events.
-- Implement a minimal in-memory transport for tests and local simulation.
-- Spike WebSocket and SSE behavior through Cloudflare Tunnel.
-- Keep snapshot, heartbeat, reconnect, and catch-up concepts explicit.
+- Build the OBS browser-source overlay page.
+- Support URL parameters for scene, layout, theme, and mode.
+- Load initial state snapshot on page load.
+- Connect to live state updates with WebSocket as the primary transport.
+- Keep last-known-good, static fallback, and notification queue concepts explicit.
 
 Spike result on 2026-06-12:
 
@@ -55,7 +56,7 @@ Spike result on 2026-06-12:
 
 Next after that:
 
-- Phase 6, Overlay Renderer V1.
+- Continue Phase 6 with notification queue, last-known-good state, and OBS-size layout tests.
 
 ## Phase 0: Roadmap and Scope Gate
 
