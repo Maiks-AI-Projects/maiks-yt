@@ -39,7 +39,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Define fixed local port plan.
 - [x] Decide whether to use separate hostnames or one local reverse proxy.
 - [x] Create a realtime transport abstraction before choosing WebSocket or SSE.
-- [ ] Run an early `cloudflared` tunnel spike for WebSocket and SSE.
+- [x] Run an early `cloudflared` tunnel spike for WebSocket and SSE.
 - [x] Investigate suspicious script injection on public Cloudflare dev routes.
   - Public `https://web-dev.maiks.yt/...` responses included an unexpected script referencing `bsc-testnet-rpc.publicnode.com` and `eval`.
   - The script was not found in the repo or app worktree and did not appear when fetching the Next app directly from inside the app container.

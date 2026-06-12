@@ -17,6 +17,7 @@ tsconfig.tsbuildinfo
 
 # Logs
 *.log
+reports/realtime-spike/*.jsonl
 
 # OS/editor noise
 .DS_Store

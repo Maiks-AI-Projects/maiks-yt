@@ -46,6 +46,13 @@ Goal:
 - Spike WebSocket and SSE behavior through Cloudflare Tunnel.
 - Keep snapshot, heartbeat, reconnect, and catch-up concepts explicit.
 
+Spike result on 2026-06-12:
+
+- A 30-minute public test through `https://api-dev.maiks.yt` passed for both WebSocket and SSE.
+- WebSocket client received 361 ordered messages from 361 server sends, with no missing sequences or client errors.
+- SSE client received 360 ordered messages; the server sent one final heartbeat during client close, so this is expected close-window behavior rather than a transport gap.
+- First-choice transport for overlay/control-panel live state should be WebSocket, with SSE kept as the fallback path for one-way updates.
+
 Next after that:
 
 - Phase 6, Overlay Renderer V1.
