@@ -35,6 +35,9 @@ const urlAccessTokenRequestSchema = z.object({
 const allowLoginRequestSchema = z.object({
   allowLogin: z.boolean()
 });
+const profileVisibilityRequestSchema = z.object({
+  profileVisibility: z.enum(["private", "minimal", "public"])
+});
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
 
@@ -513,6 +516,63 @@ server.post<{ Params: { linkedAccountId: string } }>("/account/domain/linked-acc
     return {
       ok: false,
       reason: "allow_login_update_unavailable"
+    };
+  }
+});
+
+server.post("/account/domain/profile-visibility", async (request, reply) => {
+  const session = await getAuthSession(request);
+
+  if (!session) {
+    reply.code(401);
+    return {
+      ok: false,
+      reason: "not_authenticated"
+    };
+  }
+
+  const parsedRequest = profileVisibilityRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  try {
+    const pool = getDatabasePool();
+    const { user } = await getDomainUserForAuthUser(pool, session.user, true);
+
+    if (!user) {
+      reply.code(500);
+      return {
+        ok: false,
+        reason: "domain_user_not_created"
+      };
+    }
+
+    await pool.execute(
+      "UPDATE users SET profile_visibility = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
+      [parsedRequest.data.profileVisibility, user.id]
+    );
+
+    return {
+      ok: true,
+      domainUser: {
+        ...user,
+        profileVisibility: parsedRequest.data.profileVisibility
+      },
+      linkedAccounts: await getDomainLinkedAccounts(pool, user.id)
+    };
+  } catch (error) {
+    server.log.warn({ err: error }, "Profile visibility update failed.");
+    reply.code(503);
+
+    return {
+      ok: false,
+      reason: "profile_visibility_update_unavailable"
     };
   }
 });

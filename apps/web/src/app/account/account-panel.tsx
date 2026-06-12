@@ -47,13 +47,15 @@ type DomainLinkedAccount = {
   createdAt?: string | Date | null;
 };
 
+type ProfileVisibility = "private" | "minimal" | "public";
+
 type DomainAccountSnapshot = {
   ok: true;
   authUserId: string;
   domainUser: {
     id: string;
     displayName: string;
-    profileVisibility: string;
+    profileVisibility: ProfileVisibility;
   } | null;
   linkedAccounts: DomainLinkedAccount[];
   needsSync: boolean;
@@ -89,6 +91,28 @@ const providers: ProviderRow[] = [
   { id: "discord", label: "Discord", Icon: SiDiscord, description: "Community identity, roles, and perks." }
 ];
 
+const profileVisibilityOptions: Array<{
+  value: ProfileVisibility;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "private",
+    label: "Private",
+    description: "Only you and trusted admin tools can see profile details."
+  },
+  {
+    value: "minimal",
+    label: "Minimal",
+    description: "Show a basic community identity without linked account details."
+  },
+  {
+    value: "public",
+    label: "Public",
+    description: "Allow public profile surfaces to show community identity details later."
+  }
+];
+
 const ControlTooltip = ({ children, text }: ControlTooltipProps): React.ReactNode => (
   <Tooltip.Root delayDuration={250}>
     <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
@@ -109,6 +133,7 @@ const AccountPanel = (): React.ReactNode => {
   const [syncingDomain, setSyncingDomain] = useState<boolean>(false);
   const [busyLinkedAccountId, setBusyLinkedAccountId] = useState<string | null>(null);
   const [busyProvider, setBusyProvider] = useState<OAuthProviderId | null>(null);
+  const [savingProfileVisibility, setSavingProfileVisibility] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("Loading account...");
 
   const loadAccount = async (): Promise<void> => {
@@ -257,6 +282,33 @@ const AccountPanel = (): React.ReactNode => {
       setMessage(error instanceof Error ? error.message : "Allow-login update failed.");
     } finally {
       setBusyLinkedAccountId(null);
+    }
+  };
+
+  const updateProfileVisibility = async (profileVisibility: ProfileVisibility): Promise<void> => {
+    setSavingProfileVisibility(true);
+    setMessage(`Saving ${profileVisibility} profile visibility...`);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/account/domain/profile-visibility`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ profileVisibility })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Profile visibility update failed with ${response.status}`);
+      }
+
+      setDomainSnapshot(await response.json() as DomainAccountSnapshot);
+      setMessage("Profile visibility updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Profile visibility update failed.");
+    } finally {
+      setSavingProfileVisibility(false);
     }
   };
 
@@ -496,6 +548,54 @@ const AccountPanel = (): React.ReactNode => {
               <p className="account-section-note">
                 Domain account data is not available yet. Refresh this page or sign in again if the problem keeps happening.
               </p>
+            )}
+          </section>
+
+          <section className="account-section" aria-labelledby="profile-privacy-title">
+            <div className="account-section-heading-row">
+              <div>
+                <h2 id="profile-privacy-title">Profile Privacy</h2>
+                <p className="account-section-note">
+                  New profiles start private. Choose how visible your community profile should become.
+                </p>
+              </div>
+            </div>
+            {domainSnapshot?.ok && domainSnapshot.domainUser ? (
+              <div className="privacy-choice-list" role="radiogroup" aria-label="Profile visibility">
+                {profileVisibilityOptions.map((option) => {
+                  const isSelected = domainSnapshot.domainUser?.profileVisibility === option.value;
+
+                  return (
+                    <button
+                      type="button"
+                      className={isSelected ? "privacy-choice selected" : "privacy-choice"}
+                      key={option.value}
+                      onClick={() => void updateProfileVisibility(option.value)}
+                      disabled={savingProfileVisibility || isSelected}
+                      role="radio"
+                      aria-checked={isSelected}
+                    >
+                      <span className="privacy-choice-indicator" aria-hidden="true" />
+                      <span>
+                        <strong>{option.label}</strong>
+                        <span>{option.description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty-state-actions">
+                <p className="account-section-note">Sync domain accounts before choosing profile privacy.</p>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => void syncDomainAccounts()}
+                  disabled={syncingDomain}
+                >
+                  {syncingDomain ? "Syncing..." : "Sync domain accounts"}
+                </button>
+              </div>
             )}
           </section>
         </>
