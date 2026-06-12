@@ -279,6 +279,123 @@ button:disabled {
   color: #4b5966;
 }
 
+.provider-account-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.provider-account-row {
+  align-items: center;
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 7rem;
+  padding: 1rem;
+}
+
+.provider-identity {
+  align-items: center;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  min-width: 0;
+}
+
+.provider-identity h3 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.provider-identity p {
+  color: #4b5966;
+  margin: 0.25rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.provider-mark {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgb(20 25 32 / 8%);
+  color: #141920;
+  display: flex;
+  font-size: 1.2rem;
+  font-weight: 800;
+  height: 4rem;
+  justify-content: center;
+  width: 4rem;
+}
+
+.provider-mark.google {
+  color: #1a73e8;
+}
+
+.provider-mark.twitch {
+  background: #9146ff;
+  color: #ffffff;
+}
+
+.provider-mark.github {
+  background: #141920;
+  color: #ffffff;
+}
+
+.provider-mark.discord {
+  background: #5865f2;
+  color: #ffffff;
+}
+
+.provider-count {
+  color: #4b5966;
+  display: block;
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+.provider-controls {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(7rem, 1fr));
+}
+
+.provider-control {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.provider-control > span {
+  color: #141920;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.switch-action {
+  background: #141920;
+  border: 1px solid #141920;
+  border-radius: 999px;
+  color: #ffffff;
+  min-height: 2.25rem;
+  min-width: 7rem;
+  padding: 0.45rem 0.85rem;
+}
+
+.switch-action.enabled {
+  background: #238a55;
+  border-color: #238a55;
+}
+
+.switch-action span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .account-card-grid {
   display: grid;
   gap: 1rem;
@@ -355,5 +472,35 @@ button:disabled {
   .account-page-header,
   .account-section-heading-row {
     flex-direction: column;
+  }
+
+  .provider-account-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .provider-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .switch-action {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+@media (max-width: 440px) {
+  .provider-identity {
+    grid-template-columns: 3rem minmax(0, 1fr);
+  }
+
+  .provider-mark {
+    font-size: 1rem;
+    height: 3rem;
+    width: 3rem;
+  }
+
+  .provider-controls {
+    grid-template-columns: 1fr;
   }
 }

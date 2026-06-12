@@ -64,25 +64,21 @@ type LinkSocialResponse = {
   status?: boolean;
 };
 
+type ProviderRow = {
+  id: OAuthProviderId;
+  label: string;
+  shortLabel: string;
+  description: string;
+};
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
-const providers: Array<{ id: OAuthProviderId; label: string }> = [
-  { id: "google", label: "Google" },
-  { id: "github", label: "GitHub" },
-  { id: "discord", label: "Discord" },
-  { id: "twitch", label: "Twitch" }
+const providers: ProviderRow[] = [
+  { id: "google", label: "Google", shortLabel: "G", description: "Primary login and YouTube identity." },
+  { id: "twitch", label: "Twitch", shortLabel: "Tw", description: "Streaming identity, chat, subs, and channel routing." },
+  { id: "github", label: "GitHub", shortLabel: "GH", description: "Code and project contributor identity." },
+  { id: "discord", label: "Discord", shortLabel: "Dc", description: "Community identity, roles, and perks." }
 ];
-
-const formatDate = (value?: string | Date): string => {
-  if (!value) {
-    return "Unknown";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-};
 
 const AccountPanel = (): React.ReactNode => {
   const [session, setSession] = useState<AuthSession>(null);
@@ -247,7 +243,13 @@ const AccountPanel = (): React.ReactNode => {
     void loadAccount();
   }, []);
 
-  const linkedProviderIds = new Set(accounts.map((account) => account.providerId));
+  const domainLinkedAccounts = domainSnapshot?.ok ? domainSnapshot.linkedAccounts : [];
+
+  const getAuthAccountsForProvider = (providerId: OAuthProviderId): AuthAccount[] =>
+    accounts.filter((account) => account.providerId === providerId);
+
+  const getDomainAccountsForProvider = (providerId: OAuthProviderId): DomainLinkedAccount[] =>
+    domainLinkedAccounts.filter((account) => account.provider === providerId);
 
   return (
     <section className="account-page-panel" aria-labelledby="account-page-title">
@@ -291,60 +293,12 @@ const AccountPanel = (): React.ReactNode => {
             </div>
           </section>
 
-          <section className="account-section" aria-labelledby="linked-auth-title">
-            <h2 id="linked-auth-title">Login Accounts</h2>
-            <div className="account-card-grid">
-              {accounts.map((account) => (
-                <article className="linked-account-card" key={account.id}>
-                  <div>
-                    <h3>{account.providerId}</h3>
-                    <p>{account.accountId}</p>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>Scopes</dt>
-                      <dd>{account.scopes?.length ? account.scopes.join(", ") : "Default login scopes"}</dd>
-                    </div>
-                    <div>
-                      <dt>Linked</dt>
-                      <dd>{formatDate(account.createdAt)}</dd>
-                    </div>
-                  </dl>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="account-section" aria-labelledby="connect-title">
-            <h2 id="connect-title">Connect Another Account</h2>
-            <p className="account-section-note">
-              These are authentication links only. The later domain bridge will add stream display names, IGN verification,
-              channel routing, perks, and the Allow login toggle.
-            </p>
-            <div className="auth-actions">
-              {providers.map((provider) => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  onClick={() => void linkProvider(provider.id)}
-                  disabled={busyProvider !== null}
-                >
-                  {busyProvider === provider.id
-                    ? "Opening..."
-                    : linkedProviderIds.has(provider.id)
-                      ? `Connect another ${provider.label}`
-                      : `Connect ${provider.label}`}
-                </button>
-              ))}
-            </div>
-          </section>
-
           <section className="account-section" aria-labelledby="domain-accounts-title">
             <div className="account-section-heading-row">
               <div>
-                <h2 id="domain-accounts-title">Domain Linked Accounts</h2>
+                <h2 id="domain-accounts-title">Linked Accounts</h2>
                 <p className="account-section-note">
-                  These rows power stream display names, channel routing, perks, IGN verification, and the Allow login toggle.
+                  Link providers here, then choose which linked accounts are allowed to sign in.
                 </p>
               </div>
               <button
@@ -356,60 +310,90 @@ const AccountPanel = (): React.ReactNode => {
                 {syncingDomain ? "Syncing..." : "Sync domain accounts"}
               </button>
             </div>
-            {domainSnapshot?.ok && domainSnapshot.domainUser ? (
+            {domainSnapshot?.ok ? (
               <>
-                <div className="domain-user-strip">
-                  <span>Domain user</span>
-                  <strong>{domainSnapshot.domainUser.displayName}</strong>
-                  <span>{domainSnapshot.domainUser.profileVisibility}</span>
-                </div>
-                <div className="account-card-grid">
-                  {domainSnapshot.linkedAccounts.map((account) => (
-                    <article className="linked-account-card" key={account.id}>
-                      <div>
-                        <h3>{account.provider}</h3>
-                        <p>{account.displayName}</p>
-                      </div>
-                      <dl>
-                        <div>
-                          <dt>Provider account</dt>
-                          <dd>{account.providerAccountId}</dd>
+                {domainSnapshot.domainUser ? (
+                  <div className="domain-user-strip">
+                    <span>Domain user</span>
+                    <strong>{domainSnapshot.domainUser.displayName}</strong>
+                    <span>{domainSnapshot.domainUser.profileVisibility}</span>
+                  </div>
+                ) : null}
+                <div className="provider-account-list">
+                  {providers.map((provider) => {
+                    const authProviderAccounts = getAuthAccountsForProvider(provider.id);
+                    const domainProviderAccounts = getDomainAccountsForProvider(provider.id);
+                    const primaryDomainAccount = domainProviderAccounts[0];
+                    const isLinked = authProviderAccounts.length > 0 || domainProviderAccounts.length > 0;
+                    const isLoginCapable = Boolean(primaryDomainAccount?.capabilities.includes("login"));
+
+                    return (
+                      <article className="provider-account-row" key={provider.id}>
+                        <div className="provider-identity">
+                          <div className={`provider-mark ${provider.id}`} aria-hidden="true">
+                            {provider.shortLabel}
+                          </div>
+                          <div>
+                            <h3>{provider.label}</h3>
+                            <p>{primaryDomainAccount?.displayName ?? provider.description}</p>
+                            {authProviderAccounts.length > 1 || domainProviderAccounts.length > 1 ? (
+                              <span className="provider-count">
+                                {Math.max(authProviderAccounts.length, domainProviderAccounts.length)} accounts connected
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
-                        <div>
-                          <dt>Purpose</dt>
-                          <dd>{account.purposeLabel ?? "Not set"}</dd>
-                        </div>
-                        <div>
-                          <dt>Allow login</dt>
-                          <dd>
+                        <div className="provider-controls" aria-label={`${provider.label} account controls`}>
+                          <div className="provider-control">
+                            <span>Linked</span>
                             <button
                               type="button"
-                              className={account.allowLogin ? "toggle-action enabled" : "toggle-action"}
-                              onClick={() => void updateAllowLogin(account, !account.allowLogin)}
-                              disabled={busyLinkedAccountId !== null || !account.capabilities.includes("login")}
+                              className={isLinked ? "switch-action enabled" : "switch-action"}
+                              onClick={() => void linkProvider(provider.id)}
+                              disabled={busyProvider !== null}
+                              aria-pressed={isLinked}
                             >
-                              {busyLinkedAccountId === account.id
-                                ? "Updating..."
-                                : account.allowLogin
-                                  ? "Enabled"
-                                  : "Disabled"}
+                              <span>{busyProvider === provider.id ? "Opening" : isLinked ? "Linked" : "Connect"}</span>
                             </button>
-                          </dd>
+                          </div>
+                          <div className="provider-control">
+                            <span>Login</span>
+                            {primaryDomainAccount ? (
+                              <button
+                                type="button"
+                                className={primaryDomainAccount.allowLogin ? "switch-action enabled" : "switch-action"}
+                                onClick={() => void updateAllowLogin(primaryDomainAccount, !primaryDomainAccount.allowLogin)}
+                                disabled={busyLinkedAccountId !== null || !isLoginCapable}
+                                aria-pressed={primaryDomainAccount.allowLogin}
+                              >
+                                <span>
+                                  {busyLinkedAccountId === primaryDomainAccount.id
+                                    ? "Updating"
+                                    : primaryDomainAccount.allowLogin
+                                      ? "Enabled"
+                                      : "Disabled"}
+                                </span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="switch-action"
+                                onClick={() => void syncDomainAccounts()}
+                                disabled={!isLinked || syncingDomain}
+                              >
+                                <span>{isLinked ? "Sync" : "Unavailable"}</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <dt>Capabilities</dt>
-                          <dd>{account.capabilities.length ? account.capabilities.join(", ") : "None"}</dd>
-                        </div>
-                      </dl>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               </>
             ) : (
               <p className="account-section-note">
-                {domainSnapshot?.ok && domainSnapshot.needsSync
-                  ? "No domain user exists yet. Sync to create private domain records from your login accounts."
-                  : "Domain account data is not available yet."}
+                Domain account data is not available yet. Refresh this page or sign in again if the problem keeps happening.
               </p>
             )}
           </section>
