@@ -68,10 +68,15 @@ Multiple linked accounts also make the account system more resilient. A user is 
 - Changing `Allow login` should create an audit record.
 - If an account appears compromised, the user should be able to remove that provider after signing in through another trusted linked provider.
 - Account merging should be handled carefully to prevent someone from claiming another person's support history.
+- A provider account ID can only be claimed by one domain user at a time.
+- Re-syncing a linked provider account already owned by the same user is allowed.
+- Claiming a provider account already owned by a different user must be blocked and treated as a conflict, not silently merged.
 
 ## Type-safety Notes
 
 Linked providers should be typed records with provider-specific metadata stored separately from the normalized identity fields. The app should use stable provider account IDs, not usernames, as identity keys.
+
+Provider capabilities are modeled separately from provider identity. A provider can support login, support claiming, Discord role sync, IGN verification, avatar use, game ownership sync, or channel routing. The `Allow login` toggle only applies when the linked account has the `login` capability.
 
 ## Open Questions
 
