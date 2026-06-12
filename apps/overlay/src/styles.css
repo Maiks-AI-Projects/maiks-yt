@@ -82,7 +82,7 @@ body {
 }
 
 .top-bar-card:first-child {
-  animation: top-bar-enter 420ms ease both;
+  animation: top-bar-enter 180ms ease both;
 }
 
 .top-bar-avatar {
@@ -133,12 +133,10 @@ body {
 @keyframes top-bar-enter {
   from {
     opacity: 0;
-    transform: translateX(calc(-1 * (var(--top-bar-card-width) + 1rem)));
   }
 
   to {
     opacity: 1;
-    transform: translateX(calc(var(--top-bar-index) * (var(--top-bar-card-width) + var(--top-bar-card-gap))));
   }
 }
 
