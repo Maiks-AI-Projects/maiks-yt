@@ -3,7 +3,14 @@ import { createHash, randomUUID } from "node:crypto";
 import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
-import type { RealtimeEvent } from "@maiks-yt/events";
+import type {
+  OverlayLayoutKey,
+  OverlayLiveMessage,
+  OverlaySceneKey,
+  OverlayStateSnapshot,
+  OverlayThemeKey,
+  RealtimeEvent
+} from "@maiks-yt/events";
 import fastifyCors from "@fastify/cors";
 import fastifyWebsocket from "@fastify/websocket";
 import { fromNodeHeaders } from "better-auth/node";
@@ -39,6 +46,13 @@ const allowLoginRequestSchema = z.object({
 });
 const profileVisibilityRequestSchema = z.object({
   profileVisibility: z.enum(["private", "minimal", "public"])
+});
+const overlayStateRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  scene: z.enum(["default", "gameplay", "chat-focus", "just-camera"]).default("default"),
+  layout: z.enum(["standard", "camera-left", "camera-right", "clean"]).default("standard"),
+  theme: z.enum(["default"]).default("default"),
+  mode: z.enum(["normal", "clean"]).default("normal")
 });
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
@@ -111,6 +125,12 @@ interface RealtimeSpikeSocket {
   on(event: "close", listener: () => void): void;
 }
 
+interface OverlayLiveSocket {
+  close: (code?: number, reason?: string) => void;
+  send: (message: string) => void;
+  on(event: "close", listener: () => void): void;
+}
+
 const createRealtimeSpikeEvent = ({
   connectionId,
   sequence,
@@ -133,6 +153,122 @@ const createRealtimeSpikeEvent = ({
     message,
     transport
   }
+});
+
+const validateUrlAccessTokenForRequest = async ({
+  scope,
+  surface,
+  token
+}: {
+  scope: string;
+  surface: UrlAccessSurface;
+  token: string;
+}): Promise<{ valid: boolean; requiresLogin: boolean; reason?: string }> => {
+  const pool = getDatabasePool();
+  const tokenHash = hashToken(token);
+  const [tokenRows] = await pool.execute(
+    "SELECT id, surface, scopes, requires_login AS requiresLogin, expires_at AS expiresAt, revoked_at AS revokedAt FROM url_access_tokens WHERE token_hash = ? LIMIT 1",
+    [tokenHash]
+  );
+  const row = Array.isArray(tokenRows)
+    ? tokenRows[0] as {
+      id: string;
+      surface: UrlAccessSurface;
+      scopes: unknown;
+      requiresLogin: number | boolean;
+      expiresAt?: Date | null;
+      revokedAt?: Date | null;
+    } | undefined
+    : undefined;
+
+  if (!row) {
+    return {
+      valid: false,
+      requiresLogin: false,
+      reason: "token_not_found"
+    };
+  }
+
+  const tokenRecord = {
+    id: row.id,
+    surface: row.surface,
+    scopes: parseJsonArray(row.scopes).filter((tokenScope): tokenScope is string => typeof tokenScope === "string"),
+    requiresLogin: Boolean(row.requiresLogin)
+  };
+  const valid = canUseUrlAccessToken({
+    ...tokenRecord,
+    ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
+    ...(row.revokedAt ? { revokedAt: row.revokedAt } : {})
+  }, {
+    surface,
+    scope,
+    now: new Date()
+  });
+
+  if (valid) {
+    await pool.execute("UPDATE url_access_tokens SET last_used_at = NOW() WHERE id = ?", [row.id]);
+  }
+
+  return {
+    valid,
+    requiresLogin: Boolean(row.requiresLogin),
+    ...(valid ? {} : { reason: "token_not_valid_for_scope" })
+  };
+};
+
+const createOverlayStateSnapshot = ({
+  layout,
+  mode,
+  scene,
+  theme
+}: {
+  layout: OverlayLayoutKey;
+  mode: OverlayStateSnapshot["mode"];
+  scene: OverlaySceneKey;
+  theme: OverlayThemeKey;
+}): OverlayStateSnapshot => ({
+  id: randomUUID(),
+  scene,
+  layout,
+  theme,
+  mode,
+  connectionStatus: "snapshot",
+  topNotification: {
+    id: "dev-top-ready",
+    title: "Overlay ready",
+    message: "Live connection waiting",
+    zone: "top",
+    priority: "normal"
+  },
+  centerNotification: null,
+  slots: {
+    camera: {
+      id: "camera",
+      visible: layout !== "clean",
+      label: "Camera"
+    },
+    chat: {
+      id: "chat",
+      visible: layout !== "clean" && scene !== "just-camera",
+      label: "Chat"
+    },
+    sponsorPrimary: {
+      id: "sponsor-primary",
+      visible: mode !== "clean" && layout !== "clean",
+      label: "Sponsor"
+    },
+    sponsorSecondary: {
+      id: "sponsor-secondary",
+      visible: false,
+      label: "Sponsor"
+    },
+    streamGoal: {
+      id: "stream-goal",
+      visible: mode !== "clean",
+      label: "Stream goal"
+    }
+  },
+  updatedAt: new Date().toISOString()
 });
 
 const parseJsonArray = (value: unknown): unknown[] => {
@@ -777,55 +913,17 @@ server.post("/access/url-token/validate", async (request, reply) => {
   }
 
   try {
-    const pool = getDatabasePool();
-    const tokenHash = hashToken(parsedRequest.data.token);
-    const [tokenRows] = await pool.execute(
-      "SELECT id, surface, scopes, requires_login AS requiresLogin, expires_at AS expiresAt, revoked_at AS revokedAt FROM url_access_tokens WHERE token_hash = ? LIMIT 1",
-      [tokenHash]
-    );
-    const row = Array.isArray(tokenRows)
-      ? tokenRows[0] as {
-        id: string;
-        surface: UrlAccessSurface;
-        scopes: unknown;
-        requiresLogin: number | boolean;
-        expiresAt?: Date | null;
-        revokedAt?: Date | null;
-      } | undefined
-      : undefined;
-
-    if (!row) {
-      return {
-        ok: true,
-        valid: false,
-        reason: "token_not_found"
-      };
-    }
-
-    const tokenRecord = {
-      id: row.id,
-      surface: row.surface,
-      scopes: parseJsonArray(row.scopes).filter((scope): scope is string => typeof scope === "string"),
-      requiresLogin: Boolean(row.requiresLogin)
-    };
-    const valid = canUseUrlAccessToken({
-      ...tokenRecord,
-      ...(row.expiresAt ? { expiresAt: row.expiresAt } : {}),
-      ...(row.revokedAt ? { revokedAt: row.revokedAt } : {})
-    }, {
+    const validationResult = await validateUrlAccessTokenForRequest({
+      token: parsedRequest.data.token,
       surface: parsedRequest.data.surface,
-      scope: parsedRequest.data.scope,
-      now: new Date()
+      scope: parsedRequest.data.scope
     });
-
-    if (valid) {
-      await pool.execute("UPDATE url_access_tokens SET last_used_at = NOW() WHERE id = ?", [row.id]);
-    }
 
     return {
       ok: true,
-      valid,
-      requiresLogin: Boolean(row.requiresLogin)
+      valid: validationResult.valid,
+      requiresLogin: validationResult.requiresLogin,
+      ...(validationResult.reason ? { reason: validationResult.reason } : {})
     };
   } catch (error) {
     server.log.warn({ err: error }, "URL access token validation failed.");
@@ -843,6 +941,94 @@ server.post<{ Body: RealtimeEvent }>("/events/test", async (request) => ({
   accepted: true,
   eventType: request.body.type
 }));
+
+server.get("/overlay/state", async (request, reply) => {
+  const parsedRequest = overlayStateRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "overlay",
+    scope: "overlay:connect"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "overlay_access_denied"
+    };
+  }
+
+  return {
+    ok: true,
+    snapshot: createOverlayStateSnapshot(parsedRequest.data)
+  };
+});
+
+server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocket, request) => {
+  const parsedRequest = overlayStateRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    socket.close(1008, "invalid_request");
+    return;
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "overlay",
+    scope: "overlay:connect"
+  });
+
+  if (!tokenValidation.valid) {
+    socket.close(1008, tokenValidation.reason ?? "overlay_access_denied");
+    return;
+  }
+
+  const connectionId = randomUUID();
+  let snapshot = createOverlayStateSnapshot(parsedRequest.data);
+  snapshot = {
+    ...snapshot,
+    connectionStatus: "live",
+    topNotification: {
+      ...snapshot.topNotification!,
+      message: "Live connection active"
+    },
+    updatedAt: new Date().toISOString()
+  };
+
+  const sendMessage = (message: OverlayLiveMessage): void => {
+    socket.send(JSON.stringify(message));
+  };
+  const sendHeartbeat = (): void => {
+    sendMessage({
+      type: "overlay.connection.heartbeat",
+      payload: {
+        id: randomUUID(),
+        sentAt: new Date().toISOString()
+      }
+    });
+  };
+
+  server.log.info({ connectionId, scene: snapshot.scene, layout: snapshot.layout }, "Overlay live connection opened.");
+  sendMessage({
+    type: "overlay.state.snapshot",
+    payload: snapshot
+  });
+  const heartbeatInterval = setInterval(sendHeartbeat, 10_000);
+
+  socket.on("close", () => {
+    clearInterval(heartbeatInterval);
+    server.log.info({ connectionId }, "Overlay live connection closed.");
+  });
+});
 
 server.get("/realtime/spike/sse", async (request, reply) => {
   const connectionId = randomUUID();
