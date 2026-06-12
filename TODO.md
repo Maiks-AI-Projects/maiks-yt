@@ -151,7 +151,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Create reusable layout slots.
 - [x] Add camera position slots.
 - [ ] Build a layout designer panel for editing and reserving overlay slots.
-- [ ] Add drag controls for standard overlay elements.
+- [x] Add drag controls for standard overlay elements.
 - [ ] Add resize handles for standard overlay elements.
 - [x] Add numeric position and size inputs for precise OBS-friendly layout work.
 - [x] Save named scenes under the active theme.

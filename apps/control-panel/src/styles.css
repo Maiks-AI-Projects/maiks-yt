@@ -225,6 +225,7 @@ button {
   border: 1px solid #64748b;
   border-radius: 4px;
   color: #f4f7fb;
+  cursor: move;
   display: flex;
   font-size: 0.72rem;
   justify-content: start;
@@ -233,6 +234,8 @@ button {
   padding: 0.25rem;
   position: absolute;
   text-align: left;
+  touch-action: none;
+  user-select: none;
 }
 
 .scene-slot.hidden {

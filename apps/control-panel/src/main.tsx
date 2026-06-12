@@ -2,7 +2,7 @@ import type { OverlaySceneDefinition, OverlaySceneSlotDefinition, OverlaySceneSl
 import { createNotificationScenario, createReplaySessionFromPreset, type EventStormPreset } from "@maiks-yt/testing";
 import { overlaySceneSlotIds } from "@maiks-yt/themes";
 import { validateUrlAccessGate } from "@maiks-yt/ui";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -88,6 +88,20 @@ type OverlaySceneSaveResponse = {
 } | {
   ok: false;
   reason: string;
+};
+
+type SlotDragState = {
+  canvasHeight: number;
+  canvasWidth: number;
+  pointerId: number;
+  sceneKey: string;
+  slotHeight: number;
+  slotId: OverlaySceneSlotId;
+  slotWidth: number;
+  startClientX: number;
+  startClientY: number;
+  startX: number;
+  startY: number;
 };
 
 const createWebSocketUrl = (baseUrl: string, path: string): string => {
@@ -446,10 +460,15 @@ const formatSlotLabel = (slotId: OverlaySceneSlotId): string => {
 
 const cloneScene = (scene: OverlaySceneDefinition): OverlaySceneDefinition => structuredClone(scene);
 
+const clamp = (value: number, minimum: number, maximum: number): number => {
+  return Math.min(maximum, Math.max(minimum, value));
+};
+
 const SceneDesigner = (): React.ReactNode => {
   const [scenes, setScenes] = useState<OverlaySceneDefinition[]>([]);
   const [selectedSceneKey, setSelectedSceneKey] = useState<string>("default");
   const [selectedSlotId, setSelectedSlotId] = useState<OverlaySceneSlotId>("camera");
+  const [dragState, setDragState] = useState<SlotDragState | null>(null);
   const [status, setStatus] = useState<string>("Loading scenes.");
 
   const selectedScene = scenes.find((scene) => scene.sceneKey === selectedSceneKey) ?? scenes[0] ?? null;
@@ -491,13 +510,13 @@ const SceneDesigner = (): React.ReactNode => {
     void loadScenes();
   }, []);
 
-  const updateSelectedSlot = (patch: Partial<OverlaySceneSlotDefinition>): void => {
-    if (!selectedScene) {
-      return;
-    }
-
+  const updateSceneSlot = (
+    sceneKey: string,
+    slotId: OverlaySceneSlotId,
+    patch: Partial<OverlaySceneSlotDefinition>
+  ): void => {
     setScenes((currentScenes) => currentScenes.map((scene) => {
-      if (scene.sceneKey !== selectedScene.sceneKey) {
+      if (scene.sceneKey !== sceneKey) {
         return scene;
       }
 
@@ -505,13 +524,85 @@ const SceneDesigner = (): React.ReactNode => {
         ...scene,
         slots: {
           ...scene.slots,
-          [selectedSlotId]: {
-            ...scene.slots[selectedSlotId],
+          [slotId]: {
+            ...scene.slots[slotId],
             ...patch
           }
         }
       };
     }));
+  };
+
+  const updateSelectedSlot = (patch: Partial<OverlaySceneSlotDefinition>): void => {
+    if (!selectedScene) {
+      return;
+    }
+
+    updateSceneSlot(selectedScene.sceneKey, selectedSlotId, patch);
+  };
+
+  const startSlotDrag = (
+    event: ReactPointerEvent<HTMLButtonElement>,
+    slotId: OverlaySceneSlotId,
+    slot: OverlaySceneSlotDefinition
+  ): void => {
+    if (!selectedScene) {
+      return;
+    }
+
+    const canvasElement = event.currentTarget.parentElement;
+
+    if (!canvasElement) {
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelectedSlotId(slotId);
+    setDragState({
+      canvasHeight: canvasRect.height,
+      canvasWidth: canvasRect.width,
+      pointerId: event.pointerId,
+      sceneKey: selectedScene.sceneKey,
+      slotHeight: slot.height,
+      slotId,
+      slotWidth: slot.width,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: slot.x,
+      startY: slot.y
+    });
+    setStatus(`Dragging ${formatSlotLabel(slotId)}.`);
+  };
+
+  const moveSlotDrag = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+    if (!selectedScene || !dragState || event.pointerId !== dragState.pointerId) {
+      return;
+    }
+
+    const deltaX = (event.clientX - dragState.startClientX) / dragState.canvasWidth * selectedScene.canvas.width;
+    const deltaY = (event.clientY - dragState.startClientY) / dragState.canvasHeight * selectedScene.canvas.height;
+    const nextX = clamp(Math.round(dragState.startX + deltaX), 0, selectedScene.canvas.width - dragState.slotWidth);
+    const nextY = clamp(Math.round(dragState.startY + deltaY), 0, selectedScene.canvas.height - dragState.slotHeight);
+
+    updateSceneSlot(dragState.sceneKey, dragState.slotId, {
+      x: nextX,
+      y: nextY
+    });
+  };
+
+  const finishSlotDrag = (event: ReactPointerEvent<HTMLButtonElement>): void => {
+    if (!dragState || event.pointerId !== dragState.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    setDragState(null);
+    setStatus(`${formatSlotLabel(dragState.slotId)} moved. Save scene to keep it.`);
   };
 
   const saveSelectedScene = async (): Promise<void> => {
@@ -598,6 +689,10 @@ const SceneDesigner = (): React.ReactNode => {
                   key={slotId}
                   style={createSceneSlotStyle(slot, selectedScene.canvas)}
                   onClick={() => setSelectedSlotId(slotId)}
+                  onPointerCancel={finishSlotDrag}
+                  onPointerDown={(event) => startSlotDrag(event, slotId, slot)}
+                  onPointerMove={moveSlotDrag}
+                  onPointerUp={finishSlotDrag}
                 >
                   {formatSlotLabel(slotId)}
                 </button>
