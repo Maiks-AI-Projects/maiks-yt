@@ -26,30 +26,6 @@ body {
   background: #05070a;
 }
 
-.connection-dot {
-  border: 2px solid rgba(0, 0, 0, 0.55);
-  border-radius: 999px;
-  height: 1rem;
-  position: absolute;
-  right: 1rem;
-  top: 1rem;
-  width: 1rem;
-  z-index: 20;
-}
-
-.connection-dot.snapshot,
-.connection-dot.reconnecting {
-  background: var(--maiks-warning);
-}
-
-.connection-dot.live {
-  background: var(--maiks-success);
-}
-
-.connection-dot.offline {
-  background: var(--maiks-danger);
-}
-
 .top-notification {
   align-items: center;
   background: var(--maiks-notification-bg);
@@ -98,7 +74,6 @@ body {
 }
 
 .game-safe-area {
-  border: 1px solid rgba(255, 255, 255, 0.16);
   bottom: 7rem;
   left: 2rem;
   position: absolute;
@@ -107,14 +82,6 @@ body {
 }
 
 .slot {
-  align-items: center;
-  background: rgba(16, 20, 24, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  color: rgba(244, 247, 251, 0.78);
-  display: flex;
-  font-size: 0.9rem;
-  justify-content: center;
-  letter-spacing: 0;
   position: absolute;
 }
 
@@ -173,7 +140,6 @@ body {
 }
 
 .overlay[data-layout="clean"] .game-safe-area {
-  border-color: transparent;
   bottom: 1.25rem;
   top: 1.25rem;
 }

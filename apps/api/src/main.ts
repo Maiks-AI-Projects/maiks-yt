@@ -27,6 +27,7 @@ const config = createRuntimeConfig({
 
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
+const activeOverlayConnections = new Set<string>();
 
 await server.register(fastifyCors, {
   origin: getTrustedOrigins(),
@@ -53,6 +54,9 @@ const overlayStateRequestSchema = z.object({
   layout: z.enum(["standard", "camera-left", "camera-right", "clean"]).default("standard"),
   theme: z.enum(["default"]).default("default"),
   mode: z.enum(["normal", "clean"]).default("normal")
+});
+const overlayStatusRequestSchema = z.object({
+  accessToken: z.string().min(24)
 });
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
@@ -233,13 +237,7 @@ const createOverlayStateSnapshot = ({
   theme,
   mode,
   connectionStatus: "snapshot",
-  topNotification: {
-    id: "dev-top-ready",
-    title: "Overlay ready",
-    message: "Live connection waiting",
-    zone: "top",
-    priority: "normal"
-  },
+  topNotification: null,
   centerNotification: null,
   slots: {
     camera: {
@@ -973,6 +971,39 @@ server.get("/overlay/state", async (request, reply) => {
   };
 });
 
+server.get("/overlay/status", async (request, reply) => {
+  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  return {
+    ok: true,
+    activeOverlayConnections: activeOverlayConnections.size,
+    overlayActive: activeOverlayConnections.size > 0,
+    checkedAt: new Date().toISOString()
+  };
+});
+
 server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocket, request) => {
   const parsedRequest = overlayStateRequestSchema.safeParse(request.query);
 
@@ -993,14 +1024,11 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
   }
 
   const connectionId = randomUUID();
+  activeOverlayConnections.add(connectionId);
   let snapshot = createOverlayStateSnapshot(parsedRequest.data);
   snapshot = {
     ...snapshot,
     connectionStatus: "live",
-    topNotification: {
-      ...snapshot.topNotification!,
-      message: "Live connection active"
-    },
     updatedAt: new Date().toISOString()
   };
 
@@ -1026,6 +1054,7 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
 
   socket.on("close", () => {
     clearInterval(heartbeatInterval);
+    activeOverlayConnections.delete(connectionId);
     server.log.info({ connectionId }, "Overlay live connection closed.");
   });
 });

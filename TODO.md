@@ -145,6 +145,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Create first game/hobby theme.
 - [ ] Create reusable layout slots.
 - [ ] Add camera position slots.
+- [ ] Build a layout designer panel for editing and reserving overlay slots.
 - [ ] Ensure chat, camera, sponsor slots, and notifications do not overlap.
 - [ ] Test overlay layout at OBS canvas sizes.
 

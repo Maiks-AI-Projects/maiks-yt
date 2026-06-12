@@ -35,6 +35,30 @@ type AccountSessionResponse = {
 
 type ProbeStatus = "idle" | "connecting" | "open" | "failed" | "closed";
 
+type OverlayPresenceState =
+  | {
+    status: "checking";
+  }
+  | {
+    status: "ready";
+    activeOverlayConnections: number;
+    checkedAt: string;
+  }
+  | {
+    status: "error";
+    message: string;
+  };
+
+type OverlayStatusResponse = {
+  ok: true;
+  activeOverlayConnections: number;
+  overlayActive: boolean;
+  checkedAt: string;
+} | {
+  ok: false;
+  reason: string;
+};
+
 const createWebSocketUrl = (baseUrl: string, path: string): string => {
   const url = new URL(path, baseUrl);
 
@@ -100,6 +124,82 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
     status: "allowed",
     displayName: session.user.name ?? session.user.email ?? "Signed-in user"
   };
+};
+
+const SurfaceStatus = (): React.ReactNode => {
+  const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
+
+  useEffect(() => {
+    let disposed = false;
+
+    const refreshPresence = async (): Promise<void> => {
+      const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+      if (!token) {
+        setOverlayPresence({
+          status: "error",
+          message: "Control token missing."
+        });
+        return;
+      }
+
+      try {
+        const url = new URL("/overlay/status", apiBaseUrl);
+        url.searchParams.set("accessToken", token);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Overlay status failed with ${response.status}`);
+        }
+
+        const result = await response.json() as OverlayStatusResponse;
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        if (!disposed) {
+          setOverlayPresence({
+            status: "ready",
+            activeOverlayConnections: result.activeOverlayConnections,
+            checkedAt: result.checkedAt
+          });
+        }
+      } catch (error) {
+        if (!disposed) {
+          setOverlayPresence({
+            status: "error",
+            message: error instanceof Error ? error.message : "Overlay status unavailable."
+          });
+        }
+      }
+    };
+
+    void refreshPresence();
+    const interval = window.setInterval(refreshPresence, 5_000);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
+
+  return (
+    <section className="surface-status" aria-label="Surface status">
+      <div className="status-pill active">
+        <span>Control panel</span>
+        <strong>active</strong>
+      </div>
+      <div className={`status-pill ${overlayActive ? "active" : "idle"}`}>
+        <span>Overlay</span>
+        <strong>{overlayPresence.status === "checking" ? "checking" : overlayActive ? "active" : "idle"}</strong>
+        {overlayPresence.status === "ready" ? <small>{overlayPresence.activeOverlayConnections} connected</small> : null}
+        {overlayPresence.status === "error" ? <small>{overlayPresence.message}</small> : null}
+      </div>
+    </section>
+  );
 };
 
 const RealtimeProbe = (): React.ReactNode => {
@@ -218,6 +318,7 @@ const App = (): React.ReactNode => {
     <main className="surface">
       <h1>Maiks.yt Control Panel</h1>
       <p>Low-distraction control surface scaffold for {authState.displayName}.</p>
+      <SurfaceStatus />
       <button type="button">Emergency clean mode</button>
       <RealtimeProbe />
       <section>

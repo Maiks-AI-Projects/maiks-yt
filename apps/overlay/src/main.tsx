@@ -236,7 +236,6 @@ const App = (): React.ReactNode => {
 
   return (
     <main className="overlay" data-layout={snapshot.layout} data-scene={snapshot.scene} data-theme={defaultTheme.id}>
-      <div className={`connection-dot ${runtimeState.liveStatus}`} aria-label={runtimeState.liveStatus} />
       {snapshot.topNotification ? (
         <div className={`top-notification ${snapshot.topNotification.priority}`}>
           <strong>{snapshot.topNotification.title}</strong>
@@ -249,13 +248,15 @@ const App = (): React.ReactNode => {
           <span>{snapshot.centerNotification.message}</span>
         </div>
       ) : null}
-      <div className="game-safe-area" />
-      {snapshot.slots.camera.visible ? <div className="slot camera-slot">{snapshot.slots.camera.label}</div> : null}
-      {snapshot.slots.chat.visible ? <div className="slot chat-slot">{snapshot.slots.chat.label}</div> : null}
+      <div className="reservation game-safe-area" aria-hidden="true" />
+      {snapshot.slots.camera.visible ? <div className="reservation slot camera-slot" aria-hidden="true" /> : null}
+      {snapshot.slots.chat.visible ? <div className="reservation slot chat-slot" aria-hidden="true" /> : null}
       {snapshot.slots.sponsorPrimary.visible ? (
-        <div className="slot sponsor-primary-slot">{snapshot.slots.sponsorPrimary.label}</div>
+        <div className="reservation slot sponsor-primary-slot" aria-hidden="true" />
       ) : null}
-      {snapshot.slots.streamGoal.visible ? <div className="slot stream-goal-slot">{snapshot.slots.streamGoal.label}</div> : null}
+      {snapshot.slots.streamGoal.visible ? (
+        <div className="reservation slot stream-goal-slot" aria-hidden="true" />
+      ) : null}
     </main>
   );
 };

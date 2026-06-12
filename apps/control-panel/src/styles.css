@@ -21,6 +21,43 @@ button {
   padding: 2rem;
 }
 
+.surface-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.status-pill {
+  align-items: center;
+  background: #151d25;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: flex;
+  gap: 0.65rem;
+  min-height: 3rem;
+  padding: 0.65rem 0.85rem;
+}
+
+.status-pill span {
+  color: #b8c4cf;
+}
+
+.status-pill strong {
+  color: #f4f7fb;
+}
+
+.status-pill small {
+  color: #9fb0bd;
+}
+
+.status-pill.active {
+  border-color: #2f855a;
+}
+
+.status-pill.idle {
+  border-color: #f2c94c;
+}
+
 .preset-actions {
   display: flex;
   flex-wrap: wrap;
