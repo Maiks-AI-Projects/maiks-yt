@@ -38,7 +38,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Use `dev` branch as the dev-server auto-deploy target.
 - [x] Define fixed local port plan.
 - [x] Decide whether to use separate hostnames or one local reverse proxy.
-- [ ] Create a realtime transport abstraction before choosing WebSocket or SSE.
+- [x] Create a realtime transport abstraction before choosing WebSocket or SSE.
 - [ ] Run an early `cloudflared` tunnel spike for WebSocket and SSE.
 - [x] Investigate suspicious script injection on public Cloudflare dev routes.
   - Public `https://web-dev.maiks.yt/...` responses included an unexpected script referencing `bsc-testnet-rpc.publicnode.com` and `eval`.
@@ -47,8 +47,8 @@ This is the working checklist. We should work down it in order unless a new idea
   - Worker content matched the injector pattern and inserted a BSC-testnet-loaded script into HTML responses.
   - Removed the Worker route and deleted the Worker. Public dev pages verified clean afterward.
   - Follow up: rotate Cloudflare credentials/tokens and review Cloudflare account audit/activity logs.
-- [ ] Decide local development strategy for fake events.
-- [ ] Decide stream simulator/event replayer shape.
+- [x] Decide local development strategy for fake events.
+- [x] Decide stream simulator/event replayer shape.
 - [ ] Add localization structure from the start.
 - [ ] Add minimal analytics/security logging boundaries.
 - [x] Add initial architecture/file-boundary rule checker.

@@ -37,18 +37,18 @@ Already built:
 
 ## Current Milestone
 
-Current phase: Phase 4, Stream Simulator and Event Replayer.
+Current phase: Phase 5, Realtime Transport Spike.
 
 Goal:
 
-- Create typed fake stream events and replayable scenarios.
-- Build event storm presets for overlay and control-panel testing.
-- Keep simulator fixtures sanitized and useful without going live.
-- Use the simulator as the test input for overlay/control work.
+- Create a transport abstraction around typed events.
+- Implement a minimal in-memory transport for tests and local simulation.
+- Spike WebSocket and SSE behavior through Cloudflare Tunnel.
+- Keep snapshot, heartbeat, reconnect, and catch-up concepts explicit.
 
 Next after that:
 
-- Phase 5, Realtime Transport Spike.
+- Phase 6, Overlay Renderer V1.
 
 ## Phase 0: Roadmap and Scope Gate
 
