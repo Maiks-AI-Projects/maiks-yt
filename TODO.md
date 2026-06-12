@@ -155,7 +155,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add resize handles for standard overlay elements.
 - [x] Add numeric position and size inputs for precise OBS-friendly layout work.
 - [x] Save named scenes under the active theme.
-- [ ] Add duplicate scene action.
+- [x] Add duplicate scene action.
 - [x] Add reset controls for scene slots.
 - [x] Add hide/show controls for scene slots.
 - [x] Add lock aspect ratio controls for scene slots.

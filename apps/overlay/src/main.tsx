@@ -60,11 +60,15 @@ const parseUrlOptions = (): OverlayUrlOptions => {
   const params = new URL(window.location.href).searchParams;
 
   return {
-    scene: parseParam(params.get("scene"), ["default", "gameplay", "chat-focus", "just-camera", "talking"], "default"),
+    scene: parseSceneKey(params.get("scene")),
     layout: parseParam(params.get("layout"), ["standard", "camera-left", "camera-right", "clean"], "standard"),
     theme: parseParam(params.get("theme"), ["default"], "default"),
     mode: parseParam(params.get("mode"), ["normal", "clean"], "normal")
   };
+};
+
+const parseSceneKey = (value: string | null): OverlaySceneKey => {
+  return value && /^[a-z0-9][a-z0-9-]{0,47}$/.test(value) ? value : "default";
 };
 
 const parseParam = <TValue extends string>(

@@ -68,9 +68,10 @@ const allowLoginRequestSchema = z.object({
 const profileVisibilityRequestSchema = z.object({
   profileVisibility: z.enum(["private", "minimal", "public"])
 });
+const overlaySceneKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/);
 const overlayStateRequestSchema = z.object({
   accessToken: z.string().min(24),
-  scene: z.enum(["default", "gameplay", "chat-focus", "just-camera", "talking"]).default("default"),
+  scene: overlaySceneKeySchema.default("default"),
   layout: z.enum(["standard", "camera-left", "camera-right", "clean"]).default("standard"),
   theme: z.enum(["default"]).default("default"),
   mode: z.enum(["normal", "clean"]).default("normal")
@@ -114,7 +115,7 @@ const overlaySceneSaveRequestSchema = z.object({
   accessToken: z.string().min(24),
   scene: z.object({
     themeKey: z.enum(["default"]),
-    sceneKey: z.enum(["default", "gameplay", "chat-focus", "just-camera", "talking"]),
+    sceneKey: overlaySceneKeySchema,
     label: z.string().min(1).max(80),
     canvas: z.object({
       width: z.literal(1920),

@@ -479,6 +479,25 @@ const clamp = (value: number, minimum: number, maximum: number): number => {
   return Math.min(maximum, Math.max(minimum, value));
 };
 
+const createSceneCopyKey = (sceneKey: string, scenes: OverlaySceneDefinition[]): string => {
+  const baseKey = `${sceneKey.replace(/-copy(?:-[0-9]+)?$/, "")}-copy`;
+  const sceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
+
+  if (!sceneKeys.has(baseKey)) {
+    return baseKey;
+  }
+
+  for (let index = 2; index < 100; index += 1) {
+    const nextKey = `${baseKey}-${index}`;
+
+    if (!sceneKeys.has(nextKey)) {
+      return nextKey;
+    }
+  }
+
+  return `${baseKey}-${Date.now().toString(36)}`.slice(0, 48);
+};
+
 const SceneDesigner = (): React.ReactNode => {
   const [scenes, setScenes] = useState<OverlaySceneDefinition[]>([]);
   const [selectedSceneKey, setSelectedSceneKey] = useState<string>("default");
@@ -818,6 +837,55 @@ const SceneDesigner = (): React.ReactNode => {
     setStatus(`Saved ${result.scene.label}. ${result.activeOverlayConnections} overlay connection(s) updated.`);
   };
 
+  const duplicateSelectedScene = async (): Promise<void> => {
+    if (!selectedScene) {
+      setStatus("No scene selected.");
+      return;
+    }
+
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setStatus("Control token missing.");
+      return;
+    }
+
+    const duplicatedScene: OverlaySceneDefinition = {
+      ...cloneScene(selectedScene),
+      label: `${selectedScene.label} Copy`,
+      sceneKey: createSceneCopyKey(selectedScene.sceneKey, scenes)
+    };
+    const response = await fetch(`${apiBaseUrl}/overlay/scenes/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        scene: duplicatedScene
+      })
+    });
+
+    if (!response.ok) {
+      setStatus(`Scene duplicate failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlaySceneSaveResponse;
+
+    if (!result.ok) {
+      setStatus(result.reason);
+      return;
+    }
+
+    setScenes((currentScenes) => [
+      ...currentScenes.filter((scene) => scene.sceneKey !== result.scene.sceneKey),
+      cloneScene(result.scene)
+    ]);
+    setSelectedSceneKey(result.scene.sceneKey);
+    setStatus(`Duplicated ${selectedScene.label} as ${result.scene.label}.`);
+  };
+
   return (
     <section className="scene-designer">
       <div className="section-heading">
@@ -843,6 +911,9 @@ const SceneDesigner = (): React.ReactNode => {
         </label>
         <button type="button" className="status-action" onClick={() => void saveSelectedScene()}>
           Save scene
+        </button>
+        <button type="button" className="status-action" onClick={() => void duplicateSelectedScene()}>
+          Duplicate
         </button>
         <button type="button" className="status-action" onClick={() => void loadScenes()}>
           Reload
