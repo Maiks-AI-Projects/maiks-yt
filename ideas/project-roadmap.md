@@ -37,19 +37,18 @@ Already built:
 
 ## Current Milestone
 
-Current phase: Phase 3, Identity, Roles, and Privacy Foundation.
+Current phase: Phase 4, Stream Simulator and Event Replayer.
 
 Goal:
 
-- Implement the first safe identity foundation.
-- Keep profiles private by default.
-- Support multiple linked accounts with explicit `Allow login` controls.
-- Prevent losing the last usable sign-in method.
-- Add scoped URL-token gates for private overlay/control/admin surfaces.
+- Create typed fake stream events and replayable scenarios.
+- Build event storm presets for overlay and control-panel testing.
+- Keep simulator fixtures sanitized and useful without going live.
+- Use the simulator as the test input for overlay/control work.
 
 Next after that:
 
-- Phase 4, Stream Simulator and Event Replayer.
+- Phase 5, Realtime Transport Spike.
 
 ## Phase 0: Roadmap and Scope Gate
 

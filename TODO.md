@@ -99,8 +99,8 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 5.5 Stream Simulator and Event Replayer
 
-- [ ] Build fake typed event generator.
-- [ ] Add event storm presets.
+- [x] Build fake typed event generator.
+- [x] Add event storm presets.
 - [ ] Add event replay controls.
 - [ ] Support recording/replaying local stream sessions.
 - [ ] Strip sensitive data from recorded replay fixtures.
