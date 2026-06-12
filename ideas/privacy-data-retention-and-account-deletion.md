@@ -41,6 +41,23 @@ Backups are different from the live system. A deleted account may still exist in
 
 The site should not advertise backup restores as a normal user option, because deletion should feel final in the live system and people should not be encouraged to make backup-specific deletion requests.
 
+## First Implementation Shape
+
+The first live implementation should be conservative and explicit:
+
+- require a signed-in user
+- require a confirmation phrase before deleting
+- set the domain user display name to `Anonymous user`
+- set profile visibility to `private`
+- remove avatar/profile image references from the domain profile
+- mark the domain user as deleted with `deleted_at`
+- remove or revoke Better Auth sessions for that auth user
+- remove OAuth auth account rows and domain linked account rows
+- keep only minimal non-identifying deletion audit data
+- anonymize future ledger/support references once those tables exist
+
+This should not be exposed as a casual settings toggle. It belongs in a danger zone with clear wording and no dark patterns.
+
 ## Rare Recovery Case
 
 If a trusted helper, partner, or compromised admin account deletes someone else's account improperly, backups may allow the owner to investigate and restore the account.

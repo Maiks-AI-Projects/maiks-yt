@@ -80,7 +80,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add `Allow login` toggle per linked account.
 - [x] Prevent disabling/unlinking the last login method.
 - [x] Add first-sign-in privacy choice.
-- [ ] Add account deletion/anonymization design.
+- [x] Add account deletion/anonymization design.
 - [ ] Add provider capability model, such as login, perks, IGN verification, avatar, support claiming.
 - [ ] Add identity conflict rules for claiming linked accounts.
 - [ ] Add scoped URL token gates for non-public surfaces.
