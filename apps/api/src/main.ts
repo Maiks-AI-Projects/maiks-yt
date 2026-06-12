@@ -290,7 +290,7 @@ const createOverlayStateSnapshot = ({
 const demoTopBarNotifications: Array<Omit<OverlayTopBarNotificationQueuedEvent["payload"], "createdAt" | "id">> = [
   {
     actorName: "Yasmin",
-    actionLabel: "followed on Twitch",
+    actionLabel: "followed",
     avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
     kind: "follow",
     platform: "twitch",
@@ -314,7 +314,7 @@ const demoTopBarNotifications: Array<Omit<OverlayTopBarNotificationQueuedEvent["
   },
   {
     actorName: "Top Supporter",
-    actionLabel: "is top donor this stream",
+    actionLabel: "Donated €20",
     avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
     kind: "community-highlight",
     platform: "system",

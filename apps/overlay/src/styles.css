@@ -27,7 +27,7 @@ body {
 }
 
 .top-bar-notifications {
-  height: 4.75rem;
+  height: 3.35rem;
   left: 0;
   overflow: hidden;
   pointer-events: none;
@@ -39,23 +39,23 @@ body {
 
 .top-bar-card {
   --top-bar-card-gap: 0.75rem;
-  --top-bar-card-width: 22rem;
+  --top-bar-card-width: 13.5rem;
   align-items: center;
-  background: var(--maiks-notification-bg);
+  background: rgba(16, 20, 24, 0.78);
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-left: 4px solid var(--maiks-accent);
-  border-radius: 0 0 8px 0;
-  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.24);
+  border-left: 2px solid var(--maiks-accent);
+  border-radius: 0 0 6px 0;
+  box-shadow: 0 0.45rem 1rem rgba(0, 0, 0, 0.22);
   color: var(--maiks-notification-fg);
-  display: flex;
-  gap: 0.75rem;
-  height: 4rem;
-  left: 0.75rem;
+  display: grid;
+  gap: 0.08rem;
+  height: 2.75rem;
+  left: 0.45rem;
   min-width: 0;
   overflow: hidden;
-  padding: 0.55rem 0.85rem 0.55rem 0.6rem;
+  padding: 0.28rem 0.5rem 0.28rem 0.35rem;
   position: absolute;
-  top: 0.45rem;
+  top: 0.3rem;
   transform: translateX(calc(var(--top-bar-index) * (var(--top-bar-card-width) + var(--top-bar-card-gap))));
   transition: transform 420ms ease, opacity 220ms ease;
   width: var(--top-bar-card-width);
@@ -74,11 +74,11 @@ body {
 }
 
 .top-bar-card.twitch {
-  box-shadow: inset 0 0 0 1px rgba(145, 70, 255, 0.28), 0 0.75rem 1.5rem rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(145, 70, 255, 0.22), 0 0.45rem 1rem rgba(0, 0, 0, 0.22);
 }
 
 .top-bar-card.youtube {
-  box-shadow: inset 0 0 0 1px rgba(255, 0, 0, 0.28), 0 0.75rem 1.5rem rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 0, 0.22), 0 0.45rem 1rem rgba(0, 0, 0, 0.22);
 }
 
 .top-bar-card:first-child {
@@ -90,31 +90,44 @@ body {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   flex: 0 0 auto;
-  height: 2.75rem;
+  height: 1.9rem;
   object-fit: cover;
-  width: 2.75rem;
+  width: 1.9rem;
 }
 
-.top-bar-copy {
-  display: grid;
-  gap: 0.12rem;
+.top-bar-line {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
   min-width: 0;
 }
 
-.top-bar-copy strong,
-.top-bar-copy span {
+.top-bar-rank,
+.top-bar-line strong,
+.top-bar-action {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.top-bar-copy strong {
-  font-size: 1rem;
+.top-bar-rank {
+  color: var(--maiks-warning);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 0.8rem;
+  padding-left: 2.25rem;
+  text-transform: uppercase;
 }
 
-.top-bar-copy span {
+.top-bar-line strong {
+  font-size: 0.86rem;
+  min-width: 0;
+}
+
+.top-bar-action {
   color: var(--maiks-muted);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  min-width: 0;
 }
 
 @keyframes top-bar-enter {

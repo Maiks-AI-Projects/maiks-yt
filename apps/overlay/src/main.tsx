@@ -106,24 +106,24 @@ const loadSnapshot = async (token: string, options: OverlayUrlOptions): Promise<
 
 const fallbackTopBarHighlights: Array<Omit<TopBarNotification, "createdAt" | "id">> = [
   {
-    actorName: "Top donor",
-    actionLabel: "is leading support this stream",
+    actorName: "#1 Donator",
+    actionLabel: "Donated €20",
     avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
     kind: "community-highlight",
     platform: "system",
     priority: "normal"
   },
   {
-    actorName: "Top bits",
-    actionLabel: "is leading cheers this stream",
+    actorName: "#1 Bits",
+    actionLabel: "Cheered 500",
     avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
     kind: "community-highlight",
     platform: "system",
     priority: "normal"
   },
   {
-    actorName: "Top gifted subs",
-    actionLabel: "is leading community gifts",
+    actorName: "#1 Gifted Subs",
+    actionLabel: "Gifted 5 subs",
     avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
     kind: "community-highlight",
     platform: "system",
@@ -146,14 +146,23 @@ const TopNotificationBar = ({ notifications }: { notifications: TopBarNotificati
     <div className="top-bar-notifications" aria-live="polite">
       {notifications.map((notification, index) => (
         <article
-          className={`top-bar-card ${notification.priority} ${notification.platform}`}
+          className={`top-bar-card ${notification.priority} ${notification.platform} ${notification.kind}`}
           key={notification.id}
           style={{ "--top-bar-index": index } as CSSProperties}
         >
-          <img alt="" className="top-bar-avatar" src={notification.avatarUrl} />
-          <div className="top-bar-copy">
-            <strong>{notification.actorName}</strong>
-            <span>{notification.actionLabel}</span>
+          {notification.kind === "community-highlight" ? (
+            <span className="top-bar-rank">{notification.actorName}</span>
+          ) : null}
+          <div className="top-bar-line">
+            <img alt="" className="top-bar-avatar" src={notification.avatarUrl} />
+            {notification.kind === "community-highlight" ? (
+              <span className="top-bar-action">{notification.actionLabel}</span>
+            ) : (
+              <>
+                <strong>{notification.actorName}</strong>
+                <span className="top-bar-action">{notification.actionLabel}</span>
+              </>
+            )}
           </div>
         </article>
       ))}
