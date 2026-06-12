@@ -2,12 +2,66 @@ import type { RealtimeEvent } from "@maiks-yt/events";
 
 export type EventStormPreset = "notification-burst" | "urgent-center-alert" | "project-focus-shift";
 
+export type ReplayEvent = {
+  offsetMs: number;
+  event: RealtimeEvent;
+};
+
+export type ReplaySessionFixture = {
+  title: string;
+  source: "manual" | "recorded" | "fixture";
+  sanitized: boolean;
+  events: readonly ReplayEvent[];
+};
+
 export type FakeEventOptions = {
   id?: string;
   title?: string;
   message?: string;
   zone?: "top" | "center";
   priority?: "normal" | "important" | "urgent";
+};
+
+const sensitivePayloadKeys = new Set([
+  "accessToken",
+  "address",
+  "email",
+  "ipAddress",
+  "phone",
+  "privateMessage",
+  "realName",
+  "refreshToken",
+  "token"
+]);
+
+const sanitizeValue = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  return Object.fromEntries(Object.entries(value).map(([key, nestedValue]) => [
+    key,
+    sensitivePayloadKeys.has(key) ? "[redacted]" : sanitizeValue(nestedValue)
+  ]));
+};
+
+export const sanitizeReplayEvent = (event: RealtimeEvent): RealtimeEvent => {
+  switch (event.type) {
+    case "overlay.notification.queued":
+      return {
+        ...event,
+        payload: sanitizeValue(event.payload) as typeof event.payload
+      };
+    case "project.focus.changed":
+      return {
+        ...event,
+        payload: sanitizeValue(event.payload) as typeof event.payload
+      };
+  }
 };
 
 export const createFakeNotificationEvent = (options: FakeEventOptions = {}): RealtimeEvent => ({
@@ -70,3 +124,31 @@ export const createEventStormPreset = (preset: EventStormPreset): readonly Realt
       ];
   }
 };
+
+export const createReplaySessionFixture = (
+  title: string,
+  events: readonly RealtimeEvent[],
+  options: {
+    source?: ReplaySessionFixture["source"];
+    startOffsetMs?: number;
+    stepMs?: number;
+    sanitize?: boolean;
+  } = {}
+): ReplaySessionFixture => {
+  const startOffsetMs = options.startOffsetMs ?? 0;
+  const stepMs = options.stepMs ?? 1000;
+  const shouldSanitize = options.sanitize ?? true;
+
+  return {
+    title,
+    source: options.source ?? "fixture",
+    sanitized: shouldSanitize,
+    events: events.map((event, index) => ({
+      offsetMs: startOffsetMs + index * stepMs,
+      event: shouldSanitize ? sanitizeReplayEvent(event) : event
+    }))
+  };
+};
+
+export const createReplaySessionFromPreset = (preset: EventStormPreset): ReplaySessionFixture =>
+  createReplaySessionFixture(preset, createEventStormPreset(preset));

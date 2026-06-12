@@ -4,7 +4,10 @@ import {
   createEventStormPreset,
   createFakeNotificationEvent,
   createFakeProjectFocusEvent,
-  createNotificationScenario
+  createNotificationScenario,
+  createReplaySessionFixture,
+  createReplaySessionFromPreset,
+  sanitizeReplayEvent
 } from "../src/index.js";
 
 describe("stream simulator fixtures", () => {
@@ -53,5 +56,47 @@ describe("stream simulator fixtures", () => {
       "project.focus.changed",
       "overlay.notification.queued"
     ]);
+  });
+
+  it("creates replay sessions with deterministic offsets", () => {
+    const session = createReplaySessionFixture("Replay", createEventStormPreset("project-focus-shift"), {
+      startOffsetMs: 500,
+      stepMs: 250
+    });
+
+    expect(session).toMatchObject({
+      title: "Replay",
+      source: "fixture",
+      sanitized: true
+    });
+    expect(session.events.map((event) => event.offsetMs)).toEqual([500, 750]);
+  });
+
+  it("creates replay sessions directly from presets", () => {
+    expect(createReplaySessionFromPreset("urgent-center-alert").events).toHaveLength(1);
+  });
+
+  it("redacts sensitive payload fields recursively", () => {
+    const sanitized = sanitizeReplayEvent({
+      type: "overlay.notification.queued",
+      payload: {
+        id: "private",
+        title: "Private",
+        message: "Hello",
+        zone: "top",
+        priority: "normal",
+        email: "viewer@example.test",
+        nested: {
+          privateMessage: "secret"
+        }
+      }
+    });
+
+    expect(sanitized.payload).toMatchObject({
+      email: "[redacted]",
+      nested: {
+        privateMessage: "[redacted]"
+      }
+    });
   });
 });
