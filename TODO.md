@@ -84,7 +84,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add provider capability model, such as login, perks, IGN verification, avatar, support claiming.
 - [x] Add identity conflict rules for claiming linked accounts.
 - [x] Add scoped URL token gates for non-public surfaces.
-- [ ] Require login after URL token for privileged control/admin pages.
+- [x] Require login after URL token for privileged control/admin pages.
 
 ## 5. Projects and Milestones
 

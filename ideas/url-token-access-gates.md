@@ -70,7 +70,8 @@ Possible token scopes:
 - The token is removed from the address bar immediately after capture.
 - Overlay validates `surface=overlay` and `scope=overlay:connect`.
 - Control panel validates `surface=control-panel` and `scope=control:open`.
-- A valid control-panel token only opens the control panel shell; privileged actions still need login and role checks later.
+- A valid control-panel token opens only the second gate; the control panel shell still requires a signed-in session when the token has `requiresLogin=true`.
+- Privileged actions still need role checks later.
 - Missing or invalid tokens show a locked state instead of booting the app.
 
 ## Security Notes

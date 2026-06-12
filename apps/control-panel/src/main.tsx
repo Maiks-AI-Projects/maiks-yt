@@ -1,5 +1,5 @@
 import { createNotificationScenario } from "@maiks-yt/testing";
-import { validateUrlAccessGate, type UrlAccessGateState } from "@maiks-yt/ui";
+import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
@@ -7,23 +7,92 @@ import "./styles.css";
 const scenario = createNotificationScenario();
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
-const App = (): React.ReactNode => {
-  const [gateState, setGateState] = useState<UrlAccessGateState>({ status: "checking" });
+type ControlPanelAuthState =
+  | {
+    status: "checking";
+  }
+  | {
+    status: "allowed";
+    displayName: string;
+  }
+  | {
+    status: "blocked";
+    message: string;
+  };
 
-  useEffect(() => {
-    void validateUrlAccessGate({
-      apiBaseUrl,
-      surface: "control-panel",
-      scope: "control:open",
-      storageKey: "maiks.yt.control.accessToken"
-    }).then(setGateState);
-  }, []);
+type AccountSessionResponse = {
+  user: {
+    name?: string | null;
+    email?: string | null;
+  };
+} | null;
+
+const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
+  const gateState = await validateUrlAccessGate({
+    apiBaseUrl,
+    surface: "control-panel",
+    scope: "control:open",
+    storageKey: "maiks.yt.control.accessToken"
+  });
+
+  if (gateState.status === "checking") {
+    return {
+      status: "checking"
+    };
+  }
 
   if (gateState.status !== "allowed") {
+    return {
+      status: "blocked",
+      message: gateState.message
+    };
+  }
+
+  if (!gateState.requiresLogin) {
+    return {
+      status: "allowed",
+      displayName: "Token user"
+    };
+  }
+
+  const sessionResponse = await fetch(`${apiBaseUrl}/account/session`, {
+    credentials: "include"
+  });
+
+  if (!sessionResponse.ok) {
+    return {
+      status: "blocked",
+      message: "Sign in on the main site before opening the control panel."
+    };
+  }
+
+  const session = await sessionResponse.json() as AccountSessionResponse;
+
+  if (!session) {
+    return {
+      status: "blocked",
+      message: "Sign in on the main site before opening the control panel."
+    };
+  }
+
+  return {
+    status: "allowed",
+    displayName: session.user.name ?? session.user.email ?? "Signed-in user"
+  };
+};
+
+const App = (): React.ReactNode => {
+  const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
+
+  useEffect(() => {
+    void validateControlPanelAccess().then(setAuthState);
+  }, []);
+
+  if (authState.status !== "allowed") {
     return (
       <main className="surface">
         <h1>Access Required</h1>
-        <p>{gateState.status === "checking" ? "Checking control panel access..." : gateState.message}</p>
+        <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
       </main>
     );
   }
@@ -31,7 +100,7 @@ const App = (): React.ReactNode => {
   return (
     <main className="surface">
       <h1>Maiks.yt Control Panel</h1>
-      <p>Low-distraction control surface scaffold.</p>
+      <p>Low-distraction control surface scaffold for {authState.displayName}.</p>
       <button type="button">Emergency clean mode</button>
       <section>
         <h2>Simulator</h2>
