@@ -1,6 +1,10 @@
 "use client";
 
+import * as Switch from "@radix-ui/react-switch";
+import * as Tooltip from "@radix-ui/react-tooltip";
 import { useEffect, useState } from "react";
+import type { IconType } from "react-icons";
+import { SiDiscord, SiGithub, SiGoogle, SiTwitch } from "react-icons/si";
 
 type OAuthProviderId = "google" | "github" | "discord" | "twitch";
 
@@ -67,18 +71,35 @@ type LinkSocialResponse = {
 type ProviderRow = {
   id: OAuthProviderId;
   label: string;
-  shortLabel: string;
+  Icon: IconType;
   description: string;
+};
+
+type ControlTooltipProps = {
+  children: React.ReactNode;
+  text: string;
 };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const providers: ProviderRow[] = [
-  { id: "google", label: "Google", shortLabel: "G", description: "Primary login and YouTube identity." },
-  { id: "twitch", label: "Twitch", shortLabel: "Tw", description: "Streaming identity, chat, subs, and channel routing." },
-  { id: "github", label: "GitHub", shortLabel: "GH", description: "Code and project contributor identity." },
-  { id: "discord", label: "Discord", shortLabel: "Dc", description: "Community identity, roles, and perks." }
+  { id: "google", label: "Google", Icon: SiGoogle, description: "Primary login and YouTube identity." },
+  { id: "twitch", label: "Twitch", Icon: SiTwitch, description: "Streaming identity, chat, subs, and channel routing." },
+  { id: "github", label: "GitHub", Icon: SiGithub, description: "Code and project contributor identity." },
+  { id: "discord", label: "Discord", Icon: SiDiscord, description: "Community identity, roles, and perks." }
 ];
+
+const ControlTooltip = ({ children, text }: ControlTooltipProps): React.ReactNode => (
+  <Tooltip.Root delayDuration={250}>
+    <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+    <Tooltip.Portal>
+      <Tooltip.Content className="control-tooltip" side="top" sideOffset={8}>
+        {text}
+        <Tooltip.Arrow className="control-tooltip-arrow" />
+      </Tooltip.Content>
+    </Tooltip.Portal>
+  </Tooltip.Root>
+);
 
 const AccountPanel = (): React.ReactNode => {
   const [session, setSession] = useState<AuthSession>(null);
@@ -252,7 +273,8 @@ const AccountPanel = (): React.ReactNode => {
     domainLinkedAccounts.filter((account) => account.provider === providerId);
 
   return (
-    <section className="account-page-panel" aria-labelledby="account-page-title">
+    <Tooltip.Provider>
+      <section className="account-page-panel" aria-labelledby="account-page-title">
       <div className="account-page-header">
         <div>
           <h1 id="account-page-title">Account</h1>
@@ -326,12 +348,13 @@ const AccountPanel = (): React.ReactNode => {
                     const primaryDomainAccount = domainProviderAccounts[0];
                     const isLinked = authProviderAccounts.length > 0 || domainProviderAccounts.length > 0;
                     const isLoginCapable = Boolean(primaryDomainAccount?.capabilities.includes("login"));
+                    const ProviderIcon = provider.Icon;
 
                     return (
                       <article className="provider-account-row" key={provider.id}>
                         <div className="provider-identity">
                           <div className={`provider-mark ${provider.id}`} aria-hidden="true">
-                            {provider.shortLabel}
+                            <ProviderIcon />
                           </div>
                           <div>
                             <h3>{provider.label}</h3>
@@ -346,43 +369,101 @@ const AccountPanel = (): React.ReactNode => {
                         <div className="provider-controls" aria-label={`${provider.label} account controls`}>
                           <div className="provider-control">
                             <span>Linked</span>
-                            <button
-                              type="button"
-                              className={isLinked ? "switch-action enabled" : "switch-action"}
-                              onClick={() => void linkProvider(provider.id)}
-                              disabled={busyProvider !== null}
-                              aria-pressed={isLinked}
-                            >
-                              <span>{busyProvider === provider.id ? "Opening" : isLinked ? "Linked" : "Connect"}</span>
-                            </button>
+                            <div className="switch-control-row">
+                              <ControlTooltip
+                                text={
+                                  isLinked
+                                    ? `${provider.label} is connected. Unlinking will be added later; use Add another for extra accounts.`
+                                    : `Connect a ${provider.label} account to this profile.`
+                                }
+                              >
+                                <span className="tooltip-trigger-wrap">
+                                  <Switch.Root
+                                    className="account-switch"
+                                    checked={isLinked}
+                                    disabled={busyProvider !== null || isLinked}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        void linkProvider(provider.id);
+                                      }
+                                    }}
+                                    aria-label={`${provider.label} linked`}
+                                  >
+                                    <Switch.Thumb className="account-switch-thumb" />
+                                  </Switch.Root>
+                                </span>
+                              </ControlTooltip>
+                              <span className="switch-state">
+                                {busyProvider === provider.id ? "Opening" : isLinked ? "Linked" : "Not linked"}
+                              </span>
+                            </div>
+                            {isLinked ? (
+                              <ControlTooltip
+                                text={`Connect another ${provider.label} account without removing the existing one.`}
+                              >
+                                <span className="tooltip-trigger-wrap">
+                                  <button
+                                    type="button"
+                                    className="inline-action"
+                                    onClick={() => void linkProvider(provider.id)}
+                                    disabled={busyProvider !== null}
+                                  >
+                                    Add another
+                                  </button>
+                                </span>
+                              </ControlTooltip>
+                            ) : null}
                           </div>
                           <div className="provider-control">
                             <span>Login</span>
                             {primaryDomainAccount ? (
-                              <button
-                                type="button"
-                                className={primaryDomainAccount.allowLogin ? "switch-action enabled" : "switch-action"}
-                                onClick={() => void updateAllowLogin(primaryDomainAccount, !primaryDomainAccount.allowLogin)}
-                                disabled={busyLinkedAccountId !== null || !isLoginCapable}
-                                aria-pressed={primaryDomainAccount.allowLogin}
-                              >
-                                <span>
+                              <div className="switch-control-row">
+                                <ControlTooltip
+                                  text={
+                                    isLoginCapable
+                                      ? `Allow or block this ${provider.label} account from being used to sign in.`
+                                      : `${provider.label} is connected, but it is not marked as login-capable yet.`
+                                  }
+                                >
+                                  <span className="tooltip-trigger-wrap">
+                                    <Switch.Root
+                                      className="account-switch"
+                                      checked={primaryDomainAccount.allowLogin}
+                                      disabled={busyLinkedAccountId !== null || !isLoginCapable}
+                                      onCheckedChange={(checked) => void updateAllowLogin(primaryDomainAccount, checked)}
+                                      aria-label={`${provider.label} login allowed`}
+                                    >
+                                      <Switch.Thumb className="account-switch-thumb" />
+                                    </Switch.Root>
+                                  </span>
+                                </ControlTooltip>
+                                <span className="switch-state">
                                   {busyLinkedAccountId === primaryDomainAccount.id
                                     ? "Updating"
                                     : primaryDomainAccount.allowLogin
                                       ? "Enabled"
                                       : "Disabled"}
                                 </span>
-                              </button>
+                              </div>
                             ) : (
-                              <button
-                                type="button"
-                                className="switch-action"
-                                onClick={() => void syncDomainAccounts()}
-                                disabled={!isLinked || syncingDomain}
+                              <ControlTooltip
+                                text={
+                                  isLinked
+                                    ? "Sync this provider into the domain account table so login settings can be managed."
+                                    : `Connect ${provider.label} before login can be enabled.`
+                                }
                               >
-                                <span>{isLinked ? "Sync" : "Unavailable"}</span>
-                              </button>
+                                <span className="tooltip-trigger-wrap">
+                                  <button
+                                    type="button"
+                                    className="inline-action"
+                                    onClick={() => void syncDomainAccounts()}
+                                    disabled={!isLinked || syncingDomain}
+                                  >
+                                    {isLinked ? "Sync" : "Unavailable"}
+                                  </button>
+                                </span>
+                              </ControlTooltip>
                             )}
                           </div>
                         </div>
@@ -404,7 +485,8 @@ const AccountPanel = (): React.ReactNode => {
           <p className="account-section-note">Use the account menu in the navigation bar to sign in first.</p>
         </section>
       )}
-    </section>
+      </section>
+    </Tooltip.Provider>
   );
 };
 
