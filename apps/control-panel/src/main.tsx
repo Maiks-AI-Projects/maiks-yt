@@ -700,6 +700,59 @@ const SceneDesigner = (): React.ReactNode => {
     setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save scene to keep it.`);
   };
 
+  useEffect(() => {
+    if (!selectedScene || !resizeState || dragState) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent): void => {
+      if (event.pointerId !== resizeState.pointerId) {
+        return;
+      }
+
+      const deltaX = (event.clientX - resizeState.startClientX) / resizeState.canvasWidth * selectedScene.canvas.width;
+      const deltaY = (event.clientY - resizeState.startClientY) / resizeState.canvasHeight * selectedScene.canvas.height;
+      const maxWidth = selectedScene.canvas.width - resizeState.slotX;
+      const maxHeight = selectedScene.canvas.height - resizeState.slotY;
+      let nextWidth = clamp(Math.round(resizeState.startWidth + deltaX), 0, maxWidth);
+      let nextHeight = clamp(Math.round(resizeState.startHeight + deltaY), 0, maxHeight);
+
+      if (resizeState.lockedAspectRatio) {
+        if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+          nextHeight = clamp(Math.round(nextWidth / resizeState.lockedAspectRatio), 0, maxHeight);
+          nextWidth = clamp(Math.round(nextHeight * resizeState.lockedAspectRatio), 0, maxWidth);
+        } else {
+          nextWidth = clamp(Math.round(nextHeight * resizeState.lockedAspectRatio), 0, maxWidth);
+          nextHeight = clamp(Math.round(nextWidth / resizeState.lockedAspectRatio), 0, maxHeight);
+        }
+      }
+
+      updateSceneSlot(resizeState.sceneKey, resizeState.slotId, {
+        height: nextHeight,
+        width: nextWidth
+      });
+    };
+
+    const handlePointerUp = (event: PointerEvent): void => {
+      if (event.pointerId !== resizeState.pointerId) {
+        return;
+      }
+
+      setResizeState(null);
+      setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save scene to keep it.`);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [dragState, resizeState, selectedScene]);
+
   const saveSelectedScene = async (): Promise<void> => {
     if (!selectedScene) {
       setStatus("No scene selected.");
