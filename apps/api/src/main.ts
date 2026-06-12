@@ -91,6 +91,7 @@ const overlayCenterSettingsRequestSchema = z.object({
 const overlayNotificationTestRequestSchema = z.object({
   accessToken: z.string().min(24),
   route: z.enum(["top", "center"]),
+  afterCenter: z.enum(["top", "none"]).default("top"),
   count: z.number().int().min(1).max(6).default(1)
 });
 
@@ -347,6 +348,15 @@ const demoTopBarNotifications: Array<Omit<OverlayNotificationDisplay, "createdAt
   }
 ];
 
+const demoCenterOnlyNotification: Omit<OverlayNotificationDisplay, "createdAt" | "id"> = {
+  actorName: "Hydrate",
+  actionLabel: "Take a drink",
+  avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
+  kind: "redeem",
+  platform: "site",
+  priority: "important"
+};
+
 const createDemoTopBarNotification = (index: number): OverlayTopBarNotificationQueuedEvent => ({
   type: "overlay.top-bar-notification.queued",
   payload: {
@@ -358,12 +368,15 @@ const createDemoTopBarNotification = (index: number): OverlayTopBarNotificationQ
 
 const createDemoRoutedNotification = (
   index: number,
-  route: OverlayRoutedNotificationQueuedEvent["payload"]["route"]
+  route: OverlayRoutedNotificationQueuedEvent["payload"]["route"],
+  afterCenter: OverlayRoutedNotificationQueuedEvent["payload"]["afterCenter"]
 ): OverlayRoutedNotificationQueuedEvent => {
   const display: OverlayNotificationDisplay = {
     id: randomUUID(),
     createdAt: new Date().toISOString(),
-    ...demoTopBarNotifications[index % demoTopBarNotifications.length]!
+    ...(route === "center" && afterCenter === "none"
+      ? demoCenterOnlyNotification
+      : demoTopBarNotifications[index % demoTopBarNotifications.length]!)
   };
 
   return {
@@ -371,6 +384,7 @@ const createDemoRoutedNotification = (
     payload: {
       ...display,
       route,
+      afterCenter,
       ...(route === "center"
         ? {
           center: {
@@ -1291,11 +1305,21 @@ server.post("/overlay/notification/test", async (request, reply) => {
     };
   }
 
-  const route = parsedRequest.data.route === "center" && overlayCenterEnabled ? "center" : "top";
+  if (parsedRequest.data.route === "center" && !overlayCenterEnabled) {
+    return {
+      ok: true,
+      queued: 0,
+      route: "center",
+      reason: "center_notifications_disabled",
+      activeOverlayConnections: activeOverlayConnections.size
+    };
+  }
+
+  const route = parsedRequest.data.route;
 
   for (let index = 0; index < parsedRequest.data.count; index += 1) {
     setTimeout(() => {
-      broadcastOverlayMessage(createDemoRoutedNotification(index, route));
+      broadcastOverlayMessage(createDemoRoutedNotification(index, route, parsedRequest.data.afterCenter));
     }, index * 500);
   }
 

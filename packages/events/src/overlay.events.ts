@@ -8,6 +8,7 @@ export type OverlayTopBarNotificationKind =
   | "follow"
   | "bits"
   | "gifted-sub"
+  | "mime"
   | "redeem"
   | "website"
   | "system"
@@ -39,10 +40,13 @@ export type OverlayCenterNotificationTiming = {
   restMs: number;
 };
 
+export type OverlayNotificationAfterCenter = "top" | "none";
+
 export type OverlayRoutedNotificationQueuedEvent = {
   type: "overlay.routed-notification.queued";
   payload: OverlayNotificationDisplay & {
     route: "top" | "center";
+    afterCenter: OverlayNotificationAfterCenter;
     center?: {
       title: string;
       message: string;

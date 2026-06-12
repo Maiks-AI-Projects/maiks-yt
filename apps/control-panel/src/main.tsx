@@ -266,7 +266,10 @@ const SurfaceStatus = (): React.ReactNode => {
     setTopBarActionStatus(response.ok ? "Top bar burst sent." : `Top bar burst failed with ${response.status}.`);
   };
 
-  const sendRoutedNotificationTest = async (route: "top" | "center"): Promise<void> => {
+  const sendRoutedNotificationTest = async (
+    route: "top" | "center",
+    afterCenter: "top" | "none" = "top"
+  ): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
     if (!token) {
@@ -282,12 +285,15 @@ const SurfaceStatus = (): React.ReactNode => {
       body: JSON.stringify({
         accessToken: token,
         route,
+        afterCenter,
         count: route === "center" ? 1 : 4
       })
     });
 
     setTopBarActionStatus(response.ok
-      ? route === "center" ? "Center test queued." : "Routed top burst sent."
+      ? route === "center" && afterCenter === "none"
+        ? "Center-only redeem queued."
+        : route === "center" ? "Center then top test queued." : "Routed top burst sent."
       : `Notification test failed with ${response.status}.`);
   };
 
@@ -353,8 +359,11 @@ const SurfaceStatus = (): React.ReactNode => {
       <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
         Test top bar
       </button>
-      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center")}>
-        Test center
+      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "top")}>
+        Test center + top
+      </button>
+      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "none")}>
+        Test redeem
       </button>
       {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}
       <details className="notification-settings">

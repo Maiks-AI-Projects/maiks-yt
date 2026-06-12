@@ -272,7 +272,10 @@ const App = (): React.ReactNode => {
 
       window.setTimeout(() => {
         setCenterNotification(null);
-        enqueueTopBarNotification(nextNotification, { front: true });
+
+        if (nextNotification.afterCenter === "top") {
+          enqueueTopBarNotification(nextNotification, { front: true });
+        }
 
         window.setTimeout(() => {
           centerProcessingRef.current = false;
