@@ -43,6 +43,13 @@
       "when": 1781077087375,
       "tag": "0005_great_praxagora",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1781252507021,
+      "tag": "0006_lumpy_nightmare",
+      "breakpoints": true
     }
   ]
 }

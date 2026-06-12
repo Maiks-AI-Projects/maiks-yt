@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import type { IconType } from "react-icons";
 import { SiDiscord, SiGithub, SiGoogle, SiTwitch } from "react-icons/si";
 
+import { captureDevAuthTokenFromUrl, createApiHeaders } from "../dev-auth-token";
+
 type OAuthProviderId = "google" | "github" | "discord" | "twitch";
 
 type AuthSession = {
@@ -140,7 +142,8 @@ const AccountPanel = (): React.ReactNode => {
     setLoading(true);
 
     try {
-      const sessionResponse = await fetch(`${apiBaseUrl}/auth/get-session`, {
+      const sessionResponse = await fetch(`${apiBaseUrl}/account/session`, {
+        headers: createApiHeaders(),
         credentials: "include"
       });
 
@@ -158,7 +161,8 @@ const AccountPanel = (): React.ReactNode => {
         return;
       }
 
-      const accountsResponse = await fetch(`${apiBaseUrl}/auth/list-accounts`, {
+      const accountsResponse = await fetch(`${apiBaseUrl}/account/auth-accounts`, {
+        headers: createApiHeaders(),
         credentials: "include"
       });
 
@@ -168,6 +172,7 @@ const AccountPanel = (): React.ReactNode => {
 
       setAccounts(await accountsResponse.json() as AuthAccount[]);
       const domainResponse = await fetch(`${apiBaseUrl}/account/domain`, {
+        headers: createApiHeaders(),
         credentials: "include"
       });
 
@@ -194,9 +199,9 @@ const AccountPanel = (): React.ReactNode => {
     try {
       const response = await fetch(`${apiBaseUrl}/account/domain/sync`, {
         method: "POST",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         credentials: "include",
         body: JSON.stringify({})
       });
@@ -221,9 +226,9 @@ const AccountPanel = (): React.ReactNode => {
     try {
       const response = await fetch(`${apiBaseUrl}/auth/link-social`, {
         method: "POST",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         credentials: "include",
         body: JSON.stringify({
           provider: providerId,
@@ -261,9 +266,9 @@ const AccountPanel = (): React.ReactNode => {
     try {
       const response = await fetch(`${apiBaseUrl}/account/domain/linked-accounts/${account.id}/allow-login`, {
         method: "POST",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         credentials: "include",
         body: JSON.stringify({ allowLogin })
       });
@@ -292,9 +297,9 @@ const AccountPanel = (): React.ReactNode => {
     try {
       const response = await fetch(`${apiBaseUrl}/account/domain/profile-visibility`, {
         method: "POST",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         credentials: "include",
         body: JSON.stringify({ profileVisibility })
       });
@@ -313,6 +318,7 @@ const AccountPanel = (): React.ReactNode => {
   };
 
   useEffect(() => {
+    captureDevAuthTokenFromUrl();
     void loadAccount();
   }, []);
 

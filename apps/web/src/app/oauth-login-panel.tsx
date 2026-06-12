@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { captureDevAuthTokenFromUrl, clearDevAuthToken, createApiHeaders } from "./dev-auth-token";
+
 type OAuthProvider = {
   id: "google" | "github" | "discord" | "twitch";
   label: string;
@@ -53,9 +55,9 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
     try {
       const response = await fetch(`${apiBaseUrl}/auth/sign-in/social`, {
         method: "POST",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         credentials: "include",
         body: JSON.stringify({
           provider: provider.id,
@@ -85,7 +87,8 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
     setSessionLoading(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/auth/get-session`, {
+      const response = await fetch(`${apiBaseUrl}/account/session`, {
+        headers: createApiHeaders(),
         credentials: "include"
       });
 
@@ -109,17 +112,18 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
     try {
       const response = await fetch(`${apiBaseUrl}/auth/sign-out`, {
         method: "POST",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         body: JSON.stringify({}),
         credentials: "include"
       });
 
-      if (!response.ok) {
+      if (!response.ok && response.status !== 401) {
         throw new Error(`Sign-out failed with ${response.status}`);
       }
 
+      clearDevAuthToken();
       setSession(null);
       setMessage("Signed out");
     } catch (error) {
@@ -128,6 +132,7 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
   };
 
   useEffect(() => {
+    captureDevAuthTokenFromUrl();
     void refreshSession();
   }, []);
 

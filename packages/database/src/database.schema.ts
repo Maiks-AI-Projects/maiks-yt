@@ -180,6 +180,26 @@ export const urlAccessTokens = mysqlTable(
   ]
 );
 
+export const devAuthTokens = mysqlTable(
+  "dev_auth_tokens",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    label: varchar("label", { length: 191 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    authUserId: varchar("auth_user_id", { length: 36 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    revokedAt: timestamp("revoked_at"),
+    lastUsedAt: timestamp("last_used_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("dev_auth_tokens_auth_user_id_idx").on(table.authUserId),
+    index("dev_auth_tokens_expires_at_idx").on(table.expiresAt),
+    index("dev_auth_tokens_revoked_at_idx").on(table.revokedAt)
+  ]
+);
+
 export const projects = mysqlTable(
   "projects",
   {
