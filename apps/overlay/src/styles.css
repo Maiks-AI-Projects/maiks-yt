@@ -26,6 +26,109 @@ body {
   background: #05070a;
 }
 
+.top-bar-notifications {
+  height: 4.75rem;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 10;
+}
+
+.top-bar-card {
+  --top-bar-card-gap: 0.75rem;
+  --top-bar-card-width: 22rem;
+  align-items: center;
+  background: var(--maiks-notification-bg);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-left: 4px solid var(--maiks-accent);
+  border-radius: 0 0 8px 0;
+  box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.24);
+  color: var(--maiks-notification-fg);
+  display: flex;
+  gap: 0.75rem;
+  height: 4rem;
+  left: 0.75rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.55rem 0.85rem 0.55rem 0.6rem;
+  position: absolute;
+  top: 0.45rem;
+  transform: translateX(calc(var(--top-bar-index) * (var(--top-bar-card-width) + var(--top-bar-card-gap))));
+  transition: transform 420ms ease, opacity 220ms ease;
+  width: var(--top-bar-card-width);
+}
+
+.top-bar-card.normal {
+  border-left-color: var(--maiks-accent);
+}
+
+.top-bar-card.important {
+  border-left-color: var(--maiks-warning);
+}
+
+.top-bar-card.urgent {
+  border-left-color: var(--maiks-danger);
+}
+
+.top-bar-card.twitch {
+  box-shadow: inset 0 0 0 1px rgba(145, 70, 255, 0.28), 0 0.75rem 1.5rem rgba(0, 0, 0, 0.24);
+}
+
+.top-bar-card.youtube {
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 0, 0.28), 0 0.75rem 1.5rem rgba(0, 0, 0, 0.24);
+}
+
+.top-bar-card:first-child {
+  animation: top-bar-enter 420ms ease both;
+}
+
+.top-bar-avatar {
+  aspect-ratio: 1;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  flex: 0 0 auto;
+  height: 2.75rem;
+  object-fit: cover;
+  width: 2.75rem;
+}
+
+.top-bar-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.top-bar-copy strong,
+.top-bar-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-bar-copy strong {
+  font-size: 1rem;
+}
+
+.top-bar-copy span {
+  color: var(--maiks-muted);
+  font-size: 0.9rem;
+}
+
+@keyframes top-bar-enter {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-1 * (var(--top-bar-card-width) + 1rem)));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(calc(var(--top-bar-index) * (var(--top-bar-card-width) + var(--top-bar-card-gap))));
+  }
+}
+
 .top-notification {
   align-items: center;
   background: var(--maiks-notification-bg);

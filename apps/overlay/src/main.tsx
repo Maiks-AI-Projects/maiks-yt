@@ -3,16 +3,20 @@ import type {
   OverlayLiveMessage,
   OverlaySceneKey,
   OverlayStateSnapshot,
-  OverlayThemeKey
+  OverlayThemeKey,
+  OverlayTopBarNotificationQueuedEvent
 } from "@maiks-yt/events";
 import { defaultTheme } from "@maiks-yt/themes";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import { validateUrlAccessGate, type UrlAccessGateState } from "@maiks-yt/ui";
 import "./styles.css";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const overlayAccessStorageKey = "maiks.yt.overlay.accessToken";
+const topBarIntakeDelayMs = 500;
+const topBarNotificationLifetimeMs = 14_000;
+const maxVisibleTopBarNotifications = 7;
 
 type OverlayRuntimeState =
   | {
@@ -43,6 +47,8 @@ type OverlayStateResponse = {
   ok: false;
   reason: string;
 };
+
+type TopBarNotification = OverlayTopBarNotificationQueuedEvent["payload"];
 
 const parseUrlOptions = (): OverlayUrlOptions => {
   const params = new URL(window.location.href).searchParams;
@@ -99,10 +105,101 @@ const loadSnapshot = async (token: string, options: OverlayUrlOptions): Promise<
   return result.snapshot;
 };
 
+const fallbackTopBarHighlights: Array<Omit<TopBarNotification, "createdAt" | "id">> = [
+  {
+    actorName: "Top donor",
+    actionLabel: "is leading support this stream",
+    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
+    kind: "community-highlight",
+    platform: "system",
+    priority: "normal"
+  },
+  {
+    actorName: "Top bits",
+    actionLabel: "is leading cheers this stream",
+    avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
+    kind: "community-highlight",
+    platform: "system",
+    priority: "normal"
+  },
+  {
+    actorName: "Top gifted subs",
+    actionLabel: "is leading community gifts",
+    avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
+    kind: "community-highlight",
+    platform: "system",
+    priority: "normal"
+  }
+];
+
+const createFallbackTopBarHighlight = (index: number): TopBarNotification => ({
+  id: `fallback-${Date.now()}-${index}`,
+  createdAt: new Date().toISOString(),
+  ...fallbackTopBarHighlights[index % fallbackTopBarHighlights.length]!
+});
+
+const TopNotificationBar = ({ notifications }: { notifications: TopBarNotification[] }): React.ReactNode => {
+  if (notifications.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="top-bar-notifications" aria-live="polite">
+      {notifications.map((notification, index) => (
+        <article
+          className={`top-bar-card ${notification.priority} ${notification.platform}`}
+          key={notification.id}
+          style={{ "--top-bar-index": index } as CSSProperties}
+        >
+          <img alt="" className="top-bar-avatar" src={notification.avatarUrl} />
+          <div className="top-bar-copy">
+            <strong>{notification.actorName}</strong>
+            <span>{notification.actionLabel}</span>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+};
+
 const App = (): React.ReactNode => {
   const [gateState, setGateState] = useState<UrlAccessGateState>({ status: "checking" });
   const [runtimeState, setRuntimeState] = useState<OverlayRuntimeState>({ status: "loading" });
+  const [topBarNotifications, setTopBarNotifications] = useState<TopBarNotification[]>([]);
+  const fallbackHighlightIndexRef = useRef(0);
+  const pendingTopBarNotificationsRef = useRef<TopBarNotification[]>([]);
+  const topBarProcessingRef = useRef(false);
   const urlOptions = useMemo(parseUrlOptions, []);
+
+  const processTopBarQueue = (): void => {
+    if (topBarProcessingRef.current) {
+      return;
+    }
+
+    const nextNotification = pendingTopBarNotificationsRef.current.shift();
+
+    if (!nextNotification) {
+      return;
+    }
+
+    topBarProcessingRef.current = true;
+    setTopBarNotifications((notifications) => [
+      nextNotification,
+      ...notifications
+    ].slice(0, maxVisibleTopBarNotifications));
+    window.setTimeout(() => {
+      setTopBarNotifications((notifications) => notifications.filter((notification) => notification.id !== nextNotification.id));
+    }, topBarNotificationLifetimeMs);
+    window.setTimeout(() => {
+      topBarProcessingRef.current = false;
+      processTopBarQueue();
+    }, topBarIntakeDelayMs);
+  };
+
+  const enqueueTopBarNotification = (notification: TopBarNotification): void => {
+    pendingTopBarNotificationsRef.current.push(notification);
+    processTopBarQueue();
+  };
 
   useEffect(() => {
     void validateUrlAccessGate({
@@ -161,6 +258,11 @@ const App = (): React.ReactNode => {
             return;
           }
 
+          if (message.type === "overlay.top-bar-notification.queued") {
+            enqueueTopBarNotification(message.payload);
+            return;
+          }
+
           if (message.type === "overlay.connection.heartbeat") {
             setRuntimeState((currentState) => currentState.status === "ready"
               ? {
@@ -212,6 +314,26 @@ const App = (): React.ReactNode => {
     };
   }, [gateState.status, urlOptions]);
 
+  const topBarEnabled = runtimeState.status === "ready" && runtimeState.snapshot.topBar.enabled;
+  const quietHighlightIntervalMs = runtimeState.status === "ready"
+    ? runtimeState.snapshot.topBar.quietHighlightIntervalMs
+    : 18_000;
+
+  useEffect(() => {
+    if (!topBarEnabled) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      enqueueTopBarNotification(createFallbackTopBarHighlight(fallbackHighlightIndexRef.current));
+      fallbackHighlightIndexRef.current += 1;
+    }, quietHighlightIntervalMs);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [quietHighlightIntervalMs, topBarEnabled]);
+
   if (gateState.status !== "allowed") {
     return (
       <main className="overlay access-gate">
@@ -236,6 +358,7 @@ const App = (): React.ReactNode => {
 
   return (
     <main className="overlay" data-layout={snapshot.layout} data-scene={snapshot.scene} data-theme={defaultTheme.id}>
+      {snapshot.topBar.enabled ? <TopNotificationBar notifications={topBarNotifications} /> : null}
       {snapshot.topNotification ? (
         <div className={`top-notification ${snapshot.topNotification.priority}`}>
           <strong>{snapshot.topNotification.title}</strong>

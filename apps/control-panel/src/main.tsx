@@ -43,6 +43,7 @@ type OverlayPresenceState =
     status: "ready";
     activeOverlayConnections: number;
     checkedAt: string;
+    topBarEnabled: boolean;
   }
   | {
     status: "error";
@@ -54,6 +55,7 @@ type OverlayStatusResponse = {
   activeOverlayConnections: number;
   overlayActive: boolean;
   checkedAt: string;
+  topBarEnabled: boolean;
 } | {
   ok: false;
   reason: string;
@@ -128,6 +130,7 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
 
 const SurfaceStatus = (): React.ReactNode => {
   const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
+  const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -162,7 +165,8 @@ const SurfaceStatus = (): React.ReactNode => {
           setOverlayPresence({
             status: "ready",
             activeOverlayConnections: result.activeOverlayConnections,
-            checkedAt: result.checkedAt
+            checkedAt: result.checkedAt,
+            topBarEnabled: result.topBarEnabled
           });
         }
       } catch (error) {
@@ -185,6 +189,62 @@ const SurfaceStatus = (): React.ReactNode => {
   }, []);
 
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
+  const topBarEnabled = overlayPresence.status === "ready" && overlayPresence.topBarEnabled;
+
+  const updateTopBarEnabled = async (enabled: boolean): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/top-bar/enabled`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        enabled
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Top bar toggle failed with ${response.status}.`);
+      return;
+    }
+
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        topBarEnabled: enabled
+      }
+      : currentState);
+    setTopBarActionStatus(enabled ? "Top bar on." : "Top bar off.");
+  };
+
+  const sendTopBarTest = async (): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/top-bar/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        count: 4
+      })
+    });
+
+    setTopBarActionStatus(response.ok ? "Top bar burst sent." : `Top bar burst failed with ${response.status}.`);
+  };
 
   return (
     <section className="surface-status" aria-label="Surface status">
@@ -198,6 +258,13 @@ const SurfaceStatus = (): React.ReactNode => {
         {overlayPresence.status === "ready" ? <small>{overlayPresence.activeOverlayConnections} connected</small> : null}
         {overlayPresence.status === "error" ? <small>{overlayPresence.message}</small> : null}
       </div>
+      <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
+        {topBarEnabled ? "Top bar on" : "Top bar off"}
+      </button>
+      <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
+        Test top bar
+      </button>
+      {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}
     </section>
   );
 };

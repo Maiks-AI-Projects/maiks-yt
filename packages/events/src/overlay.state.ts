@@ -14,6 +14,11 @@ export type OverlaySlotState = {
   label: string;
 };
 
+export type OverlayTopBarState = {
+  enabled: boolean;
+  quietHighlightIntervalMs: number;
+};
+
 export type OverlayStateSnapshot = {
   id: string;
   scene: OverlaySceneKey;
@@ -21,6 +26,7 @@ export type OverlayStateSnapshot = {
   theme: OverlayThemeKey;
   mode: "normal" | "clean";
   connectionStatus: OverlayConnectionStatus;
+  topBar: OverlayTopBarState;
   topNotification: OverlayNotificationQueuedEvent["payload"] | null;
   centerNotification: OverlayNotificationQueuedEvent["payload"] | null;
   slots: {

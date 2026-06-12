@@ -56,6 +56,11 @@ export const sanitizeReplayEvent = (event: RealtimeEvent): RealtimeEvent => {
         ...event,
         payload: sanitizeValue(event.payload) as typeof event.payload
       };
+    case "overlay.top-bar-notification.queued":
+      return {
+        ...event,
+        payload: sanitizeValue(event.payload) as typeof event.payload
+      };
     case "project.focus.changed":
       return {
         ...event,

@@ -58,6 +58,17 @@ button {
   border-color: #f2c94c;
 }
 
+.status-action {
+  align-self: stretch;
+  background: #25313d;
+  min-height: 3rem;
+}
+
+.status-note {
+  align-self: center;
+  color: #b8c4cf;
+}
+
 .preset-actions {
   display: flex;
   flex-wrap: wrap;

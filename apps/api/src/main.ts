@@ -9,6 +9,7 @@ import type {
   OverlaySceneKey,
   OverlayStateSnapshot,
   OverlayThemeKey,
+  OverlayTopBarNotificationQueuedEvent,
   RealtimeEvent
 } from "@maiks-yt/events";
 import fastifyCors from "@fastify/cors";
@@ -28,6 +29,11 @@ const config = createRuntimeConfig({
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
 const activeOverlayConnections = new Set<string>();
+let overlayTopBarEnabled = true;
+const overlayLiveClients = new Map<string, {
+  snapshot: OverlayStateSnapshot;
+  socket: OverlayLiveSocket;
+}>();
 
 await server.register(fastifyCors, {
   origin: getTrustedOrigins(),
@@ -57,6 +63,14 @@ const overlayStateRequestSchema = z.object({
 });
 const overlayStatusRequestSchema = z.object({
   accessToken: z.string().min(24)
+});
+const overlayTopBarTestRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  count: z.number().int().min(1).max(6).default(1)
+});
+const overlayTopBarEnabledRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  enabled: z.boolean()
 });
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
@@ -237,6 +251,10 @@ const createOverlayStateSnapshot = ({
   theme,
   mode,
   connectionStatus: "snapshot",
+  topBar: {
+    enabled: overlayTopBarEnabled,
+    quietHighlightIntervalMs: 18_000
+  },
   topNotification: null,
   centerNotification: null,
   slots: {
@@ -268,6 +286,75 @@ const createOverlayStateSnapshot = ({
   },
   updatedAt: new Date().toISOString()
 });
+
+const demoTopBarNotifications: Array<Omit<OverlayTopBarNotificationQueuedEvent["payload"], "createdAt" | "id">> = [
+  {
+    actorName: "Yasmin",
+    actionLabel: "followed on Twitch",
+    avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
+    kind: "follow",
+    platform: "twitch",
+    priority: "normal"
+  },
+  {
+    actorName: "Michael",
+    actionLabel: "gifted 5 subs",
+    avatarUrl: "https://yt3.ggpht.com/yti/ANjgQV8-placeholder=s88-c-k-c0x00ffffff-no-rj",
+    kind: "gifted-sub",
+    platform: "youtube",
+    priority: "important"
+  },
+  {
+    actorName: "MaiksMC Fan",
+    actionLabel: "cheered 500 bits",
+    avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
+    kind: "bits",
+    platform: "twitch",
+    priority: "normal"
+  },
+  {
+    actorName: "Top Supporter",
+    actionLabel: "is top donor this stream",
+    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
+    kind: "community-highlight",
+    platform: "system",
+    priority: "normal"
+  }
+];
+
+const createDemoTopBarNotification = (index: number): OverlayTopBarNotificationQueuedEvent => ({
+  type: "overlay.top-bar-notification.queued",
+  payload: {
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    ...demoTopBarNotifications[index % demoTopBarNotifications.length]!
+  }
+});
+
+const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
+  const serializedMessage = JSON.stringify(message);
+
+  for (const client of overlayLiveClients.values()) {
+    client.socket.send(serializedMessage);
+  }
+};
+
+const broadcastOverlaySnapshots = (): void => {
+  for (const client of overlayLiveClients.values()) {
+    client.snapshot = {
+      ...client.snapshot,
+      topBar: {
+        ...client.snapshot.topBar,
+        enabled: overlayTopBarEnabled
+      },
+      updatedAt: new Date().toISOString()
+    };
+    client.socket.send(JSON.stringify({
+      type: "overlay.state.snapshot",
+      payload: client.snapshot
+    } satisfies OverlayLiveMessage));
+  }
+};
 
 const parseJsonArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -1000,7 +1087,81 @@ server.get("/overlay/status", async (request, reply) => {
     ok: true,
     activeOverlayConnections: activeOverlayConnections.size,
     overlayActive: activeOverlayConnections.size > 0,
+    topBarEnabled: overlayTopBarEnabled,
     checkedAt: new Date().toISOString()
+  };
+});
+
+server.post("/overlay/top-bar/enabled", async (request, reply) => {
+  const parsedRequest = overlayTopBarEnabledRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlayTopBarEnabled = parsedRequest.data.enabled;
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    topBarEnabled: overlayTopBarEnabled,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/top-bar/test", async (request, reply) => {
+  const parsedRequest = overlayTopBarTestRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  for (let index = 0; index < parsedRequest.data.count; index += 1) {
+    setTimeout(() => {
+      broadcastOverlayMessage(createDemoTopBarNotification(index));
+    }, index * 500);
+  }
+
+  return {
+    ok: true,
+    queued: parsedRequest.data.count,
+    activeOverlayConnections: activeOverlayConnections.size
   };
 });
 
@@ -1031,6 +1192,10 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
     connectionStatus: "live",
     updatedAt: new Date().toISOString()
   };
+  overlayLiveClients.set(connectionId, {
+    snapshot,
+    socket
+  });
 
   const sendMessage = (message: OverlayLiveMessage): void => {
     socket.send(JSON.stringify(message));
@@ -1055,6 +1220,7 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
   socket.on("close", () => {
     clearInterval(heartbeatInterval);
     activeOverlayConnections.delete(connectionId);
+    overlayLiveClients.delete(connectionId);
     server.log.info({ connectionId }, "Overlay live connection closed.");
   });
 });
