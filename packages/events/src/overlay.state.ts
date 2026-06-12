@@ -1,4 +1,8 @@
-import type { OverlayEvent, OverlayNotificationQueuedEvent } from "./overlay.events.js";
+import type {
+  OverlayCenterNotificationTiming,
+  OverlayEvent,
+  OverlayNotificationQueuedEvent
+} from "./overlay.events.js";
 
 export type OverlaySceneKey = "default" | "gameplay" | "chat-focus" | "just-camera";
 
@@ -19,6 +23,11 @@ export type OverlayTopBarState = {
   quietHighlightIntervalMs: number;
 };
 
+export type OverlayCenterNotificationState = {
+  enabled: boolean;
+  defaultTiming: OverlayCenterNotificationTiming;
+};
+
 export type OverlayStateSnapshot = {
   id: string;
   scene: OverlaySceneKey;
@@ -27,6 +36,7 @@ export type OverlayStateSnapshot = {
   mode: "normal" | "clean";
   connectionStatus: OverlayConnectionStatus;
   topBar: OverlayTopBarState;
+  center: OverlayCenterNotificationState;
   topNotification: OverlayNotificationQueuedEvent["payload"] | null;
   centerNotification: OverlayNotificationQueuedEvent["payload"] | null;
   slots: {

@@ -8,19 +8,48 @@ export type OverlayTopBarNotificationKind =
   | "follow"
   | "bits"
   | "gifted-sub"
+  | "redeem"
+  | "website"
+  | "system"
   | "community-highlight";
+
+export type OverlayNotificationPriority = "normal" | "important" | "urgent";
+
+export type OverlayNotificationPlatform = "site" | "youtube" | "twitch" | "discord" | "system";
+
+export type OverlayNotificationDisplay = {
+  id: string;
+  actorName: string;
+  actionLabel: string;
+  avatarUrl: string;
+  createdAt: string;
+  kind: OverlayTopBarNotificationKind;
+  platform: OverlayNotificationPlatform;
+  priority: OverlayNotificationPriority;
+};
 
 export type OverlayTopBarNotificationQueuedEvent = {
   type: "overlay.top-bar-notification.queued";
-  payload: {
-    id: string;
-    actorName: string;
-    actionLabel: string;
-    avatarUrl: string;
-    createdAt: string;
-    kind: OverlayTopBarNotificationKind;
-    platform: "site" | "youtube" | "twitch" | "discord" | "system";
-    priority: "normal" | "important" | "urgent";
+  payload: OverlayNotificationDisplay;
+};
+
+export type OverlayCenterNotificationTiming = {
+  onscreenMs: number;
+  fadeOutMs: number;
+  restMs: number;
+};
+
+export type OverlayRoutedNotificationQueuedEvent = {
+  type: "overlay.routed-notification.queued";
+  payload: OverlayNotificationDisplay & {
+    route: "top" | "center";
+    center?: {
+      title: string;
+      message: string;
+      imageUrl?: string;
+      audioUrl?: string;
+      timing: OverlayCenterNotificationTiming;
+    };
   };
 };
 
@@ -31,7 +60,7 @@ export type OverlayNotificationQueuedEvent = {
     title: string;
     message: string;
     zone: NotificationZone;
-    priority: "normal" | "important" | "urgent";
+    priority: OverlayNotificationPriority;
   };
 };
 
@@ -43,4 +72,8 @@ export type ProjectFocusChangedEvent = {
   };
 };
 
-export type OverlayEvent = OverlayNotificationQueuedEvent | OverlayTopBarNotificationQueuedEvent | ProjectFocusChangedEvent;
+export type OverlayEvent =
+  | OverlayNotificationQueuedEvent
+  | OverlayRoutedNotificationQueuedEvent
+  | OverlayTopBarNotificationQueuedEvent
+  | ProjectFocusChangedEvent;

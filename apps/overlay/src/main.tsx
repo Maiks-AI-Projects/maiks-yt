@@ -4,6 +4,7 @@ import type {
   OverlaySceneKey,
   OverlayStateSnapshot,
   OverlayThemeKey,
+  OverlayRoutedNotificationQueuedEvent,
   OverlayTopBarNotificationQueuedEvent
 } from "@maiks-yt/events";
 import { defaultTheme } from "@maiks-yt/themes";
@@ -48,6 +49,11 @@ type OverlayStateResponse = {
 };
 
 type TopBarNotification = OverlayTopBarNotificationQueuedEvent["payload"];
+type RoutedNotification = OverlayRoutedNotificationQueuedEvent["payload"];
+type CenterNotificationRuntime = {
+  notification: RoutedNotification;
+  phase: "onscreen" | "fading";
+};
 
 const parseUrlOptions = (): OverlayUrlOptions => {
   const params = new URL(window.location.href).searchParams;
@@ -170,13 +176,39 @@ const TopNotificationBar = ({ notifications }: { notifications: TopBarNotificati
   );
 };
 
+const CenterNotification = ({ runtime }: { runtime: CenterNotificationRuntime }): React.ReactNode => {
+  const { notification, phase } = runtime;
+  const center = notification.center;
+
+  if (!center) {
+    return null;
+  }
+
+  return (
+    <article
+      className={`center-notification-card ${notification.priority} ${phase}`}
+      aria-live="assertive"
+      style={{ "--center-fade-ms": `${center.timing.fadeOutMs}ms` } as CSSProperties}
+    >
+      {center.imageUrl ? <img alt="" className="center-notification-image" src={center.imageUrl} /> : null}
+      <div className="center-notification-copy">
+        <strong>{center.title}</strong>
+        <span>{center.message}</span>
+      </div>
+    </article>
+  );
+};
+
 const App = (): React.ReactNode => {
   const [gateState, setGateState] = useState<UrlAccessGateState>({ status: "checking" });
   const [runtimeState, setRuntimeState] = useState<OverlayRuntimeState>({ status: "loading" });
   const [topBarNotifications, setTopBarNotifications] = useState<TopBarNotification[]>([]);
+  const [centerNotification, setCenterNotification] = useState<CenterNotificationRuntime | null>(null);
   const fallbackHighlightIndexRef = useRef(0);
   const pendingTopBarNotificationsRef = useRef<TopBarNotification[]>([]);
+  const pendingCenterNotificationsRef = useRef<RoutedNotification[]>([]);
   const topBarProcessingRef = useRef(false);
+  const centerProcessingRef = useRef(false);
   const urlOptions = useMemo(parseUrlOptions, []);
 
   const processTopBarQueue = (): void => {
@@ -201,9 +233,63 @@ const App = (): React.ReactNode => {
     }, topBarIntakeDelayMs);
   };
 
-  const enqueueTopBarNotification = (notification: TopBarNotification): void => {
-    pendingTopBarNotificationsRef.current.push(notification);
+  const enqueueTopBarNotification = (notification: TopBarNotification, options?: { front?: boolean }): void => {
+    if (options?.front) {
+      pendingTopBarNotificationsRef.current.unshift(notification);
+    } else {
+      pendingTopBarNotificationsRef.current.push(notification);
+    }
     processTopBarQueue();
+  };
+
+  const processCenterQueue = (): void => {
+    if (centerProcessingRef.current) {
+      return;
+    }
+
+    const nextNotification = pendingCenterNotificationsRef.current.shift();
+
+    if (!nextNotification?.center) {
+      return;
+    }
+
+    centerProcessingRef.current = true;
+    setCenterNotification({
+      notification: nextNotification,
+      phase: "onscreen"
+    });
+
+    if (nextNotification.center.audioUrl) {
+      const audio = new Audio(nextNotification.center.audioUrl);
+      void audio.play().catch(() => undefined);
+    }
+
+    window.setTimeout(() => {
+      setCenterNotification({
+        notification: nextNotification,
+        phase: "fading"
+      });
+
+      window.setTimeout(() => {
+        setCenterNotification(null);
+        enqueueTopBarNotification(nextNotification, { front: true });
+
+        window.setTimeout(() => {
+          centerProcessingRef.current = false;
+          processCenterQueue();
+        }, nextNotification.center?.timing.restMs ?? 0);
+      }, nextNotification.center?.timing.fadeOutMs ?? 700);
+    }, nextNotification.center.timing.onscreenMs);
+  };
+
+  const enqueueRoutedNotification = (notification: RoutedNotification): void => {
+    if (notification.route === "center" && notification.center) {
+      pendingCenterNotificationsRef.current.push(notification);
+      processCenterQueue();
+      return;
+    }
+
+    enqueueTopBarNotification(notification);
   };
 
   useEffect(() => {
@@ -265,6 +351,11 @@ const App = (): React.ReactNode => {
 
           if (message.type === "overlay.top-bar-notification.queued") {
             enqueueTopBarNotification(message.payload);
+            return;
+          }
+
+          if (message.type === "overlay.routed-notification.queued") {
+            enqueueRoutedNotification(message.payload);
             return;
           }
 
@@ -370,12 +461,7 @@ const App = (): React.ReactNode => {
           <span>{snapshot.topNotification.message}</span>
         </div>
       ) : null}
-      {snapshot.centerNotification ? (
-        <div className={`center-notification ${snapshot.centerNotification.priority}`}>
-          <strong>{snapshot.centerNotification.title}</strong>
-          <span>{snapshot.centerNotification.message}</span>
-        </div>
-      ) : null}
+      {centerNotification ? <CenterNotification runtime={centerNotification} /> : null}
       <div className="reservation game-safe-area" aria-hidden="true" />
       {snapshot.slots.camera.visible ? <div className="reservation slot camera-slot" aria-hidden="true" /> : null}
       {snapshot.slots.chat.visible ? <div className="reservation slot chat-slot" aria-hidden="true" /> : null}

@@ -112,12 +112,12 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Support URL parameters for scene/layout/theme/mode.
 - [x] Load initial state snapshot on page load.
 - [x] Connect to live state updates after loading.
-- [ ] Create typed notification events.
-- [ ] Build notification queue before display rendering.
+- [x] Create typed notification events.
+- [x] Build notification queue before display rendering.
 - [x] Add top notification zone.
 - [ ] Resolve top notification avatar from website profile image, then platform avatar, then safe default.
-- [ ] Add center notification zone.
-- [ ] Support center notification image and audio clip per stream topic.
+- [x] Add center notification zone.
+- [x] Support center notification image and audio clip per stream topic.
 - [ ] Support redeemable center notifications, such as hydrate, jumpscare, and later AI-triggered mimes.
 - [ ] Inspect V1 top notification design at `A:\laravel-projects\maiks-yt` before implementing final top notification visuals.
 - [ ] Add active project/goal progress widget.
@@ -131,8 +131,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Build authenticated control panel page.
 - [ ] Show connected overlays and current state.
 - [ ] Add local event generator/replayer controls.
-- [ ] Add test notification controls.
-- [ ] Add off-main-view checklist/settings panel for center notification assets and priorities.
+- [x] Add test notification controls.
+- [x] Add off-main-view checklist/settings panel for center notification assets and priorities.
 - [ ] Add layout/theme switching.
 - [ ] Add emergency clean mode.
 - [ ] Add chat visibility toggle placeholder.

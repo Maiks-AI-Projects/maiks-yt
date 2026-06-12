@@ -6,9 +6,12 @@ import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/se
 import type {
   OverlayLayoutKey,
   OverlayLiveMessage,
+  OverlayNotificationDisplay,
   OverlaySceneKey,
   OverlayStateSnapshot,
   OverlayThemeKey,
+  OverlayCenterNotificationTiming,
+  OverlayRoutedNotificationQueuedEvent,
   OverlayTopBarNotificationQueuedEvent,
   RealtimeEvent
 } from "@maiks-yt/events";
@@ -30,6 +33,12 @@ const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
 const activeOverlayConnections = new Set<string>();
 let overlayTopBarEnabled = true;
+let overlayCenterEnabled = true;
+let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
+  onscreenMs: 4_000,
+  fadeOutMs: 700,
+  restMs: 1_500
+};
 const overlayLiveClients = new Map<string, {
   snapshot: OverlayStateSnapshot;
   socket: OverlayLiveSocket;
@@ -71,6 +80,18 @@ const overlayTopBarTestRequestSchema = z.object({
 const overlayTopBarEnabledRequestSchema = z.object({
   accessToken: z.string().min(24),
   enabled: z.boolean()
+});
+const overlayCenterSettingsRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  enabled: z.boolean(),
+  onscreenMs: z.number().int().min(1_000).max(20_000),
+  fadeOutMs: z.number().int().min(100).max(5_000),
+  restMs: z.number().int().min(0).max(10_000)
+});
+const overlayNotificationTestRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  route: z.enum(["top", "center"]),
+  count: z.number().int().min(1).max(6).default(1)
 });
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
@@ -255,6 +276,10 @@ const createOverlayStateSnapshot = ({
     enabled: overlayTopBarEnabled,
     quietHighlightIntervalMs: 18_000
   },
+  center: {
+    enabled: overlayCenterEnabled,
+    defaultTiming: overlayCenterDefaultTiming
+  },
   topNotification: null,
   centerNotification: null,
   slots: {
@@ -287,7 +312,7 @@ const createOverlayStateSnapshot = ({
   updatedAt: new Date().toISOString()
 });
 
-const demoTopBarNotifications: Array<Omit<OverlayTopBarNotificationQueuedEvent["payload"], "createdAt" | "id">> = [
+const demoTopBarNotifications: Array<Omit<OverlayNotificationDisplay, "createdAt" | "id">> = [
   {
     actorName: "Yasmin",
     actionLabel: "followed",
@@ -331,6 +356,35 @@ const createDemoTopBarNotification = (index: number): OverlayTopBarNotificationQ
   }
 });
 
+const createDemoRoutedNotification = (
+  index: number,
+  route: OverlayRoutedNotificationQueuedEvent["payload"]["route"]
+): OverlayRoutedNotificationQueuedEvent => {
+  const display: OverlayNotificationDisplay = {
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    ...demoTopBarNotifications[index % demoTopBarNotifications.length]!
+  };
+
+  return {
+    type: "overlay.routed-notification.queued",
+    payload: {
+      ...display,
+      route,
+      ...(route === "center"
+        ? {
+          center: {
+            title: display.actorName,
+            message: display.actionLabel,
+            imageUrl: display.avatarUrl,
+            timing: overlayCenterDefaultTiming
+          }
+        }
+        : {})
+    }
+  };
+};
+
 const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
   const serializedMessage = JSON.stringify(message);
 
@@ -346,6 +400,10 @@ const broadcastOverlaySnapshots = (): void => {
       topBar: {
         ...client.snapshot.topBar,
         enabled: overlayTopBarEnabled
+      },
+      center: {
+        enabled: overlayCenterEnabled,
+        defaultTiming: overlayCenterDefaultTiming
       },
       updatedAt: new Date().toISOString()
     };
@@ -1088,7 +1146,50 @@ server.get("/overlay/status", async (request, reply) => {
     activeOverlayConnections: activeOverlayConnections.size,
     overlayActive: activeOverlayConnections.size > 0,
     topBarEnabled: overlayTopBarEnabled,
+    centerEnabled: overlayCenterEnabled,
+    centerDefaultTiming: overlayCenterDefaultTiming,
     checkedAt: new Date().toISOString()
+  };
+});
+
+server.post("/overlay/center/settings", async (request, reply) => {
+  const parsedRequest = overlayCenterSettingsRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlayCenterEnabled = parsedRequest.data.enabled;
+  overlayCenterDefaultTiming = {
+    onscreenMs: parsedRequest.data.onscreenMs,
+    fadeOutMs: parsedRequest.data.fadeOutMs,
+    restMs: parsedRequest.data.restMs
+  };
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    centerEnabled: overlayCenterEnabled,
+    centerDefaultTiming: overlayCenterDefaultTiming,
+    activeOverlayConnections: activeOverlayConnections.size
   };
 });
 
@@ -1161,6 +1262,47 @@ server.post("/overlay/top-bar/test", async (request, reply) => {
   return {
     ok: true,
     queued: parsedRequest.data.count,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/notification/test", async (request, reply) => {
+  const parsedRequest = overlayNotificationTestRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  const route = parsedRequest.data.route === "center" && overlayCenterEnabled ? "center" : "top";
+
+  for (let index = 0; index < parsedRequest.data.count; index += 1) {
+    setTimeout(() => {
+      broadcastOverlayMessage(createDemoRoutedNotification(index, route));
+    }, index * 500);
+  }
+
+  return {
+    ok: true,
+    queued: parsedRequest.data.count,
+    route,
     activeOverlayConnections: activeOverlayConnections.size
   };
 });

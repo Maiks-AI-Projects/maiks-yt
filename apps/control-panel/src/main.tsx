@@ -44,11 +44,19 @@ type OverlayPresenceState =
     activeOverlayConnections: number;
     checkedAt: string;
     topBarEnabled: boolean;
+    centerEnabled: boolean;
+    centerDefaultTiming: CenterNotificationTiming;
   }
   | {
     status: "error";
     message: string;
   };
+
+type CenterNotificationTiming = {
+  onscreenMs: number;
+  fadeOutMs: number;
+  restMs: number;
+};
 
 type OverlayStatusResponse = {
   ok: true;
@@ -56,6 +64,8 @@ type OverlayStatusResponse = {
   overlayActive: boolean;
   checkedAt: string;
   topBarEnabled: boolean;
+  centerEnabled: boolean;
+  centerDefaultTiming: CenterNotificationTiming;
 } | {
   ok: false;
   reason: string;
@@ -166,7 +176,9 @@ const SurfaceStatus = (): React.ReactNode => {
             status: "ready",
             activeOverlayConnections: result.activeOverlayConnections,
             checkedAt: result.checkedAt,
-            topBarEnabled: result.topBarEnabled
+            topBarEnabled: result.topBarEnabled,
+            centerEnabled: result.centerEnabled,
+            centerDefaultTiming: result.centerDefaultTiming
           });
         }
       } catch (error) {
@@ -190,6 +202,14 @@ const SurfaceStatus = (): React.ReactNode => {
 
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
   const topBarEnabled = overlayPresence.status === "ready" && overlayPresence.topBarEnabled;
+  const centerEnabled = overlayPresence.status === "ready" && overlayPresence.centerEnabled;
+  const centerTiming = overlayPresence.status === "ready"
+    ? overlayPresence.centerDefaultTiming
+    : {
+      onscreenMs: 4_000,
+      fadeOutMs: 700,
+      restMs: 1_500
+    };
 
   const updateTopBarEnabled = async (enabled: boolean): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
@@ -246,6 +266,75 @@ const SurfaceStatus = (): React.ReactNode => {
     setTopBarActionStatus(response.ok ? "Top bar burst sent." : `Top bar burst failed with ${response.status}.`);
   };
 
+  const sendRoutedNotificationTest = async (route: "top" | "center"): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/notification/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        route,
+        count: route === "center" ? 1 : 4
+      })
+    });
+
+    setTopBarActionStatus(response.ok
+      ? route === "center" ? "Center test queued." : "Routed top burst sent."
+      : `Notification test failed with ${response.status}.`);
+  };
+
+  const updateCenterSettings = async (patch: Partial<CenterNotificationTiming> & { enabled?: boolean }): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const nextSettings = {
+      enabled: patch.enabled ?? centerEnabled,
+      onscreenMs: patch.onscreenMs ?? centerTiming.onscreenMs,
+      fadeOutMs: patch.fadeOutMs ?? centerTiming.fadeOutMs,
+      restMs: patch.restMs ?? centerTiming.restMs
+    };
+    const response = await fetch(`${apiBaseUrl}/overlay/center/settings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        ...nextSettings
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Center settings failed with ${response.status}.`);
+      return;
+    }
+
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        centerEnabled: nextSettings.enabled,
+        centerDefaultTiming: {
+          onscreenMs: nextSettings.onscreenMs,
+          fadeOutMs: nextSettings.fadeOutMs,
+          restMs: nextSettings.restMs
+        }
+      }
+      : currentState);
+    setTopBarActionStatus("Center settings saved.");
+  };
+
   return (
     <section className="surface-status" aria-label="Surface status">
       <div className="status-pill active">
@@ -264,7 +353,54 @@ const SurfaceStatus = (): React.ReactNode => {
       <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
         Test top bar
       </button>
+      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center")}>
+        Test center
+      </button>
       {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}
+      <details className="notification-settings">
+        <summary>Notification settings</summary>
+        <label>
+          <span>Center enabled</span>
+          <input
+            checked={centerEnabled}
+            type="checkbox"
+            onChange={(event) => void updateCenterSettings({ enabled: event.currentTarget.checked })}
+          />
+        </label>
+        <label>
+          <span>On screen</span>
+          <input
+            min={1000}
+            max={20000}
+            step={250}
+            type="number"
+            value={centerTiming.onscreenMs}
+            onChange={(event) => void updateCenterSettings({ onscreenMs: Number(event.currentTarget.value) })}
+          />
+        </label>
+        <label>
+          <span>Fade out</span>
+          <input
+            min={100}
+            max={5000}
+            step={100}
+            type="number"
+            value={centerTiming.fadeOutMs}
+            onChange={(event) => void updateCenterSettings({ fadeOutMs: Number(event.currentTarget.value) })}
+          />
+        </label>
+        <label>
+          <span>Rest</span>
+          <input
+            min={0}
+            max={10000}
+            step={250}
+            type="number"
+            value={centerTiming.restMs}
+            onChange={(event) => void updateCenterSettings({ restMs: Number(event.currentTarget.value) })}
+          />
+        </label>
+      </details>
     </section>
   );
 };

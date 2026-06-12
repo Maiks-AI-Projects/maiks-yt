@@ -187,6 +187,66 @@ body {
   z-index: 12;
 }
 
+.center-notification-card {
+  align-items: center;
+  background: rgba(16, 20, 24, 0.9);
+  border: 2px solid var(--maiks-accent);
+  border-radius: 8px;
+  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.32);
+  color: var(--maiks-notification-fg);
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  left: 50%;
+  max-width: min(36rem, 76vw);
+  min-width: min(28rem, 68vw);
+  padding: 1rem 1.15rem;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--center-fade-ms, 700ms) ease, transform var(--center-fade-ms, 700ms) ease;
+  z-index: 12;
+}
+
+.center-notification-card.important {
+  border-color: var(--maiks-warning);
+}
+
+.center-notification-card.urgent {
+  border-color: var(--maiks-danger);
+}
+
+.center-notification-card.fading {
+  opacity: 0;
+  transform: translate(-50%, -46%);
+}
+
+.center-notification-image {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  height: 4rem;
+  object-fit: cover;
+  width: 4rem;
+}
+
+.center-notification-copy {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.center-notification-copy strong {
+  font-size: 1.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.center-notification-copy span {
+  color: var(--maiks-muted);
+  font-size: 0.95rem;
+}
+
 .game-safe-area {
   bottom: 7rem;
   left: 2rem;
