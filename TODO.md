@@ -144,12 +144,12 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 8. Themes and Layouts
 
-- [ ] Define CSS theme contract.
-- [ ] Create default theme.
+- [x] Define CSS theme contract.
+- [x] Create default theme.
 - [ ] Create first game/hobby theme.
-- [ ] Define theme-to-scene ownership model.
-- [ ] Create reusable layout slots.
-- [ ] Add camera position slots.
+- [x] Define theme-to-scene ownership model.
+- [x] Create reusable layout slots.
+- [x] Add camera position slots.
 - [ ] Build a layout designer panel for editing and reserving overlay slots.
 - [ ] Add drag controls for standard overlay elements.
 - [ ] Add resize handles for standard overlay elements.

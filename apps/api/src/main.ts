@@ -65,7 +65,7 @@ const profileVisibilityRequestSchema = z.object({
 });
 const overlayStateRequestSchema = z.object({
   accessToken: z.string().min(24),
-  scene: z.enum(["default", "gameplay", "chat-focus", "just-camera"]).default("default"),
+  scene: z.enum(["default", "gameplay", "chat-focus", "just-camera", "talking"]).default("default"),
   layout: z.enum(["standard", "camera-left", "camera-right", "clean"]).default("standard"),
   theme: z.enum(["default"]).default("default"),
   mode: z.enum(["normal", "clean"]).default("normal")

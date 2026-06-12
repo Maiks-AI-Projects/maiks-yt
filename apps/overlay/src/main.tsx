@@ -7,7 +7,7 @@ import type {
   OverlayRoutedNotificationQueuedEvent,
   OverlayTopBarNotificationQueuedEvent
 } from "@maiks-yt/events";
-import { defaultTheme } from "@maiks-yt/themes";
+import { defaultTheme, getDefaultThemeScene, type OverlaySceneSlotDefinition } from "@maiks-yt/themes";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import { validateUrlAccessGate, type UrlAccessGateState } from "@maiks-yt/ui";
@@ -59,7 +59,7 @@ const parseUrlOptions = (): OverlayUrlOptions => {
   const params = new URL(window.location.href).searchParams;
 
   return {
-    scene: parseParam(params.get("scene"), ["default", "gameplay", "chat-focus", "just-camera"], "default"),
+    scene: parseParam(params.get("scene"), ["default", "gameplay", "chat-focus", "just-camera", "talking"], "default"),
     layout: parseParam(params.get("layout"), ["standard", "camera-left", "camera-right", "clean"], "standard"),
     theme: parseParam(params.get("theme"), ["default"], "default"),
     mode: parseParam(params.get("mode"), ["normal", "clean"], "normal")
@@ -143,13 +143,29 @@ const createFallbackTopBarHighlight = (index: number): TopBarNotification => ({
   ...fallbackTopBarHighlights[index % fallbackTopBarHighlights.length]!
 });
 
-const TopNotificationBar = ({ notifications }: { notifications: TopBarNotification[] }): React.ReactNode => {
+const createSlotStyle = (slot: OverlaySceneSlotDefinition): CSSProperties => ({
+  bottom: "auto",
+  height: `${slot.height / 10.8}%`,
+  left: `${slot.x / 19.2}%`,
+  right: "auto",
+  top: `${slot.y / 10.8}%`,
+  transform: "none",
+  width: `${slot.width / 19.2}%`
+});
+
+const TopNotificationBar = ({
+  notifications,
+  slotStyle
+}: {
+  notifications: TopBarNotification[];
+  slotStyle: CSSProperties;
+}): React.ReactNode => {
   if (notifications.length === 0) {
     return null;
   }
 
   return (
-    <div className="top-bar-notifications" aria-live="polite">
+    <div className="top-bar-notifications" aria-live="polite" style={slotStyle}>
       {notifications.map((notification, index) => (
         <article
           className={`top-bar-card ${notification.priority} ${notification.platform} ${notification.kind}`}
@@ -176,7 +192,13 @@ const TopNotificationBar = ({ notifications }: { notifications: TopBarNotificati
   );
 };
 
-const CenterNotification = ({ runtime }: { runtime: CenterNotificationRuntime }): React.ReactNode => {
+const CenterNotification = ({
+  runtime,
+  slotStyle
+}: {
+  runtime: CenterNotificationRuntime;
+  slotStyle: CSSProperties;
+}): React.ReactNode => {
   const { notification, phase } = runtime;
   const center = notification.center;
 
@@ -185,17 +207,19 @@ const CenterNotification = ({ runtime }: { runtime: CenterNotificationRuntime })
   }
 
   return (
-    <article
-      className={`center-notification-card ${notification.priority} ${phase}`}
-      aria-live="assertive"
-      style={{ "--center-fade-ms": `${center.timing.fadeOutMs}ms` } as CSSProperties}
-    >
-      {center.imageUrl ? <img alt="" className="center-notification-image" src={center.imageUrl} /> : null}
-      <div className="center-notification-copy">
-        <strong>{center.title}</strong>
-        <span>{center.message}</span>
-      </div>
-    </article>
+    <div className="center-notification-zone" style={slotStyle}>
+      <article
+        className={`center-notification-card ${notification.priority} ${phase}`}
+        aria-live="assertive"
+        style={{ "--center-fade-ms": `${center.timing.fadeOutMs}ms` } as CSSProperties}
+      >
+        {center.imageUrl ? <img alt="" className="center-notification-image" src={center.imageUrl} /> : null}
+        <div className="center-notification-copy">
+          <strong>{center.title}</strong>
+          <span>{center.message}</span>
+        </div>
+      </article>
+    </div>
   );
 };
 
@@ -454,25 +478,47 @@ const App = (): React.ReactNode => {
   }
 
   const { snapshot } = runtimeState;
+  const sceneDefinition = getDefaultThemeScene(snapshot.scene);
+  const slots = sceneDefinition.slots;
 
   return (
     <main className="overlay" data-layout={snapshot.layout} data-scene={snapshot.scene} data-theme={defaultTheme.id}>
-      {snapshot.topBar.enabled ? <TopNotificationBar notifications={topBarNotifications} /> : null}
+      {snapshot.topBar.enabled && slots.topNotifications.visible ? (
+        <TopNotificationBar
+          notifications={topBarNotifications}
+          slotStyle={createSlotStyle(slots.topNotifications)}
+        />
+      ) : null}
       {snapshot.topNotification ? (
         <div className={`top-notification ${snapshot.topNotification.priority}`}>
           <strong>{snapshot.topNotification.title}</strong>
           <span>{snapshot.topNotification.message}</span>
         </div>
       ) : null}
-      {centerNotification ? <CenterNotification runtime={centerNotification} /> : null}
-      <div className="reservation game-safe-area" aria-hidden="true" />
-      {snapshot.slots.camera.visible ? <div className="reservation slot camera-slot" aria-hidden="true" /> : null}
-      {snapshot.slots.chat.visible ? <div className="reservation slot chat-slot" aria-hidden="true" /> : null}
-      {snapshot.slots.sponsorPrimary.visible ? (
-        <div className="reservation slot sponsor-primary-slot" aria-hidden="true" />
+      {centerNotification && slots.centerNotifications.visible ? (
+        <CenterNotification
+          runtime={centerNotification}
+          slotStyle={createSlotStyle(slots.centerNotifications)}
+        />
       ) : null}
-      {snapshot.slots.streamGoal.visible ? (
-        <div className="reservation slot stream-goal-slot" aria-hidden="true" />
+      {slots.game.visible ? (
+        <div className="reservation game-safe-area" style={createSlotStyle(slots.game)} aria-hidden="true" />
+      ) : null}
+      {snapshot.slots.camera.visible && slots.camera.visible ? (
+        <div className="reservation slot camera-slot" style={createSlotStyle(slots.camera)} aria-hidden="true" />
+      ) : null}
+      {snapshot.slots.chat.visible && slots.chat.visible ? (
+        <div className="reservation slot chat-slot" style={createSlotStyle(slots.chat)} aria-hidden="true" />
+      ) : null}
+      {snapshot.slots.sponsorPrimary.visible && slots.sponsorPrimary.visible ? (
+        <div
+          className="reservation slot sponsor-primary-slot"
+          style={createSlotStyle(slots.sponsorPrimary)}
+          aria-hidden="true"
+        />
+      ) : null}
+      {snapshot.slots.streamGoal.visible && slots.streamGoal.visible ? (
+        <div className="reservation slot stream-goal-slot" style={createSlotStyle(slots.streamGoal)} aria-hidden="true" />
       ) : null}
     </main>
   );

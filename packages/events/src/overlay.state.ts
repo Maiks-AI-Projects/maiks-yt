@@ -4,7 +4,7 @@ import type {
   OverlayNotificationQueuedEvent
 } from "./overlay.events.js";
 
-export type OverlaySceneKey = "default" | "gameplay" | "chat-focus" | "just-camera";
+export type OverlaySceneKey = "default" | "gameplay" | "chat-focus" | "just-camera" | "talking";
 
 export type OverlayLayoutKey = "standard" | "camera-left" | "camera-right" | "clean";
 
