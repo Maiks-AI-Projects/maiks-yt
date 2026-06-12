@@ -285,15 +285,19 @@ button:disabled {
 }
 
 .provider-account-row {
-  align-items: center;
   background: #f5f7fb;
   border: 1px solid #d8e0e8;
   border-radius: 8px;
   display: grid;
   gap: 1rem;
-  grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 7rem;
   padding: 1rem;
+}
+
+.provider-account-summary {
+  align-items: center;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .provider-identity {
@@ -359,7 +363,7 @@ button:disabled {
 .provider-controls {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(2, minmax(7rem, 1fr));
+  grid-template-columns: minmax(7rem, 1fr);
 }
 
 .provider-control {
@@ -463,6 +467,51 @@ button:disabled {
   fill: #141920;
 }
 
+.linked-account-sublist {
+  border-top: 1px solid #d8e0e8;
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+}
+
+.linked-account-row {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.85rem 1rem;
+}
+
+.linked-account-details {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.linked-account-details strong,
+.linked-account-details span,
+.linked-account-details code {
+  overflow-wrap: anywhere;
+}
+
+.linked-account-details span {
+  color: #4b5966;
+  font-size: 0.9rem;
+}
+
+.linked-account-details code {
+  color: #4b5966;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+}
+
+.linked-account-login-control {
+  justify-items: start;
+}
+
 .account-card-grid {
   display: grid;
   gap: 1rem;
@@ -541,13 +590,14 @@ button:disabled {
     flex-direction: column;
   }
 
-  .provider-account-row {
+  .provider-account-summary,
+  .linked-account-row {
     align-items: stretch;
     grid-template-columns: 1fr;
   }
 
   .provider-controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .switch-control-row {
