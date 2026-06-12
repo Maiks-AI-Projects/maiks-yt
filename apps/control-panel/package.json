@@ -13,6 +13,7 @@
   "dependencies": {
     "@maiks-yt/events": "workspace:*",
     "@maiks-yt/testing": "workspace:*",
+    "@maiks-yt/themes": "workspace:*",
     "@maiks-yt/ui": "workspace:*",
     "react": "19.2.7",
     "react-dom": "19.2.7"

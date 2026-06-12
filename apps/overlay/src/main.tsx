@@ -5,9 +5,10 @@ import type {
   OverlayStateSnapshot,
   OverlayThemeKey,
   OverlayRoutedNotificationQueuedEvent,
+  OverlaySceneSlotDefinition,
   OverlayTopBarNotificationQueuedEvent
 } from "@maiks-yt/events";
-import { defaultTheme, getDefaultThemeScene, type OverlaySceneSlotDefinition } from "@maiks-yt/themes";
+import { defaultTheme } from "@maiks-yt/themes";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import { validateUrlAccessGate, type UrlAccessGateState } from "@maiks-yt/ui";
@@ -478,7 +479,7 @@ const App = (): React.ReactNode => {
   }
 
   const { snapshot } = runtimeState;
-  const sceneDefinition = getDefaultThemeScene(snapshot.scene);
+  const sceneDefinition = snapshot.sceneDefinition;
   const slots = sceneDefinition.slots;
 
   return (

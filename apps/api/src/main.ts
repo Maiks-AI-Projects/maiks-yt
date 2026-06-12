@@ -7,6 +7,7 @@ import type {
   OverlayLayoutKey,
   OverlayLiveMessage,
   OverlayNotificationDisplay,
+  OverlaySceneDefinition,
   OverlaySceneKey,
   OverlayStateSnapshot,
   OverlayThemeKey,
@@ -15,6 +16,7 @@ import type {
   OverlayTopBarNotificationQueuedEvent,
   RealtimeEvent
 } from "@maiks-yt/events";
+import { defaultThemeScenes, overlaySceneSlotIds } from "@maiks-yt/themes";
 import fastifyCors from "@fastify/cors";
 import fastifyWebsocket from "@fastify/websocket";
 import { fromNodeHeaders } from "better-auth/node";
@@ -43,6 +45,9 @@ const overlayLiveClients = new Map<string, {
   snapshot: OverlayStateSnapshot;
   socket: OverlayLiveSocket;
 }>();
+const overlaySceneDefinitions = new Map<string, OverlaySceneDefinition>(
+  defaultThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
+);
 
 await server.register(fastifyCors, {
   origin: getTrustedOrigins(),
@@ -93,6 +98,30 @@ const overlayNotificationTestRequestSchema = z.object({
   route: z.enum(["top", "center"]),
   afterCenter: z.enum(["top", "none"]).default("top"),
   count: z.number().int().min(1).max(6).default(1)
+});
+const overlaySceneListRequestSchema = z.object({
+  accessToken: z.string().min(24)
+});
+const overlaySceneSlotSchema = z.object({
+  x: z.number().int().min(0).max(1920),
+  y: z.number().int().min(0).max(1080),
+  width: z.number().int().min(0).max(1920),
+  height: z.number().int().min(0).max(1080),
+  visible: z.boolean(),
+  lockedAspectRatio: z.number().positive().optional()
+});
+const overlaySceneSaveRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  scene: z.object({
+    themeKey: z.enum(["default"]),
+    sceneKey: z.enum(["default", "gameplay", "chat-focus", "just-camera", "talking"]),
+    label: z.string().min(1).max(80),
+    canvas: z.object({
+      width: z.literal(1920),
+      height: z.literal(1080)
+    }),
+    slots: z.record(z.enum(overlaySceneSlotIds), overlaySceneSlotSchema)
+  })
 });
 
 const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
@@ -256,6 +285,20 @@ const validateUrlAccessTokenForRequest = async ({
   };
 };
 
+const getOverlaySceneDefinition = (
+  theme: OverlayThemeKey,
+  scene: OverlaySceneKey
+): OverlaySceneDefinition => {
+  const sceneDefinition = overlaySceneDefinitions.get(`${theme}:${scene}`)
+    ?? overlaySceneDefinitions.get("default:default");
+
+  if (!sceneDefinition) {
+    throw new Error("Default overlay scene is missing.");
+  }
+
+  return structuredClone(sceneDefinition);
+};
+
 const createOverlayStateSnapshot = ({
   layout,
   mode,
@@ -273,6 +316,7 @@ const createOverlayStateSnapshot = ({
   theme,
   mode,
   connectionStatus: "snapshot",
+  sceneDefinition: getOverlaySceneDefinition(theme, scene),
   topBar: {
     enabled: overlayTopBarEnabled,
     quietHighlightIntervalMs: 18_000
@@ -419,6 +463,7 @@ const broadcastOverlaySnapshots = (): void => {
         enabled: overlayCenterEnabled,
         defaultTiming: overlayCenterDefaultTiming
       },
+      sceneDefinition: getOverlaySceneDefinition(client.snapshot.theme, client.snapshot.scene),
       updatedAt: new Date().toISOString()
     };
     client.socket.send(JSON.stringify({
@@ -1163,6 +1208,99 @@ server.get("/overlay/status", async (request, reply) => {
     centerEnabled: overlayCenterEnabled,
     centerDefaultTiming: overlayCenterDefaultTiming,
     checkedAt: new Date().toISOString()
+  };
+});
+
+server.get("/overlay/scenes", async (request, reply) => {
+  const parsedRequest = overlaySceneListRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  return {
+    ok: true,
+    scenes: Array.from(overlaySceneDefinitions.values()).map((scene) => structuredClone(scene))
+  };
+});
+
+server.post("/overlay/scenes/save", async (request, reply) => {
+  const parsedRequest = overlaySceneSaveRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  const { scene } = parsedRequest.data;
+  const missingSlot = overlaySceneSlotIds.find((slotId) => !scene.slots[slotId]);
+
+  if (missingSlot) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "scene_slot_missing",
+      slotId: missingSlot
+    };
+  }
+
+  const overflowingSlot = overlaySceneSlotIds.find((slotId) => {
+    const slot = scene.slots[slotId];
+
+    return slot.x + slot.width > scene.canvas.width || slot.y + slot.height > scene.canvas.height;
+  });
+
+  if (overflowingSlot) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "scene_slot_outside_canvas",
+      slotId: overflowingSlot
+    };
+  }
+
+  overlaySceneDefinitions.set(`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene));
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    scene: structuredClone(scene),
+    activeOverlayConnections: activeOverlayConnections.size
   };
 });
 

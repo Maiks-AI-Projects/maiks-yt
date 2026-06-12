@@ -12,6 +12,41 @@ export type OverlayThemeKey = "default";
 
 export type OverlayConnectionStatus = "snapshot" | "live" | "reconnecting" | "offline";
 
+export type OverlaySceneSlotId =
+  | "game"
+  | "camera"
+  | "chat"
+  | "sponsorPrimary"
+  | "sponsorSecondary"
+  | "topNotifications"
+  | "centerNotifications"
+  | "streamGoal";
+
+export type OverlaySceneSlotRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type OverlaySceneSlotDefinition = OverlaySceneSlotRect & {
+  visible: boolean;
+  lockedAspectRatio?: number | undefined;
+};
+
+export type OverlayCanvasDefinition = {
+  width: number;
+  height: number;
+};
+
+export type OverlaySceneDefinition = {
+  themeKey: OverlayThemeKey;
+  sceneKey: OverlaySceneKey;
+  label: string;
+  canvas: OverlayCanvasDefinition;
+  slots: Record<OverlaySceneSlotId, OverlaySceneSlotDefinition>;
+};
+
 export type OverlaySlotState = {
   id: string;
   visible: boolean;
@@ -35,6 +70,7 @@ export type OverlayStateSnapshot = {
   theme: OverlayThemeKey;
   mode: "normal" | "clean";
   connectionStatus: OverlayConnectionStatus;
+  sceneDefinition: OverlaySceneDefinition;
   topBar: OverlayTopBarState;
   center: OverlayCenterNotificationState;
   topNotification: OverlayNotificationQueuedEvent["payload"] | null;

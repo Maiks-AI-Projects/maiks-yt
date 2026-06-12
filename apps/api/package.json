@@ -17,6 +17,7 @@
     "@maiks-yt/database": "workspace:*",
     "@maiks-yt/domain": "workspace:*",
     "@maiks-yt/events": "workspace:*",
+    "@maiks-yt/themes": "workspace:*",
     "better-auth": "^1.6.15",
     "fastify": "5.8.5",
     "zod": "4.4.3"

@@ -1,40 +1,22 @@
+import type {
+  OverlayCanvasDefinition,
+  OverlaySceneDefinition,
+  OverlaySceneKey,
+  OverlaySceneSlotDefinition,
+  OverlaySceneSlotId,
+  OverlayThemeKey
+} from "@maiks-yt/events";
+
 export type OverlayThemeSurface = "website" | "overlay" | "control-panel";
 
-export type OverlaySceneSlotId =
-  | "game"
-  | "camera"
-  | "chat"
-  | "sponsorPrimary"
-  | "sponsorSecondary"
-  | "topNotifications"
-  | "centerNotifications"
-  | "streamGoal";
-
 export type OverlayLayoutSlot = OverlaySceneSlotId;
-
-export type OverlaySceneSlotRect = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-export type OverlaySceneSlotDefinition = OverlaySceneSlotRect & {
-  visible: boolean;
-  lockedAspectRatio?: number;
-};
-
-export type OverlayCanvasDefinition = {
-  width: number;
-  height: number;
-};
-
-export type OverlaySceneDefinition = {
-  themeKey: string;
-  sceneKey: string;
-  label: string;
-  canvas: OverlayCanvasDefinition;
-  slots: Record<OverlaySceneSlotId, OverlaySceneSlotDefinition>;
+export type {
+  OverlayCanvasDefinition,
+  OverlaySceneDefinition,
+  OverlaySceneKey,
+  OverlaySceneSlotDefinition,
+  OverlaySceneSlotId,
+  OverlayThemeKey
 };
 
 export type ThemeManifest = {
@@ -139,7 +121,7 @@ const createDefaultSlots = (): Record<OverlaySceneSlotId, OverlaySceneSlotDefini
 });
 
 const createScene = (
-  sceneKey: string,
+  sceneKey: OverlaySceneKey,
   label: string,
   slots: Partial<Record<OverlaySceneSlotId, OverlaySceneSlotDefinition>>
 ): OverlaySceneDefinition => ({
@@ -230,6 +212,6 @@ export const defaultTheme: ThemeManifest = {
   defaultScenes: defaultThemeScenes
 };
 
-export const getDefaultThemeScene = (sceneKey: string): OverlaySceneDefinition => {
+export const getDefaultThemeScene = (sceneKey: OverlaySceneKey): OverlaySceneDefinition => {
   return defaultThemeScenes.find((scene) => scene.sceneKey === sceneKey) ?? defaultThemeScenes[0]!;
 };

@@ -38,6 +38,9 @@ importers:
       '@maiks-yt/events':
         specifier: workspace:*
         version: link:../../packages/events
+      '@maiks-yt/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
       better-auth:
         specifier: ^1.6.15
         version: 1.6.15(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(kysely@0.29.2)(mysql2@3.22.5(@types/node@24.10.2)))(mysql2@3.22.5(@types/node@24.10.2))(next@16.2.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.8(@types/node@24.10.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.0)(tsx@4.22.4)))
@@ -66,6 +69,9 @@ importers:
       '@maiks-yt/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@maiks-yt/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
       '@maiks-yt/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -248,6 +254,10 @@ importers:
         version: 4.1.8(@types/node@24.10.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.0)(tsx@4.22.4))
 
   packages/themes:
+    dependencies:
+      '@maiks-yt/events':
+        specifier: workspace:*
+        version: link:../events
     devDependencies:
       typescript:
         specifier: 6.0.3

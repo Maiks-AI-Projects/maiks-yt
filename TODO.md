@@ -153,8 +153,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Build a layout designer panel for editing and reserving overlay slots.
 - [ ] Add drag controls for standard overlay elements.
 - [ ] Add resize handles for standard overlay elements.
-- [ ] Add numeric position and size inputs for precise OBS-friendly layout work.
-- [ ] Save named scenes under the active theme.
+- [x] Add numeric position and size inputs for precise OBS-friendly layout work.
+- [x] Save named scenes under the active theme.
 - [ ] Add duplicate, reset, hide/show, and lock aspect ratio controls for scene slots.
 - [ ] Ensure chat, camera, sponsor slots, and notifications do not overlap.
 - [ ] Test overlay layout at OBS canvas sizes.

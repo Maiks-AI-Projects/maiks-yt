@@ -1,6 +1,8 @@
+import type { OverlaySceneDefinition, OverlaySceneSlotDefinition, OverlaySceneSlotId } from "@maiks-yt/events";
 import { createNotificationScenario, createReplaySessionFromPreset, type EventStormPreset } from "@maiks-yt/testing";
+import { overlaySceneSlotIds } from "@maiks-yt/themes";
 import { validateUrlAccessGate } from "@maiks-yt/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -66,6 +68,23 @@ type OverlayStatusResponse = {
   topBarEnabled: boolean;
   centerEnabled: boolean;
   centerDefaultTiming: CenterNotificationTiming;
+} | {
+  ok: false;
+  reason: string;
+};
+
+type OverlayScenesResponse = {
+  ok: true;
+  scenes: OverlaySceneDefinition[];
+} | {
+  ok: false;
+  reason: string;
+};
+
+type OverlaySceneSaveResponse = {
+  ok: true;
+  scene: OverlaySceneDefinition;
+  activeOverlayConnections: number;
 } | {
   ok: false;
   reason: string;
@@ -414,6 +433,208 @@ const SurfaceStatus = (): React.ReactNode => {
   );
 };
 
+const createSceneSlotStyle = (slot: OverlaySceneSlotDefinition, canvas: OverlaySceneDefinition["canvas"]): CSSProperties => ({
+  height: `${slot.height / canvas.height * 100}%`,
+  left: `${slot.x / canvas.width * 100}%`,
+  top: `${slot.y / canvas.height * 100}%`,
+  width: `${slot.width / canvas.width * 100}%`
+});
+
+const formatSlotLabel = (slotId: OverlaySceneSlotId): string => {
+  return slotId.replace(/[A-Z]/g, (letter) => ` ${letter.toLowerCase()}`);
+};
+
+const cloneScene = (scene: OverlaySceneDefinition): OverlaySceneDefinition => structuredClone(scene);
+
+const SceneDesigner = (): React.ReactNode => {
+  const [scenes, setScenes] = useState<OverlaySceneDefinition[]>([]);
+  const [selectedSceneKey, setSelectedSceneKey] = useState<string>("default");
+  const [selectedSlotId, setSelectedSlotId] = useState<OverlaySceneSlotId>("camera");
+  const [status, setStatus] = useState<string>("Loading scenes.");
+
+  const selectedScene = scenes.find((scene) => scene.sceneKey === selectedSceneKey) ?? scenes[0] ?? null;
+  const selectedSlot = selectedScene?.slots[selectedSlotId] ?? null;
+
+  const loadScenes = async (): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setStatus("Control token missing.");
+      return;
+    }
+
+    const url = new URL("/overlay/scenes", apiBaseUrl);
+    url.searchParams.set("accessToken", token);
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      setStatus(`Scene load failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlayScenesResponse;
+
+    if (!result.ok) {
+      setStatus(result.reason);
+      return;
+    }
+
+    setScenes(result.scenes.map(cloneScene));
+    setSelectedSceneKey((currentSceneKey) =>
+      result.scenes.some((scene) => scene.sceneKey === currentSceneKey)
+        ? currentSceneKey
+        : result.scenes[0]?.sceneKey ?? "default");
+    setStatus("Scenes loaded.");
+  };
+
+  useEffect(() => {
+    void loadScenes();
+  }, []);
+
+  const updateSelectedSlot = (patch: Partial<OverlaySceneSlotDefinition>): void => {
+    if (!selectedScene) {
+      return;
+    }
+
+    setScenes((currentScenes) => currentScenes.map((scene) => {
+      if (scene.sceneKey !== selectedScene.sceneKey) {
+        return scene;
+      }
+
+      return {
+        ...scene,
+        slots: {
+          ...scene.slots,
+          [selectedSlotId]: {
+            ...scene.slots[selectedSlotId],
+            ...patch
+          }
+        }
+      };
+    }));
+  };
+
+  const saveSelectedScene = async (): Promise<void> => {
+    if (!selectedScene) {
+      setStatus("No scene selected.");
+      return;
+    }
+
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/scenes/save`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        scene: selectedScene
+      })
+    });
+
+    if (!response.ok) {
+      setStatus(`Scene save failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlaySceneSaveResponse;
+
+    if (!result.ok) {
+      setStatus(result.reason);
+      return;
+    }
+
+    setScenes((currentScenes) => currentScenes.map((scene) =>
+      scene.sceneKey === result.scene.sceneKey ? cloneScene(result.scene) : scene));
+    setStatus(`Saved ${result.scene.label}. ${result.activeOverlayConnections} overlay connection(s) updated.`);
+  };
+
+  return (
+    <section className="scene-designer">
+      <div className="section-heading">
+        <h2>Scene Designer</h2>
+        <span>{status}</span>
+      </div>
+      <div className="scene-designer-toolbar">
+        <label>
+          <span>Scene</span>
+          <select value={selectedScene?.sceneKey ?? selectedSceneKey} onChange={(event) => setSelectedSceneKey(event.currentTarget.value)}>
+            {scenes.map((scene) => (
+              <option key={scene.sceneKey} value={scene.sceneKey}>{scene.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Slot</span>
+          <select value={selectedSlotId} onChange={(event) => setSelectedSlotId(event.currentTarget.value as OverlaySceneSlotId)}>
+            {overlaySceneSlotIds.map((slotId) => (
+              <option key={slotId} value={slotId}>{formatSlotLabel(slotId)}</option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="status-action" onClick={() => void saveSelectedScene()}>
+          Save scene
+        </button>
+        <button type="button" className="status-action" onClick={() => void loadScenes()}>
+          Reload
+        </button>
+      </div>
+      {selectedScene ? (
+        <div className="scene-designer-grid">
+          <div className="scene-canvas" aria-label={`${selectedScene.label} layout preview`}>
+            {overlaySceneSlotIds.map((slotId) => {
+              const slot = selectedScene.slots[slotId];
+
+              return (
+                <button
+                  type="button"
+                  className={`scene-slot ${selectedSlotId === slotId ? "selected" : ""} ${slot.visible ? "visible" : "hidden"}`}
+                  key={slotId}
+                  style={createSceneSlotStyle(slot, selectedScene.canvas)}
+                  onClick={() => setSelectedSlotId(slotId)}
+                >
+                  {formatSlotLabel(slotId)}
+                </button>
+              );
+            })}
+          </div>
+          {selectedSlot ? (
+            <div className="slot-editor">
+              <label className="slot-visible">
+                <span>Visible</span>
+                <input
+                  checked={selectedSlot.visible}
+                  type="checkbox"
+                  onChange={(event) => updateSelectedSlot({ visible: event.currentTarget.checked })}
+                />
+              </label>
+              {(["x", "y", "width", "height"] as const).map((field) => (
+                <label key={field}>
+                  <span>{field}</span>
+                  <input
+                    min={0}
+                    max={field === "x" || field === "width" ? selectedScene.canvas.width : selectedScene.canvas.height}
+                    step={1}
+                    type="number"
+                    value={selectedSlot[field]}
+                    onChange={(event) => updateSelectedSlot({ [field]: Number(event.currentTarget.value) })}
+                  />
+                </label>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+};
+
 const RealtimeProbe = (): React.ReactNode => {
   const [webSocketStatus, setWebSocketStatus] = useState<ProbeStatus>("idle");
   const [sseStatus, setSseStatus] = useState<ProbeStatus>("idle");
@@ -532,6 +753,7 @@ const App = (): React.ReactNode => {
       <p>Low-distraction control surface scaffold for {authState.displayName}.</p>
       <SurfaceStatus />
       <button type="button">Emergency clean mode</button>
+      <SceneDesigner />
       <RealtimeProbe />
       <section>
         <h2>Simulator</h2>

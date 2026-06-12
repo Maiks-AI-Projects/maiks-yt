@@ -148,6 +148,123 @@ button {
   padding: 1rem;
 }
 
+.scene-designer {
+  background: #151d25;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  max-width: 78rem;
+  padding: 1rem;
+}
+
+.section-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.section-heading h2 {
+  margin: 0;
+}
+
+.section-heading span {
+  color: #b8c4cf;
+}
+
+.scene-designer-toolbar {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.scene-designer-toolbar label,
+.slot-editor label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.scene-designer-toolbar span,
+.slot-editor span {
+  color: #b8c4cf;
+  font-size: 0.85rem;
+}
+
+.scene-designer-toolbar select,
+.slot-editor input {
+  background: #0f1419;
+  border: 1px solid #2d3a47;
+  border-radius: 6px;
+  color: #f4f7fb;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.scene-designer-grid {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(24rem, 1fr) minmax(12rem, 18rem);
+}
+
+.scene-canvas {
+  aspect-ratio: 16 / 9;
+  background: #071016;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.scene-slot {
+  align-items: start;
+  background: rgba(37, 49, 61, 0.72);
+  border: 1px solid #64748b;
+  border-radius: 4px;
+  color: #f4f7fb;
+  display: flex;
+  font-size: 0.72rem;
+  justify-content: start;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.25rem;
+  position: absolute;
+  text-align: left;
+}
+
+.scene-slot.hidden {
+  background: rgba(15, 20, 25, 0.28);
+  border-style: dashed;
+  color: #9fb0bd;
+}
+
+.scene-slot.selected {
+  border-color: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.22);
+}
+
+.slot-editor {
+  background: #0f1419;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.slot-visible {
+  align-items: center;
+  grid-template-columns: 1fr auto;
+}
+
+.slot-visible input {
+  min-height: 1.25rem;
+  width: 1.25rem;
+}
+
 .realtime-probe h2,
 .realtime-probe p {
   margin: 0;
@@ -244,4 +361,10 @@ button {
   font-family: Consolas, "Liberation Mono", monospace;
   font-size: 0.85rem;
   overflow-wrap: anywhere;
+}
+
+@media (max-width: 820px) {
+  .scene-designer-grid {
+    grid-template-columns: 1fr;
+  }
 }

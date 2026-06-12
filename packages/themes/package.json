@@ -12,6 +12,9 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -b --pretty false"
   },
+  "dependencies": {
+    "@maiks-yt/events": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "6.0.3",
     "vitest": "4.1.8"

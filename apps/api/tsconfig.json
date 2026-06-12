@@ -9,6 +9,7 @@
   "references": [
     { "path": "../../packages/config" },
     { "path": "../../packages/database" },
-    { "path": "../../packages/events" }
+    { "path": "../../packages/events" },
+    { "path": "../../packages/themes" }
   ]
 }
