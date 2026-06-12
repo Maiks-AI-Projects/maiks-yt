@@ -15,8 +15,7 @@ import "./styles.css";
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const overlayAccessStorageKey = "maiks.yt.overlay.accessToken";
 const topBarIntakeDelayMs = 500;
-const topBarNotificationLifetimeMs = 14_000;
-const maxVisibleTopBarNotifications = 7;
+const maxVisibleTopBarNotifications = 8;
 
 type OverlayRuntimeState =
   | {
@@ -187,9 +186,6 @@ const App = (): React.ReactNode => {
       nextNotification,
       ...notifications
     ].slice(0, maxVisibleTopBarNotifications));
-    window.setTimeout(() => {
-      setTopBarNotifications((notifications) => notifications.filter((notification) => notification.id !== nextNotification.id));
-    }, topBarNotificationLifetimeMs);
     window.setTimeout(() => {
       topBarProcessingRef.current = false;
       processTopBarQueue();
