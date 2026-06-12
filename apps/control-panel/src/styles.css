@@ -282,6 +282,14 @@ button {
   padding: 0.75rem;
 }
 
+.slot-editor-actions {
+  display: flex;
+}
+
+.slot-editor-actions .status-action {
+  width: 100%;
+}
+
 .slot-visible {
   align-items: center;
   grid-template-columns: 1fr auto;

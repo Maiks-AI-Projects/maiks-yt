@@ -1,6 +1,6 @@
 import type { OverlaySceneDefinition, OverlaySceneSlotDefinition, OverlaySceneSlotId } from "@maiks-yt/events";
 import { createNotificationScenario, createReplaySessionFromPreset, type EventStormPreset } from "@maiks-yt/testing";
-import { overlaySceneSlotIds } from "@maiks-yt/themes";
+import { getDefaultThemeScene, overlaySceneSlotIds } from "@maiks-yt/themes";
 import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { createRoot } from "react-dom/client";
@@ -557,6 +557,30 @@ const SceneDesigner = (): React.ReactNode => {
     updateSceneSlot(selectedScene.sceneKey, selectedSlotId, patch);
   };
 
+  const resetSelectedSlot = (): void => {
+    if (!selectedScene) {
+      return;
+    }
+
+    const defaultSlot = getDefaultThemeScene(selectedScene.sceneKey).slots[selectedSlotId];
+
+    updateSceneSlot(selectedScene.sceneKey, selectedSlotId, structuredClone(defaultSlot));
+    setStatus(`${formatSlotLabel(selectedSlotId)} reset. Save scene to keep it.`);
+  };
+
+  const updateSelectedSlotAspectLock = (locked: boolean): void => {
+    if (!selectedSlot) {
+      return;
+    }
+
+    updateSelectedSlot({
+      lockedAspectRatio: locked
+        ? selectedSlot.width / Math.max(1, selectedSlot.height)
+        : undefined
+    });
+    setStatus(`${formatSlotLabel(selectedSlotId)} aspect ratio ${locked ? "locked" : "unlocked"}. Save scene to keep it.`);
+  };
+
   const startSlotDrag = (
     event: ReactPointerEvent<HTMLButtonElement>,
     slotId: OverlaySceneSlotId,
@@ -857,12 +881,25 @@ const SceneDesigner = (): React.ReactNode => {
           </div>
           {selectedSlot ? (
             <div className="slot-editor">
+              <div className="slot-editor-actions">
+                <button type="button" className="status-action" onClick={resetSelectedSlot}>
+                  Reset slot
+                </button>
+              </div>
               <label className="slot-visible">
                 <span>Visible</span>
                 <input
                   checked={selectedSlot.visible}
                   type="checkbox"
                   onChange={(event) => updateSelectedSlot({ visible: event.currentTarget.checked })}
+                />
+              </label>
+              <label className="slot-visible">
+                <span>Lock ratio</span>
+                <input
+                  checked={selectedSlot.lockedAspectRatio !== undefined}
+                  type="checkbox"
+                  onChange={(event) => updateSelectedSlotAspectLock(event.currentTarget.checked)}
                 />
               </label>
               {(["x", "y", "width", "height"] as const).map((field) => (
