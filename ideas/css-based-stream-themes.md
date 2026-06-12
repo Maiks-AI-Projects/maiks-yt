@@ -21,6 +21,10 @@ This keeps the overlay system flexible. A layout can stay the same while the str
 
 It also makes it easier to add new stream categories later without rewriting components.
 
+Themes should own visual identity, not scene positioning. A theme can provide default scenes and supported scene templates, but the saved scene decides where elements live and how large they are.
+
+This means an ad-hoc stream can use generic default styling, while a game or hobby can use a specialized theme with multiple saved scenes such as gameplay, talking, chat focus, and break.
+
 ## Data Needed
 
 - theme identifiers
@@ -29,6 +33,8 @@ It also makes it easier to add new stream categories later without rewriting com
 - default theme per game/hobby/channel
 - user or streamer theme overrides
 - asset references used by themes
+- supported scene templates
+- default scenes bundled with a theme
 
 ## Build Requirements
 
@@ -38,10 +44,14 @@ It also makes it easier to add new stream categories later without rewriting com
 - fallback theme
 - validation that required CSS variables exist
 - optional hot-switching during a stream
+- theme manifest that lists available default scenes
+- scene designer integration so new scenes can be saved under the active theme
 
 ## Type-safety Notes
 
 Even if themes are CSS files, the available theme IDs and required CSS variables should be typed. A TypeScript theme manifest can declare the CSS file, display name, supported layouts, and required assets.
+
+The theme manifest can also declare supported scene templates, but the scene layout data should stay separate from the CSS file.
 
 ## Open Questions
 
