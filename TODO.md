@@ -101,7 +101,7 @@ This is the working checklist. We should work down it in order unless a new idea
 
 - [x] Build fake typed event generator.
 - [x] Add event storm presets.
-- [ ] Add event replay controls.
+- [x] Add event replay controls.
 - [ ] Support recording/replaying local stream sessions.
 - [ ] Strip sensitive data from recorded replay fixtures.
 - [ ] Use simulator events for overlay and control panel testing.

@@ -8,7 +8,9 @@ body {
 button {
   background: #d64545;
   border: 0;
+  border-radius: 6px;
   color: white;
+  cursor: pointer;
   font: inherit;
   padding: 0.75rem 1rem;
 }
@@ -17,4 +19,43 @@ button {
   display: grid;
   gap: 1rem;
   padding: 2rem;
+}
+
+.preset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.preset-actions button {
+  background: #25313d;
+}
+
+.preset-actions .selected-action {
+  background: #2f855a;
+}
+
+.event-preview-list {
+  display: grid;
+  gap: 0.6rem;
+  list-style-position: inside;
+  margin: 0;
+  max-width: 58rem;
+  padding: 0;
+}
+
+.event-preview-list li {
+  background: #151d25;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem;
+}
+
+.event-preview-list span {
+  color: #b8c4cf;
+  font-family: Consolas, "Liberation Mono", monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
