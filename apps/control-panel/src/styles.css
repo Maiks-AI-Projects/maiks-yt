@@ -238,6 +238,30 @@ button {
   user-select: none;
 }
 
+.scene-slot-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scene-slot-resize-handle {
+  background: #4ade80;
+  border: 1px solid #071016;
+  border-radius: 2px;
+  bottom: 0.2rem;
+  cursor: nwse-resize;
+  display: none;
+  height: 0.7rem;
+  position: absolute;
+  right: 0.2rem;
+  touch-action: none;
+  width: 0.7rem;
+}
+
+.scene-slot.selected .scene-slot-resize-handle {
+  display: block;
+}
+
 .scene-slot.hidden {
   background: rgba(15, 20, 25, 0.28);
   border-style: dashed;

@@ -104,6 +104,21 @@ type SlotDragState = {
   startY: number;
 };
 
+type SlotResizeState = {
+  canvasHeight: number;
+  canvasWidth: number;
+  lockedAspectRatio?: number | undefined;
+  pointerId: number;
+  sceneKey: string;
+  slotId: OverlaySceneSlotId;
+  slotX: number;
+  slotY: number;
+  startClientX: number;
+  startClientY: number;
+  startHeight: number;
+  startWidth: number;
+};
+
 const createWebSocketUrl = (baseUrl: string, path: string): string => {
   const url = new URL(path, baseUrl);
 
@@ -469,6 +484,7 @@ const SceneDesigner = (): React.ReactNode => {
   const [selectedSceneKey, setSelectedSceneKey] = useState<string>("default");
   const [selectedSlotId, setSelectedSlotId] = useState<OverlaySceneSlotId>("camera");
   const [dragState, setDragState] = useState<SlotDragState | null>(null);
+  const [resizeState, setResizeState] = useState<SlotResizeState | null>(null);
   const [status, setStatus] = useState<string>("Loading scenes.");
 
   const selectedScene = scenes.find((scene) => scene.sceneKey === selectedSceneKey) ?? scenes[0] ?? null;
@@ -546,7 +562,7 @@ const SceneDesigner = (): React.ReactNode => {
     slotId: OverlaySceneSlotId,
     slot: OverlaySceneSlotDefinition
   ): void => {
-    if (!selectedScene) {
+    if (!selectedScene || resizeState) {
       return;
     }
 
@@ -577,7 +593,7 @@ const SceneDesigner = (): React.ReactNode => {
   };
 
   const moveSlotDrag = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-    if (!selectedScene || !dragState || event.pointerId !== dragState.pointerId) {
+    if (!selectedScene || !dragState || resizeState || event.pointerId !== dragState.pointerId) {
       return;
     }
 
@@ -593,7 +609,7 @@ const SceneDesigner = (): React.ReactNode => {
   };
 
   const finishSlotDrag = (event: ReactPointerEvent<HTMLButtonElement>): void => {
-    if (!dragState || event.pointerId !== dragState.pointerId) {
+    if (!dragState || resizeState || event.pointerId !== dragState.pointerId) {
       return;
     }
 
@@ -603,6 +619,85 @@ const SceneDesigner = (): React.ReactNode => {
 
     setDragState(null);
     setStatus(`${formatSlotLabel(dragState.slotId)} moved. Save scene to keep it.`);
+  };
+
+  const startSlotResize = (
+    event: ReactPointerEvent<HTMLSpanElement>,
+    slotId: OverlaySceneSlotId,
+    slot: OverlaySceneSlotDefinition
+  ): void => {
+    if (!selectedScene || dragState) {
+      return;
+    }
+
+    const canvasElement = event.currentTarget.closest(".scene-canvas");
+
+    if (!(canvasElement instanceof HTMLElement)) {
+      return;
+    }
+
+    const canvasRect = canvasElement.getBoundingClientRect();
+
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSelectedSlotId(slotId);
+    setResizeState({
+      canvasHeight: canvasRect.height,
+      canvasWidth: canvasRect.width,
+      lockedAspectRatio: slot.lockedAspectRatio,
+      pointerId: event.pointerId,
+      sceneKey: selectedScene.sceneKey,
+      slotId,
+      slotX: slot.x,
+      slotY: slot.y,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startHeight: slot.height,
+      startWidth: slot.width
+    });
+    setStatus(`Resizing ${formatSlotLabel(slotId)}.`);
+  };
+
+  const moveSlotResize = (event: ReactPointerEvent<HTMLSpanElement>): void => {
+    if (!selectedScene || !resizeState || dragState || event.pointerId !== resizeState.pointerId) {
+      return;
+    }
+
+    const deltaX = (event.clientX - resizeState.startClientX) / resizeState.canvasWidth * selectedScene.canvas.width;
+    const deltaY = (event.clientY - resizeState.startClientY) / resizeState.canvasHeight * selectedScene.canvas.height;
+    const maxWidth = selectedScene.canvas.width - resizeState.slotX;
+    const maxHeight = selectedScene.canvas.height - resizeState.slotY;
+    let nextWidth = clamp(Math.round(resizeState.startWidth + deltaX), 0, maxWidth);
+    let nextHeight = clamp(Math.round(resizeState.startHeight + deltaY), 0, maxHeight);
+
+    if (resizeState.lockedAspectRatio) {
+      if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+        nextHeight = clamp(Math.round(nextWidth / resizeState.lockedAspectRatio), 0, maxHeight);
+        nextWidth = clamp(Math.round(nextHeight * resizeState.lockedAspectRatio), 0, maxWidth);
+      } else {
+        nextWidth = clamp(Math.round(nextHeight * resizeState.lockedAspectRatio), 0, maxWidth);
+        nextHeight = clamp(Math.round(nextWidth / resizeState.lockedAspectRatio), 0, maxHeight);
+      }
+    }
+
+    updateSceneSlot(resizeState.sceneKey, resizeState.slotId, {
+      height: nextHeight,
+      width: nextWidth
+    });
+  };
+
+  const finishSlotResize = (event: ReactPointerEvent<HTMLSpanElement>): void => {
+    if (!resizeState || dragState || event.pointerId !== resizeState.pointerId) {
+      return;
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    event.stopPropagation();
+    setResizeState(null);
+    setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save scene to keep it.`);
   };
 
   const saveSelectedScene = async (): Promise<void> => {
@@ -694,7 +789,15 @@ const SceneDesigner = (): React.ReactNode => {
                   onPointerMove={moveSlotDrag}
                   onPointerUp={finishSlotDrag}
                 >
-                  {formatSlotLabel(slotId)}
+                  <span className="scene-slot-label">{formatSlotLabel(slotId)}</span>
+                  <span
+                    aria-hidden="true"
+                    className="scene-slot-resize-handle"
+                    onPointerCancel={finishSlotResize}
+                    onPointerDown={(event) => startSlotResize(event, slotId, slot)}
+                    onPointerMove={moveSlotResize}
+                    onPointerUp={finishSlotResize}
+                  />
                 </button>
               );
             })}
