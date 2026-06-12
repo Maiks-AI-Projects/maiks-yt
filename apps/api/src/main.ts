@@ -105,6 +105,12 @@ type RealtimeSpikeEvent = {
   };
 };
 
+interface RealtimeSpikeSocket {
+  send: (message: string) => void;
+  on(event: "message", listener: (message: { toString(): string }) => void): void;
+  on(event: "close", listener: () => void): void;
+}
+
 const createRealtimeSpikeEvent = ({
   connectionId,
   sequence,
@@ -873,7 +879,7 @@ server.get("/realtime/spike/sse", async (request, reply) => {
   });
 });
 
-server.get("/realtime/spike/ws", { websocket: true }, (connection) => {
+server.get("/realtime/spike/ws", { websocket: true }, (socket: RealtimeSpikeSocket) => {
   const connectionId = randomUUID();
   let sequence = 0;
 
@@ -883,7 +889,7 @@ server.get("/realtime/spike/ws", { websocket: true }, (connection) => {
       { connectionId, eventId: event.payload.id, sequence: event.payload.sequence, transport: "websocket" },
       "Realtime spike event sent."
     );
-    connection.socket.send(JSON.stringify(event));
+    socket.send(JSON.stringify(event));
   };
   const createNextEvent = (
     type?: RealtimeSpikeEvent["type"],
@@ -903,11 +909,11 @@ server.get("/realtime/spike/ws", { websocket: true }, (connection) => {
 
   sendEvent(createNextEvent());
 
-  connection.socket.on("message", (message: { toString(): string }) => {
+  socket.on("message", (message: { toString(): string }) => {
     server.log.info({ connectionId, transport: "websocket" }, "Realtime spike message received.");
     sendEvent(createNextEvent("realtime.spike.echo", message.toString()));
   });
-  connection.socket.on("close", () => {
+  socket.on("close", () => {
     clearInterval(interval);
     server.log.info({ connectionId, sequence, transport: "websocket" }, "Realtime spike connection closed.");
   });

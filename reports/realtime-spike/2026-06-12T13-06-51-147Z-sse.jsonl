@@ -1,0 +1,5 @@
+{"clientReceivedAt":"2026-06-12T13:06:51.285Z","type":"client.open","contentType":"text/event-stream","status":200}
+{"clientReceivedAt":"2026-06-12T13:06:51.286Z","type":"server.event","event":{"type":"realtime.spike.heartbeat","payload":{"connectionId":"aa61f868-b094-4f57-bb46-60bd97db18ad","id":"39e29673-8c16-4520-91c0-a883dede878e","sequence":1,"sentAt":"2026-06-12T13:06:52.160Z","message":"Realtime spike heartbeat","transport":"sse"}}}
+{"clientReceivedAt":"2026-06-12T13:06:56.326Z","type":"server.event","event":{"type":"realtime.spike.heartbeat","payload":{"connectionId":"aa61f868-b094-4f57-bb46-60bd97db18ad","id":"5c260ab8-f711-4382-8f81-63b7192493fb","sequence":2,"sentAt":"2026-06-12T13:06:57.163Z","message":"Realtime spike heartbeat","transport":"sse"}}}
+{"clientReceivedAt":"2026-06-12T13:06:56.380Z","type":"client.error","message":"terminated"}
+{"clientReceivedAt":"2026-06-12T13:06:56.380Z","type":"client.close"}

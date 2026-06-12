@@ -1,0 +1,3 @@
+{"clientReceivedAt":"2026-06-12T13:06:51.292Z","type":"client.open"}
+{"clientReceivedAt":"2026-06-12T13:06:51.295Z","type":"client.error","message":""}
+{"clientReceivedAt":"2026-06-12T13:06:51.295Z","type":"client.close","code":1006,"reason":""}
