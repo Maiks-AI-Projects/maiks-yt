@@ -119,6 +119,12 @@ type SlotResizeState = {
   startWidth: number;
 };
 
+type SceneLayoutWarning = {
+  id: string;
+  message: string;
+  slotIds: readonly OverlaySceneSlotId[];
+};
+
 const createWebSocketUrl = (baseUrl: string, path: string): string => {
   const url = new URL(path, baseUrl);
 
@@ -479,6 +485,51 @@ const clamp = (value: number, minimum: number, maximum: number): number => {
   return Math.min(maximum, Math.max(minimum, value));
 };
 
+const slotsOverlap = (
+  firstSlot: OverlaySceneSlotDefinition,
+  secondSlot: OverlaySceneSlotDefinition
+): boolean => {
+  return firstSlot.x < secondSlot.x + secondSlot.width
+    && firstSlot.x + firstSlot.width > secondSlot.x
+    && firstSlot.y < secondSlot.y + secondSlot.height
+    && firstSlot.y + firstSlot.height > secondSlot.y;
+};
+
+const getSceneLayoutWarnings = (scene: OverlaySceneDefinition): SceneLayoutWarning[] => {
+  const warnings: SceneLayoutWarning[] = [];
+  const visibleSlotIds = overlaySceneSlotIds.filter((slotId) => scene.slots[slotId].visible);
+  const overlaySlotIds = visibleSlotIds.filter((slotId) => slotId !== "game");
+
+  for (const slotId of visibleSlotIds) {
+    const slot = scene.slots[slotId];
+
+    if (slot.x + slot.width > scene.canvas.width || slot.y + slot.height > scene.canvas.height) {
+      warnings.push({
+        id: `outside-${slotId}`,
+        message: `${formatSlotLabel(slotId)} is outside the ${scene.canvas.width}x${scene.canvas.height} canvas.`,
+        slotIds: [slotId]
+      });
+    }
+  }
+
+  for (let firstIndex = 0; firstIndex < overlaySlotIds.length; firstIndex += 1) {
+    for (let secondIndex = firstIndex + 1; secondIndex < overlaySlotIds.length; secondIndex += 1) {
+      const firstSlotId = overlaySlotIds[firstIndex]!;
+      const secondSlotId = overlaySlotIds[secondIndex]!;
+
+      if (slotsOverlap(scene.slots[firstSlotId], scene.slots[secondSlotId])) {
+        warnings.push({
+          id: `overlap-${firstSlotId}-${secondSlotId}`,
+          message: `${formatSlotLabel(firstSlotId)} overlaps ${formatSlotLabel(secondSlotId)}.`,
+          slotIds: [firstSlotId, secondSlotId]
+        });
+      }
+    }
+  }
+
+  return warnings;
+};
+
 const createSceneCopyKey = (sceneKey: string, scenes: OverlaySceneDefinition[]): string => {
   const baseKey = `${sceneKey.replace(/-copy(?:-[0-9]+)?$/, "")}-copy`;
   const sceneKeys = new Set(scenes.map((scene) => scene.sceneKey));
@@ -508,6 +559,8 @@ const SceneDesigner = (): React.ReactNode => {
 
   const selectedScene = scenes.find((scene) => scene.sceneKey === selectedSceneKey) ?? scenes[0] ?? null;
   const selectedSlot = selectedScene?.slots[selectedSlotId] ?? null;
+  const layoutWarnings = selectedScene ? getSceneLayoutWarnings(selectedScene) : [];
+  const warningSlotIds = new Set(layoutWarnings.flatMap((warning) => warning.slotIds));
 
   const loadScenes = async (): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
@@ -928,7 +981,7 @@ const SceneDesigner = (): React.ReactNode => {
               return (
                 <button
                   type="button"
-                  className={`scene-slot ${selectedSlotId === slotId ? "selected" : ""} ${slot.visible ? "visible" : "hidden"}`}
+                  className={`scene-slot ${selectedSlotId === slotId ? "selected" : ""} ${slot.visible ? "visible" : "hidden"} ${warningSlotIds.has(slotId) ? "warning" : ""}`}
                   key={slotId}
                   style={createSceneSlotStyle(slot, selectedScene.canvas)}
                   onClick={() => setSelectedSlotId(slotId)}
@@ -952,6 +1005,16 @@ const SceneDesigner = (): React.ReactNode => {
           </div>
           {selectedSlot ? (
             <div className="slot-editor">
+              <div className={`layout-warning-summary ${layoutWarnings.length > 0 ? "warning" : "clear"}`}>
+                <strong>{layoutWarnings.length > 0 ? `${layoutWarnings.length} layout warning(s)` : "No layout warnings"}</strong>
+                {layoutWarnings.length > 0 ? (
+                  <ul>
+                    {layoutWarnings.map((warning) => (
+                      <li key={warning.id}>{warning.message}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
               <div className="slot-editor-actions">
                 <button type="button" className="status-action" onClick={resetSelectedSlot}>
                   Reset slot
