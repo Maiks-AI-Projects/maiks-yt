@@ -104,7 +104,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add event replay controls.
 - [x] Support recording/replaying local stream sessions.
 - [x] Strip sensitive data from recorded replay fixtures.
-- [ ] Use simulator events for overlay and control panel testing.
+- [x] Use simulator events for overlay and control panel testing.
 
 ## 6. Overlay Renderer
 

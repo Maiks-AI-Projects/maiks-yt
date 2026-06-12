@@ -1,4 +1,4 @@
-import { createEventStormPreset, createNotificationScenario, type EventStormPreset } from "@maiks-yt/testing";
+import { createNotificationScenario, createReplaySessionFromPreset, type EventStormPreset } from "@maiks-yt/testing";
 import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -89,7 +89,7 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
 const App = (): React.ReactNode => {
   const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
   const [selectedPreset, setSelectedPreset] = useState<EventStormPreset>("notification-burst");
-  const selectedEvents = createEventStormPreset(selectedPreset);
+  const replaySession = createReplaySessionFromPreset(selectedPreset);
 
   useEffect(() => {
     void validateControlPanelAccess().then(setAuthState);
@@ -111,7 +111,10 @@ const App = (): React.ReactNode => {
       <button type="button">Emergency clean mode</button>
       <section>
         <h2>Simulator</h2>
-        <p>{scenario.length} starter event ready. {selectedEvents.length} events loaded from the selected preset.</p>
+        <p>
+          {scenario.length} starter event ready. {replaySession.events.length} sanitized replay events loaded from the
+          selected preset.
+        </p>
         <div className="preset-actions" aria-label="Event storm presets">
           {eventStormPresets.map((preset) => (
             <button
@@ -124,11 +127,16 @@ const App = (): React.ReactNode => {
             </button>
           ))}
         </div>
+        <div className="replay-summary">
+          <strong>{replaySession.title}</strong>
+          <span>{replaySession.source}</span>
+          <span>{replaySession.sanitized ? "Sanitized" : "Raw"}</span>
+        </div>
         <ol className="event-preview-list">
-          {selectedEvents.map((event, index) => (
-            <li key={`${event.type}-${index}`}>
-              <strong>{event.type}</strong>
-              <span>{JSON.stringify(event.payload)}</span>
+          {replaySession.events.map((entry, index) => (
+            <li key={`${entry.event.type}-${index}`}>
+              <strong>{entry.offsetMs}ms - {entry.event.type}</strong>
+              <span>{JSON.stringify(entry.event.payload)}</span>
             </li>
           ))}
         </ol>
