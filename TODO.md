@@ -114,7 +114,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Connect to live state updates after loading.
 - [ ] Create typed notification events.
 - [ ] Build notification queue before display rendering.
-- [ ] Add top notification zone.
+- [x] Add top notification zone.
 - [ ] Add center notification zone.
 - [ ] Inspect V1 top notification design at `A:\laravel-projects\maiks-yt` before implementing final top notification visuals.
 - [ ] Add active project/goal progress widget.
