@@ -1,4 +1,5 @@
 import type {
+  OverlayActiveGoalState,
   OverlayLayoutKey,
   OverlayPresentationState,
   OverlaySceneDefinition,
@@ -69,6 +70,7 @@ type OverlayPresenceState =
     centerEnabled: boolean;
     centerDefaultTiming: CenterNotificationTiming;
     presentationState: OverlayPresentationState;
+    activeGoal: OverlayActiveGoalState | null;
   }
   | {
     status: "error";
@@ -94,6 +96,16 @@ type OverlayStatusResponse = {
   topBarEnabled: boolean;
   centerEnabled: boolean;
   centerDefaultTiming: CenterNotificationTiming;
+  activeGoal: OverlayActiveGoalState | null;
+} | {
+  ok: false;
+  reason: string;
+};
+
+type OverlayGoalUpdateResponse = {
+  ok: true;
+  activeGoal: OverlayActiveGoalState;
+  activeOverlayConnections: number;
 } | {
   ok: false;
   reason: string;
@@ -159,6 +171,14 @@ type SceneLayoutWarning = {
   message: string;
   slotIds: readonly OverlaySceneSlotId[];
 };
+
+const defaultGoalDraft = (): OverlayActiveGoalState => ({
+  enabled: true,
+  label: "Server upgrade fund",
+  currentAmount: 320,
+  targetAmount: 500,
+  currencyCode: "EUR"
+});
 
 const createWebSocketUrl = (baseUrl: string, path: string): string => {
   const url = new URL(path, baseUrl);
@@ -237,6 +257,7 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
   const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
   const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
   const [sceneOptions, setSceneOptions] = useState<OverlaySceneDefinition[]>([]);
+  const [goalDraft, setGoalDraft] = useState<OverlayActiveGoalState>(defaultGoalDraft);
 
   useEffect(() => {
     let disposed = false;
@@ -278,7 +299,8 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
             topBarEnabled: result.topBarEnabled,
             centerEnabled: result.centerEnabled,
             centerDefaultTiming: result.centerDefaultTiming,
-            presentationState: result.presentationState
+            presentationState: result.presentationState,
+            activeGoal: result.activeGoal
           });
         }
       } catch (error) {
@@ -352,6 +374,23 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
       layout: "standard",
       theme: "default"
     };
+  const activeGoal = overlayPresence.status === "ready" ? overlayPresence.activeGoal : null;
+  const goalSignature = overlayPresence.status === "ready"
+    ? JSON.stringify(activeGoal)
+    : "unavailable";
+
+  useEffect(() => {
+    if (activeGoal) {
+      setGoalDraft(activeGoal);
+    }
+  }, [goalSignature]);
+
+  const updateGoalDraft = (patch: Partial<OverlayActiveGoalState>): void => {
+    setGoalDraft((currentGoal) => ({
+      ...currentGoal,
+      ...patch
+    }));
+  };
 
   const updateTopBarEnabled = async (enabled: boolean): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
@@ -664,6 +703,53 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
     setTopBarActionStatus(`Overlay target set to ${result.presentationState.scene} / ${result.presentationState.layout}.`);
   };
 
+  const saveActiveGoal = async (): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    if (goalDraft.currentAmount > goalDraft.targetAmount) {
+      setTopBarActionStatus("Goal current amount must stay at or below the target.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/goal`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        ...goalDraft,
+        currencyCode: goalDraft.currencyCode.toUpperCase()
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Goal save failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlayGoalUpdateResponse;
+
+    if (!result.ok) {
+      setTopBarActionStatus(`Goal save failed: ${result.reason}.`);
+      return;
+    }
+
+    setGoalDraft(result.activeGoal);
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        activeGoal: result.activeGoal
+      }
+      : currentState);
+    setTopBarActionStatus(result.activeGoal.enabled ? "Active goal saved." : "Goal hidden.");
+  };
+
   return (
     <section className="surface-status" aria-label="Surface status">
       <div className="status-pill active">
@@ -750,6 +836,68 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
           </select>
         </label>
       </div>
+      <details className="notification-settings">
+        <summary>Goal widget</summary>
+        <label>
+          <span>Enabled</span>
+          <input
+            checked={goalDraft.enabled}
+            type="checkbox"
+            onChange={(event) => updateGoalDraft({ enabled: event.currentTarget.checked })}
+          />
+        </label>
+        <label>
+          <span>Label</span>
+          <input
+            maxLength={80}
+            type="text"
+            value={goalDraft.label}
+            onChange={(event) => updateGoalDraft({ label: event.currentTarget.value })}
+          />
+        </label>
+        <label>
+          <span>Current</span>
+          <input
+            min={0}
+            max={1000000}
+            step={1}
+            type="number"
+            value={goalDraft.currentAmount}
+            onChange={(event) => updateGoalDraft({ currentAmount: Number(event.currentTarget.value) })}
+          />
+        </label>
+        <label>
+          <span>Target</span>
+          <input
+            min={1}
+            max={1000000}
+            step={1}
+            type="number"
+            value={goalDraft.targetAmount}
+            onChange={(event) => updateGoalDraft({ targetAmount: Number(event.currentTarget.value) })}
+          />
+        </label>
+        <label>
+          <span>Currency</span>
+          <input
+            maxLength={3}
+            type="text"
+            value={goalDraft.currencyCode}
+            onChange={(event) => updateGoalDraft({ currencyCode: event.currentTarget.value.toUpperCase() })}
+          />
+        </label>
+        <div className="status-action-group goal-settings-actions">
+          <button type="button" className="status-action" onClick={() => setGoalDraft(activeGoal ?? defaultGoalDraft())}>
+            Reset
+          </button>
+          <button type="button" className="status-action" onClick={() => setGoalDraft(defaultGoalDraft())}>
+            Load demo
+          </button>
+          <button type="button" className="status-action" onClick={() => void saveActiveGoal()}>
+            Save goal
+          </button>
+        </div>
+      </details>
       {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}
       <details className="notification-settings">
         <summary>Notification settings</summary>

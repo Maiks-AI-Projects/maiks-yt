@@ -1,4 +1,5 @@
 import type {
+  OverlayActiveGoalState,
   OverlayLayoutKey,
   OverlayLiveMessage,
   OverlaySceneKey,
@@ -218,6 +219,22 @@ const createSlotStyle = (slot: OverlaySceneSlotDefinition): CSSProperties => ({
   width: `${slot.width / 19.2}%`
 });
 
+const clampGoalProgress = (goal: OverlayActiveGoalState): number => {
+  if (goal.targetAmount <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(goal.currentAmount / goal.targetAmount, 1));
+};
+
+const formatGoalAmount = (amount: number, currencyCode: string): string => {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currencyCode,
+    maximumFractionDigits: 0
+  }).format(amount);
+};
+
 const TopNotificationBar = ({
   notifications,
   slotStyle
@@ -285,6 +302,30 @@ const CenterNotification = ({
         </div>
       </article>
     </div>
+  );
+};
+
+const StreamGoalWidget = ({
+  goal,
+  slotStyle
+}: {
+  goal: OverlayActiveGoalState;
+  slotStyle: CSSProperties;
+}): React.ReactNode => {
+  const progress = clampGoalProgress(goal);
+  const progressPercent = Math.round(progress * 100);
+
+  return (
+    <section className="stream-goal-widget" style={slotStyle} aria-label={goal.label}>
+      <div className="stream-goal-copy">
+        <strong>{goal.label}</strong>
+        <span>{formatGoalAmount(goal.currentAmount, goal.currencyCode)} / {formatGoalAmount(goal.targetAmount, goal.currencyCode)}</span>
+      </div>
+      <div className="stream-goal-meter" aria-hidden="true">
+        <div className="stream-goal-fill" style={{ width: `${progressPercent}%` }} />
+      </div>
+      <span className="stream-goal-percent">{progressPercent}%</span>
+    </section>
   );
 };
 
@@ -640,7 +681,9 @@ const App = (): React.ReactNode => {
         />
       ) : null}
       {snapshot.slots.streamGoal.visible && slots.streamGoal.visible ? (
-        <div className="reservation slot stream-goal-slot" style={createSlotStyle(slots.streamGoal)} aria-hidden="true" />
+        snapshot.activeGoal?.enabled ? (
+          <StreamGoalWidget goal={snapshot.activeGoal} slotStyle={createSlotStyle(slots.streamGoal)} />
+        ) : null
       ) : null}
     </main>
   );

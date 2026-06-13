@@ -71,6 +71,14 @@ export type OverlayCenterNotificationState = {
   defaultTiming: OverlayCenterNotificationTiming;
 };
 
+export type OverlayActiveGoalState = {
+  enabled: boolean;
+  label: string;
+  currentAmount: number;
+  targetAmount: number;
+  currencyCode: string;
+};
+
 export type OverlayStateSnapshot = {
   id: string;
   scene: OverlaySceneKey;
@@ -81,6 +89,7 @@ export type OverlayStateSnapshot = {
   sceneDefinition: OverlaySceneDefinition;
   topBar: OverlayTopBarState;
   center: OverlayCenterNotificationState;
+  activeGoal: OverlayActiveGoalState | null;
   topNotification: OverlayNotificationQueuedEvent["payload"] | null;
   centerNotification: OverlayNotificationQueuedEvent["payload"] | null;
   slots: {

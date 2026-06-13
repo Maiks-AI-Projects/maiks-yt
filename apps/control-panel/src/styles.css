@@ -120,6 +120,10 @@ button {
   flex: 0 1 auto;
 }
 
+.goal-settings-actions .status-action {
+  min-width: 7rem;
+}
+
 .critical-controls {
   align-items: stretch;
 }

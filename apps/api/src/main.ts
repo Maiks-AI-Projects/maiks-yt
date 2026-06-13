@@ -4,6 +4,7 @@ import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
 import type {
+  OverlayActiveGoalState,
   OverlayPresentationState,
   OverlayLayoutKey,
   OverlayLiveMessage,
@@ -46,6 +47,7 @@ let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
   fadeOutMs: 700,
   restMs: 1_500
 };
+let overlayActiveGoal: OverlayActiveGoalState | null = null;
 const overlayLiveClients = new Map<string, {
   requestedScene: OverlaySceneKey;
   requestedLayout: OverlayLayoutKey;
@@ -131,6 +133,17 @@ const overlayNotificationTestRequestSchema = z.object({
   route: z.enum(["top", "center"]),
   afterCenter: z.enum(["top", "none"]).default("top"),
   count: z.number().int().min(1).max(6).default(1)
+});
+const overlayGoalStateSchema = z.object({
+  accessToken: z.string().min(24),
+  enabled: z.boolean(),
+  label: z.string().trim().min(1).max(80),
+  currentAmount: z.number().min(0).max(1_000_000),
+  targetAmount: z.number().positive().max(1_000_000),
+  currencyCode: z.string().trim().regex(/^[A-Z]{3}$/)
+}).refine((value) => value.currentAmount <= value.targetAmount, {
+  message: "current_amount_cannot_exceed_target",
+  path: ["currentAmount"]
 });
 const overlaySceneListRequestSchema = z.object({
   accessToken: z.string().min(24)
@@ -362,6 +375,7 @@ const createOverlayStateSnapshot = ({
       enabled: overlayCenterEnabled,
       defaultTiming: overlayCenterDefaultTiming
     },
+    activeGoal: overlayActiveGoal ? { ...overlayActiveGoal } : null,
     topNotification: null,
     centerNotification: null,
     slots: {
@@ -1283,7 +1297,49 @@ server.get("/overlay/status", async (request, reply) => {
     topBarEnabled: overlayTopBarEnabled,
     centerEnabled: overlayCenterEnabled,
     centerDefaultTiming: overlayCenterDefaultTiming,
+    activeGoal: overlayActiveGoal ? { ...overlayActiveGoal } : null,
     checkedAt: new Date().toISOString()
+  };
+});
+
+server.post("/overlay/goal", async (request, reply) => {
+  const parsedRequest = overlayGoalStateSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlayActiveGoal = {
+    enabled: parsedRequest.data.enabled,
+    label: parsedRequest.data.label,
+    currentAmount: parsedRequest.data.currentAmount,
+    targetAmount: parsedRequest.data.targetAmount,
+    currencyCode: parsedRequest.data.currencyCode
+  };
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    activeGoal: { ...overlayActiveGoal },
+    activeOverlayConnections: activeOverlayConnections.size
   };
 });
 
