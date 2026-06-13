@@ -49,6 +49,11 @@ type OverlayStateResponse = {
   reason: string;
 };
 
+type CachedOverlaySnapshotRecord = {
+  cachedAt: string;
+  snapshot: OverlayStateSnapshot;
+};
+
 type TopBarNotification = OverlayTopBarNotificationQueuedEvent["payload"];
 type RoutedNotification = OverlayRoutedNotificationQueuedEvent["payload"];
 type CenterNotificationRuntime = {
@@ -77,6 +82,57 @@ const parseParam = <TValue extends string>(
   fallback: TValue
 ): TValue => {
   return allowedValues.includes(value as TValue) ? value as TValue : fallback;
+};
+
+const getOverlaySnapshotStorageKey = (options: OverlayUrlOptions): string => {
+  const params = new URLSearchParams({
+    layout: options.layout,
+    mode: options.mode,
+    scene: options.scene,
+    theme: options.theme
+  });
+
+  return `maiks.yt.overlay.last-known-good.v1:${params.toString()}`;
+};
+
+const readCachedSnapshot = (options: OverlayUrlOptions): OverlayStateSnapshot | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const storageKey = getOverlaySnapshotStorageKey(options);
+
+  try {
+    const rawValue = window.localStorage.getItem(storageKey);
+
+    if (!rawValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(rawValue) as Partial<CachedOverlaySnapshotRecord>;
+
+    return parsedValue.snapshot ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedSnapshot = (snapshot: OverlayStateSnapshot, options: OverlayUrlOptions): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const storageKey = getOverlaySnapshotStorageKey(options);
+  const record: CachedOverlaySnapshotRecord = {
+    cachedAt: new Date().toISOString(),
+    snapshot
+  };
+
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(record));
+  } catch {
+    // Ignore storage write failures so the overlay can continue rendering.
+  }
 };
 
 const createApiUrl = (path: string, token: string, options: OverlayUrlOptions): URL => {
@@ -236,9 +292,14 @@ const App = (): React.ReactNode => {
   const fallbackHighlightIndexRef = useRef(0);
   const pendingTopBarNotificationsRef = useRef<TopBarNotification[]>([]);
   const pendingCenterNotificationsRef = useRef<RoutedNotification[]>([]);
+  const runtimeStateRef = useRef<OverlayRuntimeState>({ status: "loading" });
   const topBarProcessingRef = useRef(false);
   const centerProcessingRef = useRef(false);
   const urlOptions = useMemo(parseUrlOptions, []);
+
+  useEffect(() => {
+    runtimeStateRef.current = runtimeState;
+  }, [runtimeState]);
 
   const processTopBarQueue = (): void => {
     if (topBarProcessingRef.current) {
@@ -360,6 +421,8 @@ const App = (): React.ReactNode => {
           return;
         }
 
+        writeCachedSnapshot(snapshot, urlOptions);
+
         setRuntimeState({
           status: "ready",
           liveStatus: "snapshot",
@@ -372,6 +435,7 @@ const App = (): React.ReactNode => {
           const message = JSON.parse(String(event.data)) as OverlayLiveMessage;
 
           if (message.type === "overlay.state.snapshot") {
+            writeCachedSnapshot(message.payload, urlOptions);
             setRuntimeState({
               status: "ready",
               liveStatus: "live",
@@ -422,10 +486,23 @@ const App = (): React.ReactNode => {
           return;
         }
 
-        setRuntimeState({
-          status: "error",
-          message: error instanceof Error ? error.message : "Overlay connection failed."
-        });
+        const currentRuntimeState = runtimeStateRef.current;
+        const fallbackSnapshot = readCachedSnapshot(urlOptions)
+          ?? (currentRuntimeState.status === "ready" ? currentRuntimeState.snapshot : null);
+
+        if (fallbackSnapshot) {
+          setRuntimeState({
+            status: "ready",
+            liveStatus: "reconnecting",
+            snapshot: fallbackSnapshot,
+            lastHeartbeatAt: currentRuntimeState.status === "ready" ? currentRuntimeState.lastHeartbeatAt : null
+          });
+        } else {
+          setRuntimeState({
+            status: "error",
+            message: error instanceof Error ? error.message : "Overlay connection failed."
+          });
+        }
         reconnectTimer = window.setTimeout(connect, 5_000);
       }
     };

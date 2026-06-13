@@ -121,7 +121,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Support redeemable center notifications, such as hydrate, jumpscare, and later AI-triggered mimes.
 - [ ] Inspect V1 top notification design at `A:\laravel-projects\maiks-yt` before implementing final top notification visuals.
 - [ ] Add active project/goal progress widget.
-- [ ] Add last-known-good overlay state.
+- [x] Add last-known-good overlay state.
 - [ ] Add static/minimal fallback mode for connection loss.
 - [ ] Test OBS scene switching behavior.
 - [ ] Decide whether preloaded overlays are required.
