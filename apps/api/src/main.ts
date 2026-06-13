@@ -34,6 +34,7 @@ const config = createRuntimeConfig({
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
 const activeOverlayConnections = new Set<string>();
+let overlayEmergencyCleanModeEnabled = false;
 let overlayTopBarEnabled = true;
 let overlayCenterEnabled = true;
 let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
@@ -42,6 +43,8 @@ let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
   restMs: 1_500
 };
 const overlayLiveClients = new Map<string, {
+  requestedLayout: OverlayLayoutKey;
+  requestedMode: OverlayStateSnapshot["mode"];
   snapshot: OverlayStateSnapshot;
   socket: OverlayLiveSocket;
 }>();
@@ -84,6 +87,10 @@ const overlayTopBarTestRequestSchema = z.object({
   count: z.number().int().min(1).max(6).default(1)
 });
 const overlayTopBarEnabledRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  enabled: z.boolean()
+});
+const overlayEmergencyCleanModeRequestSchema = z.object({
   accessToken: z.string().min(24),
   enabled: z.boolean()
 });
@@ -310,53 +317,58 @@ const createOverlayStateSnapshot = ({
   mode: OverlayStateSnapshot["mode"];
   scene: OverlaySceneKey;
   theme: OverlayThemeKey;
-}): OverlayStateSnapshot => ({
-  id: randomUUID(),
-  scene,
-  layout,
-  theme,
-  mode,
-  connectionStatus: "snapshot",
-  sceneDefinition: getOverlaySceneDefinition(theme, scene),
-  topBar: {
-    enabled: overlayTopBarEnabled,
-    quietHighlightIntervalMs: 18_000
-  },
-  center: {
-    enabled: overlayCenterEnabled,
-    defaultTiming: overlayCenterDefaultTiming
-  },
-  topNotification: null,
-  centerNotification: null,
-  slots: {
-    camera: {
-      id: "camera",
-      visible: layout !== "clean",
-      label: "Camera"
+}): OverlayStateSnapshot => {
+  const effectiveLayout = overlayEmergencyCleanModeEnabled ? "clean" : layout;
+  const effectiveMode = overlayEmergencyCleanModeEnabled ? "clean" : mode;
+
+  return {
+    id: randomUUID(),
+    scene,
+    layout: effectiveLayout,
+    theme,
+    mode: effectiveMode,
+    connectionStatus: "snapshot",
+    sceneDefinition: getOverlaySceneDefinition(theme, scene),
+    topBar: {
+      enabled: overlayTopBarEnabled,
+      quietHighlightIntervalMs: 18_000
     },
-    chat: {
-      id: "chat",
-      visible: layout !== "clean" && scene !== "just-camera",
-      label: "Chat"
+    center: {
+      enabled: overlayCenterEnabled,
+      defaultTiming: overlayCenterDefaultTiming
     },
-    sponsorPrimary: {
-      id: "sponsor-primary",
-      visible: mode !== "clean" && layout !== "clean",
-      label: "Sponsor"
+    topNotification: null,
+    centerNotification: null,
+    slots: {
+      camera: {
+        id: "camera",
+        visible: effectiveLayout !== "clean",
+        label: "Camera"
+      },
+      chat: {
+        id: "chat",
+        visible: effectiveLayout !== "clean" && scene !== "just-camera",
+        label: "Chat"
+      },
+      sponsorPrimary: {
+        id: "sponsor-primary",
+        visible: effectiveMode !== "clean" && effectiveLayout !== "clean",
+        label: "Sponsor"
+      },
+      sponsorSecondary: {
+        id: "sponsor-secondary",
+        visible: false,
+        label: "Sponsor"
+      },
+      streamGoal: {
+        id: "stream-goal",
+        visible: effectiveMode !== "clean",
+        label: "Stream goal"
+      }
     },
-    sponsorSecondary: {
-      id: "sponsor-secondary",
-      visible: false,
-      label: "Sponsor"
-    },
-    streamGoal: {
-      id: "stream-goal",
-      visible: mode !== "clean",
-      label: "Stream goal"
-    }
-  },
-  updatedAt: new Date().toISOString()
-});
+    updatedAt: new Date().toISOString()
+  };
+};
 
 const demoTopBarNotifications: Array<Omit<OverlayNotificationDisplay, "createdAt" | "id">> = [
   {
@@ -454,8 +466,13 @@ const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
 
 const broadcastOverlaySnapshots = (): void => {
   for (const client of overlayLiveClients.values()) {
+    const effectiveLayout = overlayEmergencyCleanModeEnabled ? "clean" : client.requestedLayout;
+    const effectiveMode = overlayEmergencyCleanModeEnabled ? "clean" : client.requestedMode;
+
     client.snapshot = {
       ...client.snapshot,
+      layout: effectiveLayout,
+      mode: effectiveMode,
       topBar: {
         ...client.snapshot.topBar,
         enabled: overlayTopBarEnabled
@@ -465,6 +482,25 @@ const broadcastOverlaySnapshots = (): void => {
         defaultTiming: overlayCenterDefaultTiming
       },
       sceneDefinition: getOverlaySceneDefinition(client.snapshot.theme, client.snapshot.scene),
+      slots: {
+        ...client.snapshot.slots,
+        camera: {
+          ...client.snapshot.slots.camera,
+          visible: effectiveLayout !== "clean"
+        },
+        chat: {
+          ...client.snapshot.slots.chat,
+          visible: effectiveLayout !== "clean" && client.snapshot.scene !== "just-camera"
+        },
+        sponsorPrimary: {
+          ...client.snapshot.slots.sponsorPrimary,
+          visible: effectiveMode !== "clean" && effectiveLayout !== "clean"
+        },
+        streamGoal: {
+          ...client.snapshot.slots.streamGoal,
+          visible: effectiveMode !== "clean"
+        }
+      },
       updatedAt: new Date().toISOString()
     };
     client.socket.send(JSON.stringify({
@@ -1205,6 +1241,7 @@ server.get("/overlay/status", async (request, reply) => {
     ok: true,
     activeOverlayConnections: activeOverlayConnections.size,
     overlayActive: activeOverlayConnections.size > 0,
+    emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
     topBarEnabled: overlayTopBarEnabled,
     centerEnabled: overlayCenterEnabled,
     centerDefaultTiming: overlayCenterDefaultTiming,
@@ -1381,6 +1418,41 @@ server.post("/overlay/top-bar/enabled", async (request, reply) => {
   };
 });
 
+server.post("/overlay/emergency-clean-mode", async (request, reply) => {
+  const parsedRequest = overlayEmergencyCleanModeRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlayEmergencyCleanModeEnabled = parsedRequest.data.enabled;
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
 server.post("/overlay/top-bar/test", async (request, reply) => {
   const parsedRequest = overlayTopBarTestRequestSchema.safeParse(request.body);
 
@@ -1498,6 +1570,8 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
     updatedAt: new Date().toISOString()
   };
   overlayLiveClients.set(connectionId, {
+    requestedLayout: parsedRequest.data.layout,
+    requestedMode: parsedRequest.data.mode,
     snapshot,
     socket
   });

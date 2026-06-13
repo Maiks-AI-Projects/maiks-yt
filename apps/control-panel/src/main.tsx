@@ -45,6 +45,7 @@ type OverlayPresenceState =
     status: "ready";
     activeOverlayConnections: number;
     checkedAt: string;
+    emergencyCleanModeEnabled: boolean;
     topBarEnabled: boolean;
     centerEnabled: boolean;
     centerDefaultTiming: CenterNotificationTiming;
@@ -65,6 +66,7 @@ type OverlayStatusResponse = {
   activeOverlayConnections: number;
   overlayActive: boolean;
   checkedAt: string;
+  emergencyCleanModeEnabled: boolean;
   topBarEnabled: boolean;
   centerEnabled: boolean;
   centerDefaultTiming: CenterNotificationTiming;
@@ -230,6 +232,7 @@ const SurfaceStatus = (): React.ReactNode => {
             status: "ready",
             activeOverlayConnections: result.activeOverlayConnections,
             checkedAt: result.checkedAt,
+            emergencyCleanModeEnabled: result.emergencyCleanModeEnabled,
             topBarEnabled: result.topBarEnabled,
             centerEnabled: result.centerEnabled,
             centerDefaultTiming: result.centerDefaultTiming
@@ -255,6 +258,7 @@ const SurfaceStatus = (): React.ReactNode => {
   }, []);
 
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
+  const emergencyCleanModeEnabled = overlayPresence.status === "ready" && overlayPresence.emergencyCleanModeEnabled;
   const topBarEnabled = overlayPresence.status === "ready" && overlayPresence.topBarEnabled;
   const centerEnabled = overlayPresence.status === "ready" && overlayPresence.centerEnabled;
   const centerTiming = overlayPresence.status === "ready"
@@ -296,6 +300,39 @@ const SurfaceStatus = (): React.ReactNode => {
       }
       : currentState);
     setTopBarActionStatus(enabled ? "Top bar on." : "Top bar off.");
+  };
+
+  const updateEmergencyCleanMode = async (enabled: boolean): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        enabled
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Emergency clean mode failed with ${response.status}.`);
+      return;
+    }
+
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        emergencyCleanModeEnabled: enabled
+      }
+      : currentState);
+    setTopBarActionStatus(enabled ? "Emergency clean mode on." : "Emergency clean mode off.");
   };
 
   const sendTopBarTest = async (): Promise<void> => {
@@ -407,6 +444,13 @@ const SurfaceStatus = (): React.ReactNode => {
         {overlayPresence.status === "ready" ? <small>{overlayPresence.activeOverlayConnections} connected</small> : null}
         {overlayPresence.status === "error" ? <small>{overlayPresence.message}</small> : null}
       </div>
+      <button
+        type="button"
+        className={`status-action ${emergencyCleanModeEnabled ? "danger-action" : ""}`}
+        onClick={() => void updateEmergencyCleanMode(!emergencyCleanModeEnabled)}
+      >
+        {emergencyCleanModeEnabled ? "Clean mode on" : "Emergency clean"}
+      </button>
       <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
         {topBarEnabled ? "Top bar on" : "Top bar off"}
       </button>
@@ -1174,7 +1218,6 @@ const App = (): React.ReactNode => {
       <h1>Maiks.yt Control Panel</h1>
       <p>Low-distraction control surface scaffold for {authState.displayName}.</p>
       <SurfaceStatus />
-      <button type="button">Emergency clean mode</button>
       <SceneDesigner />
       <RealtimeProbe />
       <section>

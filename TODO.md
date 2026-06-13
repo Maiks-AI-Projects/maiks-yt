@@ -134,7 +134,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add test notification controls.
 - [x] Add off-main-view checklist/settings panel for center notification assets and priorities.
 - [ ] Add layout/theme switching.
-- [ ] Add emergency clean mode.
+- [x] Add emergency clean mode.
 - [ ] Add chat visibility toggle placeholder.
 - [ ] Add AI mute placeholder.
 - [ ] Add sponsor visibility placeholder.

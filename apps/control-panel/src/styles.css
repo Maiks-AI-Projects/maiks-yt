@@ -64,6 +64,11 @@ button {
   min-height: 3rem;
 }
 
+.status-action.danger-action {
+  background: #b42318;
+  box-shadow: 0 0 0 2px rgba(255, 180, 150, 0.18);
+}
+
 .status-note {
   align-self: center;
   color: #b8c4cf;
