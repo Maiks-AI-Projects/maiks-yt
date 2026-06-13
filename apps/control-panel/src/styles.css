@@ -62,6 +62,10 @@ button {
   align-self: stretch;
   background: #25313d;
   min-height: 3rem;
+  min-width: 8.5rem;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .status-action.danger-action {
@@ -69,9 +73,30 @@ button {
   box-shadow: 0 0 0 2px rgba(255, 180, 150, 0.18);
 }
 
+.status-action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.status-action-group .status-action {
+  flex: 0 1 auto;
+}
+
+.critical-controls {
+  align-items: stretch;
+}
+
+.notification-test-controls {
+  align-items: stretch;
+}
+
 .status-note {
   align-self: center;
   color: #b8c4cf;
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .notification-settings {
@@ -441,7 +466,55 @@ button {
 }
 
 @media (max-width: 820px) {
+  .surface {
+    padding: 1rem;
+  }
+
+  .surface-status {
+    align-items: stretch;
+  }
+
+  .status-pill,
+  .emergency-clean-action,
+  .status-note,
+  .notification-settings {
+    width: 100%;
+  }
+
+  .status-action-group {
+    display: grid;
+    flex: 1 1 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .status-action-group .status-action {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .critical-controls {
+    min-width: min(100%, 20rem);
+  }
+
+  .notification-test-controls {
+    min-width: min(100%, 20rem);
+  }
+
+  .notification-settings label {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .scene-designer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .emergency-clean-action {
+    min-height: 3.5rem;
+  }
+
+  .status-action-group {
     grid-template-columns: 1fr;
   }
 }

@@ -557,32 +557,36 @@ const SurfaceStatus = (): React.ReactNode => {
       </div>
       <button
         type="button"
-        className={`status-action ${emergencyCleanModeEnabled ? "danger-action" : ""}`}
+        className={`status-action emergency-clean-action ${emergencyCleanModeEnabled ? "danger-action" : ""}`}
         onClick={() => void updateEmergencyCleanMode(!emergencyCleanModeEnabled)}
       >
         {emergencyCleanModeEnabled ? "Clean mode on" : "Emergency clean"}
       </button>
-      <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
-        {topBarEnabled ? "Top bar on" : "Top bar off"}
-      </button>
-      <button type="button" className="status-action" onClick={() => void updateChatVisibility(!chatVisible)}>
-        {chatVisible ? "Chat on" : "Chat off"}
-      </button>
-      <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
-        {sponsorVisible ? "Sponsor on" : "Sponsor off"}
-      </button>
-      <button type="button" className="status-action" onClick={() => void updateAiMuted(!aiMuted)}>
-        {aiMuted ? "AI muted" : "AI live"}
-      </button>
-      <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
-        Test top bar
-      </button>
-      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "top")}>
-        Test center + top
-      </button>
-      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "none")}>
-        Test redeem
-      </button>
+      <div className="status-action-group critical-controls" aria-label="Critical overlay controls">
+        <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
+          {topBarEnabled ? "Top bar on" : "Top bar off"}
+        </button>
+        <button type="button" className="status-action" onClick={() => void updateChatVisibility(!chatVisible)}>
+          {chatVisible ? "Chat on" : "Chat off"}
+        </button>
+        <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
+          {sponsorVisible ? "Sponsor on" : "Sponsor off"}
+        </button>
+        <button type="button" className="status-action" onClick={() => void updateAiMuted(!aiMuted)}>
+          {aiMuted ? "AI muted" : "AI live"}
+        </button>
+      </div>
+      <div className="status-action-group notification-test-controls" aria-label="Notification test controls">
+        <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
+          Test top bar
+        </button>
+        <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "top")}>
+          Test center + top
+        </button>
+        <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "none")}>
+          Test redeem
+        </button>
+      </div>
       {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}
       <details className="notification-settings">
         <summary>Notification settings</summary>
