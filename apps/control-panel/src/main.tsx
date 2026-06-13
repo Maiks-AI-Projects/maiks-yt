@@ -8,12 +8,16 @@ import "./styles.css";
 
 const scenario = createNotificationScenario();
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const panelModeStorageKey = "maiks.yt.control.panelMode";
 const eventStormPresets: Array<{ key: EventStormPreset; label: string }> = [
   { key: "notification-burst", label: "Notification burst" },
   { key: "urgent-center-alert", label: "Urgent center alert" },
   { key: "project-focus-shift", label: "Project focus shift" }
 ];
 const maxProbeMessages = 6;
+const defaultPanelMode = "creator";
+
+type PanelMode = "creator" | "advanced";
 
 type ControlPanelAuthState =
   | {
@@ -146,6 +150,12 @@ const appendProbeMessage = (messages: string[], message: string): string[] => [
   ...messages
 ].slice(0, maxProbeMessages);
 
+const readStoredPanelMode = (): PanelMode => {
+  const storedValue = window.localStorage.getItem(panelModeStorageKey);
+
+  return storedValue === "advanced" ? "advanced" : defaultPanelMode;
+};
+
 const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
   const gateState = await validateUrlAccessGate({
     apiBaseUrl,
@@ -200,7 +210,7 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
   };
 };
 
-const SurfaceStatus = (): React.ReactNode => {
+const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode => {
   const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
   const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
 
@@ -549,6 +559,13 @@ const SurfaceStatus = (): React.ReactNode => {
         <span>Control panel</span>
         <strong>active</strong>
       </div>
+      {panelMode === "advanced" ? (
+        <div className="status-pill">
+          <span>Panel mode</span>
+          <strong>advanced</strong>
+          {overlayPresence.status === "ready" ? <small>{overlayPresence.checkedAt}</small> : null}
+        </div>
+      ) : null}
       <div className={`status-pill ${overlayActive ? "active" : "idle"}`}>
         <span>Overlay</span>
         <strong>{overlayPresence.status === "checking" ? "checking" : overlayActive ? "active" : "idle"}</strong>
@@ -1318,6 +1335,39 @@ const RealtimeProbe = (): React.ReactNode => {
   );
 };
 
+const OperationsPanel = ({
+  panelMode,
+  displayName
+}: {
+  panelMode: PanelMode;
+  displayName: string;
+}): React.ReactNode => (
+  <section className="operations-panel" aria-label="Operations">
+    <div className="section-heading">
+      <h2>Operations</h2>
+      <span>{panelMode}</span>
+    </div>
+    <div className="operations-grid">
+      <article>
+        <span>Operator</span>
+        <strong>{displayName}</strong>
+      </article>
+      <article>
+        <span>API base</span>
+        <strong>{new URL(apiBaseUrl).host}</strong>
+      </article>
+      <article>
+        <span>Surface</span>
+        <strong>control-panel</strong>
+      </article>
+      <article>
+        <span>Realtime tools</span>
+        <strong>quiet</strong>
+      </article>
+    </div>
+  </section>
+);
+
 const SimulatorPanel = ({
   replaySession,
   selectedPreset,
@@ -1364,12 +1414,25 @@ const SimulatorPanel = ({
 
 const App = (): React.ReactNode => {
   const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
+  const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
   const [selectedPreset, setSelectedPreset] = useState<EventStormPreset>("notification-burst");
   const replaySession = createReplaySessionFromPreset(selectedPreset);
 
   useEffect(() => {
     void validateControlPanelAccess().then(setAuthState);
   }, []);
+
+  useEffect(() => {
+    setPanelMode(readStoredPanelMode());
+  }, []);
+
+  const advancedModeEnabled = panelMode === "advanced";
+  const togglePanelMode = (): void => {
+    const nextMode: PanelMode = advancedModeEnabled ? "creator" : "advanced";
+
+    setPanelMode(nextMode);
+    window.localStorage.setItem(panelModeStorageKey, nextMode);
+  };
 
   if (authState.status !== "allowed") {
     return (
@@ -1382,18 +1445,37 @@ const App = (): React.ReactNode => {
 
   return (
     <main className="surface">
-      <h1>Maiks.yt Control Panel</h1>
-      <p>{authState.displayName}</p>
-      <SurfaceStatus />
+      <div className="surface-header">
+        <div className="surface-title">
+          <h1>Maiks.yt Control Panel</h1>
+          <p>{authState.displayName}</p>
+        </div>
+        <button
+          type="button"
+          className={`panel-mode-toggle ${advancedModeEnabled ? "advanced" : ""}`}
+          aria-pressed={advancedModeEnabled}
+          onClick={togglePanelMode}
+        >
+          {advancedModeEnabled ? "Advanced" : "Creator"}
+        </button>
+      </div>
+      <SurfaceStatus panelMode={panelMode} />
       <SceneDesigner />
+      {advancedModeEnabled ? <OperationsPanel displayName={authState.displayName} panelMode={panelMode} /> : null}
       <details className="quiet-section">
-        <summary>Realtime Probe</summary>
+        <summary>
+          <span>Realtime Probe</span>
+          {advancedModeEnabled ? <small>Transport</small> : null}
+        </summary>
         <div className="quiet-section-body">
           <RealtimeProbe />
         </div>
       </details>
       <details className="quiet-section">
-        <summary>Simulator</summary>
+        <summary>
+          <span>Simulator</span>
+          {advancedModeEnabled ? <small>Local replay</small> : null}
+        </summary>
         <div className="quiet-section-body">
           <SimulatorPanel
             replaySession={replaySession}
