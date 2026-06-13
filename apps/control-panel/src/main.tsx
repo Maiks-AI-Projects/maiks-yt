@@ -48,6 +48,7 @@ type OverlayPresenceState =
     emergencyCleanModeEnabled: boolean;
     chatVisible: boolean;
     sponsorVisible: boolean;
+    aiMuted: boolean;
     topBarEnabled: boolean;
     centerEnabled: boolean;
     centerDefaultTiming: CenterNotificationTiming;
@@ -71,6 +72,7 @@ type OverlayStatusResponse = {
   emergencyCleanModeEnabled: boolean;
   chatVisible: boolean;
   sponsorVisible: boolean;
+  aiMuted: boolean;
   topBarEnabled: boolean;
   centerEnabled: boolean;
   centerDefaultTiming: CenterNotificationTiming;
@@ -239,6 +241,7 @@ const SurfaceStatus = (): React.ReactNode => {
             emergencyCleanModeEnabled: result.emergencyCleanModeEnabled,
             chatVisible: result.chatVisible,
             sponsorVisible: result.sponsorVisible,
+            aiMuted: result.aiMuted,
             topBarEnabled: result.topBarEnabled,
             centerEnabled: result.centerEnabled,
             centerDefaultTiming: result.centerDefaultTiming
@@ -267,6 +270,7 @@ const SurfaceStatus = (): React.ReactNode => {
   const emergencyCleanModeEnabled = overlayPresence.status === "ready" && overlayPresence.emergencyCleanModeEnabled;
   const chatVisible = overlayPresence.status === "ready" && overlayPresence.chatVisible;
   const sponsorVisible = overlayPresence.status === "ready" && overlayPresence.sponsorVisible;
+  const aiMuted = overlayPresence.status === "ready" && overlayPresence.aiMuted;
   const topBarEnabled = overlayPresence.status === "ready" && overlayPresence.topBarEnabled;
   const centerEnabled = overlayPresence.status === "ready" && overlayPresence.centerEnabled;
   const centerTiming = overlayPresence.status === "ready"
@@ -409,6 +413,39 @@ const SurfaceStatus = (): React.ReactNode => {
     setTopBarActionStatus(visible ? "Sponsor on." : "Sponsor off.");
   };
 
+  const updateAiMuted = async (muted: boolean): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/ai/muted`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        muted
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`AI mute failed with ${response.status}.`);
+      return;
+    }
+
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        aiMuted: muted
+      }
+      : currentState);
+    setTopBarActionStatus(muted ? "AI muted." : "AI live.");
+  };
+
   const sendTopBarTest = async (): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
@@ -533,6 +570,9 @@ const SurfaceStatus = (): React.ReactNode => {
       </button>
       <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
         {sponsorVisible ? "Sponsor on" : "Sponsor off"}
+      </button>
+      <button type="button" className="status-action" onClick={() => void updateAiMuted(!aiMuted)}>
+        {aiMuted ? "AI muted" : "AI live"}
       </button>
       <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
         Test top bar

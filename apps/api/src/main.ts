@@ -37,6 +37,7 @@ const activeOverlayConnections = new Set<string>();
 let overlayEmergencyCleanModeEnabled = false;
 let overlayChatVisible = true;
 let overlaySponsorVisible = true;
+let overlayAiMuted = false;
 let overlayTopBarEnabled = true;
 let overlayCenterEnabled = true;
 let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
@@ -103,6 +104,10 @@ const overlayChatVisibilityRequestSchema = z.object({
 const overlaySponsorVisibilityRequestSchema = z.object({
   accessToken: z.string().min(24),
   visible: z.boolean()
+});
+const overlayAiMutedRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  muted: z.boolean()
 });
 const overlayCenterSettingsRequestSchema = z.object({
   accessToken: z.string().min(24),
@@ -1254,6 +1259,7 @@ server.get("/overlay/status", async (request, reply) => {
     emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
     chatVisible: overlayChatVisible,
     sponsorVisible: overlaySponsorVisible,
+    aiMuted: overlayAiMuted,
     topBarEnabled: overlayTopBarEnabled,
     centerEnabled: overlayCenterEnabled,
     centerDefaultTiming: overlayCenterDefaultTiming,
@@ -1531,6 +1537,40 @@ server.post("/overlay/sponsor/visibility", async (request, reply) => {
   return {
     ok: true,
     sponsorVisible: overlaySponsorVisible,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/ai/muted", async (request, reply) => {
+  const parsedRequest = overlayAiMutedRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlayAiMuted = parsedRequest.data.muted;
+
+  return {
+    ok: true,
+    aiMuted: overlayAiMuted,
     activeOverlayConnections: activeOverlayConnections.size
   };
 });
