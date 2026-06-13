@@ -137,7 +137,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add emergency clean mode.
 - [x] Add chat visibility toggle.
 - [ ] Add AI mute placeholder.
-- [ ] Add sponsor visibility placeholder.
+- [x] Add sponsor visibility toggle.
 - [ ] Make critical controls usable on mobile.
 - [ ] Keep default control panel low-distraction.
 - [ ] Prepare optional advanced/product mode foundation.

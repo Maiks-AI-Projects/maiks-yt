@@ -36,6 +36,7 @@ let databasePool: DatabasePool | undefined;
 const activeOverlayConnections = new Set<string>();
 let overlayEmergencyCleanModeEnabled = false;
 let overlayChatVisible = true;
+let overlaySponsorVisible = true;
 let overlayTopBarEnabled = true;
 let overlayCenterEnabled = true;
 let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
@@ -96,6 +97,10 @@ const overlayEmergencyCleanModeRequestSchema = z.object({
   enabled: z.boolean()
 });
 const overlayChatVisibilityRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  visible: z.boolean()
+});
+const overlaySponsorVisibilityRequestSchema = z.object({
   accessToken: z.string().min(24),
   visible: z.boolean()
 });
@@ -357,7 +362,7 @@ const createOverlayStateSnapshot = ({
       },
       sponsorPrimary: {
         id: "sponsor-primary",
-        visible: effectiveMode !== "clean" && effectiveLayout !== "clean",
+        visible: overlaySponsorVisible && effectiveMode !== "clean" && effectiveLayout !== "clean",
         label: "Sponsor"
       },
       sponsorSecondary: {
@@ -499,7 +504,7 @@ const broadcastOverlaySnapshots = (): void => {
         },
         sponsorPrimary: {
           ...client.snapshot.slots.sponsorPrimary,
-          visible: effectiveMode !== "clean" && effectiveLayout !== "clean"
+          visible: overlaySponsorVisible && effectiveMode !== "clean" && effectiveLayout !== "clean"
         },
         streamGoal: {
           ...client.snapshot.slots.streamGoal,
@@ -1248,6 +1253,7 @@ server.get("/overlay/status", async (request, reply) => {
     overlayActive: activeOverlayConnections.size > 0,
     emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
     chatVisible: overlayChatVisible,
+    sponsorVisible: overlaySponsorVisible,
     topBarEnabled: overlayTopBarEnabled,
     centerEnabled: overlayCenterEnabled,
     centerDefaultTiming: overlayCenterDefaultTiming,
@@ -1490,6 +1496,41 @@ server.post("/overlay/chat/visibility", async (request, reply) => {
   return {
     ok: true,
     chatVisible: overlayChatVisible,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/sponsor/visibility", async (request, reply) => {
+  const parsedRequest = overlaySponsorVisibilityRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlaySponsorVisible = parsedRequest.data.visible;
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    sponsorVisible: overlaySponsorVisible,
     activeOverlayConnections: activeOverlayConnections.size
   };
 });
