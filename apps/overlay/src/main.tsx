@@ -60,6 +60,10 @@ type CenterNotificationRuntime = {
   notification: RoutedNotification;
   phase: "onscreen" | "fading";
 };
+type OverlayLiveStatus = "snapshot" | "live" | "reconnecting" | "offline";
+
+const isMinimalFallbackLiveStatus = (liveStatus: OverlayLiveStatus): boolean =>
+  liveStatus === "reconnecting" || liveStatus === "offline";
 
 const parseUrlOptions = (): OverlayUrlOptions => {
   const params = new URL(window.location.href).searchParams;
@@ -301,8 +305,23 @@ const App = (): React.ReactNode => {
     runtimeStateRef.current = runtimeState;
   }, [runtimeState]);
 
+  const clearTransientNotifications = (): void => {
+    pendingTopBarNotificationsRef.current = [];
+    pendingCenterNotificationsRef.current = [];
+    topBarProcessingRef.current = false;
+    centerProcessingRef.current = false;
+    setTopBarNotifications([]);
+    setCenterNotification(null);
+  };
+
+  const isMinimalFallbackActive = (): boolean => {
+    const currentState = runtimeStateRef.current;
+
+    return currentState.status === "ready" && isMinimalFallbackLiveStatus(currentState.liveStatus);
+  };
+
   const processTopBarQueue = (): void => {
-    if (topBarProcessingRef.current) {
+    if (topBarProcessingRef.current || isMinimalFallbackActive()) {
       return;
     }
 
@@ -324,6 +343,10 @@ const App = (): React.ReactNode => {
   };
 
   const enqueueTopBarNotification = (notification: TopBarNotification, options?: { front?: boolean }): void => {
+    if (isMinimalFallbackActive()) {
+      return;
+    }
+
     if (options?.front) {
       pendingTopBarNotificationsRef.current.unshift(notification);
     } else {
@@ -333,7 +356,7 @@ const App = (): React.ReactNode => {
   };
 
   const processCenterQueue = (): void => {
-    if (centerProcessingRef.current) {
+    if (centerProcessingRef.current || isMinimalFallbackActive()) {
       return;
     }
 
@@ -376,6 +399,10 @@ const App = (): React.ReactNode => {
   };
 
   const enqueueRoutedNotification = (notification: RoutedNotification): void => {
+    if (isMinimalFallbackActive()) {
+      return;
+    }
+
     if (notification.route === "center" && notification.center) {
       pendingCenterNotificationsRef.current.push(notification);
       processCenterQueue();
@@ -519,13 +546,20 @@ const App = (): React.ReactNode => {
     };
   }, [gateState.status, urlOptions]);
 
+  useEffect(() => {
+    if (runtimeState.status === "ready" && isMinimalFallbackLiveStatus(runtimeState.liveStatus)) {
+      clearTransientNotifications();
+    }
+  }, [runtimeState]);
+
   const topBarEnabled = runtimeState.status === "ready" && runtimeState.snapshot.topBar.enabled;
+  const isMinimalFallback = runtimeState.status === "ready" && isMinimalFallbackLiveStatus(runtimeState.liveStatus);
   const quietHighlightIntervalMs = runtimeState.status === "ready"
     ? runtimeState.snapshot.topBar.quietHighlightIntervalMs
     : 18_000;
 
   useEffect(() => {
-    if (!topBarEnabled) {
+    if (!topBarEnabled || isMinimalFallback) {
       return;
     }
 
@@ -537,7 +571,7 @@ const App = (): React.ReactNode => {
     return () => {
       window.clearInterval(interval);
     };
-  }, [quietHighlightIntervalMs, topBarEnabled]);
+  }, [isMinimalFallback, quietHighlightIntervalMs, topBarEnabled]);
 
   if (gateState.status !== "allowed") {
     return (
@@ -564,8 +598,14 @@ const App = (): React.ReactNode => {
   const slots = sceneDefinition.slots;
 
   return (
-    <main className="overlay" data-layout={snapshot.layout} data-scene={snapshot.scene} data-theme={defaultTheme.id}>
-      {snapshot.topBar.enabled && slots.topNotifications.visible ? (
+    <main
+      className="overlay"
+      data-layout={snapshot.layout}
+      data-live-status={runtimeState.liveStatus}
+      data-scene={snapshot.scene}
+      data-theme={defaultTheme.id}
+    >
+      {snapshot.topBar.enabled && slots.topNotifications.visible && !isMinimalFallback ? (
         <TopNotificationBar
           notifications={topBarNotifications}
           slotStyle={createSlotStyle(slots.topNotifications)}
@@ -577,7 +617,7 @@ const App = (): React.ReactNode => {
           <span>{snapshot.topNotification.message}</span>
         </div>
       ) : null}
-      {centerNotification && slots.centerNotifications.visible ? (
+      {centerNotification && slots.centerNotifications.visible && !isMinimalFallback ? (
         <CenterNotification
           runtime={centerNotification}
           slotStyle={createSlotStyle(slots.centerNotifications)}
