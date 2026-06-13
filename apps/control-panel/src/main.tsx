@@ -46,6 +46,7 @@ type OverlayPresenceState =
     activeOverlayConnections: number;
     checkedAt: string;
     emergencyCleanModeEnabled: boolean;
+    chatVisible: boolean;
     topBarEnabled: boolean;
     centerEnabled: boolean;
     centerDefaultTiming: CenterNotificationTiming;
@@ -67,6 +68,7 @@ type OverlayStatusResponse = {
   overlayActive: boolean;
   checkedAt: string;
   emergencyCleanModeEnabled: boolean;
+  chatVisible: boolean;
   topBarEnabled: boolean;
   centerEnabled: boolean;
   centerDefaultTiming: CenterNotificationTiming;
@@ -233,6 +235,7 @@ const SurfaceStatus = (): React.ReactNode => {
             activeOverlayConnections: result.activeOverlayConnections,
             checkedAt: result.checkedAt,
             emergencyCleanModeEnabled: result.emergencyCleanModeEnabled,
+            chatVisible: result.chatVisible,
             topBarEnabled: result.topBarEnabled,
             centerEnabled: result.centerEnabled,
             centerDefaultTiming: result.centerDefaultTiming
@@ -259,6 +262,7 @@ const SurfaceStatus = (): React.ReactNode => {
 
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
   const emergencyCleanModeEnabled = overlayPresence.status === "ready" && overlayPresence.emergencyCleanModeEnabled;
+  const chatVisible = overlayPresence.status === "ready" && overlayPresence.chatVisible;
   const topBarEnabled = overlayPresence.status === "ready" && overlayPresence.topBarEnabled;
   const centerEnabled = overlayPresence.status === "ready" && overlayPresence.centerEnabled;
   const centerTiming = overlayPresence.status === "ready"
@@ -333,6 +337,39 @@ const SurfaceStatus = (): React.ReactNode => {
       }
       : currentState);
     setTopBarActionStatus(enabled ? "Emergency clean mode on." : "Emergency clean mode off.");
+  };
+
+  const updateChatVisibility = async (visible: boolean): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/chat/visibility`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        visible
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Chat visibility failed with ${response.status}.`);
+      return;
+    }
+
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        chatVisible: visible
+      }
+      : currentState);
+    setTopBarActionStatus(visible ? "Chat on." : "Chat off.");
   };
 
   const sendTopBarTest = async (): Promise<void> => {
@@ -453,6 +490,9 @@ const SurfaceStatus = (): React.ReactNode => {
       </button>
       <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
         {topBarEnabled ? "Top bar on" : "Top bar off"}
+      </button>
+      <button type="button" className="status-action" onClick={() => void updateChatVisibility(!chatVisible)}>
+        {chatVisible ? "Chat on" : "Chat off"}
       </button>
       <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
         Test top bar

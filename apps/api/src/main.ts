@@ -35,6 +35,7 @@ const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
 const activeOverlayConnections = new Set<string>();
 let overlayEmergencyCleanModeEnabled = false;
+let overlayChatVisible = true;
 let overlayTopBarEnabled = true;
 let overlayCenterEnabled = true;
 let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
@@ -93,6 +94,10 @@ const overlayTopBarEnabledRequestSchema = z.object({
 const overlayEmergencyCleanModeRequestSchema = z.object({
   accessToken: z.string().min(24),
   enabled: z.boolean()
+});
+const overlayChatVisibilityRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  visible: z.boolean()
 });
 const overlayCenterSettingsRequestSchema = z.object({
   accessToken: z.string().min(24),
@@ -347,7 +352,7 @@ const createOverlayStateSnapshot = ({
       },
       chat: {
         id: "chat",
-        visible: effectiveLayout !== "clean" && scene !== "just-camera",
+        visible: overlayChatVisible && effectiveLayout !== "clean" && scene !== "just-camera",
         label: "Chat"
       },
       sponsorPrimary: {
@@ -490,7 +495,7 @@ const broadcastOverlaySnapshots = (): void => {
         },
         chat: {
           ...client.snapshot.slots.chat,
-          visible: effectiveLayout !== "clean" && client.snapshot.scene !== "just-camera"
+          visible: overlayChatVisible && effectiveLayout !== "clean" && client.snapshot.scene !== "just-camera"
         },
         sponsorPrimary: {
           ...client.snapshot.slots.sponsorPrimary,
@@ -1242,6 +1247,7 @@ server.get("/overlay/status", async (request, reply) => {
     activeOverlayConnections: activeOverlayConnections.size,
     overlayActive: activeOverlayConnections.size > 0,
     emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
+    chatVisible: overlayChatVisible,
     topBarEnabled: overlayTopBarEnabled,
     centerEnabled: overlayCenterEnabled,
     centerDefaultTiming: overlayCenterDefaultTiming,
@@ -1449,6 +1455,41 @@ server.post("/overlay/emergency-clean-mode", async (request, reply) => {
   return {
     ok: true,
     emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/chat/visibility", async (request, reply) => {
+  const parsedRequest = overlayChatVisibilityRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlayChatVisible = parsedRequest.data.visible;
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    chatVisible: overlayChatVisible,
     activeOverlayConnections: activeOverlayConnections.size
   };
 });
