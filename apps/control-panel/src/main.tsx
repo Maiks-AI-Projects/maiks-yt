@@ -1290,7 +1290,6 @@ const RealtimeProbe = (): React.ReactNode => {
   return (
     <section className="realtime-probe">
       <h2>Realtime Probe</h2>
-      <p>Quick transport check for the Cloudflare tunnel path.</p>
       <div className="probe-actions">
         <button type="button" onClick={testWebSocket}>Test WebSocket</button>
         <button type="button" onClick={testSse}>Test SSE</button>
@@ -1319,6 +1318,50 @@ const RealtimeProbe = (): React.ReactNode => {
   );
 };
 
+const SimulatorPanel = ({
+  replaySession,
+  selectedPreset,
+  setSelectedPreset
+}: {
+  replaySession: ReturnType<typeof createReplaySessionFromPreset>;
+  selectedPreset: EventStormPreset;
+  setSelectedPreset: (preset: EventStormPreset) => void;
+}): React.ReactNode => {
+  return (
+    <section className="simulator-panel">
+      <div className="section-heading">
+        <h2>Simulator</h2>
+        <span>{scenario.length} starter event, {replaySession.events.length} replay events</span>
+      </div>
+      <div className="preset-actions" aria-label="Event storm presets">
+        {eventStormPresets.map((preset) => (
+          <button
+            type="button"
+            className={selectedPreset === preset.key ? "selected-action" : undefined}
+            key={preset.key}
+            onClick={() => setSelectedPreset(preset.key)}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+      <div className="replay-summary">
+        <strong>{replaySession.title}</strong>
+        <span>{replaySession.source}</span>
+        <span>{replaySession.sanitized ? "Sanitized" : "Raw"}</span>
+      </div>
+      <ol className="event-preview-list">
+        {replaySession.events.map((entry, index) => (
+          <li key={`${entry.event.type}-${index}`}>
+            <strong>{entry.offsetMs}ms - {entry.event.type}</strong>
+            <span>{JSON.stringify(entry.event.payload)}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+};
+
 const App = (): React.ReactNode => {
   const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
   const [selectedPreset, setSelectedPreset] = useState<EventStormPreset>("notification-burst");
@@ -1340,42 +1383,25 @@ const App = (): React.ReactNode => {
   return (
     <main className="surface">
       <h1>Maiks.yt Control Panel</h1>
-      <p>Low-distraction control surface scaffold for {authState.displayName}.</p>
+      <p>{authState.displayName}</p>
       <SurfaceStatus />
       <SceneDesigner />
-      <RealtimeProbe />
-      <section>
-        <h2>Simulator</h2>
-        <p>
-          {scenario.length} starter event ready. {replaySession.events.length} sanitized replay events loaded from the
-          selected preset.
-        </p>
-        <div className="preset-actions" aria-label="Event storm presets">
-          {eventStormPresets.map((preset) => (
-            <button
-              type="button"
-              className={selectedPreset === preset.key ? "selected-action" : undefined}
-              key={preset.key}
-              onClick={() => setSelectedPreset(preset.key)}
-            >
-              {preset.label}
-            </button>
-          ))}
+      <details className="quiet-section">
+        <summary>Realtime Probe</summary>
+        <div className="quiet-section-body">
+          <RealtimeProbe />
         </div>
-        <div className="replay-summary">
-          <strong>{replaySession.title}</strong>
-          <span>{replaySession.source}</span>
-          <span>{replaySession.sanitized ? "Sanitized" : "Raw"}</span>
+      </details>
+      <details className="quiet-section">
+        <summary>Simulator</summary>
+        <div className="quiet-section-body">
+          <SimulatorPanel
+            replaySession={replaySession}
+            selectedPreset={selectedPreset}
+            setSelectedPreset={setSelectedPreset}
+          />
         </div>
-        <ol className="event-preview-list">
-          {replaySession.events.map((entry, index) => (
-            <li key={`${entry.event.type}-${index}`}>
-              <strong>{entry.offsetMs}ms - {entry.event.type}</strong>
-              <span>{JSON.stringify(entry.event.payload)}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
+      </details>
     </main>
   );
 };

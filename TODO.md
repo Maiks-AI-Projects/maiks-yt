@@ -139,7 +139,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add AI mute placeholder.
 - [x] Add sponsor visibility toggle.
 - [x] Make critical controls usable on mobile.
-- [ ] Keep default control panel low-distraction.
+- [x] Keep default control panel low-distraction.
 - [ ] Prepare optional advanced/product mode foundation.
 
 ## 8. Themes and Layouts

@@ -21,6 +21,15 @@ button {
   padding: 2rem;
 }
 
+.surface h1,
+.surface > p {
+  margin: 0;
+}
+
+.surface > p {
+  color: #b8c4cf;
+}
+
 .surface-status {
   display: flex;
   flex-wrap: wrap;
@@ -140,6 +149,41 @@ button {
   width: 1.25rem;
 }
 
+.quiet-section {
+  background: #151d25;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  color: #f4f7fb;
+  max-width: 78rem;
+  padding: 0.75rem 1rem;
+}
+
+.quiet-section summary {
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.quiet-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.quiet-section summary::before {
+  color: #b8c4cf;
+  content: "+";
+  display: inline-block;
+  margin-right: 0.6rem;
+  width: 0.75rem;
+}
+
+.quiet-section[open] summary::before {
+  content: "-";
+}
+
+.quiet-section-body {
+  margin-top: 0.9rem;
+}
+
 .preset-actions {
   display: flex;
   flex-wrap: wrap;
@@ -169,13 +213,13 @@ button {
 }
 
 .realtime-probe {
-  background: #151d25;
-  border: 1px solid #2d3a47;
-  border-radius: 8px;
   display: grid;
   gap: 0.75rem;
-  max-width: 58rem;
-  padding: 1rem;
+}
+
+.simulator-panel {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .scene-designer {
@@ -368,12 +412,8 @@ button {
 }
 
 .realtime-probe h2,
-.realtime-probe p {
+.simulator-panel h2 {
   margin: 0;
-}
-
-.realtime-probe p {
-  color: #b8c4cf;
 }
 
 .probe-actions {
