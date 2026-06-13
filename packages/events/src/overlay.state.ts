@@ -12,6 +12,12 @@ export type OverlayLayoutKey = "standard" | "camera-left" | "camera-right" | "cl
 
 export type OverlayThemeKey = "default";
 
+export type OverlayPresentationState = {
+  scene: OverlaySceneKey;
+  layout: OverlayLayoutKey;
+  theme: OverlayThemeKey;
+};
+
 export type OverlayConnectionStatus = "snapshot" | "live" | "reconnecting" | "offline";
 
 export type OverlaySceneSlotId =

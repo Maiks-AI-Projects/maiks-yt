@@ -133,7 +133,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Add local event generator/replayer controls.
 - [x] Add test notification controls.
 - [x] Add off-main-view checklist/settings panel for center notification assets and priorities.
-- [ ] Add layout/theme switching.
+- [x] Add layout/theme switching.
 - [x] Add emergency clean mode.
 - [x] Add chat visibility toggle.
 - [x] Add AI mute placeholder.

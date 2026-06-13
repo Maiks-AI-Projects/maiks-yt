@@ -1,4 +1,10 @@
-import type { OverlaySceneDefinition, OverlaySceneSlotDefinition, OverlaySceneSlotId } from "@maiks-yt/events";
+import type {
+  OverlayLayoutKey,
+  OverlayPresentationState,
+  OverlaySceneDefinition,
+  OverlaySceneSlotDefinition,
+  OverlaySceneSlotId
+} from "@maiks-yt/events";
 import { createNotificationScenario, createReplaySessionFromPreset, type EventStormPreset } from "@maiks-yt/testing";
 import { getDefaultThemeScene, overlaySceneSlotIds } from "@maiks-yt/themes";
 import { validateUrlAccessGate } from "@maiks-yt/ui";
@@ -16,6 +22,12 @@ const eventStormPresets: Array<{ key: EventStormPreset; label: string }> = [
 ];
 const maxProbeMessages = 6;
 const defaultPanelMode = "creator";
+const overlayLayoutOptions: Array<{ key: OverlayLayoutKey; label: string }> = [
+  { key: "standard", label: "Standard" },
+  { key: "camera-left", label: "Camera left" },
+  { key: "camera-right", label: "Camera right" },
+  { key: "clean", label: "Clean" }
+];
 
 type PanelMode = "creator" | "advanced";
 
@@ -56,6 +68,7 @@ type OverlayPresenceState =
     topBarEnabled: boolean;
     centerEnabled: boolean;
     centerDefaultTiming: CenterNotificationTiming;
+    presentationState: OverlayPresentationState;
   }
   | {
     status: "error";
@@ -73,6 +86,7 @@ type OverlayStatusResponse = {
   activeOverlayConnections: number;
   overlayActive: boolean;
   checkedAt: string;
+  presentationState: OverlayPresentationState;
   emergencyCleanModeEnabled: boolean;
   chatVisible: boolean;
   sponsorVisible: boolean;
@@ -96,6 +110,15 @@ type OverlayScenesResponse = {
 type OverlaySceneSaveResponse = {
   ok: true;
   scene: OverlaySceneDefinition;
+  activeOverlayConnections: number;
+} | {
+  ok: false;
+  reason: string;
+};
+
+type OverlayPresentationStateResponse = {
+  ok: true;
+  presentationState: OverlayPresentationState;
   activeOverlayConnections: number;
 } | {
   ok: false;
@@ -213,13 +236,13 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
 const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode => {
   const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
   const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
+  const [sceneOptions, setSceneOptions] = useState<OverlaySceneDefinition[]>([]);
 
   useEffect(() => {
     let disposed = false;
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
     const refreshPresence = async (): Promise<void> => {
-      const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
       if (!token) {
         setOverlayPresence({
           status: "error",
@@ -254,7 +277,8 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
             aiMuted: result.aiMuted,
             topBarEnabled: result.topBarEnabled,
             centerEnabled: result.centerEnabled,
-            centerDefaultTiming: result.centerDefaultTiming
+            centerDefaultTiming: result.centerDefaultTiming,
+            presentationState: result.presentationState
           });
         }
       } catch (error) {
@@ -267,7 +291,38 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
       }
     };
 
+    const loadScenes = async (): Promise<void> => {
+      if (!token) {
+        return;
+      }
+
+      try {
+        const url = new URL("/overlay/scenes", apiBaseUrl);
+        url.searchParams.set("accessToken", token);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Overlay scenes failed with ${response.status}`);
+        }
+
+        const result = await response.json() as OverlayScenesResponse;
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        if (!disposed) {
+          setSceneOptions(result.scenes);
+        }
+      } catch {
+        if (!disposed) {
+          setSceneOptions([]);
+        }
+      }
+    };
+
     void refreshPresence();
+    void loadScenes();
     const interval = window.setInterval(refreshPresence, 5_000);
 
     return () => {
@@ -289,6 +344,13 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
       onscreenMs: 4_000,
       fadeOutMs: 700,
       restMs: 1_500
+    };
+  const presentationState = overlayPresence.status === "ready"
+    ? overlayPresence.presentationState
+    : {
+      scene: "default",
+      layout: "standard",
+      theme: "default"
     };
 
   const updateTopBarEnabled = async (enabled: boolean): Promise<void> => {
@@ -553,6 +615,55 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
     setTopBarActionStatus("Center settings saved.");
   };
 
+  const updatePresentationState = async (patch: Partial<OverlayPresentationState>): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    if (overlayPresence.status !== "ready") {
+      setTopBarActionStatus("Overlay status unavailable.");
+      return;
+    }
+
+    const nextState: OverlayPresentationState = {
+      ...overlayPresence.presentationState,
+      ...patch
+    };
+    const response = await fetch(`${apiBaseUrl}/overlay/presentation-state`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        ...nextState
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Overlay target failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlayPresentationStateResponse;
+
+    if (!result.ok) {
+      setTopBarActionStatus(`Overlay target failed: ${result.reason}.`);
+      return;
+    }
+
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        presentationState: result.presentationState
+      }
+      : currentState);
+    setTopBarActionStatus(`Overlay target set to ${result.presentationState.scene} / ${result.presentationState.layout}.`);
+  };
+
   return (
     <section className="surface-status" aria-label="Surface status">
       <div className="status-pill active">
@@ -603,6 +714,41 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
         <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "none")}>
           Test redeem
         </button>
+      </div>
+      <div className="notification-settings overlay-presentation-settings" aria-label="Overlay target settings">
+        <strong>Overlay target</strong>
+        <label>
+          <span>Scene</span>
+          <select
+            value={presentationState.scene}
+            onChange={(event) => void updatePresentationState({ scene: event.currentTarget.value })}
+          >
+            {sceneOptions.length === 0 ? <option value={presentationState.scene}>{presentationState.scene}</option> : null}
+            {sceneOptions.map((scene) => (
+              <option key={`${scene.themeKey}:${scene.sceneKey}`} value={scene.sceneKey}>{scene.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Layout</span>
+          <select
+            value={presentationState.layout}
+            onChange={(event) => void updatePresentationState({ layout: event.currentTarget.value as OverlayLayoutKey })}
+          >
+            {overlayLayoutOptions.map((layout) => (
+              <option key={layout.key} value={layout.key}>{layout.label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Theme</span>
+          <select
+            value={presentationState.theme}
+            onChange={(event) => void updatePresentationState({ theme: event.currentTarget.value as OverlayPresentationState["theme"] })}
+          >
+            <option value="default">Default</option>
+          </select>
+        </label>
       </div>
       {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}
       <details className="notification-settings">

@@ -4,6 +4,7 @@ import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
 import type {
+  OverlayPresentationState,
   OverlayLayoutKey,
   OverlayLiveMessage,
   OverlayNotificationDisplay,
@@ -46,7 +47,9 @@ let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
   restMs: 1_500
 };
 const overlayLiveClients = new Map<string, {
+  requestedScene: OverlaySceneKey;
   requestedLayout: OverlayLayoutKey;
+  requestedTheme: OverlayThemeKey;
   requestedMode: OverlayStateSnapshot["mode"];
   snapshot: OverlayStateSnapshot;
   socket: OverlayLiveSocket;
@@ -54,6 +57,7 @@ const overlayLiveClients = new Map<string, {
 const overlaySceneDefinitions = new Map<string, OverlaySceneDefinition>(
   defaultThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
 );
+let overlayGlobalPresentationState: OverlayPresentationState | null = null;
 
 await server.register(fastifyCors, {
   origin: getTrustedOrigins(),
@@ -84,6 +88,12 @@ const overlayStateRequestSchema = z.object({
 });
 const overlayStatusRequestSchema = z.object({
   accessToken: z.string().min(24)
+});
+const overlayPresentationStateRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  scene: overlaySceneKeySchema,
+  layout: z.enum(["standard", "camera-left", "camera-right", "clean"]),
+  theme: z.enum(["default"])
 });
 const overlayTopBarTestRequestSchema = z.object({
   accessToken: z.string().min(24),
@@ -385,6 +395,39 @@ const createOverlayStateSnapshot = ({
   };
 };
 
+const resolveOverlayPresentationState = (
+  requestedState: OverlayPresentationState
+): OverlayPresentationState => ({
+  scene: overlayGlobalPresentationState?.scene ?? requestedState.scene,
+  layout: overlayGlobalPresentationState?.layout ?? requestedState.layout,
+  theme: overlayGlobalPresentationState?.theme ?? requestedState.theme
+});
+
+const createOverlaySnapshotFromRequestedState = ({
+  layout,
+  mode,
+  scene,
+  theme
+}: {
+  layout: OverlayLayoutKey;
+  mode: OverlayStateSnapshot["mode"];
+  scene: OverlaySceneKey;
+  theme: OverlayThemeKey;
+}): OverlayStateSnapshot => {
+  const presentationState = resolveOverlayPresentationState({
+    scene,
+    layout,
+    theme
+  });
+
+  return createOverlayStateSnapshot({
+    scene: presentationState.scene,
+    layout: presentationState.layout,
+    theme: presentationState.theme,
+    mode
+  });
+};
+
 const demoTopBarNotifications: Array<Omit<OverlayNotificationDisplay, "createdAt" | "id">> = [
   {
     actorName: "Yasmin",
@@ -481,42 +524,14 @@ const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
 
 const broadcastOverlaySnapshots = (): void => {
   for (const client of overlayLiveClients.values()) {
-    const effectiveLayout = overlayEmergencyCleanModeEnabled ? "clean" : client.requestedLayout;
-    const effectiveMode = overlayEmergencyCleanModeEnabled ? "clean" : client.requestedMode;
-
     client.snapshot = {
-      ...client.snapshot,
-      layout: effectiveLayout,
-      mode: effectiveMode,
-      topBar: {
-        ...client.snapshot.topBar,
-        enabled: overlayTopBarEnabled
-      },
-      center: {
-        enabled: overlayCenterEnabled,
-        defaultTiming: overlayCenterDefaultTiming
-      },
-      sceneDefinition: getOverlaySceneDefinition(client.snapshot.theme, client.snapshot.scene),
-      slots: {
-        ...client.snapshot.slots,
-        camera: {
-          ...client.snapshot.slots.camera,
-          visible: effectiveLayout !== "clean"
-        },
-        chat: {
-          ...client.snapshot.slots.chat,
-          visible: overlayChatVisible && effectiveLayout !== "clean" && client.snapshot.scene !== "just-camera"
-        },
-        sponsorPrimary: {
-          ...client.snapshot.slots.sponsorPrimary,
-          visible: overlaySponsorVisible && effectiveMode !== "clean" && effectiveLayout !== "clean"
-        },
-        streamGoal: {
-          ...client.snapshot.slots.streamGoal,
-          visible: effectiveMode !== "clean"
-        }
-      },
-      updatedAt: new Date().toISOString()
+      ...createOverlaySnapshotFromRequestedState({
+        scene: client.requestedScene,
+        layout: client.requestedLayout,
+        theme: client.requestedTheme,
+        mode: client.requestedMode
+      }),
+      connectionStatus: client.snapshot.connectionStatus
     };
     client.socket.send(JSON.stringify({
       type: "overlay.state.snapshot",
@@ -1223,7 +1238,7 @@ server.get("/overlay/state", async (request, reply) => {
 
   return {
     ok: true,
-    snapshot: createOverlayStateSnapshot(parsedRequest.data)
+    snapshot: createOverlaySnapshotFromRequestedState(parsedRequest.data)
   };
 });
 
@@ -1256,6 +1271,11 @@ server.get("/overlay/status", async (request, reply) => {
     ok: true,
     activeOverlayConnections: activeOverlayConnections.size,
     overlayActive: activeOverlayConnections.size > 0,
+    presentationState: overlayGlobalPresentationState ?? {
+      scene: "default",
+      layout: "standard",
+      theme: "default"
+    },
     emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
     chatVisible: overlayChatVisible,
     sponsorVisible: overlaySponsorVisible,
@@ -1264,6 +1284,55 @@ server.get("/overlay/status", async (request, reply) => {
     centerEnabled: overlayCenterEnabled,
     centerDefaultTiming: overlayCenterDefaultTiming,
     checkedAt: new Date().toISOString()
+  };
+});
+
+server.post("/overlay/presentation-state", async (request, reply) => {
+  const parsedRequest = overlayPresentationStateRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  const sceneDefinition = overlaySceneDefinitions.get(`${parsedRequest.data.theme}:${parsedRequest.data.scene}`);
+
+  if (!sceneDefinition) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "unknown_scene"
+    };
+  }
+
+  overlayGlobalPresentationState = {
+    scene: parsedRequest.data.scene,
+    layout: parsedRequest.data.layout,
+    theme: parsedRequest.data.theme
+  };
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    presentationState: overlayGlobalPresentationState,
+    activeOverlayConnections: activeOverlayConnections.size
   };
 });
 
@@ -1685,14 +1754,16 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
 
   const connectionId = randomUUID();
   activeOverlayConnections.add(connectionId);
-  let snapshot = createOverlayStateSnapshot(parsedRequest.data);
+  let snapshot = createOverlaySnapshotFromRequestedState(parsedRequest.data);
   snapshot = {
     ...snapshot,
     connectionStatus: "live",
     updatedAt: new Date().toISOString()
   };
   overlayLiveClients.set(connectionId, {
+    requestedScene: parsedRequest.data.scene,
     requestedLayout: parsedRequest.data.layout,
+    requestedTheme: parsedRequest.data.theme,
     requestedMode: parsedRequest.data.mode,
     snapshot,
     socket
