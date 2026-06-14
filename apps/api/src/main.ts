@@ -473,7 +473,7 @@ const demoTopBarNotifications: Array<Omit<OverlayNotificationDisplay, "createdAt
   },
   {
     actorName: "Top Supporter",
-    actionLabel: "Donated €20",
+    actionLabel: "Donated EUR 20",
     avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
     kind: "community-highlight",
     platform: "system",

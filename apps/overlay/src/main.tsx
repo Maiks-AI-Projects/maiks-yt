@@ -19,6 +19,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.y
 const overlayAccessStorageKey = "maiks.yt.overlay.accessToken";
 const topBarIntakeDelayMs = 500;
 const maxVisibleTopBarNotifications = 8;
+const safeDefaultAvatarUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23161b22'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23f2c94c'/%3E%3Cpath d='M14 57c3-13 13-20 18-20s15 7 18 20' fill='%23d64545'/%3E%3C/svg%3E";
 
 type OverlayRuntimeState =
   | {
@@ -179,7 +180,7 @@ const loadSnapshot = async (token: string, options: OverlayUrlOptions): Promise<
 const fallbackTopBarHighlights: Array<Omit<TopBarNotification, "createdAt" | "id">> = [
   {
     actorName: "#1 Donator",
-    actionLabel: "Donated €20",
+    actionLabel: "Donated EUR 20",
     avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
     kind: "community-highlight",
     platform: "system",
@@ -258,7 +259,16 @@ const TopNotificationBar = ({
             <span className="top-bar-rank">{notification.actorName}</span>
           ) : null}
           <div className="top-bar-line">
-            <img alt="" className="top-bar-avatar" src={notification.avatarUrl} />
+            <img
+              alt=""
+              className="top-bar-avatar"
+              src={notification.avatarUrl || safeDefaultAvatarUrl}
+              onError={(event) => {
+                if (event.currentTarget.src !== safeDefaultAvatarUrl) {
+                  event.currentTarget.src = safeDefaultAvatarUrl;
+                }
+              }}
+            />
             {notification.kind === "community-highlight" ? (
               <span className="top-bar-action">{notification.actionLabel}</span>
             ) : (

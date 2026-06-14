@@ -59,6 +59,15 @@ A:\laravel-projects\maiks-yt
 
 When implementing top notifications, inspect the V1 top notification design because the streamer liked how those looked. Rebuild the concept in the new TypeScript/overlay system rather than copying old code blindly.
 
+Inspection result:
+
+- The local V1 copy contains the combined chat overlay at `resources/views/stream/chat.blade.php` and `public/chat.css`.
+- That chat overlay used platform-specific list markers, compact avatar images, reversed column ordering, light text, and text shadow for readability over video.
+- The brother-made top notification bar was not found in the obvious Laravel Blade, public CSS, route, controller, or public script files. It may have lived in another build artifact or an uncommitted/local-only file.
+- V2 should preserve the described behavior rather than trying to copy missing code: compact cards at the top, newest card enters at the left, existing cards shift right, cards stay visible until pushed off screen, and intake is delayed by about 500ms between notifications.
+- Top bar text should stay short: `(avatar)Name action`, with community highlights allowed to use a two-line/ranked format such as `#1 Donator` plus `(avatar)Name donated EUR 20`.
+- Avatar resolution should be website profile image first, then platform avatar, then a safe default avatar.
+
 ## Open Questions
 
 - Which events are important enough for center-screen display?
