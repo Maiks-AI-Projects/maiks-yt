@@ -121,11 +121,12 @@ const createDefaultSlots = (): Record<OverlaySceneSlotId, OverlaySceneSlotDefini
 });
 
 const createScene = (
+  themeKey: OverlayThemeKey,
   sceneKey: OverlaySceneKey,
   label: string,
   slots: Partial<Record<OverlaySceneSlotId, OverlaySceneSlotDefinition>>
 ): OverlaySceneDefinition => ({
-  themeKey: "default",
+  themeKey,
   sceneKey,
   label,
   canvas: overlayCanonicalCanvas,
@@ -136,9 +137,9 @@ const createScene = (
 });
 
 export const defaultThemeScenes: readonly OverlaySceneDefinition[] = [
-  createScene("default", "Default", {}),
-  createScene("gameplay", "Gameplay", {}),
-  createScene("chat-focus", "Chat Focus", {
+  createScene("default", "default", "Default", {}),
+  createScene("default", "gameplay", "Gameplay", {}),
+  createScene("default", "chat-focus", "Chat Focus", {
     chat: {
       x: 1280,
       y: 118,
@@ -155,7 +156,7 @@ export const defaultThemeScenes: readonly OverlaySceneDefinition[] = [
       lockedAspectRatio: 16 / 9
     }
   }),
-  createScene("just-camera", "Just Camera", {
+  createScene("default", "just-camera", "Just Camera", {
     camera: {
       x: 500,
       y: 180,
@@ -168,7 +169,7 @@ export const defaultThemeScenes: readonly OverlaySceneDefinition[] = [
     sponsorPrimary: hiddenSlot,
     streamGoal: hiddenSlot
   }),
-  createScene("talking", "Talking", {
+  createScene("default", "talking", "Talking", {
     game: hiddenSlot,
     camera: {
       x: 72,
@@ -202,6 +203,72 @@ export const defaultThemeScenes: readonly OverlaySceneDefinition[] = [
   })
 ];
 
+export const satisfactoryThemeScenes: readonly OverlaySceneDefinition[] = [
+  createScene("satisfactory", "satisfactory-gameplay", "Satisfactory Gameplay", {
+    camera: {
+      x: 1504,
+      y: 742,
+      width: 384,
+      height: 216,
+      visible: true,
+      lockedAspectRatio: 16 / 9
+    },
+    chat: {
+      x: 36,
+      y: 720,
+      width: 430,
+      height: 260,
+      visible: true
+    },
+    sponsorPrimary: {
+      x: 690,
+      y: 88,
+      width: 540,
+      height: 76,
+      visible: true
+    },
+    streamGoal: {
+      x: 690,
+      y: 978,
+      width: 540,
+      height: 76,
+      visible: true
+    }
+  }),
+  createScene("satisfactory", "satisfactory-talking", "Satisfactory Talking", {
+    game: hiddenSlot,
+    camera: {
+      x: 96,
+      y: 154,
+      width: 1000,
+      height: 563,
+      visible: true,
+      lockedAspectRatio: 16 / 9
+    },
+    chat: {
+      x: 1200,
+      y: 154,
+      width: 560,
+      height: 700,
+      visible: true
+    },
+    sponsorPrimary: {
+      x: 96,
+      y: 760,
+      width: 1000,
+      height: 90,
+      visible: true
+    },
+    streamGoal: {
+      x: 1200,
+      y: 882,
+      width: 560,
+      height: 86,
+      visible: true
+    }
+  })
+];
+
 export const defaultTheme: ThemeManifest = {
   id: "default",
   label: "Default",
@@ -211,6 +278,23 @@ export const defaultTheme: ThemeManifest = {
   supportedSlots: overlaySceneSlotIds,
   defaultScenes: defaultThemeScenes
 };
+
+export const satisfactoryTheme: ThemeManifest = {
+  id: "satisfactory",
+  label: "Satisfactory",
+  cssFile: "satisfactory.css",
+  surfaces: ["overlay", "control-panel"],
+  requiredVariables: requiredThemeVariables,
+  supportedSlots: overlaySceneSlotIds,
+  defaultScenes: satisfactoryThemeScenes
+};
+
+export const availableThemes: readonly ThemeManifest[] = [
+  defaultTheme,
+  satisfactoryTheme
+];
+
+export const allThemeScenes: readonly OverlaySceneDefinition[] = availableThemes.flatMap((theme) => theme.defaultScenes);
 
 export const getDefaultThemeScene = (sceneKey: OverlaySceneKey): OverlaySceneDefinition => {
   return defaultThemeScenes.find((scene) => scene.sceneKey === sceneKey) ?? defaultThemeScenes[0]!;

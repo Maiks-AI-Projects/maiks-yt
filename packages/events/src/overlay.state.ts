@@ -10,7 +10,7 @@ export type OverlaySceneKey = OverlayBuiltInSceneKey | (string & {});
 
 export type OverlayLayoutKey = "standard" | "camera-left" | "camera-right" | "clean";
 
-export type OverlayThemeKey = "default";
+export type OverlayThemeKey = "default" | "satisfactory";
 
 export type OverlayPresentationState = {
   scene: OverlaySceneKey;

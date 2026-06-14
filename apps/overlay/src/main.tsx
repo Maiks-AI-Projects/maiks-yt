@@ -9,7 +9,6 @@ import type {
   OverlaySceneSlotDefinition,
   OverlayTopBarNotificationQueuedEvent
 } from "@maiks-yt/events";
-import { defaultTheme } from "@maiks-yt/themes";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createRoot } from "react-dom/client";
 import { validateUrlAccessGate, type UrlAccessGateState } from "@maiks-yt/ui";
@@ -73,7 +72,7 @@ const parseUrlOptions = (): OverlayUrlOptions => {
   return {
     scene: parseSceneKey(params.get("scene")),
     layout: parseParam(params.get("layout"), ["standard", "camera-left", "camera-right", "clean"], "standard"),
-    theme: parseParam(params.get("theme"), ["default"], "default"),
+    theme: parseParam(params.get("theme"), ["default", "satisfactory"], "default"),
     mode: parseParam(params.get("mode"), ["normal", "clean"], "normal")
   };
 };
@@ -654,7 +653,7 @@ const App = (): React.ReactNode => {
       data-layout={snapshot.layout}
       data-live-status={runtimeState.liveStatus}
       data-scene={snapshot.scene}
-      data-theme={defaultTheme.id}
+      data-theme={snapshot.theme}
     >
       {snapshot.topBar.enabled && slots.topNotifications.visible && !isMinimalFallback ? (
         <TopNotificationBar

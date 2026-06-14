@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js",
-    "./default.css": "./src/default.css"
+    "./default.css": "./src/default.css",
+    "./satisfactory.css": "./src/satisfactory.css"
   },
   "scripts": {
     "build": "tsc -b",

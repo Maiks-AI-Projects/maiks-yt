@@ -146,7 +146,7 @@ This is the working checklist. We should work down it in order unless a new idea
 
 - [x] Define CSS theme contract.
 - [x] Create default theme.
-- [ ] Create first game/hobby theme.
+- [x] Create first game/hobby theme.
 - [x] Define theme-to-scene ownership model.
 - [x] Create reusable layout slots.
 - [x] Add camera position slots.

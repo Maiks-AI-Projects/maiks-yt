@@ -1,0 +1,39 @@
+:root {
+  --maiks-satisfactory-orange: #f07a22;
+  --maiks-satisfactory-amber: #f2b84b;
+  --maiks-satisfactory-steel: #202832;
+  --maiks-satisfactory-concrete: #d7d2c8;
+}
+
+.overlay[data-theme="satisfactory"] {
+  --maiks-bg: #11161b;
+  --maiks-fg: #f7f4ed;
+  --maiks-muted: #c2b9aa;
+  --maiks-panel: #202832;
+  --maiks-accent: #f07a22;
+  --maiks-danger: #e94f37;
+  --maiks-warning: #f2b84b;
+  --maiks-success: #4fbf83;
+  --maiks-notification-bg: rgba(18, 22, 27, 0.9);
+  --maiks-notification-fg: #fff8eb;
+}
+
+.overlay[data-theme="satisfactory"] .top-bar-card,
+.overlay[data-theme="satisfactory"] .center-notification-card,
+.overlay[data-theme="satisfactory"] .stream-goal-widget {
+  border-color: rgba(242, 184, 75, 0.28);
+  border-left-color: var(--maiks-satisfactory-orange);
+  box-shadow: inset 0 0 0 1px rgba(240, 122, 34, 0.18), 0 0.55rem 1.25rem rgba(0, 0, 0, 0.28);
+}
+
+.overlay[data-theme="satisfactory"] .top-bar-card {
+  border-radius: 2px;
+}
+
+.overlay[data-theme="satisfactory"] .top-bar-rank {
+  color: var(--maiks-satisfactory-amber);
+}
+
+.overlay[data-theme="satisfactory"] .stream-goal-fill {
+  background: linear-gradient(90deg, #f07a22, #f2b84b);
+}

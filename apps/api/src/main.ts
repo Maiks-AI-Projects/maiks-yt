@@ -18,7 +18,7 @@ import type {
   OverlayTopBarNotificationQueuedEvent,
   RealtimeEvent
 } from "@maiks-yt/events";
-import { defaultThemeScenes, overlaySceneSlotIds } from "@maiks-yt/themes";
+import { allThemeScenes, overlaySceneSlotIds } from "@maiks-yt/themes";
 import fastifyCors from "@fastify/cors";
 import fastifyWebsocket from "@fastify/websocket";
 import { fromNodeHeaders } from "better-auth/node";
@@ -57,7 +57,7 @@ const overlayLiveClients = new Map<string, {
   socket: OverlayLiveSocket;
 }>();
 const overlaySceneDefinitions = new Map<string, OverlaySceneDefinition>(
-  defaultThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
+  allThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
 );
 let overlayGlobalPresentationState: OverlayPresentationState | null = null;
 
@@ -81,11 +81,12 @@ const profileVisibilityRequestSchema = z.object({
   profileVisibility: z.enum(["private", "minimal", "public"])
 });
 const overlaySceneKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/);
+const overlayThemeKeySchema = z.enum(["default", "satisfactory"]);
 const overlayStateRequestSchema = z.object({
   accessToken: z.string().min(24),
   scene: overlaySceneKeySchema.default("default"),
   layout: z.enum(["standard", "camera-left", "camera-right", "clean"]).default("standard"),
-  theme: z.enum(["default"]).default("default"),
+  theme: overlayThemeKeySchema.default("default"),
   mode: z.enum(["normal", "clean"]).default("normal")
 });
 const overlayStatusRequestSchema = z.object({
@@ -95,7 +96,7 @@ const overlayPresentationStateRequestSchema = z.object({
   accessToken: z.string().min(24),
   scene: overlaySceneKeySchema,
   layout: z.enum(["standard", "camera-left", "camera-right", "clean"]),
-  theme: z.enum(["default"])
+  theme: overlayThemeKeySchema
 });
 const overlayTopBarTestRequestSchema = z.object({
   accessToken: z.string().min(24),
@@ -163,7 +164,7 @@ const overlaySceneSlotSchema = z.object({
 const overlaySceneSaveRequestSchema = z.object({
   accessToken: z.string().min(24),
   scene: z.object({
-    themeKey: z.enum(["default"]),
+    themeKey: overlayThemeKeySchema,
     sceneKey: overlaySceneKeySchema,
     label: z.string().min(1).max(80),
     canvas: z.object({

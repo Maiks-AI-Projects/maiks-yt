@@ -397,6 +397,7 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
       layout: "standard",
       theme: "default"
     };
+  const themedSceneOptions = sceneOptions.filter((scene) => scene.themeKey === presentationState.theme);
   const activeGoal = overlayPresence.status === "ready" ? overlayPresence.activeGoal : null;
   const goalSignature = overlayPresence.status === "ready"
     ? JSON.stringify(activeGoal)
@@ -866,8 +867,8 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
             value={presentationState.scene}
             onChange={(event) => void updatePresentationState({ scene: event.currentTarget.value })}
           >
-            {sceneOptions.length === 0 ? <option value={presentationState.scene}>{presentationState.scene}</option> : null}
-            {sceneOptions.map((scene) => (
+            {themedSceneOptions.length === 0 ? <option value={presentationState.scene}>{presentationState.scene}</option> : null}
+            {themedSceneOptions.map((scene) => (
               <option key={`${scene.themeKey}:${scene.sceneKey}`} value={scene.sceneKey}>{scene.label}</option>
             ))}
           </select>
@@ -887,9 +888,18 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
           <span>Theme</span>
           <select
             value={presentationState.theme}
-            onChange={(event) => void updatePresentationState({ theme: event.currentTarget.value as OverlayPresentationState["theme"] })}
+            onChange={(event) => {
+              const theme = event.currentTarget.value as OverlayPresentationState["theme"];
+              const firstThemeScene = sceneOptions.find((scene) => scene.themeKey === theme);
+
+              void updatePresentationState({
+                theme,
+                ...(firstThemeScene ? { scene: firstThemeScene.sceneKey } : {})
+              });
+            }}
           >
             <option value="default">Default</option>
+            <option value="satisfactory">Satisfactory</option>
           </select>
         </label>
       </div>
