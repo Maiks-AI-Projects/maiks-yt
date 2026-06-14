@@ -167,8 +167,8 @@ This is the working checklist. We should work down it in order unless a new idea
 
 - [x] Build self-owned links hub.
 - [ ] Add social/support/community links.
-- [ ] Add RSS feed for blog posts.
-- [ ] Add basic blog/update post model.
+- [x] Add RSS feed for blog posts.
+- [x] Add basic blog/update post model.
 - [ ] Add AI-assisted draft workflow.
 - [ ] Require approval before publishing AI-generated posts.
 - [ ] Add public personal context page.

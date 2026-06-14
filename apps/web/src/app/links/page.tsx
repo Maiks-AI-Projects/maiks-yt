@@ -57,9 +57,9 @@ const creatorLinks: readonly CreatorLink[] = [
     Icon: FaCompass
   },
   {
-    title: "RSS Feed Slot",
-    description: "Reserved for blog and project update feeds when publishing starts.",
-    href: "/links#feeds",
+    title: "RSS Updates",
+    description: "Public project and blog updates in an open feed.",
+    href: "/feed.xml",
     purpose: "feed",
     Icon: FaRss
   }
