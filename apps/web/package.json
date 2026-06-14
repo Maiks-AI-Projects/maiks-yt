@@ -11,6 +11,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@maiks-yt/config": "workspace:*",
     "@maiks-yt/domain": "workspace:*",
     "@radix-ui/react-switch": "^1.3.0",
     "@radix-ui/react-tooltip": "^1.2.9",

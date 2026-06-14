@@ -9,3 +9,6 @@ export type RuntimeConfig = {
 };
 
 export const createRuntimeConfig = (config: RuntimeConfig): RuntimeConfig => config;
+
+export * from "./localization.config.js";
+export * from "./telemetry.config.js";

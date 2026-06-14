@@ -140,6 +140,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@maiks-yt/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@maiks-yt/domain':
         specifier: workspace:*
         version: link:../../packages/domain

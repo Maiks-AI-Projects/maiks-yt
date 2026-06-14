@@ -1,4 +1,8 @@
+import { createDateFormatter, defaultLocale } from "@maiks-yt/config";
+
 import { getPublicUpdateUrl, publicUpdates } from "../../content/public-updates";
+
+const dateFormatter = createDateFormatter(defaultLocale);
 
 const UpdatesPage = (): React.ReactNode => (
   <main className="updates-page">
@@ -15,7 +19,7 @@ const UpdatesPage = (): React.ReactNode => (
             <a href={getPublicUpdateUrl(update)}>{update.title}</a>
           </h2>
           <time dateTime={update.publishedAt}>
-            {new Intl.DateTimeFormat("en", { dateStyle: "long" }).format(new Date(update.publishedAt))}
+            {dateFormatter.format(new Date(update.publishedAt))}
           </time>
           <p>{update.summary}</p>
         </article>

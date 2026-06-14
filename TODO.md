@@ -33,7 +33,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Decide API/realtime backend shape.
 - [x] Decide whether overlay/control panel use Vite + React.
 - [x] Decide how real-time overlay state will work.
-- [ ] Decide local production hosting shape for `cloudflared`.
+- [x] Decide local production hosting shape for `cloudflared`.
 - [x] Decide dev server auto-build/deploy workflow after pushed commits.
 - [x] Use `dev` branch as the dev-server auto-deploy target.
 - [x] Define fixed local port plan.
@@ -49,8 +49,8 @@ This is the working checklist. We should work down it in order unless a new idea
   - Follow up: rotate Cloudflare credentials/tokens and review Cloudflare account audit/activity logs.
 - [x] Decide local development strategy for fake events.
 - [x] Decide stream simulator/event replayer shape.
-- [ ] Add localization structure from the start.
-- [ ] Add minimal analytics/security logging boundaries.
+- [x] Add localization structure from the start.
+- [x] Add minimal analytics/security logging boundaries.
 - [x] Add initial architecture/file-boundary rule checker.
 - [x] Add rule violation report workflow for next-session review.
 - [x] Decide whether rule violations warn or block commits during early development.

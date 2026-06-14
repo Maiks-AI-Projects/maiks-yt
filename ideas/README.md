@@ -26,6 +26,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [Stack decision draft](./stack-decision-draft.md)
 - [Development rule monitoring automations](./development-rule-monitoring-automations.md)
 - [Gemini work queue](./gemini-work-queue.md)
+- [Local production hosting decision](./local-production-hosting-decision.md)
 
 ## Foundation
 
