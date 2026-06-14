@@ -134,6 +134,10 @@ const overlayNotificationTestRequestSchema = z.object({
   afterCenter: z.enum(["top", "none"]).default("top"),
   count: z.number().int().min(1).max(6).default(1)
 });
+const overlayRedeemTestRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  redeem: z.enum(["hydrate", "jumpscare", "mime"])
+});
 const overlayGoalStateSchema = z.object({
   accessToken: z.string().min(24),
   enabled: z.boolean(),
@@ -477,13 +481,56 @@ const demoTopBarNotifications: Array<Omit<OverlayNotificationDisplay, "createdAt
   }
 ];
 
-const demoCenterOnlyNotification: Omit<OverlayNotificationDisplay, "createdAt" | "id"> = {
-  actorName: "Hydrate",
-  actionLabel: "Take a drink",
-  avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
-  kind: "redeem",
-  platform: "site",
-  priority: "important"
+const demoRedeemNotifications = {
+  hydrate: {
+    actorName: "Hydrate",
+    actionLabel: "Take a drink",
+    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
+    kind: "redeem",
+    platform: "site",
+    priority: "important"
+  },
+  jumpscare: {
+    actorName: "Jumpscare",
+    actionLabel: "Brace yourself",
+    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
+    kind: "redeem",
+    platform: "site",
+    priority: "urgent"
+  },
+  mime: {
+    actorName: "Mime",
+    actionLabel: "Act it out",
+    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
+    kind: "mime",
+    platform: "site",
+    priority: "important"
+  }
+} satisfies Record<string, Omit<OverlayNotificationDisplay, "createdAt" | "id">>;
+
+const createRedeemNotification = (
+  redeem: keyof typeof demoRedeemNotifications
+): OverlayRoutedNotificationQueuedEvent => {
+  const display: OverlayNotificationDisplay = {
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    ...demoRedeemNotifications[redeem]
+  };
+
+  return {
+    type: "overlay.routed-notification.queued",
+    payload: {
+      ...display,
+      route: "center",
+      afterCenter: "none",
+      center: {
+        title: display.actorName,
+        message: display.actionLabel,
+        imageUrl: display.avatarUrl,
+        timing: overlayCenterDefaultTiming
+      }
+    }
+  };
 };
 
 const createDemoTopBarNotification = (index: number): OverlayTopBarNotificationQueuedEvent => ({
@@ -504,7 +551,7 @@ const createDemoRoutedNotification = (
     id: randomUUID(),
     createdAt: new Date().toISOString(),
     ...(route === "center" && afterCenter === "none"
-      ? demoCenterOnlyNotification
+      ? demoRedeemNotifications.hydrate
       : demoTopBarNotifications[index % demoTopBarNotifications.length]!)
   };
 
@@ -1785,6 +1832,51 @@ server.post("/overlay/notification/test", async (request, reply) => {
     ok: true,
     queued: parsedRequest.data.count,
     route,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/redeem/test", async (request, reply) => {
+  const parsedRequest = overlayRedeemTestRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  if (!overlayCenterEnabled) {
+    return {
+      ok: true,
+      queued: 0,
+      redeem: parsedRequest.data.redeem,
+      reason: "center_notifications_disabled",
+      activeOverlayConnections: activeOverlayConnections.size
+    };
+  }
+
+  broadcastOverlayMessage(createRedeemNotification(parsedRequest.data.redeem));
+
+  return {
+    ok: true,
+    queued: 1,
+    redeem: parsedRequest.data.redeem,
     activeOverlayConnections: activeOverlayConnections.size
   };
 });

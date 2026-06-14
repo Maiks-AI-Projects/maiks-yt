@@ -133,6 +133,10 @@ button:disabled {
   align-items: center;
 }
 
+.redeem-test-actions .status-action {
+  min-width: 7rem;
+}
+
 .critical-controls {
   align-items: stretch;
 }

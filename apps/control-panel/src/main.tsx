@@ -29,8 +29,14 @@ const overlayLayoutOptions: Array<{ key: OverlayLayoutKey; label: string }> = [
   { key: "camera-right", label: "Camera right" },
   { key: "clean", label: "Clean" }
 ];
+const redeemPresetOptions = [
+  { key: "hydrate", label: "Hydrate" },
+  { key: "jumpscare", label: "Jumpscare" },
+  { key: "mime", label: "Mime" }
+] as const;
 
 type PanelMode = "creator" | "advanced";
+type RedeemPreset = typeof redeemPresetOptions[number]["key"];
 
 type ControlPanelAuthState =
   | {
@@ -105,6 +111,17 @@ type OverlayStatusResponse = {
 type OverlayGoalUpdateResponse = {
   ok: true;
   activeGoal: OverlayActiveGoalState;
+  activeOverlayConnections: number;
+} | {
+  ok: false;
+  reason: string;
+};
+
+type OverlayRedeemTestResponse = {
+  ok: true;
+  queued: number;
+  redeem: RedeemPreset;
+  reason?: string;
   activeOverlayConnections: number;
 } | {
   ok: false;
@@ -616,6 +633,40 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
       : `Notification test failed with ${response.status}.`);
   };
 
+  const sendRedeemTest = async (redeem: RedeemPreset): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/redeem/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        redeem
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Redeem test failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlayRedeemTestResponse;
+
+    if (!result.ok) {
+      setTopBarActionStatus(`Redeem test failed: ${result.reason}.`);
+      return;
+    }
+
+    setTopBarActionStatus(result.queued > 0 ? `${result.redeem} redeem queued.` : `Redeem skipped: ${result.reason ?? "not queued"}.`);
+  };
+
   const updateCenterSettings = async (patch: Partial<CenterNotificationTiming> & { enabled?: boolean }): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
@@ -803,7 +854,7 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
         <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "top")}>
           Test center + top
         </button>
-        <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "none")}>
+        <button type="button" className="status-action" onClick={() => void sendRedeemTest("hydrate")}>
           Test redeem
         </button>
       </div>
@@ -907,6 +958,18 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
       {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}
       <details className="notification-settings">
         <summary>Notification settings</summary>
+        <div className="status-action-group redeem-test-actions">
+          {redeemPresetOptions.map((redeem) => (
+            <button
+              type="button"
+              className="status-action"
+              key={redeem.key}
+              onClick={() => void sendRedeemTest(redeem.key)}
+            >
+              {redeem.label}
+            </button>
+          ))}
+        </div>
         <label>
           <span>Center enabled</span>
           <input
