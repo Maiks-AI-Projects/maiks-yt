@@ -130,7 +130,7 @@ This is the working checklist. We should work down it in order unless a new idea
 
 - [ ] Build authenticated control panel page.
 - [ ] Show connected overlays and current state.
-- [ ] Add local event generator/replayer controls.
+- [x] Add local event generator/replayer controls.
 - [x] Add test notification controls.
 - [x] Add off-main-view checklist/settings panel for center notification assets and priorities.
 - [x] Add layout/theme switching.

@@ -137,6 +137,12 @@ type OverlayPresentationStateResponse = {
   reason: string;
 };
 
+type ReplayDispatchResult = {
+  failed: number;
+  queued: number;
+  skipped: number;
+};
+
 type SlotDragState = {
   canvasHeight: number;
   canvasWidth: number;
@@ -1662,11 +1668,99 @@ const OperationsPanel = ({
   </section>
 );
 
+const delay = async (delayMs: number): Promise<void> => {
+  await new Promise<void>((resolve) => {
+    window.setTimeout(resolve, delayMs);
+  });
+};
+
+const postReplayEvent = async (
+  token: string,
+  entry: ReturnType<typeof createReplaySessionFromPreset>["events"][number]
+): Promise<"queued" | "skipped" | "failed"> => {
+  let endpoint = "";
+  let body: Record<string, unknown> | null = null;
+
+  switch (entry.event.type) {
+    case "overlay.notification.queued":
+      endpoint = "/overlay/notification/test";
+      body = {
+        accessToken: token,
+        afterCenter: "top",
+        count: 1,
+        route: entry.event.payload.zone === "center" ? "center" : "top"
+      };
+      break;
+    case "overlay.routed-notification.queued":
+      endpoint = "/overlay/notification/test";
+      body = {
+        accessToken: token,
+        afterCenter: entry.event.payload.afterCenter,
+        count: 1,
+        route: entry.event.payload.route
+      };
+      break;
+    case "overlay.top-bar-notification.queued":
+      endpoint = "/overlay/top-bar/test";
+      body = {
+        accessToken: token,
+        count: 1
+      };
+      break;
+    default:
+      return "skipped";
+  }
+
+  const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  return response.ok ? "queued" : "failed";
+};
+
+const playReplaySession = async (
+  replaySession: ReturnType<typeof createReplaySessionFromPreset>
+): Promise<ReplayDispatchResult> => {
+  const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+  if (!token) {
+    throw new Error("Control token missing.");
+  }
+
+  const result: ReplayDispatchResult = {
+    failed: 0,
+    queued: 0,
+    skipped: 0
+  };
+  let previousOffsetMs = 0;
+
+  for (const entry of replaySession.events) {
+    await delay(Math.max(0, entry.offsetMs - previousOffsetMs));
+    previousOffsetMs = entry.offsetMs;
+
+    const dispatchResult = await postReplayEvent(token, entry);
+
+    result[dispatchResult] += 1;
+  }
+
+  return result;
+};
+
 const SimulatorPanel = ({
+  isReplayPlaying,
+  onPlayReplay,
+  replayStatus,
   replaySession,
   selectedPreset,
   setSelectedPreset
 }: {
+  isReplayPlaying: boolean;
+  onPlayReplay: () => void;
+  replayStatus: string | null;
   replaySession: ReturnType<typeof createReplaySessionFromPreset>;
   selectedPreset: EventStormPreset;
   setSelectedPreset: (preset: EventStormPreset) => void;
@@ -1694,6 +1788,12 @@ const SimulatorPanel = ({
         <span>{replaySession.source}</span>
         <span>{replaySession.sanitized ? "Sanitized" : "Raw"}</span>
       </div>
+      <div className="status-action-group replay-actions">
+        <button type="button" className="status-action" disabled={isReplayPlaying} onClick={onPlayReplay}>
+          {isReplayPlaying ? "Playing replay" : "Play replay"}
+        </button>
+        {replayStatus ? <span className="status-note">{replayStatus}</span> : null}
+      </div>
       <ol className="event-preview-list">
         {replaySession.events.map((entry, index) => (
           <li key={`${entry.event.type}-${index}`}>
@@ -1708,7 +1808,9 @@ const SimulatorPanel = ({
 
 const App = (): React.ReactNode => {
   const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
+  const [isReplayPlaying, setIsReplayPlaying] = useState(false);
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
+  const [replayStatus, setReplayStatus] = useState<string | null>(null);
   const [selectedPreset, setSelectedPreset] = useState<EventStormPreset>("notification-burst");
   const replaySession = createReplaySessionFromPreset(selectedPreset);
 
@@ -1726,6 +1828,24 @@ const App = (): React.ReactNode => {
 
     setPanelMode(nextMode);
     window.localStorage.setItem(panelModeStorageKey, nextMode);
+  };
+
+  const handlePlayReplay = async (): Promise<void> => {
+    if (isReplayPlaying) {
+      return;
+    }
+
+    setIsReplayPlaying(true);
+    setReplayStatus(`Playing ${replaySession.title}.`);
+
+    try {
+      const result = await playReplaySession(replaySession);
+      setReplayStatus(`Replay done: ${result.queued} queued, ${result.skipped} skipped, ${result.failed} failed.`);
+    } catch (error) {
+      setReplayStatus(error instanceof Error ? error.message : "Replay failed.");
+    } finally {
+      setIsReplayPlaying(false);
+    }
   };
 
   if (authState.status !== "allowed") {
@@ -1772,6 +1892,9 @@ const App = (): React.ReactNode => {
         </summary>
         <div className="quiet-section-body">
           <SimulatorPanel
+            isReplayPlaying={isReplayPlaying}
+            onPlayReplay={() => void handlePlayReplay()}
+            replayStatus={replayStatus}
             replaySession={replaySession}
             selectedPreset={selectedPreset}
             setSelectedPreset={setSelectedPreset}
