@@ -54,6 +54,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add initial architecture/file-boundary rule checker.
 - [x] Add rule violation report workflow for next-session review.
 - [x] Decide whether rule violations warn or block commits during early development.
+- [x] Add clean-context sub-agent workflow and repository handoff brief.
 
 ## 3. Core Data Model Draft
 

@@ -25,6 +25,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [File structure and code organization](./file-structure-and-code-organization.md)
 - [Stack decision draft](./stack-decision-draft.md)
 - [Development rule monitoring automations](./development-rule-monitoring-automations.md)
+- [Sub-agent development workflow](./sub-agent-development-workflow.md)
 - [Gemini work queue](./gemini-work-queue.md)
 - [Local production hosting decision](./local-production-hosting-decision.md)
 

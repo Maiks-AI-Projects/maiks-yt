@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "agent:brief": "node scripts/create-agent-brief.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm check:architecture",
     "check:architecture": "node scripts/check-architecture.mjs",
     "db:generate": "pnpm --filter @maiks-yt/database db:generate",
