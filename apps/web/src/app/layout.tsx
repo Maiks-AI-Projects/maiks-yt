@@ -18,6 +18,7 @@ const RootLayout = ({ children }: RootLayoutProps): React.ReactNode => (
         <nav aria-label="Primary" className="site-nav">
           <a className="site-brand" href="/">Maiks.yt</a>
           <div className="site-links">
+            <a href="/links">Links</a>
             <a href="/account">Account</a>
             <a href="/gemini-lab">Layout Lab</a>
           </div>

@@ -165,7 +165,7 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 9. Creator Hub and Content
 
-- [ ] Build self-owned links hub.
+- [x] Build self-owned links hub.
 - [ ] Add social/support/community links.
 - [ ] Add RSS feed for blog posts.
 - [ ] Add basic blog/update post model.
