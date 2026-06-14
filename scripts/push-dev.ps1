@@ -4,8 +4,10 @@ param(
 
   [string] $Server = "codex-server-1",
   [string] $ServerProject = "/var/projects/maiks-yt-dev",
+  [string] $ServerContainer = "maiks-yt-dev",
   [switch] $SkipTypecheck,
-  [switch] $SkipServerPull
+  [switch] $SkipServerPull,
+  [switch] $SkipServerPackageBuild
 )
 
 $ErrorActionPreference = "Stop"
@@ -55,6 +57,12 @@ Run-Step "Mirroring main to dev" {
 if (-not $SkipServerPull) {
   Run-Step "Pulling dev on server" {
     ssh $Server "cd '$ServerProject' && git pull --ff-only origin dev && git status --short"
+  }
+
+  if (-not $SkipServerPackageBuild) {
+    Run-Step "Building shared packages on server" {
+      ssh $Server "docker exec $ServerContainer sh -lc 'pnpm --filter @maiks-yt/config --filter @maiks-yt/database --filter @maiks-yt/domain --filter @maiks-yt/events --filter @maiks-yt/integrations --filter @maiks-yt/testing --filter @maiks-yt/themes --filter @maiks-yt/ui build'"
+    }
   }
 }
 
