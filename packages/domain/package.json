@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./dist/index.js",
+    "./actions": "./dist/actions/index.js",
     "./identity": "./dist/identity/index.js",
     "./projects": "./dist/projects/index.js",
     "./security": "./dist/security/index.js",
