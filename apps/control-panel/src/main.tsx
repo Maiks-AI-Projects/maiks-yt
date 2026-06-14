@@ -1537,34 +1537,40 @@ const SceneDesigner = (): React.ReactNode => {
       </div>
       {selectedScene ? (
         <div className="scene-designer-grid">
-          <div className="scene-canvas" aria-label={`${selectedScene.label} layout preview`}>
-            {overlaySceneSlotIds.map((slotId) => {
-              const slot = selectedScene.slots[slotId];
+          <div className="scene-canvas-panel">
+            <div className="scene-canvas-heading">
+              <strong>Canvas preview</strong>
+              <span>{selectedScene.canvas.width} x {selectedScene.canvas.height} px</span>
+            </div>
+            <div className="scene-canvas" aria-label={`${selectedScene.label} layout preview`}>
+              {overlaySceneSlotIds.map((slotId) => {
+                const slot = selectedScene.slots[slotId];
 
-              return (
-                <button
-                  type="button"
-                  className={`scene-slot ${selectedSlotId === slotId ? "selected" : ""} ${slot.visible ? "visible" : "hidden"} ${warningSlotIds.has(slotId) ? "warning" : ""}`}
-                  key={slotId}
-                  style={createSceneSlotStyle(slot, selectedScene.canvas)}
-                  onClick={() => setSelectedSlotId(slotId)}
-                  onPointerCancel={finishSlotDrag}
-                  onPointerDown={(event) => startSlotDrag(event, slotId, slot)}
-                  onPointerMove={moveSlotDrag}
-                  onPointerUp={finishSlotDrag}
-                >
-                  <span className="scene-slot-label">{formatSlotLabel(slotId)}</span>
-                  <span
-                    aria-hidden="true"
-                    className="scene-slot-resize-handle"
-                    onPointerCancel={finishSlotResize}
-                    onPointerDown={(event) => startSlotResize(event, slotId, slot)}
-                    onPointerMove={moveSlotResize}
-                    onPointerUp={finishSlotResize}
-                  />
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    type="button"
+                    className={`scene-slot ${selectedSlotId === slotId ? "selected" : ""} ${slot.visible ? "visible" : "hidden"} ${warningSlotIds.has(slotId) ? "warning" : ""}`}
+                    key={slotId}
+                    style={createSceneSlotStyle(slot, selectedScene.canvas)}
+                    onClick={() => setSelectedSlotId(slotId)}
+                    onPointerCancel={finishSlotDrag}
+                    onPointerDown={(event) => startSlotDrag(event, slotId, slot)}
+                    onPointerMove={moveSlotDrag}
+                    onPointerUp={finishSlotDrag}
+                  >
+                    <span className="scene-slot-label">{formatSlotLabel(slotId)}</span>
+                    <span
+                      aria-hidden="true"
+                      className="scene-slot-resize-handle"
+                      onPointerCancel={finishSlotResize}
+                      onPointerDown={(event) => startSlotResize(event, slotId, slot)}
+                      onPointerMove={moveSlotResize}
+                      onPointerUp={finishSlotResize}
+                    />
+                  </button>
+                );
+              })}
+            </div>
           </div>
           {selectedSlot ? (
             <div className="slot-editor">

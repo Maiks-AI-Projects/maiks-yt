@@ -16,6 +16,8 @@ import "./styles.css";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const overlayAccessStorageKey = "maiks.yt.overlay.accessToken";
+const overlayCanvasWidth = 1920;
+const overlayCanvasHeight = 1080;
 const topBarIntakeDelayMs = 500;
 const maxVisibleTopBarNotifications = 8;
 const safeDefaultAvatarUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23161b22'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23f2c94c'/%3E%3Cpath d='M14 57c3-13 13-20 18-20s15 7 18 20' fill='%23d64545'/%3E%3C/svg%3E";
@@ -65,6 +67,17 @@ type OverlayLiveStatus = "snapshot" | "live" | "reconnecting" | "offline";
 
 const isMinimalFallbackLiveStatus = (liveStatus: OverlayLiveStatus): boolean =>
   liveStatus === "reconnecting" || liveStatus === "offline";
+
+const getOverlayCanvasScale = (): number => {
+  if (typeof window === "undefined") {
+    return 1;
+  }
+
+  return Math.min(
+    window.innerWidth / overlayCanvasWidth,
+    window.innerHeight / overlayCanvasHeight
+  );
+};
 
 const parseUrlOptions = (): OverlayUrlOptions => {
   const params = new URL(window.location.href).searchParams;
@@ -343,6 +356,7 @@ const App = (): React.ReactNode => {
   const [runtimeState, setRuntimeState] = useState<OverlayRuntimeState>({ status: "loading" });
   const [topBarNotifications, setTopBarNotifications] = useState<TopBarNotification[]>([]);
   const [centerNotification, setCenterNotification] = useState<CenterNotificationRuntime | null>(null);
+  const [canvasScale, setCanvasScale] = useState(getOverlayCanvasScale);
   const fallbackHighlightIndexRef = useRef(0);
   const pendingTopBarNotificationsRef = useRef<TopBarNotification[]>([]);
   const pendingCenterNotificationsRef = useRef<RoutedNotification[]>([]);
@@ -354,6 +368,18 @@ const App = (): React.ReactNode => {
   useEffect(() => {
     runtimeStateRef.current = runtimeState;
   }, [runtimeState]);
+
+  useEffect(() => {
+    const handleResize = (): void => {
+      setCanvasScale(getOverlayCanvasScale());
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const clearTransientNotifications = (): void => {
     pendingTopBarNotificationsRef.current = [];
@@ -607,6 +633,9 @@ const App = (): React.ReactNode => {
   const quietHighlightIntervalMs = runtimeState.status === "ready"
     ? runtimeState.snapshot.topBar.quietHighlightIntervalMs
     : 18_000;
+  const overlayCanvasStyle = {
+    "--overlay-canvas-scale": canvasScale
+  } as CSSProperties;
 
   useEffect(() => {
     if (!topBarEnabled || isMinimalFallback) {
@@ -625,7 +654,7 @@ const App = (): React.ReactNode => {
 
   if (gateState.status !== "allowed") {
     return (
-      <main className="overlay access-gate">
+      <main className="overlay access-gate" style={overlayCanvasStyle}>
         <div className="center-notification">
           {gateState.status === "checking" ? "Checking overlay access" : gateState.message}
         </div>
@@ -635,7 +664,7 @@ const App = (): React.ReactNode => {
 
   if (runtimeState.status !== "ready") {
     return (
-      <main className="overlay access-gate">
+      <main className="overlay access-gate" style={overlayCanvasStyle}>
         <div className="center-notification">
           {runtimeState.status === "loading" ? "Loading overlay" : runtimeState.message}
         </div>
@@ -654,6 +683,7 @@ const App = (): React.ReactNode => {
       data-live-status={runtimeState.liveStatus}
       data-scene={snapshot.scene}
       data-theme={snapshot.theme}
+      style={overlayCanvasStyle}
     >
       {snapshot.topBar.enabled && slots.topNotifications.visible && !isMinimalFallback ? (
         <TopNotificationBar

@@ -12,14 +12,17 @@ Finish the partially completed project areas before starting untouched feature g
 - Added an explicit telemetry allowlist and retention boundaries.
 - Added the public analytics/privacy explanation page.
 - Documented the first local production hosting shape.
+- Verified overlay and scene-designer geometry at 1920x1080 and 1280x720 browser viewports.
+- Added canonical overlay scaling for non-16:9 browser-source viewports.
+- Chose one shared, always-loaded master overlay instead of separate preloaded scene overlays.
 
 ## Current Task
 
-Verify the overlay renderer and scene designer at OBS canvas sizes, then decide whether hidden overlays need to remain preloaded.
+Verify the shared master overlay's scene switching and hidden-source lifecycle in real OBS.
 
 ## Next Tasks
 
-1. Finish overlay and layout verification.
+1. Run the remaining real OBS scene-switching check.
 2. Finish the existing Creator Hub/content gaps.
 3. Add action-panel permission and audit-history foundations.
 4. Run the full project checks and refresh the roadmap/checklist.
@@ -35,7 +38,7 @@ Verify the overlay renderer and scene designer at OBS canvas sizes, then decide 
 
 ## Blockers And Decisions
 
-- OBS scene-switching behavior still needs real OBS testing after browser-size verification.
+- OBS must verify one shared browser source with shutdown-when-hidden disabled does not show blank or stale frames during scene switches.
 - Production OAuth keys and other clean secrets will be created near final release.
 - Do not begin projects, scheduling, chat, AI, moderation, PWA, money, or backup feature phases until the current partial-area pass is reviewed.
 

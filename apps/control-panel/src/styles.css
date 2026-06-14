@@ -334,7 +334,7 @@ button:disabled {
   border-radius: 8px;
   display: grid;
   gap: 1rem;
-  max-width: 78rem;
+  max-width: 112rem;
   padding: 1rem;
 }
 
@@ -390,6 +390,25 @@ button:disabled {
   grid-template-columns: minmax(24rem, 1fr) minmax(12rem, 18rem);
 }
 
+.scene-canvas-panel {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.scene-canvas-heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.scene-canvas-heading span {
+  color: #b8c4cf;
+  font-size: 0.85rem;
+}
+
 .scene-canvas {
   aspect-ratio: 16 / 9;
   background: #071016;
@@ -431,11 +450,11 @@ button:disabled {
   bottom: 0.2rem;
   cursor: nwse-resize;
   display: none;
-  height: 0.7rem;
+  height: 1rem;
   position: absolute;
   right: 0.2rem;
   touch-action: none;
-  width: 0.7rem;
+  width: 1rem;
 }
 
 .scene-slot.selected .scene-slot-resize-handle {
@@ -465,6 +484,8 @@ button:disabled {
   display: grid;
   gap: 0.75rem;
   padding: 0.75rem;
+  position: sticky;
+  top: 1rem;
 }
 
 .slot-editor-actions {
@@ -661,6 +682,10 @@ button:disabled {
 
   .scene-designer-grid {
     grid-template-columns: 1fr;
+  }
+
+  .slot-editor {
+    position: static;
   }
 }
 

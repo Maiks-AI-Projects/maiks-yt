@@ -125,7 +125,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add last-known-good overlay state.
 - [x] Add static/minimal fallback mode for connection loss.
 - [ ] Test OBS scene switching behavior.
-- [ ] Decide whether preloaded overlays are required.
+- [x] Keep one shared master overlay loaded across OBS scenes instead of preloading separate scene-specific overlays.
 
 ## 7. Overlay Control Panel
 
@@ -151,7 +151,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Define theme-to-scene ownership model.
 - [x] Create reusable layout slots.
 - [x] Add camera position slots.
-- [ ] Build a layout designer panel for editing and reserving overlay slots.
+- [x] Build a layout designer panel for editing and reserving overlay slots.
 - [x] Add drag controls for standard overlay elements.
 - [x] Add resize handles for standard overlay elements.
 - [x] Add numeric position and size inputs for precise OBS-friendly layout work.
@@ -162,7 +162,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add lock aspect ratio controls for scene slots.
 - [x] Add layout warnings for overlapping visible slots and canvas bounds.
 - [x] Decide which slot overlaps are allowed, warnings, or hard blocked before final OBS scene use.
-- [ ] Test overlay layout at OBS canvas sizes.
+- [x] Test overlay layout at OBS canvas sizes.
 
 ## 9. Creator Hub and Content
 

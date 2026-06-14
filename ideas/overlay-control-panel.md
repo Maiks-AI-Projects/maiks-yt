@@ -65,6 +65,12 @@ Possible design approaches:
 - load-time state snapshot so newly loaded overlays can render quickly
 - always-on event queue so newly activated overlays can catch up
 
+## Preload Decision
+
+Version one uses one shared master overlay browser source across OBS scenes. Keep that source loaded and connected when it is hidden so live notifications are not missed, but do not create separate preloaded overlay instances for every scene.
+
+The immediate typed snapshot and last-known-good state remain responsible for startup and reconnect recovery. Real OBS testing must still confirm that reusing the source with shutdown-when-hidden disabled switches scenes without a blank frame or stale visual.
+
 ## Type-safety Notes
 
 Control actions should be typed commands. Overlay state should be a typed snapshot that the control panel and overlay renderer both understand.
@@ -79,9 +85,7 @@ If this later becomes a product, the foundation can support multiple complexity 
 
 ## Open Questions
 
-- Should there be one master overlay browser source or many scene-specific sources?
 - Can scene-specific URL parameters cover most layout/theme differences?
-- Is a load-time data dump reliable enough in OBS, or do overlays need to stay connected while hidden?
 - Should control panel changes persist across streams?
 - Should moderators have access to a limited control panel?
 - What is the emergency clean mode: hide chat only, or hide chat, alerts, sponsors, and AI?
