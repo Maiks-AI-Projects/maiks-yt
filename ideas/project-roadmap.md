@@ -315,20 +315,26 @@ Build:
 - Normalize chat messages.
 - Tag messages as human, bot, system, or moderator tool.
 - Hide bot/system messages from overlay by default.
+- Build streamer-only unified chat window.
+- Add quick moderation buttons for ban and default-duration mute.
+- Add advanced moderation context menu for custom mute, warning/strike, rank/status, and profile inspection.
 - Add basic stream bot command parser.
 - Add commands for website links.
 - Add periodic messages.
 - Add manual chat hide/show and emergency shutdown.
+- Prepare installable PWA behavior for streamer-only chat.
 
 Test:
 
 - Replay chat fixtures.
 - Trigger bot commands and verify they do not clog overlay chat.
 - Test chat hide/show under event storm.
+- Test streamer chat moderation actions with fake platform adapters.
+- Test installed/standalone chat window sizing when PWA support exists.
 
 Done when:
 
-- Chat can be shown, hidden, and filtered in a stream-safe way.
+- Chat can be shown, hidden, filtered, and privately moderated in a stream-safe way.
 
 ## Phase 12: AI Stream Assistant Foundation
 
@@ -366,6 +372,7 @@ Build:
 - Add approve/reject/defer behavior.
 - Add roles-aware permissions.
 - Add warning/strike model.
+- Add moderation audit history.
 - Add abuse policy page.
 - Add offensive display name and malicious linking handling.
 

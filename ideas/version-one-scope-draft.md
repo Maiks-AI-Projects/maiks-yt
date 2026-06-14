@@ -162,11 +162,22 @@ Not allowed yet:
 - normalized chat messages
 - message source tags: human, bot, system, moderator tool
 - hide bot/system messages from overlay by default
+- streamer-only unified chat window
+- quick moderation buttons for ban and default-duration mute
+- advanced moderation context menu foundation
 - basic bot command parser
 - commands for website links
 - periodic messages
 - manual chat hide/show
 - emergency chat shutdown behavior
+
+### Installable Stream Tools
+
+- PWA manifest and installability foundation
+- installable control panel
+- installable streamer chat
+- installable private notifications panel foundation
+- safe cache rules for private stream tools
 
 ### AI Stream Assistant Foundation
 

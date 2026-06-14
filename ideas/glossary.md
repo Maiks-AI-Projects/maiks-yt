@@ -80,6 +80,12 @@ Support that came through an external platform and may need conversion or restri
 
 Examples: Twitch Bits, Twitch subs, YouTube memberships, Patreon support.
 
+## Progressive Web App
+
+An installable web app surface that can run like a dedicated desktop or mobile app without normal browser chrome.
+
+Examples: overlay control panel, streamer unified chat, private notifications panel.
+
 ## Project
 
 A container for work, funding, milestones, items, updates, or stream focus.
@@ -111,6 +117,10 @@ The active project or item being tracked during a live stream. It can receive di
 ## Stream Session
 
 A specific live stream occurrence. It may be linked to a scheduled stream, stream goal, projects, overlays, chat events, and simulator recordings.
+
+## Streamer Unified Chat
+
+A private streamer/moderator chat surface that combines platform chats and provides moderation controls. Different from the public on-screen chat overlay.
 
 ## Theme
 

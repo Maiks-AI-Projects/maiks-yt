@@ -191,6 +191,10 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Normalize chat messages.
 - [ ] Tag messages as human, bot, system, or moderator tool.
 - [ ] Hide bot/system messages from overlay by default.
+- [ ] Build streamer-only unified chat window.
+- [ ] Add quick moderation buttons to streamer chat messages.
+- [ ] Add advanced moderation context menu.
+- [ ] Add typed moderation commands for ban, mute, warning, and rank/status changes.
 - [ ] Add basic stream bot command parser.
 - [ ] Add commands for website links.
 - [ ] Add periodic messages.
@@ -228,9 +232,20 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Build warning/strike model.
 - [ ] Add automatic warning system.
 - [ ] Add ban/restriction model.
+- [ ] Add moderation audit history.
+- [ ] Decide default quick mute duration.
 - [ ] Add abuse policy page, including police-report warning for serious abuse.
 - [ ] Add offensive display name handling.
 - [ ] Add malicious linking/claiming handling.
+
+## 14A. Installable Stream Tools
+
+- [ ] Add PWA manifest and icon set.
+- [ ] Make control panel installable.
+- [ ] Make streamer chat installable.
+- [ ] Make private notifications panel installable.
+- [ ] Define safe cache rules for private stream tools.
+- [ ] Test installed windows without browser chrome on stream-monitor sizes.
 
 ## 15. Money Prep, Not Public Money Yet
 
