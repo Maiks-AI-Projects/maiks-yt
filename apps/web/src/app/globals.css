@@ -745,6 +745,46 @@ button:disabled {
   line-height: 1.4;
 }
 
+.updates-page {
+  display: grid;
+  gap: 1.5rem;
+  max-width: 56rem;
+}
+
+.update-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.update-card,
+.update-detail {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.25rem;
+}
+
+.update-card h2,
+.update-detail h1,
+.update-card p,
+.update-detail p {
+  margin: 0;
+}
+
+.update-card a {
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.18rem;
+}
+
+.update-card time,
+.update-detail time {
+  color: #4b5966;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 680px) {
   .site-header {
     align-items: stretch;

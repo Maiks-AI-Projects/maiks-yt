@@ -19,6 +19,7 @@ const RootLayout = ({ children }: RootLayoutProps): React.ReactNode => (
           <a className="site-brand" href="/">Maiks.yt</a>
           <div className="site-links">
             <a href="/links">Links</a>
+            <a href="/updates">Updates</a>
             <a href="/account">Account</a>
             <a href="/gemini-lab">Layout Lab</a>
           </div>
