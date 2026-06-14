@@ -83,9 +83,9 @@ export const sortActionItemsForContext = (
   items: readonly ActionItem[],
   context: ActionPanelContext
 ): ActionItem[] =>
-  items
+  [...items]
     .filter((item) => isActionItemVisibleInContext(item, context))
-    .toSorted((first, second) => {
+    .sort((first, second) => {
       const scoreDifference = getActionItemSortScore(second, context) - getActionItemSortScore(first, context);
 
       if (scoreDifference !== 0) {

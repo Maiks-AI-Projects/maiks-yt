@@ -10,15 +10,22 @@ const allowedRootDirs = new Set(["apps", "ideas", "packages", "reports", "script
 const bannedJunkDirs = new Set(["models", "services", "types", "utils"]);
 const allowedSuffixes = [
   ".config.ts",
+  "-data.ts",
   ".events.ts",
+  "-gate.ts",
   ".rules.ts",
   ".schema.ts",
   ".service.ts",
+  ".state.ts",
+  "-token.ts",
+  "-transport.ts",
   ".test.ts",
   ".types.ts",
+  "-updates.ts",
   ".d.ts",
   "index.ts",
   "main.ts",
+  "route.ts",
   "vite-env.d.ts"
 ];
 const skippedDirs = new Set([".git", ".next", "dist", "dist-types", "node_modules"]);

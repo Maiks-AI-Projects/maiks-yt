@@ -214,11 +214,11 @@ This is the working checklist. We should work down it in order unless a new idea
 ## 13. Action Panel
 
 - [x] Build action item model.
-- [ ] Build action panel page.
+- [x] Build action panel page.
 - [x] Sort by urgency, stream relevance, and category.
 - [x] Separate live-safe actions from off-stream admin tasks.
 - [ ] Add role-aware approval permissions.
-- [ ] Add approve/reject/defer behavior.
+- [x] Add approve/reject/defer behavior.
 - [ ] Add audit history.
 
 ## 14. Safety and Moderation

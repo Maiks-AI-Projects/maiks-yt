@@ -211,6 +211,18 @@ button {
   padding: 0.7rem 1rem;
 }
 
+.button-link {
+  align-items: center;
+  background: #141920;
+  border-radius: 6px;
+  color: #ffffff;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  text-decoration: none;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.7;
@@ -783,6 +795,115 @@ button:disabled {
 .update-detail time {
   color: #4b5966;
   font-size: 0.9rem;
+}
+
+.actions-page,
+.action-panel {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 64rem;
+}
+
+.action-panel-toolbar {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+.action-live-toggle {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+}
+
+.action-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.action-item-card {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.25rem;
+}
+
+.action-item-heading {
+  align-items: center;
+  color: #4b5966;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  text-transform: uppercase;
+}
+
+.action-priority {
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+}
+
+.action-priority.low,
+.action-priority.normal {
+  background: #e5ebf1;
+  color: #141920;
+}
+
+.action-priority.high {
+  background: #fff0d5;
+  color: #805000;
+}
+
+.action-priority.urgent {
+  background: #ffe2e0;
+  color: #9f2521;
+}
+
+.action-item-card h2,
+.action-item-card p,
+.action-item-card dl {
+  margin: 0;
+}
+
+.action-item-card p,
+.action-item-card dd {
+  color: #4b5966;
+}
+
+.action-item-card dl {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.action-item-card dt {
+  color: #141920;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.action-item-card dd {
+  margin: 0.15rem 0 0;
+}
+
+.action-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.danger-action {
+  background: #9f2521;
 }
 
 @media (max-width: 680px) {
