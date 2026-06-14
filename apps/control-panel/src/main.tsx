@@ -192,6 +192,7 @@ type SlotResizeState = {
 type SceneLayoutWarning = {
   id: string;
   message: string;
+  severity: "blocked" | "warning";
   slotIds: readonly OverlaySceneSlotId[];
 };
 
@@ -1065,6 +1066,7 @@ const getSceneLayoutWarnings = (scene: OverlaySceneDefinition): SceneLayoutWarni
       warnings.push({
         id: `outside-${slotId}`,
         message: `${formatSlotLabel(slotId)} is outside the ${scene.canvas.width}x${scene.canvas.height} canvas.`,
+        severity: "blocked",
         slotIds: [slotId]
       });
     }
@@ -1079,6 +1081,7 @@ const getSceneLayoutWarnings = (scene: OverlaySceneDefinition): SceneLayoutWarni
         warnings.push({
           id: `overlap-${firstSlotId}-${secondSlotId}`,
           message: `${formatSlotLabel(firstSlotId)} overlaps ${formatSlotLabel(secondSlotId)}.`,
+          severity: "warning",
           slotIds: [firstSlotId, secondSlotId]
         });
       }
@@ -1118,6 +1121,8 @@ const SceneDesigner = (): React.ReactNode => {
   const selectedScene = scenes.find((scene) => scene.sceneKey === selectedSceneKey) ?? scenes[0] ?? null;
   const selectedSlot = selectedScene?.slots[selectedSlotId] ?? null;
   const layoutWarnings = selectedScene ? getSceneLayoutWarnings(selectedScene) : [];
+  const blockedLayoutIssues = layoutWarnings.filter((warning) => warning.severity === "blocked");
+  const softLayoutWarnings = layoutWarnings.filter((warning) => warning.severity === "warning");
   const warningSlotIds = new Set(layoutWarnings.flatMap((warning) => warning.slotIds));
 
   const loadScenes = async (): Promise<void> => {
@@ -1564,7 +1569,11 @@ const SceneDesigner = (): React.ReactNode => {
           {selectedSlot ? (
             <div className="slot-editor">
               <div className={`layout-warning-summary ${layoutWarnings.length > 0 ? "warning" : "clear"}`}>
-                <strong>{layoutWarnings.length > 0 ? `${layoutWarnings.length} layout warning(s)` : "No layout warnings"}</strong>
+                <strong>
+                  {layoutWarnings.length > 0
+                    ? `${blockedLayoutIssues.length} blocked issue(s), ${softLayoutWarnings.length} warning(s)`
+                    : "No layout warnings"}
+                </strong>
                 {layoutWarnings.length > 0 ? (
                   <ul>
                     {layoutWarnings.map((warning) => (

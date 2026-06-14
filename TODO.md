@@ -160,7 +160,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add hide/show controls for scene slots.
 - [x] Add lock aspect ratio controls for scene slots.
 - [x] Add layout warnings for overlapping visible slots and canvas bounds.
-- [ ] Decide which slot overlaps are allowed, warnings, or hard blocked before final OBS scene use.
+- [x] Decide which slot overlaps are allowed, warnings, or hard blocked before final OBS scene use.
 - [ ] Test overlay layout at OBS canvas sizes.
 
 ## 9. Creator Hub and Content

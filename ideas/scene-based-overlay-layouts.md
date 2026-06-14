@@ -84,6 +84,14 @@ Example shape:
 - collision avoidance rules for chat, camera, ads, and notifications
 - optional OBS integration for scene detection
 
+## Slot Overlap Policy
+
+- The game/video slot is treated as an underlay. Overlay slots may sit over the game slot without a warning.
+- A visible slot outside the 1920x1080 canvas is a blocked issue and should not be saved by the API.
+- Non-game visible slots overlapping each other are warnings in the designer. This includes camera, chat, sponsor spots, top notifications, center notifications, and stream goal.
+- Warnings remain editable instead of hard-blocked because a special stream scene may intentionally layer elements, but the warning must stay visible until the layout is adjusted.
+- Final OBS-ready scenes should have no non-game overlap warnings unless the overlap is a deliberate scene-specific exception.
+
 OBS browser-source URLs should be able to select the saved scene and theme, for example:
 
 ```text
