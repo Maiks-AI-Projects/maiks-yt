@@ -50,6 +50,13 @@
       "when": 1781252507021,
       "tag": "0006_lumpy_nightmare",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1781549177456,
+      "tag": "0007_lean_sabra",
+      "breakpoints": true
     }
   ]
 }

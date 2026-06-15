@@ -52,7 +52,9 @@ Reviewer gate:
 - Run domain tests and architecture check.
 - Commit and deploy before Task 2.
 
-## Task 2: Action Panel Persistence
+## Task 2: Action Panel Persistence (Completed)
+
+The Action Panel schema, legacy-safe migration, constrained decision history, and non-destructive seeds are complete and reviewed. Do not rerun this task; Task 3 now depends on these contracts.
 
 Model: GPT-5.5
 

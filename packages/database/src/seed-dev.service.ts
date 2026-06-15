@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { createDatabase, createDatabasePool } from "./database.service.js";
 import {
@@ -34,6 +34,50 @@ const projectItemLinkId = "00000000-0000-4000-8000-000000000023";
 const streamSessionId = "00000000-0000-4000-8000-000000000030";
 const overlayStateId = "00000000-0000-4000-8000-000000000031";
 const replaySessionId = "00000000-0000-4000-8000-000000000040";
+const actionItemSeeds = [
+  {
+    id: "00000000-0000-4000-8000-000000000050",
+    title: "Review first core data model",
+    description: "Inspect the generated migration before applying it to dev.",
+    category: "project",
+    decisionKind: "review",
+    priority: "normal",
+    status: "open",
+    streamRelevant: false,
+    liveSafe: false,
+    sourceType: "project",
+    sourceId: projectId,
+    sourceLabel: "Maiks.yt V2"
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000051",
+    title: "Review center alert",
+    description: "Approve a high-priority overlay alert before it can appear center screen.",
+    category: "overlay",
+    decisionKind: "approve-or-reject",
+    priority: "high",
+    status: "open",
+    streamRelevant: true,
+    liveSafe: true,
+    sourceType: "overlay",
+    sourceId: "main",
+    sourceLabel: "Main overlay"
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000052",
+    title: "Confirm next build stream",
+    description: "Review the draft stream plan before it is announced.",
+    category: "schedule",
+    decisionKind: "approve-or-reject",
+    priority: "normal",
+    status: "open",
+    streamRelevant: true,
+    liveSafe: false,
+    sourceType: "stream",
+    sourceId: streamSessionId,
+    sourceLabel: "Maiks.yt V2 build stream"
+  }
+] as const;
 
 await database.insert(users).values({
   id: creatorUserId,
@@ -274,24 +318,15 @@ if (existingReplayEvents.length === 0) {
   });
 }
 
-await database.insert(actionItems).values({
-  id: "00000000-0000-4000-8000-000000000050",
-  title: "Review first core data model",
-  description: "Inspect the generated migration before applying it to dev.",
-  status: "open",
-  urgency: "normal",
-  category: "development",
-  liveSafe: false,
-  payload: {
-    phase: "core-data-model"
-  },
-  createdByUserId: creatorUserId
-}).onDuplicateKeyUpdate({
-  set: {
-    status: "open",
-    urgency: "normal"
-  }
-});
+const existingActionItems = await database.select({ id: actionItems.id })
+  .from(actionItems)
+  .where(inArray(actionItems.id, actionItemSeeds.map(({ id }) => id)));
+const existingActionItemIds = new Set(existingActionItems.map(({ id }) => id));
+const missingActionItems = actionItemSeeds.filter(({ id }) => !existingActionItemIds.has(id));
+
+if (missingActionItems.length > 0) {
+  await database.insert(actionItems).values(missingActionItems);
+}
 
 await pool.end();
 

@@ -19,24 +19,26 @@ Finish the partially completed project areas before starting untouched feature g
 - Added public personal context, accountability/history, and affiliate disclosure page foundations.
 - Added typed Action Panel view and decision capabilities with owner wildcard support.
 - Added decision-kind-aware approve, reject, and defer transition rules with bounded optional notes.
+- Aligned Action Panel persistence with the domain contract while preserving legacy provenance fields.
+- Added constrained append-only Action Panel decision history and non-destructive development seeds.
 
 ## Current Task
 
-Add Action Panel persistence and append-only audit history while the real OBS check remains a parallel manual gate.
+Build the authorized Action Panel API while the real OBS check remains a parallel manual gate.
 
 ## Next Tasks
 
-1. Run Task 2 from `reports/next-agent-tasks.md`: Action Panel persistence and migration.
-2. Build the authorized Action Panel API after the domain and database contracts are stable.
-3. Replace the URL-demo Action Panel with the authenticated persistent UI.
-4. Run the remaining real OBS scene-switching check in parallel.
-5. Add Creator Hub destinations after Michael supplies approved URLs.
+1. Write and run the finalized Task 3 prompt for the authorized Action Panel API.
+2. Replace the URL-demo Action Panel with the authenticated persistent UI.
+3. Run the remaining real OBS scene-switching check in parallel.
+4. Add Creator Hub destinations after Michael supplies approved URLs.
 
 ## Known State
 
 - GPT-5.5 is the default model for implementation and review agents.
 - Latest completed Creator Hub commit: `35d9122`.
 - Action Panel Task 1 domain contracts are complete and reviewed.
+- Action Panel Task 2 persistence and migration are complete and reviewed.
 - Local and dev-server workflows use `main` mirrored to `dev`.
 - Dev services run on `codex-server-1` in container `maiks-yt-dev`.
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.

@@ -1,5 +1,7 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   index,
   int,
   json,
@@ -374,19 +376,103 @@ export const actionItems = mysqlTable(
   {
     id: varchar("id", { length: 36 }).primaryKey(),
     title: varchar("title", { length: 191 }).notNull(),
-    description: text("description"),
-    status: mysqlEnum("status", ["open", "approved", "rejected", "deferred", "resolved"]).notNull().default("open"),
-    urgency: mysqlEnum("urgency", ["low", "normal", "high", "critical"]).notNull().default("normal"),
-    category: varchar("category", { length: 80 }).notNull(),
+    description: text("description").notNull(),
+    category: mysqlEnum("category", [
+      "ai",
+      "donation",
+      "moderation",
+      "overlay",
+      "project",
+      "schedule",
+      "stream",
+      "sponsor",
+      "system"
+    ]).notNull(),
+    decisionKind: mysqlEnum("decision_kind", [
+      "approve",
+      "approve-or-reject",
+      "review",
+      "defer",
+      "acknowledge"
+    ]).notNull(),
+    priority: mysqlEnum("priority", ["low", "normal", "high", "urgent"]).notNull().default("normal"),
+    status: mysqlEnum("status", ["open", "approved", "rejected", "deferred", "completed"]).notNull().default("open"),
+    streamRelevant: boolean("stream_relevant").notNull().default(false),
     liveSafe: boolean("live_safe").notNull().default(false),
-    payload: json("payload").$type<Record<string, unknown>>().notNull(),
-    createdByUserId: varchar("created_by_user_id", { length: 36 }),
-    resolvedByUserId: varchar("resolved_by_user_id", { length: 36 }),
+    dueAt: timestamp("due_at"),
+    sourceType: mysqlEnum("source_type", [
+      "ai",
+      "donation",
+      "moderation",
+      "overlay",
+      "project",
+      "schedule",
+      "stream",
+      "sponsor",
+      "system"
+    ]),
+    sourceId: varchar("source_id", { length: 191 }),
+    sourceLabel: varchar("source_label", { length: 191 }),
+    legacyPayload: json("payload").$type<Record<string, unknown>>(),
+    legacyCreatedByUserId: varchar("created_by_user_id", { length: 36 }),
+    legacyResolvedByUserId: varchar("resolved_by_user_id", { length: 36 }),
+    legacyResolvedAt: timestamp("resolved_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
-    resolvedAt: timestamp("resolved_at"),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
   },
-  (table) => [index("action_items_status_idx").on(table.status), index("action_items_urgency_idx").on(table.urgency)]
+  (table) => [
+    index("action_items_status_priority_due_at_idx").on(table.status, table.priority, table.dueAt),
+    index("action_items_category_idx").on(table.category),
+    check(
+      "action_items_source_fields_check",
+      sql`(
+        (${table.sourceType} is null and ${table.sourceId} is null and ${table.sourceLabel} is null)
+        or
+        (${table.sourceType} is not null and ${table.sourceId} is not null and ${table.sourceLabel} is not null)
+      )`
+    )
+  ]
+);
+
+export const actionItemHistory = mysqlTable(
+  "action_item_history",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    actionId: varchar("action_id", { length: 36 }).notNull().references(() => actionItems.id),
+    decision: mysqlEnum("decision", ["approve", "reject", "defer"]).notNull(),
+    previousStatus: mysqlEnum("previous_status", ["open", "approved", "rejected", "deferred", "completed"]).notNull(),
+    newStatus: mysqlEnum("new_status", ["open", "approved", "rejected", "deferred", "completed"]).notNull(),
+    actorUserId: varchar("actor_user_id", { length: 36 }).notNull().references(() => users.id),
+    note: varchar("note", { length: 1000 }),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (table) => [
+    index("action_item_history_action_created_at_idx").on(table.actionId, table.createdAt),
+    index("action_item_history_created_at_idx").on(table.createdAt),
+    index("action_item_history_actor_user_id_idx").on(table.actorUserId),
+    check(
+      "action_item_history_transition_check",
+      sql`(
+        (
+          ${table.decision} = 'approve'
+          and ${table.previousStatus} in ('open', 'deferred')
+          and ${table.newStatus} = 'approved'
+        )
+        or
+        (
+          ${table.decision} = 'reject'
+          and ${table.previousStatus} in ('open', 'deferred')
+          and ${table.newStatus} = 'rejected'
+        )
+        or
+        (
+          ${table.decision} = 'defer'
+          and ${table.previousStatus} = 'open'
+          and ${table.newStatus} = 'deferred'
+        )
+      )`
+    )
+  ]
 );
 
 export const eventReplaySessions = mysqlTable("event_replay_sessions", {
