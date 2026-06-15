@@ -26,6 +26,7 @@ import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
+import { registerActionPanelRoutes } from "./actions/index.js";
 
 const config = createRuntimeConfig({
   environment: "development",
@@ -792,6 +793,11 @@ const getDomainLinkedAccounts = async (pool: DatabasePool, userId: string): Prom
     })
     : [];
 };
+
+registerActionPanelRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
 
 server.get("/health", async () => ({
   ok: true,

@@ -21,17 +21,18 @@ Finish the partially completed project areas before starting untouched feature g
 - Added decision-kind-aware approve, reject, and defer transition rules with bounded optional notes.
 - Aligned Action Panel persistence with the domain contract while preserving legacy provenance fields.
 - Added constrained append-only Action Panel decision history and non-destructive development seeds.
+- Added an authenticated Action Panel API with linked-domain-user authorization.
+- Added transactional decisions with permission revalidation, optimistic status checks, and append-only history.
 
 ## Current Task
 
-Build the authorized Action Panel API while the real OBS check remains a parallel manual gate.
+Replace the URL-demo Action Panel with the authenticated persistent UI while the real OBS check remains a parallel manual gate.
 
 ## Next Tasks
 
-1. Write and run the finalized Task 3 prompt for the authorized Action Panel API.
-2. Replace the URL-demo Action Panel with the authenticated persistent UI.
-3. Run the remaining real OBS scene-switching check in parallel.
-4. Add Creator Hub destinations after Michael supplies approved URLs.
+1. Write and run the finalized Task 4 prompt for the authenticated Action Panel UI.
+2. Run the remaining real OBS scene-switching check in parallel.
+3. Add Creator Hub destinations after Michael supplies approved URLs.
 
 ## Known State
 
@@ -39,6 +40,7 @@ Build the authorized Action Panel API while the real OBS check remains a paralle
 - Latest completed Creator Hub commit: `35d9122`.
 - Action Panel Task 1 domain contracts are complete and reviewed.
 - Action Panel Task 2 persistence and migration are complete and reviewed.
+- Action Panel Task 3 authorized API is complete and reviewed.
 - Local and dev-server workflows use `main` mirrored to `dev`.
 - Dev services run on `codex-server-1` in container `maiks-yt-dev`.
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.

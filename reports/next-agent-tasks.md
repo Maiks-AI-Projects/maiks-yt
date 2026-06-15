@@ -101,11 +101,11 @@ Reviewer gate:
 - Confirm seed idempotency.
 - Commit, deploy, and apply to the V2 dev database only after successful review.
 
-## Task 3: Authorized Action Panel API
+## Task 3: Authorized Action Panel API (Completed)
 
 Model: GPT-5.5
 
-Start only after Task 2 is committed and the migration is applied.
+The authenticated API, linked-domain-user authorization, transactional decisions, optimistic concurrency, and focused route tests are complete and reviewed. Do not rerun this task; Task 4 now depends on this API contract.
 
 Planned ownership:
 
