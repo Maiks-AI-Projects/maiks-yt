@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-14
+Updated: 2026-06-15
 
 ## Objective
 
@@ -15,6 +15,8 @@ Finish the partially completed project areas before starting untouched feature g
 - Verified overlay and scene-designer geometry at 1920x1080 and 1280x720 browser viewports.
 - Added canonical overlay scaling for non-16:9 browser-source viewports.
 - Chose one shared, always-loaded master overlay instead of separate preloaded scene overlays.
+- Centralized typed public Creator Hub links, including honest unavailable states for unpublished destinations.
+- Added public personal context, accountability/history, and affiliate disclosure page foundations.
 
 ## Current Task
 
@@ -23,14 +25,14 @@ Verify the shared master overlay's scene switching and hidden-source lifecycle i
 ## Next Tasks
 
 1. Run the remaining real OBS scene-switching check.
-2. Finish the existing Creator Hub/content gaps.
+2. Add approved social, support, and community destinations to the centralized Creator Hub links.
 3. Add action-panel permission and audit-history foundations.
 4. Run the full project checks and refresh the roadmap/checklist.
 
 ## Known State
 
 - GPT-5.5 is the default model for implementation and review agents.
-- Latest completed foundation commit: `3878f6e`.
+- Latest completed overlay verification commit: `8f9a206`.
 - Local and dev-server workflows use `main` mirrored to `dev`.
 - Dev services run on `codex-server-1` in container `maiks-yt-dev`.
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.
@@ -39,6 +41,7 @@ Verify the shared master overlay's scene switching and hidden-source lifecycle i
 ## Blockers And Decisions
 
 - OBS must verify one shared browser source with shutdown-when-hidden disabled does not show blank or stale frames during scene switches.
+- Creator Hub destination links still need Michael's approved Twitch, YouTube, Discord/community, and optional support URLs.
 - Production OAuth keys and other clean secrets will be created near final release.
 - Do not begin projects, scheduling, chat, AI, moderation, PWA, money, or backup feature phases until the current partial-area pass is reviewed.
 

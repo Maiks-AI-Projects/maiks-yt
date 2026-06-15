@@ -21,7 +21,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Decide when to initialize git.
 - [x] Make the first git commit a planning baseline.
 - [x] Use direct small commits on `main` during early solo development.
-- [ ] Start using branches once live, in serious testing, or making risky/long-running changes.
+- [x] Use branches for delegated, experimental, risky, or long-running work; keep reviewed early solo changes small on `main`.
 
 ## 2. Technical Foundation
 
@@ -172,9 +172,9 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add basic blog/update post model.
 - [ ] Add AI-assisted draft workflow.
 - [ ] Require approval before publishing AI-generated posts.
-- [ ] Add public personal context page.
-- [ ] Add public accountability/history page.
-- [ ] Add transparent affiliate pages.
+- [x] Add public personal context page.
+- [x] Add public accountability/history page.
+- [x] Add transparent affiliate pages.
 
 ## 10. Stream Scheduling
 
