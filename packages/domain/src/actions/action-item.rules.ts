@@ -1,4 +1,21 @@
-import type { ActionItem, ActionItemCategory, ActionItemPriority, ActionPanelContext } from "./action-item.types.js";
+import {
+  actionItemCategories,
+  actionItemDecisionNoteMaxLength,
+  actionPanelDecideCapability,
+  actionPanelViewCapability,
+  type ActionItem,
+  type ActionItemCategory,
+  type ActionItemDecision,
+  type ActionItemDecisionForKind,
+  type ActionItemDecisionInput,
+  type ActionItemDecisionKind,
+  type ActionItemDecisionTransition,
+  type ActionItemPriority,
+  type ActionItemStatus,
+  type ActionPanelCapability,
+  type ActionPanelCategoryDecisionCapability,
+  type ActionPanelContext
+} from "./action-item.types.js";
 
 const priorityWeight = {
   urgent: 400,
@@ -32,6 +49,117 @@ const offStreamCategoryWeight = {
 } satisfies Partial<Record<ActionItemCategory, number>>;
 
 const openStatuses = new Set<ActionItem["status"]>(["open", "deferred"]);
+const actionItemCategorySet = new Set<string>(actionItemCategories);
+const actionItemDecisions = new Set<string>(["approve", "reject", "defer"] satisfies ActionItemDecision[]);
+const terminalStatuses = new Set<ActionItemStatus>(["approved", "rejected", "completed"]);
+const categoryDecisionCapabilityPrefix = "action-panel:decide:" as const;
+const allowedActionItemDecisions: {
+  [DecisionKind in ActionItemDecisionKind]: readonly ActionItemDecisionForKind<DecisionKind>[];
+} = {
+  approve: ["approve", "defer"],
+  "approve-or-reject": ["approve", "reject", "defer"],
+  review: ["approve", "reject", "defer"],
+  defer: ["defer"],
+  acknowledge: []
+};
+
+const isActionItemCategory = (value: string): value is ActionItemCategory => actionItemCategorySet.has(value);
+
+const isActionItemDecision = (value: unknown): value is ActionItemDecision =>
+  typeof value === "string" && actionItemDecisions.has(value);
+
+export const getActionPanelCategoryDecisionCapability = (
+  category: ActionItemCategory
+): ActionPanelCategoryDecisionCapability => `${categoryDecisionCapabilityPrefix}${category}`;
+
+export const isActionPanelCapability = (value: unknown): value is ActionPanelCapability => {
+  if (value === "*" || value === actionPanelViewCapability || value === actionPanelDecideCapability) {
+    return true;
+  }
+
+  if (typeof value !== "string" || !value.startsWith(categoryDecisionCapabilityPrefix)) {
+    return false;
+  }
+
+  return isActionItemCategory(value.slice(categoryDecisionCapabilityPrefix.length));
+};
+
+export const canViewActionPanel = (capabilities: readonly unknown[]): boolean =>
+  capabilities.some((capability) => capability === "*" || capability === actionPanelViewCapability);
+
+export const isActionItemTerminalStatus = (status: ActionItemStatus): boolean => terminalStatuses.has(status);
+
+export const getAllowedActionItemDecisions = <DecisionKind extends ActionItemDecisionKind>(
+  decisionKind: DecisionKind
+): readonly ActionItemDecisionForKind<DecisionKind>[] => allowedActionItemDecisions[decisionKind];
+
+export const isActionItemDecisionAllowed = <DecisionKind extends ActionItemDecisionKind>(
+  decisionKind: DecisionKind,
+  decision: ActionItemDecision
+): decision is ActionItemDecisionForKind<DecisionKind> =>
+  (allowedActionItemDecisions[decisionKind] as readonly ActionItemDecision[]).includes(decision);
+
+export const canDecideActionItem = (
+  item: Pick<ActionItem, "category" | "decisionKind" | "status">,
+  capabilities: readonly unknown[]
+): boolean => {
+  if (isActionItemTerminalStatus(item.status)) {
+    return false;
+  }
+
+  const hasAvailableDecision = getAllowedActionItemDecisions(item.decisionKind)
+    .some((decision) => getActionItemDecisionTransition(item, decision) !== undefined);
+
+  if (!hasAvailableDecision) {
+    return false;
+  }
+
+  const categoryCapability = getActionPanelCategoryDecisionCapability(item.category);
+
+  return capabilities.some((capability) =>
+    capability === "*" || capability === actionPanelDecideCapability || capability === categoryCapability
+  );
+};
+
+export const isValidActionItemDecisionNote = (note: unknown): note is string =>
+  typeof note === "string" && note.length <= actionItemDecisionNoteMaxLength;
+
+export const isValidActionItemDecisionInput = (value: unknown): value is ActionItemDecisionInput => {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const input = value as { decision?: unknown; note?: unknown };
+  const hasNote = Object.prototype.hasOwnProperty.call(input, "note");
+
+  return isActionItemDecision(input.decision) && (!hasNote || isValidActionItemDecisionNote(input.note));
+};
+
+export const getActionItemDecisionTransition = <DecisionKind extends ActionItemDecisionKind>(
+  item: Pick<ActionItem, "decisionKind" | "status"> & { decisionKind: DecisionKind },
+  decision: ActionItemDecisionForKind<DecisionKind>
+): ActionItemDecisionTransition | undefined => {
+  if (!isActionItemDecisionAllowed(item.decisionKind, decision)) {
+    return undefined;
+  }
+
+  const resolvedDecision: ActionItemDecision = decision;
+  const previousStatus = item.status;
+
+  if (resolvedDecision === "defer") {
+    return previousStatus === "open"
+      ? { decision: resolvedDecision, previousStatus, newStatus: "deferred" }
+      : undefined;
+  }
+
+  if (previousStatus !== "open" && previousStatus !== "deferred") {
+    return undefined;
+  }
+
+  return resolvedDecision === "approve"
+    ? { decision: resolvedDecision, previousStatus, newStatus: "approved" }
+    : { decision: resolvedDecision, previousStatus, newStatus: "rejected" };
+};
 
 const getTimeValue = (value: string | undefined): number => {
   if (!value) {

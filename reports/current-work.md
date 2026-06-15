@@ -17,24 +17,26 @@ Finish the partially completed project areas before starting untouched feature g
 - Chose one shared, always-loaded master overlay instead of separate preloaded scene overlays.
 - Centralized typed public Creator Hub links, including honest unavailable states for unpublished destinations.
 - Added public personal context, accountability/history, and affiliate disclosure page foundations.
+- Added typed Action Panel view and decision capabilities with owner wildcard support.
+- Added decision-kind-aware approve, reject, and defer transition rules with bounded optional notes.
 
 ## Current Task
 
-Finish Action Panel role-aware permissions and append-only audit history while the real OBS check remains a parallel manual gate.
+Add Action Panel persistence and append-only audit history while the real OBS check remains a parallel manual gate.
 
 ## Next Tasks
 
-1. Run Task 1 from `reports/next-agent-tasks.md`: Action Panel domain permissions.
-2. Review and commit Task 1, then run Task 2: Action Panel persistence and migration.
-3. Build the authorized Action Panel API after the domain and database contracts are stable.
-4. Replace the URL-demo Action Panel with the authenticated persistent UI.
-5. Run the remaining real OBS scene-switching check in parallel.
-6. Add Creator Hub destinations after Michael supplies approved URLs.
+1. Run Task 2 from `reports/next-agent-tasks.md`: Action Panel persistence and migration.
+2. Build the authorized Action Panel API after the domain and database contracts are stable.
+3. Replace the URL-demo Action Panel with the authenticated persistent UI.
+4. Run the remaining real OBS scene-switching check in parallel.
+5. Add Creator Hub destinations after Michael supplies approved URLs.
 
 ## Known State
 
 - GPT-5.5 is the default model for implementation and review agents.
 - Latest completed Creator Hub commit: `35d9122`.
+- Action Panel Task 1 domain contracts are complete and reviewed.
 - Local and dev-server workflows use `main` mirrored to `dev`.
 - Dev services run on `codex-server-1` in container `maiks-yt-dev`.
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.

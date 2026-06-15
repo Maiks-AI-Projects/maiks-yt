@@ -6,7 +6,9 @@ These tasks finish the existing Action Panel partial area without beginning the 
 
 Run them in order. The coordinator reviews and commits after each task. Do not assign overlapping workers to these tasks because later tasks depend on earlier contracts and migrations.
 
-## Task 1: Action Panel Domain Permissions
+## Task 1: Action Panel Domain Permissions (Completed)
+
+The typed permission and transition foundation is complete and reviewed. Do not rerun this task; Task 2 now depends on these contracts.
 
 Model: GPT-5.5
 
