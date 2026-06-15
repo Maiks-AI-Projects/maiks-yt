@@ -7,9 +7,10 @@ This repository is a TypeScript monorepo for the Maiks.yt website, stream overla
 Read only what the task needs:
 
 1. `reports/current-work.md`
-2. the task-specific files named by the coordinator
-3. the relevant section of `TODO.md`
-4. one or two linked idea cards when product intent is needed
+2. `reports/next-agent-tasks.md` when it exists and applies
+3. the task-specific files named by the coordinator
+4. the relevant section of `TODO.md`
+5. one or two linked idea cards when product intent is needed
 
 Do not load the full `ideas/` folder or the full project history.
 

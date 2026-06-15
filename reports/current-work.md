@@ -20,28 +20,33 @@ Finish the partially completed project areas before starting untouched feature g
 
 ## Current Task
 
-Verify the shared master overlay's scene switching and hidden-source lifecycle in real OBS.
+Finish Action Panel role-aware permissions and append-only audit history while the real OBS check remains a parallel manual gate.
 
 ## Next Tasks
 
-1. Run the remaining real OBS scene-switching check.
-2. Add approved social, support, and community destinations to the centralized Creator Hub links.
-3. Add action-panel permission and audit-history foundations.
-4. Run the full project checks and refresh the roadmap/checklist.
+1. Run Task 1 from `reports/next-agent-tasks.md`: Action Panel domain permissions.
+2. Review and commit Task 1, then run Task 2: Action Panel persistence and migration.
+3. Build the authorized Action Panel API after the domain and database contracts are stable.
+4. Replace the URL-demo Action Panel with the authenticated persistent UI.
+5. Run the remaining real OBS scene-switching check in parallel.
+6. Add Creator Hub destinations after Michael supplies approved URLs.
 
 ## Known State
 
 - GPT-5.5 is the default model for implementation and review agents.
-- Latest completed overlay verification commit: `8f9a206`.
+- Latest completed Creator Hub commit: `35d9122`.
 - Local and dev-server workflows use `main` mirrored to `dev`.
 - Dev services run on `codex-server-1` in container `maiks-yt-dev`.
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.
 - WebSocket is the primary realtime transport; SSE remains a fallback option.
+- The next worker prompts and reviewer gates are in `reports/next-agent-tasks.md`.
 
 ## Blockers And Decisions
 
 - OBS must verify one shared browser source with shutdown-when-hidden disabled does not show blank or stale frames during scene switches.
 - Creator Hub destination links still need Michael's approved Twitch, YouTube, Discord/community, and optional support URLs.
+- Reject and defer notes default to optional with a 1,000-character limit.
+- Production owner-account mapping must be explicit; never auto-promote the first login.
 - Production OAuth keys and other clean secrets will be created near final release.
 - Do not begin projects, scheduling, chat, AI, moderation, PWA, money, or backup feature phases until the current partial-area pass is reviewed.
 
