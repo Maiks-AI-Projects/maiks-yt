@@ -133,6 +133,7 @@ const AccountPanel = (): React.ReactNode => {
   const [domainSnapshot, setDomainSnapshot] = useState<DomainAccountSnapshot | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncingDomain, setSyncingDomain] = useState<boolean>(false);
+  const [claimingDevOwner, setClaimingDevOwner] = useState<boolean>(false);
   const [busyLinkedAccountId, setBusyLinkedAccountId] = useState<string | null>(null);
   const [busyProvider, setBusyProvider] = useState<OAuthProviderId | null>(null);
   const [savingProfileVisibility, setSavingProfileVisibility] = useState<boolean>(false);
@@ -216,6 +217,39 @@ const AccountPanel = (): React.ReactNode => {
       setMessage(error instanceof Error ? error.message : "Domain sync failed.");
     } finally {
       setSyncingDomain(false);
+    }
+  };
+
+  const claimDevOwnerRole = async (): Promise<void> => {
+    setClaimingDevOwner(true);
+    setMessage("Claiming dev owner role...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/identity/dev/claim-owner`, {
+        method: "POST",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify({
+          confirm: "claim-dev-owner"
+        })
+      });
+
+      if (response.status === 403) {
+        throw new Error("This signed-in email is not listed in DEV_OWNER_EMAILS.");
+      }
+
+      if (!response.ok) {
+        throw new Error(`Dev owner claim failed with ${response.status}`);
+      }
+
+      await loadAccount();
+      setMessage("Dev owner role claimed. The Action Panel should now be available.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Dev owner claim failed.");
+    } finally {
+      setClaimingDevOwner(false);
     }
   };
 
@@ -388,6 +422,14 @@ const AccountPanel = (): React.ReactNode => {
                 disabled={syncingDomain}
               >
                 {syncingDomain ? "Syncing..." : "Sync domain accounts"}
+              </button>
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => void claimDevOwnerRole()}
+                disabled={claimingDevOwner}
+              >
+                {claimingDevOwner ? "Claiming..." : "Claim dev owner"}
               </button>
             </div>
             {domainSnapshot?.ok ? (

@@ -35,6 +35,8 @@ This keeps the tools cheap and web-based while making them feel more like dedica
 - web app manifest
 - installable icon set
 - standalone display mode
+- dedicated `/tools/*` routes without the normal website navbar/header
+- normal website fallback links for logged-in use when an installed app is not available
 - route-aware app names or separate manifests if needed
 - service worker strategy
 - safe cache rules that do not store private chat, moderation logs, OAuth responses, or money data
@@ -58,6 +60,8 @@ Each surface should have a clear first screen:
 - streamer chat opens to unified chat
 - notifications opens to live notification queue/status
 - action panel opens to pending approvals
+
+The main website can still link to these tools as a backup, but those links should open the same efficient tool route or a website-wrapped fallback. The dedicated streamer tool windows should avoid navbars and other site chrome that steals screen space from the actual stream operation task.
 
 ## Open Questions
 

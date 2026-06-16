@@ -25,6 +25,8 @@ Finish the partially completed project areas before starting untouched feature g
 - Added transactional decisions with permission revalidation, optimistic status checks, and append-only history.
 - Replaced the URL-demo Action Panel with authenticated persistent API decisions.
 - Added recent Action Panel decision history, signed-out/forbidden/stale states, and server-provided decision controls.
+- Added a dev-only explicit owner-role claim path for approved test emails so the real creator account can access owner-gated tools.
+- Added the standalone `/tools/actions` Action Panel route without normal website navigation.
 
 ## Current Task
 
@@ -55,8 +57,10 @@ Run the remaining real OBS scene-switching check while Creator Hub destination l
 - Creator Hub destination links still need Michael's approved Twitch, YouTube, Discord/community, and optional support URLs.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
+- Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Do not begin projects, scheduling, chat, AI, moderation, PWA, money, or backup feature phases until the current partial-area pass is reviewed.
+- Full PWA installability is not started yet; the route/app-shell foundation is in place for streamer tool surfaces.
+- Do not begin projects, scheduling, chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
 
 ## Working Tree
 

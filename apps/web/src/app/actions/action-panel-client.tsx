@@ -67,6 +67,8 @@ type ActionPanelDecisionResponse = ActionPanelDecisionSuccess | ActionPanelFailu
 type LoadState = "loading" | "ready" | "signed-out" | "unlinked" | "forbidden" | "failed";
 
 type ActionPanelClientProps = {
+  compact?: boolean;
+  hrefBase?: "/actions" | "/tools/actions";
   liveMode: boolean;
 };
 
@@ -94,7 +96,8 @@ const actionDecisionPastLabels = {
 
 const actionDecisionOrder = ["approve", "defer", "reject"] satisfies ActionItemDecision[];
 
-const getLiveModeHref = (liveMode: boolean): string => liveMode ? "/actions" : "/actions?live=1";
+const getLiveModeHref = (hrefBase: ActionPanelClientProps["hrefBase"], liveMode: boolean): string =>
+  liveMode ? hrefBase ?? "/actions" : `${hrefBase ?? "/actions"}?live=1`;
 
 const formatDateTime = (value: string): string => {
   const date = new Date(value);
@@ -158,7 +161,11 @@ const parseActionPanelResponse = async <ResponseBody,>(response: Response): Prom
   }
 };
 
-const ActionPanelClient = ({ liveMode }: ActionPanelClientProps): React.ReactNode => {
+const ActionPanelClient = ({
+  compact = false,
+  hrefBase = "/actions",
+  liveMode
+}: ActionPanelClientProps): React.ReactNode => {
   const [panel, setPanel] = useState<ActionPanelListSuccess | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading Action Panel...");
@@ -305,11 +312,13 @@ const ActionPanelClient = ({ liveMode }: ActionPanelClientProps): React.ReactNod
 
   return (
     <>
-      <header className="links-header">
-        <p className="eyebrow">Action Panel</p>
-        <h1>Approval Inbox</h1>
-        <p>Review urgent stream-safe actions separately from slower admin work.</p>
-      </header>
+      {compact ? null : (
+        <header className="links-header">
+          <p className="eyebrow">Action Panel</p>
+          <h1>Approval Inbox</h1>
+          <p>Review urgent stream-safe actions separately from slower admin work.</p>
+        </header>
+      )}
       <section className="action-panel" aria-labelledby="action-panel-title">
         <div className="action-panel-toolbar">
           <div>
@@ -319,7 +328,7 @@ const ActionPanelClient = ({ liveMode }: ActionPanelClientProps): React.ReactNod
           <div className="action-toolbar-controls">
             <a
               className={`button-link secondary-action action-live-toggle ${liveMode ? "enabled" : ""}`}
-              href={getLiveModeHref(liveMode)}
+              href={getLiveModeHref(hrefBase, liveMode)}
               aria-current={liveMode ? "page" : undefined}
             >
               {liveMode ? "Live-safe view on" : "Live-safe view off"}

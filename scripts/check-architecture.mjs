@@ -25,6 +25,7 @@ const allowedSuffixes = [
   ".d.ts",
   "index.ts",
   "main.ts",
+  "proxy.ts",
   "route.ts",
   "vite-env.d.ts"
 ];

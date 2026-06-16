@@ -11,6 +11,11 @@ body {
   margin: 0;
 }
 
+.tool-surface-body {
+  background: #edf1f5;
+  min-height: 100vh;
+}
+
 a {
   color: inherit;
 }
@@ -56,6 +61,12 @@ a {
 main {
   padding: 2rem;
   max-width: 48rem;
+}
+
+.tool-surface-page {
+  min-height: 100vh;
+  max-width: none;
+  padding: 1rem;
 }
 
 section {
@@ -864,6 +875,14 @@ button:disabled {
   display: grid;
   gap: 1.25rem;
   max-width: 64rem;
+}
+
+.tool-surface-page.actions-page {
+  max-width: none;
+}
+
+.tool-surface-page .action-panel {
+  max-width: none;
 }
 
 .action-panel-toolbar {

@@ -241,6 +241,8 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 14A. Installable Stream Tools
 
+- [x] Add standalone tool route foundation without normal website navigation.
+- [x] Add standalone Action Panel route.
 - [ ] Add PWA manifest and icon set.
 - [ ] Make control panel installable.
 - [ ] Make streamer chat installable.

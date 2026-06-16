@@ -81,6 +81,9 @@ const allowLoginRequestSchema = z.object({
 const profileVisibilityRequestSchema = z.object({
   profileVisibility: z.enum(["private", "minimal", "public"])
 });
+const devOwnerClaimRequestSchema = z.object({
+  confirm: z.literal("claim-dev-owner")
+});
 const overlaySceneKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/);
 const overlayThemeKeySchema = z.enum(["default", "satisfactory"]);
 const overlayStateRequestSchema = z.object({
@@ -794,6 +797,22 @@ const getDomainLinkedAccounts = async (pool: DatabasePool, userId: string): Prom
     : [];
 };
 
+const getDevOwnerEmailAllowlist = (): Set<string> =>
+  new Set((process.env.DEV_OWNER_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter((email) => email.length > 0));
+
+const isDevOwnerClaimAllowed = (session: NonNullable<AuthSessionSnapshot>): boolean => {
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+
+  const email = session.user.email?.trim().toLowerCase();
+
+  return Boolean(email && getDevOwnerEmailAllowlist().has(email));
+};
+
 registerActionPanelRoutes(server, {
   getAuthSession,
   getDatabasePool
@@ -893,6 +912,83 @@ server.get("/identity/dev/creator", async (_request, reply) => {
     return {
       ok: false,
       reason: "identity_unavailable"
+    };
+  }
+});
+
+server.post("/identity/dev/claim-owner", async (request, reply) => {
+  const session = await getAuthSession(request);
+
+  if (!session) {
+    reply.code(401);
+    return {
+      ok: false,
+      reason: "not_authenticated"
+    };
+  }
+
+  if (!isDevOwnerClaimAllowed(session)) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: "dev_owner_email_not_allowed"
+    };
+  }
+
+  const parsedRequest = devOwnerClaimRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_owner_claim_request"
+    };
+  }
+
+  try {
+    const pool = getDatabasePool();
+    const { user } = await getDomainUserForAuthUser(pool, session.user, true);
+
+    if (!user) {
+      reply.code(500);
+      return {
+        ok: false,
+        reason: "domain_user_not_created"
+      };
+    }
+
+    const [ownerRoleRows] = await pool.execute(
+      "SELECT id FROM roles WHERE `key` = 'owner' LIMIT 1"
+    );
+    const ownerRole = Array.isArray(ownerRoleRows)
+      ? ownerRoleRows[0] as { id: string } | undefined
+      : undefined;
+
+    if (!ownerRole) {
+      reply.code(404);
+      return {
+        ok: false,
+        reason: "owner_role_not_seeded"
+      };
+    }
+
+    await pool.execute(
+      "INSERT IGNORE INTO user_roles (id, user_id, role_id) VALUES (?, ?, ?)",
+      [randomUUID(), user.id, ownerRole.id]
+    );
+
+    return {
+      ok: true,
+      domainUser: user,
+      role: "owner"
+    };
+  } catch (error) {
+    server.log.warn({ err: error }, "Dev owner claim failed.");
+    reply.code(503);
+
+    return {
+      ok: false,
+      reason: "dev_owner_claim_unavailable"
     };
   }
 });
