@@ -222,9 +222,9 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Build action panel page.
 - [x] Sort by urgency, stream relevance, and category.
 - [x] Separate live-safe actions from off-stream admin tasks.
-- [ ] Add role-aware approval permissions.
+- [x] Add role-aware approval permissions.
 - [x] Add approve/reject/defer behavior.
-- [ ] Add audit history.
+- [x] Add audit history.
 
 ## 14. Safety and Moderation
 

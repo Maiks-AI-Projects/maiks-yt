@@ -123,11 +123,11 @@ Required behavior:
 
 The coordinator should write the final worker prompt after reviewing Tasks 1 and 2 so it references the actual contracts.
 
-## Task 4: Authenticated Action Panel UI
+## Task 4: Authenticated Action Panel UI (Completed)
 
 Model: GPT-5.5
 
-Start only after Task 3 is committed.
+The URL-demo Action Panel has been replaced with authenticated API calls, persistent decisions, capability-aware controls, recent history, and signed-out/forbidden/stale/failure states. Do not rerun this task.
 
 Planned ownership:
 
