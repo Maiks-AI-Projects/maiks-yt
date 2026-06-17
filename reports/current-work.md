@@ -33,11 +33,12 @@ Finish the partially completed project areas before starting untouched feature g
 
 ## Current Task
 
-Add the remaining Creator Hub support destination after Michael creates or approves it.
+Prepare manual owner/admin content tools so projects, links, and other public content can be maintained without seed-file edits before AI-assisted workflows are added.
 
 ## Next Tasks
 
-1. Add the remaining Creator Hub support destination after Michael creates or approves it.
+1. Build the manual owner/admin project-management slice.
+2. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
 
@@ -64,7 +65,8 @@ Add the remaining Creator Hub support destination after Michael creates or appro
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
 - Full PWA installability is not started yet; the route/app-shell foundation is in place for streamer tool surfaces.
-- Do not begin projects, scheduling, chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
+- Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
+- Do not begin scheduling, full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
 
 ## Working Tree
 

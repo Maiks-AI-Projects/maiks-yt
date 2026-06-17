@@ -178,6 +178,16 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add public accountability/history page.
 - [x] Add transparent affiliate pages.
 
+## 9A. Manual Admin Content Tools
+
+- [ ] Build admin shell for owner-only content management.
+- [ ] Build project admin create/edit pages.
+- [ ] Build milestone admin create/edit/reorder controls.
+- [ ] Build non-monetary project item admin create/edit/reorder controls.
+- [ ] Build Creator Hub link admin create/edit/reorder controls.
+- [ ] Add preview-before-publish behavior for public content changes.
+- [ ] Keep AI assistance draft-only until manual admin workflows exist.
+
 ## 10. Stream Scheduling
 
 - [ ] Build stream schedule model.
