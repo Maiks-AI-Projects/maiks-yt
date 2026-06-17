@@ -89,10 +89,10 @@ This is the working checklist. We should work down it in order unless a new idea
 
 ## 5. Projects and Milestones
 
-- [ ] Build basic project list.
-- [ ] Build project detail page.
-- [ ] Support project categories.
-- [ ] Support non-monetary milestones.
+- [x] Build basic project list.
+- [x] Build project detail page.
+- [x] Support project categories.
+- [x] Support non-monetary milestones.
 - [ ] Support project updates.
 - [ ] Support linking stream sessions to projects.
 - [ ] Add active project/stream focus display.

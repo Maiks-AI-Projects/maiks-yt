@@ -31,6 +31,12 @@ const projectId = "00000000-0000-4000-8000-000000000020";
 const milestoneId = "00000000-0000-4000-8000-000000000021";
 const projectItemId = "00000000-0000-4000-8000-000000000022";
 const projectItemLinkId = "00000000-0000-4000-8000-000000000023";
+const overlayThemeProjectId = "00000000-0000-4000-8000-000000000070";
+const overlayThemeMilestoneId = "00000000-0000-4000-8000-000000000071";
+const overlayThemeItemId = "00000000-0000-4000-8000-000000000072";
+const communityProjectId = "00000000-0000-4000-8000-000000000080";
+const communityMilestoneId = "00000000-0000-4000-8000-000000000081";
+const communityItemId = "00000000-0000-4000-8000-000000000082";
 const streamSessionId = "00000000-0000-4000-8000-000000000030";
 const overlayStateId = "00000000-0000-4000-8000-000000000031";
 const replaySessionId = "00000000-0000-4000-8000-000000000040";
@@ -190,6 +196,86 @@ await database.insert(projectItemLinks).values({
   set: {
     url: "https://web-dev.maiks.yt/",
     label: "Dev site"
+  }
+});
+
+await database.insert(projects).values([
+  {
+    id: overlayThemeProjectId,
+    slug: "overlay-theme-refresh",
+    title: "Overlay Theme Refresh",
+    summary: "Prepare a cleaner visual pass for stream overlays without adding new alert behavior.",
+    type: "multi-item-build",
+    category: "stream-infrastructure",
+    status: "planning",
+    isPublic: true,
+    createdByUserId: creatorUserId
+  },
+  {
+    id: communityProjectId,
+    slug: "community-onboarding-notes",
+    title: "Community Onboarding Notes",
+    summary: "Collect low-pressure public notes that explain how to join and what to expect.",
+    type: "milestone-only",
+    category: "community",
+    status: "active",
+    isPublic: true,
+    createdByUserId: creatorUserId
+  }
+]).onDuplicateKeyUpdate({
+  set: {
+    isPublic: true
+  }
+});
+
+await database.insert(projectMilestones).values([
+  {
+    id: overlayThemeMilestoneId,
+    projectId: overlayThemeProjectId,
+    title: "Pick the first overlay polish targets",
+    description: "Choose which visible overlay pieces need a design cleanup before adding new systems.",
+    status: "planned",
+    sortOrder: 1
+  },
+  {
+    id: communityMilestoneId,
+    projectId: communityProjectId,
+    title: "Publish a simple community expectation draft",
+    description: "Keep the first version friendly, clear, and easy to revise.",
+    status: "active",
+    sortOrder: 1
+  }
+]).onDuplicateKeyUpdate({
+  set: {
+    sortOrder: 1
+  }
+});
+
+await database.insert(projectItems).values([
+  {
+    id: overlayThemeItemId,
+    projectId: overlayThemeProjectId,
+    title: "Inventory current overlay visual rough edges",
+    description: "A checklist item for the next overlay polish pass.",
+    kind: "task",
+    status: "planned",
+    quantity: 1,
+    sortOrder: 1
+  },
+  {
+    id: communityItemId,
+    projectId: communityProjectId,
+    title: "Draft community link context",
+    description: "Short public copy for Discord/community links, without moderation tooling yet.",
+    kind: "task",
+    status: "active",
+    quantity: 1,
+    sortOrder: 1
+  }
+]).onDuplicateKeyUpdate({
+  set: {
+    quantity: 1,
+    sortOrder: 1
   }
 });
 

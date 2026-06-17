@@ -27,6 +27,7 @@ import { z } from "zod";
 
 import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
 import { registerActionPanelRoutes } from "./actions/index.js";
+import { registerProjectReadRoutes } from "./projects/index.js";
 
 const config = createRuntimeConfig({
   environment: "development",
@@ -815,6 +816,9 @@ const isDevOwnerClaimAllowed = (session: NonNullable<AuthSessionSnapshot>): bool
 
 registerActionPanelRoutes(server, {
   getAuthSession,
+  getDatabasePool
+});
+registerProjectReadRoutes(server, {
   getDatabasePool
 });
 

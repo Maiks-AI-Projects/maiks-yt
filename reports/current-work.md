@@ -29,6 +29,7 @@ Finish the partially completed project areas before starting untouched feature g
 - Added the standalone `/tools/actions` Action Panel route without normal website navigation.
 - Verified the shared OBS browser source scene-switching behavior with shutdown-when-hidden disabled; chat overlay behavior remains unverified because live/test chat input was unavailable.
 - Added approved Creator Hub Twitch, YouTube, and Discord/community destination links for the dev site.
+- Added the first read-only Projects vertical slice with public project list/detail pages, public API endpoints, domain read-model helpers, and non-monetary dev seeds.
 
 ## Current Task
 
@@ -46,6 +47,7 @@ Add the remaining Creator Hub support destination after Michael creates or appro
 - Action Panel Task 2 persistence and migration are complete and reviewed.
 - Action Panel Task 3 authorized API is complete and reviewed.
 - Action Panel Task 4 authenticated UI is complete and reviewed.
+- Projects Chunk 1 is implemented and coordinator-reviewed as a read-only public slice.
 - Local and dev-server workflows use `main` mirrored to `dev`.
 - Dev services run on `codex-server-1` in container `maiks-yt-dev`.
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.

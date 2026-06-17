@@ -5,6 +5,7 @@ export type CreatorLinkPurpose =
   | "community"
   | "context"
   | "feed"
+  | "project"
   | "social"
   | "stream"
   | "support"
@@ -18,6 +19,7 @@ export type CreatorLinkIcon =
   | "context"
   | "discord"
   | "feed"
+  | "project"
   | "social"
   | "stream"
   | "support"
@@ -52,6 +54,7 @@ export const creatorLinkPurposeLabels = {
   community: "Community",
   context: "Context",
   feed: "Feed",
+  project: "Project",
   social: "Social",
   stream: "Stream",
   support: "Support",
@@ -67,6 +70,14 @@ export const publicCreatorLinks: readonly CreatorLink[] = [
     availability: "available",
     href: "/",
     isPrimary: true
+  },
+  {
+    title: "Projects",
+    description: "Public read-only project plans, milestones, and non-monetary work items.",
+    purpose: "project",
+    icon: "project",
+    availability: "available",
+    href: "/projects"
   },
   {
     title: "Twitch",
