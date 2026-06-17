@@ -1,164 +1,201 @@
 # Next Agent Tasks
 
-Updated: 2026-06-15
+Updated: 2026-06-17
 
-These tasks finish the existing Action Panel partial area without beginning the broader Safety and Moderation phase.
+Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
-Run them in order. The coordinator reviews and commits after each task. Do not assign overlapping workers to these tasks because later tasks depend on earlier contracts and migrations.
+The coordinator reviews, tests, commits, pushes, mirrors `main` to `dev`, and verifies public dev after each accepted chunk.
 
-## Task 1: Action Panel Domain Permissions (Completed)
+## Current Blocked/Manual Items
 
-The typed permission and transition foundation is complete and reviewed. Do not rerun this task; Task 2 now depends on these contracts.
+- Creator Hub support destination is blocked until Michael creates or approves the support URL and wording.
+- Chat overlay behavior still needs verification with live or test chat input. Do not build the broader chat system from this queue.
+
+## Chunk 1: Read-Only Projects Vertical Slice
 
 Model: GPT-5.5
 
 Prompt:
 
 ```text
-Read AGENTS.md, reports/current-work.md, and reports/next-agent-tasks.md.
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 5, and the project-related files needed for this task.
 
 Task:
-Add the typed domain permission and decision-transition foundation for the Action Panel.
+Build the first read-only Projects and Milestones vertical slice end to end.
 
-You own only:
-- packages/domain/src/actions/action-item.types.ts
-- packages/domain/src/actions/action-item.rules.ts
-- packages/domain/src/actions/index.ts
-- packages/domain/test/action-item.rules.test.ts
-
-Acceptance criteria:
-- Define typed capabilities for action-panel viewing, general decisions, and category-scoped decisions.
-- Preserve "*" as the existing owner wildcard.
-- Add pure rules for viewing, deciding, and valid action-status transitions.
-- Terminal items cannot be decided again.
-- Approve, reject, and defer transitions are explicit and type-safe.
-- Optional decision notes are allowed and capped at 1,000 characters.
-- Add focused tests for owner wildcard, broad permission, category permission, denial, malformed permissions, defer, and terminal states.
-- Do not add moderator roles, role-management UI, strikes, bans, money actions, database changes, API routes, or web UI.
-
-Run:
-- corepack pnpm --filter @maiks-yt/domain test
-- corepack pnpm --filter @maiks-yt/domain typecheck
-- node scripts/check-architecture.mjs
-
-Do not commit, push, deploy, or edit files outside your ownership.
-Report changed files, checks, and unresolved concerns.
-```
-
-Reviewer gate:
-
-- Review permission naming and transition semantics.
-- Confirm no broader moderation or money behavior was introduced.
-- Run domain tests and architecture check.
-- Commit and deploy before Task 2.
-
-## Task 2: Action Panel Persistence (Completed)
-
-The Action Panel schema, legacy-safe migration, constrained decision history, and non-destructive seeds are complete and reviewed. Do not rerun this task; Task 3 now depends on these contracts.
-
-Model: GPT-5.5
-
-Start only after Task 1 is committed.
-
-Prompt:
-
-```text
-Read AGENTS.md, reports/current-work.md, and reports/next-agent-tasks.md.
-
-Task:
-Align Action Panel persistence with the domain contract and add append-only decision history.
-
-You own only:
-- packages/database/src/database.schema.ts
+You may edit:
+- packages/domain/src/projects/
+- packages/domain/test/project-read-model.rules.test.ts
 - packages/database/src/seed-dev.service.ts
-- the newly generated packages/database/drizzle/0007_*.sql
-- packages/database/drizzle/meta/0007_snapshot.json
-- packages/database/drizzle/meta/_journal.json
+- ideas/data/project-seed-notes.md
+- apps/api/src/projects/
+- focused route registration in apps/api/src/main.ts
+- apps/api/test/projects/project-read-api.test.ts
+- apps/web/src/app/projects/
+- project-specific styles in apps/web/src/app/globals.css
+- apps/web/src/content/public-creator-links-data.ts if adding a Creator Hub Projects link
+- TODO.md
+- reports/current-work.md
 
 Acceptance criteria:
-- Align action_items priority, status, category, decision kind, stream relevance, live safety, due date, and optional source fields with the domain contract.
-- Safely normalize existing legacy values before tightening database enums or constraints.
-- Add append-only action_item_history containing action ID, decision, previous status, new status, actor domain-user ID, optional note, and timestamp.
-- Add indexes needed for action lookup and recent history.
-- Seed only non-money, non-moderation Action Panel examples.
-- Rerunning the seed must never reopen or overwrite a previously decided action.
-- Do not add API routes, UI, moderator roles, role-management behavior, strikes, bans, or money actions.
+- Add typed read models/helpers for project summaries and project detail pages.
+- Seed a small idempotent set of public dev projects across useful categories.
+- Add public read-only API endpoints:
+  - GET /projects
+  - GET /projects/:slug
+- Add public web pages:
+  - /projects
+  - /projects/[slug]
+- Render category, status, summary, milestones, and non-monetary project items.
+- Keep private/unavailable projects out of public responses.
+- Include stable empty/error states.
+- Add focused tests for public filtering and ordering at the domain/API level.
+- Update TODO/current-work only for things actually completed.
+- Do not add donations, credits, ledgers, payouts, support calls to action, money progress bars, wishlist provider calls, scheduling sync, auth changes, migrations, moderation, or AI behavior.
+- If the existing database schema is insufficient, stop and report the specific missing schema instead of adding a migration.
 
-Run:
-- corepack pnpm --filter @maiks-yt/database typecheck
-- corepack pnpm --filter @maiks-yt/database db:generate
+Run once near the end:
+- corepack pnpm --filter @maiks-yt/domain test
+- corepack pnpm --filter @maiks-yt/api test
+- corepack pnpm --filter @maiks-yt/web typecheck
+- corepack pnpm --filter @maiks-yt/web build
 - node scripts/check-architecture.mjs
 
-Do not apply the migration to the shared dev database.
-Do not commit, push, deploy, or edit files outside your ownership.
-Report changed files, migration behavior, checks, and unresolved concerns.
+Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
+Report changed files, checks run, any skipped checks, and unresolved concerns.
 ```
 
 Reviewer gate:
 
-- Carefully review generated SQL.
-- Test migration on a disposable clean database and a disposable database containing legacy Action Panel values.
-- Confirm seed idempotency.
-- Commit, deploy, and apply to the V2 dev database only after successful review.
+- Review the whole vertical slice as one PR.
+- Confirm no money/support/donation behavior leaked in.
+- Confirm API and web routes work locally/public dev after deployment.
+- Apply dev seed only after review succeeds.
 
-## Task 3: Authorized Action Panel API (Completed)
-
-Model: GPT-5.5
-
-The authenticated API, linked-domain-user authorization, transactional decisions, optimistic concurrency, and focused route tests are complete and reviewed. Do not rerun this task; Task 4 now depends on this API contract.
-
-Planned ownership:
-
-- `apps/api/src/actions/`
-- focused Action Panel route registration in `apps/api/src/main.ts`
-- focused API tests
-
-Required behavior:
-
-- Resolve the authenticated session to the linked domain user and role permissions.
-- `GET /actions` returns active items, recent history, and per-item decision capability.
-- `POST /actions/:id/decision` performs permission check, transition validation, optimistic concurrency, item update, and history insertion in one transaction.
-- Return `401`, `403`, `404`, and `409` for the appropriate cases.
-- Test owner wildcard, category permission, denial, stale decisions, terminal items, transaction rollback, and actor identity.
-
-The coordinator should write the final worker prompt after reviewing Tasks 1 and 2 so it references the actual contracts.
-
-## Task 4: Authenticated Action Panel UI (Completed)
+## Chunk 2: Stream Tools PWA Foundation
 
 Model: GPT-5.5
 
-The URL-demo Action Panel has been replaced with authenticated API calls, persistent decisions, capability-aware controls, recent history, and signed-out/forbidden/stale/failure states. Do not rerun this task.
+Start only after Chunk 1 is reviewed and committed, unless the coordinator explicitly skips projects.
 
-Planned ownership:
+Prompt:
 
-- `apps/web/src/app/actions/`
-- Action Panel-specific styles in `apps/web/src/app/globals.css`
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 14A, and ideas/installable-pwa-control-surfaces.md.
 
-Required behavior:
+Task:
+Add the first installable PWA foundation for streamer tool surfaces.
 
-- Replace the current `action=` URL demo mutation with authenticated API calls.
-- Keep `live=1` only as a bookmarkable view filter.
-- Show loading, signed-out, forbidden, empty, stale-decision, and failure states.
-- Display recent decision history.
-- Hide or disable controls based on server-provided capability.
-- Verify decision persistence after refresh on desktop and mobile.
+You may edit:
+- apps/web/src/app/manifest.ts or equivalent Next manifest route
+- apps/web/src/app/tools/
+- apps/web/src/app/globals.css
+- public/static icon assets only if they are simple generated placeholders
+- TODO.md
+- reports/current-work.md
+- ideas/installable-pwa-control-surfaces.md
 
-The coordinator should write the final worker prompt after the API contract is stable.
+Acceptance criteria:
+- Add a basic PWA manifest for Maiks.yt stream tools.
+- Keep private tool routes using the existing auth/token direction; do not weaken access.
+- Do not cache private chat, moderation, OAuth, account, action panel, or money data.
+- Add installability metadata suitable for the standalone Action Panel route.
+- Document what remains before making control panel/chat/notifications installable.
+- Do not build service-worker data caching unless it is static-assets-only and clearly safe.
+- Do not create the chat panel or notifications panel yet.
 
-## Manual Parallel Gate: OBS
+Run once near the end:
+- corepack pnpm --filter @maiks-yt/web typecheck
+- corepack pnpm --filter @maiks-yt/web build
+- node scripts/check-architecture.mjs
 
-Michael can run the real OBS checklist while Action Panel tasks proceed.
+Do not commit, push, deploy, or edit files outside the allowed scope.
+Report changed files, checks run, any skipped checks, and unresolved concerns.
+```
 
-The Action Panel work is not blocked by OBS. Do not mark the overlay section fully complete until the shared browser source passes the hidden-source and scene-switching checks.
+Reviewer gate:
 
-## Blocked Creator Hub Follow-up
+- Verify the manifest is reachable.
+- Verify `/tools/actions` still has no website navbar.
+- Confirm no sensitive API response caching was introduced.
 
-Do not assign the real destination-link task until Michael provides approved:
+## Chunk 3: Chat Verification Harness, Not Full Chat
 
-- Twitch URL or URLs
-- YouTube URL or URLs
-- Discord/community invite
-- optional support destination
-- preferred order and primary link
+Model: GPT-5.5
 
-Unavailable destinations currently render honestly and are not broken links.
+Start only after Chunk 1, or earlier if Michael wants to close the overlay verification gap first.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 11, and only the existing overlay/control-panel realtime files needed.
+
+Task:
+Create a minimal fake/test chat input path so the existing overlay chat visibility and future chat overlay behavior can be verified without going live.
+
+You may edit:
+- packages/events/src/
+- packages/events/test/
+- apps/api/src/main.ts only for narrowly scoped test chat endpoints/events
+- apps/control-panel/src/
+- apps/overlay/src/
+- TODO.md
+- reports/current-work.md
+
+Acceptance criteria:
+- Add typed fake chat/test message events.
+- Add a control-panel test input/button for sending a fake chat message.
+- Render fake chat messages in the overlay only when chat is visible.
+- Keep bot/system message hiding rules simple or explicitly deferred.
+- Do not connect real Twitch/YouTube chat.
+- Do not add moderation, bans, mutes, ranks, user profiles, AI reading, or stream bot commands.
+- Add or update focused event tests where practical.
+
+Run once near the end:
+- corepack pnpm --filter @maiks-yt/events test
+- corepack pnpm --filter @maiks-yt/events typecheck
+- corepack pnpm --filter @maiks-yt/api typecheck
+- corepack pnpm --filter @maiks-yt/control-panel typecheck
+- corepack pnpm --filter @maiks-yt/overlay typecheck
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, or edit files outside the allowed scope.
+Report changed files, checks run, any skipped checks, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Verify with overlay/control-panel browser pages if practical.
+- Confirm this remains a fake verification harness, not the full chat system.
+
+## Chunk 4: Next Queue Review
+
+Model: GPT-5.5
+
+Start after one or two chunks are completed.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, and TODO.md.
+
+Task:
+Do a read-only review and propose the next larger agent chunks.
+
+You may edit:
+- reports/next-agent-tasks.md
+- reports/current-work.md
+- TODO.md
+
+Acceptance criteria:
+- Identify completed, partial, blocked, and risky areas.
+- Propose 2-4 larger chunks that reduce repeated context/check overhead.
+- Keep high-risk areas like money/auth/moderation/database migrations clearly gated.
+- Do not implement features.
+
+Run:
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, or edit outside the allowed scope.
+```
+

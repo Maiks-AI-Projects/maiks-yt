@@ -51,6 +51,7 @@ Add the remaining Creator Hub support destination after Michael creates or appro
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.
 - WebSocket is the primary realtime transport; SSE remains a fallback option.
 - The next worker prompts and reviewer gates are in `reports/next-agent-tasks.md`.
+- Next agents should use larger vertical chunks to reduce repeated context and check overhead.
 
 ## Blockers And Decisions
 
