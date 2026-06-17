@@ -747,12 +747,18 @@ button:disabled {
   width: 1.55rem;
 }
 
-.creator-link-icon.stream {
+.creator-link-icon.stream,
+.creator-link-icon.youtube {
   color: #d93b36;
 }
 
-.creator-link-icon.community {
+.creator-link-icon.community,
+.creator-link-icon.discord {
   color: #5865f2;
+}
+
+.creator-link-icon.twitch {
+  color: #9146ff;
 }
 
 .creator-link-icon.feed {

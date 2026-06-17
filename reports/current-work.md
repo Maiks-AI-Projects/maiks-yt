@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-16
+Updated: 2026-06-17
 
 ## Objective
 
@@ -27,20 +27,21 @@ Finish the partially completed project areas before starting untouched feature g
 - Added recent Action Panel decision history, signed-out/forbidden/stale states, and server-provided decision controls.
 - Added a dev-only explicit owner-role claim path for approved test emails so the real creator account can access owner-gated tools.
 - Added the standalone `/tools/actions` Action Panel route without normal website navigation.
+- Verified the shared OBS browser source scene-switching behavior with shutdown-when-hidden disabled; chat overlay behavior remains unverified because live/test chat input was unavailable.
+- Added approved Creator Hub Twitch, YouTube, and Discord/community destination links for the dev site.
 
 ## Current Task
 
-Run the remaining real OBS scene-switching check while Creator Hub destination links remain blocked on approved URLs.
+Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Next Tasks
 
-1. Run the remaining real OBS scene-switching check.
-2. Add Creator Hub destinations after Michael supplies approved URLs.
+1. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
 
 - GPT-5.5 is the default model for implementation and review agents.
-- Latest completed Creator Hub commit: `35d9122`.
+- Creator Hub link foundations are current through the latest reviewed main commit.
 - Action Panel Task 1 domain contracts are complete and reviewed.
 - Action Panel Task 2 persistence and migration are complete and reviewed.
 - Action Panel Task 3 authorized API is complete and reviewed.
@@ -53,8 +54,8 @@ Run the remaining real OBS scene-switching check while Creator Hub destination l
 
 ## Blockers And Decisions
 
-- OBS must verify one shared browser source with shutdown-when-hidden disabled does not show blank or stale frames during scene switches.
-- Creator Hub destination links still need Michael's approved Twitch, YouTube, Discord/community, and optional support URLs.
+- Creator Hub support destination still needs to be created or approved.
+- Chat overlay behavior still needs verification with live or test chat input.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.

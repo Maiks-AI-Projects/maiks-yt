@@ -16,11 +16,14 @@ export type CreatorLinkIcon =
   | "affiliate"
   | "community"
   | "context"
+  | "discord"
   | "feed"
   | "social"
   | "stream"
   | "support"
-  | "tool";
+  | "twitch"
+  | "tool"
+  | "youtube";
 
 type CreatorLinkBase = {
   title: string;
@@ -67,19 +70,51 @@ export const publicCreatorLinks: readonly CreatorLink[] = [
   },
   {
     title: "Twitch",
-    description: "The public Twitch channel will be added here after Michael confirms the destination.",
+    description: "Live streams, chat, and stream alerts on the main MaiksMC Twitch channel.",
     purpose: "social",
-    icon: "social",
-    availability: "unavailable",
-    availabilityNote: "Link not published yet"
+    icon: "twitch",
+    availability: "available",
+    href: "https://www.twitch.tv/maiksmc"
   },
   {
-    title: "Community",
-    description: "Community access will be linked here when the public invite and policy pages are ready.",
+    title: "MaiksMC YouTube",
+    description: "The main YouTube channel for MaiksMC uploads and stream-adjacent videos.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@maiksMC"
+  },
+  {
+    title: "WoW with Maiks",
+    description: "World of Warcraft videos and related channel experiments.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@wowwithmaiks2218"
+  },
+  {
+    title: "Maiks Talking",
+    description: "Talking, updates, and creator-side video experiments.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@maikstalking9763"
+  },
+  {
+    title: "Coding with Maiks",
+    description: "Coding videos and build-log style experiments.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@codingwithmaiks1339/featured"
+  },
+  {
+    title: "Discord Community",
+    description: "Join the community Discord while the full community pages are still being prepared.",
     purpose: "community",
-    icon: "community",
-    availability: "unavailable",
-    availabilityNote: "Invite not published yet"
+    icon: "discord",
+    availability: "available",
+    href: "https://discord.gg/ZjaBEppKY8"
   },
   {
     title: "Support",

@@ -124,7 +124,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add active project/goal progress widget.
 - [x] Add last-known-good overlay state.
 - [x] Add static/minimal fallback mode for connection loss.
-- [ ] Test OBS scene switching behavior.
+- [x] Test OBS scene switching behavior.
+  - Shared browser source scene switching looked fine in OBS; chat overlay behavior was not verified because live/test chat input was unavailable.
 - [x] Keep one shared master overlay loaded across OBS scenes instead of preloading separate scene-specific overlays.
 
 ## 7. Overlay Control Panel
@@ -168,6 +169,7 @@ This is the working checklist. We should work down it in order unless a new idea
 
 - [x] Build self-owned links hub.
 - [ ] Add social/support/community links.
+  - Twitch, YouTube, and Discord/community destinations are linked for the dev site; support destination is still unavailable.
 - [x] Add RSS feed for blog posts.
 - [x] Add basic blog/update post model.
 - [ ] Add AI-assisted draft workflow.

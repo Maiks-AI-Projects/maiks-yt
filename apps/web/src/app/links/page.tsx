@@ -22,11 +22,14 @@ const creatorLinkIcons = {
   affiliate: FaMoneyBillTransfer,
   community: SiDiscord,
   context: FaUserGroup,
+  discord: SiDiscord,
   feed: FaRss,
   social: SiTwitch,
   stream: SiYoutube,
   support: FaHeart,
-  tool: FaCompass
+  twitch: SiTwitch,
+  tool: FaCompass,
+  youtube: SiYoutube
 } satisfies Record<CreatorLinkIcon, IconType>;
 
 const LinksPage = (): React.ReactNode => (
@@ -41,7 +44,7 @@ const LinksPage = (): React.ReactNode => (
         const LinkIcon = creatorLinkIcons[link.icon];
         const content = (
           <>
-            <span className={`creator-link-icon ${link.purpose}`}>
+            <span className={`creator-link-icon ${link.purpose} ${link.icon}`}>
               <LinkIcon aria-hidden="true" />
             </span>
             <span className="creator-link-copy">
