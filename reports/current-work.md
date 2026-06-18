@@ -39,20 +39,19 @@ Finish the partially completed project areas before starting untouched feature g
 
 ## Current Task
 
-Review the database-backed Creator Links foundation before enabling owner/admin link editing.
+Send the Creator Hub link admin slice to a clean-context worker.
 
 ## Next Tasks
 
-1. Review and apply the Creator Links migration/seed only after coordinator approval.
-2. Add the Creator Hub link admin slice after the database-backed foundation is reviewed and migrated on dev.
-3. Add the remaining Creator Hub support destination after Michael creates or approves it.
+1. Add the Creator Hub link admin slice now that the database-backed foundation is reviewed, migrated, seeded, deployed, and dev-smoked.
+2. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
 
 - GPT-5.5 is the default model for implementation and review agents.
 - Creator Hub link foundations are current through the latest reviewed main commit.
 - The first Creator Hub link admin worker stopped correctly: current links are a compiled TypeScript array, so runtime admin editing needs a database-backed link model first.
-- Creator Links Chunk 3A is implemented locally and awaiting coordinator review; no migrations have been applied.
+- Creator Links Chunk 3A is implemented, reviewed, committed, migrated on dev, seeded, deployed, and dev-smoked.
 - Manual project-admin tools are implemented, reviewed, committed, deployed to dev, and dev-smoked.
 - Action Panel Task 1 domain contracts are complete and reviewed.
 - Action Panel Task 2 persistence and migration are complete and reviewed.
@@ -69,7 +68,7 @@ Review the database-backed Creator Links foundation before enabling owner/admin 
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
-- Creator Hub link admin is blocked until the database-backed link foundation exists.
+- Creator Hub link admin can now be built on top of the database-backed link foundation.
 - Chat overlay behavior still needs verification with live or test chat input.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.

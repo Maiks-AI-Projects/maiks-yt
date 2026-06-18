@@ -9,7 +9,7 @@ The coordinator reviews, tests, commits, pushes, mirrors `main` to `dev`, applie
 ## Current Blocked/Manual Items
 
 - Creator Hub support destination is blocked until Michael creates or approves the support URL and wording.
-- Creator Hub link admin is blocked until a database-backed Creator Links foundation exists; static TypeScript source-file editing is not acceptable for runtime admin edits.
+- Creator Hub link admin should use the database-backed Creator Links foundation from Chunk 3A; static TypeScript source-file editing is not acceptable for runtime admin edits.
 - Chat overlay behavior still needs verification with live or test chat input.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
 
@@ -25,75 +25,17 @@ Manual project-admin tools are implemented, coordinator-reviewed, committed, mir
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 3: Creator Hub Link Admin Slice (Blocked Pending Database Foundation)
+## Chunk 3: Creator Hub Link Admin Slice (Superseded)
 
 The first worker stopped at the correct gate: current links live in `apps/web/src/content/public-creator-links-data.ts`, and a real owner/admin workflow cannot safely edit compiled TypeScript source at runtime.
 
-Do not rerun this chunk until Chunk 3A is complete and reviewed.
+Do not rerun this chunk. Use Chunk 3B for the database-backed admin workflow.
 
-## Chunk 3A: Database-backed Creator Links Foundation
+## Chunk 3A: Database-backed Creator Links Foundation (Completed)
 
-Model: GPT-5.5
+Database-backed Creator Links are implemented, coordinator-reviewed, committed, mirrored to `dev`, migrated on dev, seeded, deployed, and smoke-tested.
 
-Start after Chunk 2 unless the coordinator explicitly chooses a smaller content-admin path.
-
-Prompt:
-
-```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 9A, ideas/manual-admin-content-tools.md, ideas/creator-hub-links-and-feeds.md, apps/web/src/content/public-creator-links-data.ts, apps/web/src/app/links/page.tsx, packages/database/src/database.schema.ts, packages/database/src/seed-dev.service.ts, and the existing Projects read-model/API patterns.
-
-Task:
-Add the database-backed Creator Links foundation needed before owner/admin link editing can exist.
-
-You may edit:
-- packages/domain/src/links/
-- packages/domain/test/
-- packages/database/src/database.schema.ts
-- packages/database/src/seed-dev.service.ts
-- packages/database/drizzle/
-- apps/api/src/links/
-- apps/api/src/main.ts only to register public link read routes
-- apps/api/test/
-- apps/web/src/content/public-creator-links-data.ts only to reuse/export shared labels/types or preserve a static fallback
-- apps/web/src/app/links/page.tsx
-- apps/web/src/app/globals.css link/admin-specific styles
-- TODO.md
-- reports/current-work.md
-
-Acceptance criteria:
-- Add a `creator_links` database table using the existing Drizzle/MySQL migration style.
-- Preserve the current link fields: key, title, description, purpose, icon, availability, href, availability note, primary state, sort order, and published state.
-- Enforce or validate that available links require `href`, and unavailable links require `availability_note`.
-- Seed the current public links into development data without making the support destination available.
-- Add typed domain/read-model rules for Creator Links.
-- Add a public API read route for published creator links.
-- Update `/links` to load runtime link data from the API or server-side data path, with a clear safe fallback if the API is unavailable.
-- Preserve the existing public `/links` behavior and unavailable support messaging.
-- Do not add owner/admin mutations in this chunk.
-- Keep support destination unavailable unless Michael supplies/approves it.
-- Preserve clear unavailable states for unpublished links.
-- Do not add affiliate tracking, sponsor telemetry, money, or AI-generated publishing.
-- Do not apply migrations to any database and do not deploy.
-- If Drizzle generation or the existing schema pattern is insufficient, stop and report the exact blocker.
-
-Run once near the end:
-- corepack pnpm --filter @maiks-yt/domain test
-- corepack pnpm --filter @maiks-yt/database typecheck
-- corepack pnpm --filter @maiks-yt/api test
-- corepack pnpm --filter @maiks-yt/api typecheck
-- corepack pnpm --filter @maiks-yt/web typecheck
-- corepack pnpm --filter @maiks-yt/web build
-- node scripts/check-architecture.mjs
-
-Do not commit, push, deploy, apply migrations, or edit outside the allowed scope.
-Report changed files, checks run, any skipped checks, and unresolved concerns.
-```
-
-Reviewer gate:
-
-- Review generated migration before applying it to dev.
-- Confirm `/links` still works when API/data loading succeeds and has a safe unavailable state if it fails.
-- Confirm unavailable support messaging remains honest.
+Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
 ## Chunk 3B: Creator Hub Link Admin Slice
 
