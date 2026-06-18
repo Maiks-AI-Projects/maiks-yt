@@ -259,11 +259,12 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 - [x] Add standalone tool route foundation without normal website navigation.
 - [x] Add standalone Action Panel route.
 - [x] Add PWA manifest and first shared stream-tools icon set.
-- [ ] Make control panel installable.
+- [x] Make control panel installable.
 - [ ] Make streamer chat installable.
 - [ ] Make private notifications panel installable.
 - [x] Define initial safe cache rule: no private data caching; static assets only until an explicit encrypted/offline design exists.
 - [ ] Test installed windows without browser chrome on stream-monitor sizes.
+  - Control panel metadata is ready; after deployment, verify installed-window layout at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes, including token-blocked state, overlay visibility controls, scene designer, and fake/local chat sender.
 
 ## 15. Money Prep, Not Public Money Yet
 

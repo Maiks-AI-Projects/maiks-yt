@@ -52,6 +52,8 @@ Private stream surfaces should avoid aggressive caching. Static assets can be ca
 
 Current foundation decision: the first manifest starts at `/tools/actions` and scopes only `/tools/`. No service worker or API/data cache is included in this slice. Private chat, moderation, OAuth, account, action panel, admin, and money responses remain network-only; future service-worker work must be limited to static assets unless a reviewed encrypted local-cache design is approved.
 
+Control panel installability decision: the control panel remains in the existing `apps/control-panel` Vite surface and now has same-origin install metadata at `/manifest.webmanifest`. This keeps the existing `control-panel` URL-token gate and local storage behavior unchanged. No service worker is registered for the control panel in this slice, so private overlay status, fake/local chat, account/session, admin, moderation, action panel, and money responses stay network-only and outside offline caches.
+
 ## UX Notes
 
 The installed windows should be dense and practical, not landing pages.
@@ -78,11 +80,12 @@ The main website can still link to these tools as a backup, but those links shou
 - Added first placeholder shared stream-tools icons for browser install metadata.
 - Kept the existing Action Panel authentication/session behavior unchanged.
 - Kept chat and notifications panels uncreated.
+- Added same-origin install metadata for the existing control panel app using the shared placeholder stream-tools icons.
 
 ## Remaining Before More Installable Surfaces
 
-- Control panel: decide whether it remains in `apps/control-panel` or gains a web `/tools/control` wrapper, then add route-specific app naming and verify the existing private access model.
+- Control panel: after deployment, confirm `/manifest.webmanifest` is present on the control-panel origin, missing/invalid tokens still block access, and a valid control/overlay token pair can still send fake/local chat.
 - Streamer chat: build the real chat surface and moderation/privacy rules first; do not make it installable until private chat data remains network-only by default.
 - Notifications panel: define notification categories, urgency states, and private access rules before adding an installable route.
-- Service worker: add only after a reviewer-approved strategy exists; cache static shell assets only and explicitly exclude private API routes and auth/OAuth/account/admin/money endpoints.
-- Installed-window QA: test `/tools/actions` without browser chrome on stream-monitor sizes, then repeat for each future tool route.
+- Service worker: still deferred. Add only after a reviewer-approved strategy exists; cache static shell assets only and explicitly exclude private API routes, fake/local chat payloads, moderation, auth/OAuth, account, action panel, admin, and money endpoints.
+- Installed-window QA: test `/tools/actions` and the control panel without browser chrome at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes. Check first paint, dense controls, token-blocked state, scene designer sizing, overlay visibility toggles, and fake/local chat sender status messaging.

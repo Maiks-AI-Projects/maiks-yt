@@ -68,11 +68,23 @@ Reviewer notes:
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 6: Control Panel Installability Slice
+## Chunk 6: Control Panel Installability Slice (Implemented, Needs Review)
 
 Model: GPT-5.5
 
-Use a larger vertical slice. Keep auth/token gates exactly as strict as they are now.
+Implemented locally and awaiting coordinator review. The control panel remains in `apps/control-panel`, has same-origin PWA metadata, keeps the existing `control-panel` URL-token gate, and does not register a service worker.
+
+Reviewer notes:
+
+- Verify `https://control-dev.maiks.yt/manifest.webmanifest` returns control-panel manifest metadata after deployment.
+- Verify missing/invalid control tokens still block access.
+- Confirm no private API response caching or broad service-worker scope was introduced; this slice intentionally has no service worker.
+- If a valid token pair is available, browser-smoke fake chat from control panel to overlay; otherwise keep that as an explicit manual item.
+- Installed-window QA should cover 1920x1080, 1600x900, and 1366x768 stream-monitor sizes.
+
+Do not rerun this chunk unless the coordinator explicitly asks for fixes.
+
+Original prompt:
 
 Prompt:
 

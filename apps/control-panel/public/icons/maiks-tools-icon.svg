@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Maiks.yt Stream Tools</title>
+  <rect width="512" height="512" rx="96" fill="#141920"/>
+  <path d="M136 160h240a40 40 0 0 1 40 40v128a40 40 0 0 1-40 40H136a40 40 0 0 1-40-40V200a40 40 0 0 1 40-40Z" fill="#edf1f5"/>
+  <path d="M152 216h132v32H152v-32Zm0 64h208v32H152v-32Z" fill="#141920"/>
+  <path d="m325 204 59 59-59 59-23-23 36-36-36-36 23-23Z" fill="#238a55"/>
+</svg>

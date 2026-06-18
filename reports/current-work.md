@@ -41,14 +41,16 @@ Finish the partially completed project areas before starting untouched feature g
 - Added the first Stream Tools PWA foundation with a standalone `/tools/actions` manifest start URL, shared placeholder icons, and no private API/data caching.
 - Added a fake/local chat verification harness with typed events, a control-panel sender, and overlay rendering that respects chat visibility and hides bot/system messages by default.
 - Verified the dev Stream Tools manifest, standalone `/tools/actions` route, fake chat token gate, and absence of newly introduced service-worker/private API caching.
+- Added same-origin PWA installability metadata for the existing control panel app while preserving its `control-panel` URL-token gate and current fake/local chat controls.
+- Deferred control-panel service-worker work so private API, fake/local chat, moderation, account/session, action-panel, admin, and money responses remain outside offline caches.
 
 ## Current Task
 
-Prepare the next installable stream-tools slice after the PWA foundation and fake/local chat harness review.
+Review the control-panel installability slice and then continue with the next bounded stream-tools task.
 
 ## Next Tasks
 
-1. Make the control panel installable using the verified `/tools/actions` PWA foundation.
+1. Review and deploy-smoke the control-panel installability metadata on the control-panel origin.
 2. Browser/OBS-smoke the fake/local chat harness with a valid control/overlay token pair.
 3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
@@ -80,7 +82,8 @@ Prepare the next installable stream-tools slice after the PWA foundation and fak
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Full PWA installability is partially started: `/tools/actions` now has verified manifest/installability metadata and no normal website navbar, but control panel, chat, notifications, service-worker strategy, and installed-window QA remain open.
+- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, and the existing control panel now has same-origin install metadata. Streamer chat, notifications, service-worker strategy, and installed-window QA remain open.
+- Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Do not begin scheduling, full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
 

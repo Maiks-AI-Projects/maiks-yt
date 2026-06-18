@@ -1,0 +1,26 @@
+{
+  "name": "Maiks.yt Control Panel",
+  "short_name": "Maiks Control",
+  "description": "Standalone stream control panel for Maiks.yt overlays and local stream-tool checks.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#141920",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/maiks-tools-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maiks-tools-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
