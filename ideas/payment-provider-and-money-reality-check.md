@@ -26,6 +26,8 @@ Some donation ideas may be limited by payment providers, laws, fees, chargeback 
 
 This does not mean the idea is bad. It means the money system needs a practical check against providers such as Stripe, PayPal, Ko-fi-like flows, bank transfer options, or other processors available in the Netherlands.
 
+Development can still test money-adjacent user experience before this decision is complete by using a clearly labeled mock support/payment simulator. Simulated support events may use real dev users for avatar and display-name testing, but the value source must remain explicitly marked as simulated.
+
 ## Build Requirements
 
 - compare provider options
@@ -39,6 +41,7 @@ This does not mean the idea is bad. It means the money system needs a practical 
 - check multi-currency behavior
 - decide how Bits, subs, memberships, credits, and euros are represented
 - decide direct donation provider for version one
+- define the private admin audit trail needed for support events, allocation changes, reversals, refunds, chargebacks, and anonymization
 
 ## Multi-currency and Platform Support
 
@@ -62,6 +65,22 @@ A double-entry ledger should be considered for money and credit flows. This may 
 
 The goal is to prevent value from appearing or disappearing without a matching entry.
 
+## Admin Audit Trail
+
+The owner/admin area should eventually show the full flow of support value through the system.
+
+This is separate from the public transparency page. Public pages should explain outcomes clearly, while private admin pages need operational detail for support questions, provider disputes, chargebacks, legal/tax questions, abuse reports, and account deletion/anonymization.
+
+The audit trail should answer:
+
+- what event created the value
+- whether it came from a live provider, provider sandbox, platform-derived estimate, site credit, restricted credit, or mock simulator
+- which account, guest, or anonymized actor it belongs to
+- how it was allocated
+- who or what changed the allocation
+- whether any amount was reversed, refunded, expired, or converted
+- what remains unresolved
+
 ## Open Questions
 
 - Which payment providers are available and realistic in the Netherlands?
@@ -70,3 +89,5 @@ The goal is to prevent value from appearing or disappearing without a matching e
 - Should version one avoid stored credits and only track allocations?
 - Should the ledger use double-entry bookkeeping from the start?
 - Which value types are currencies, and which are only platform support signals?
+
+Related card: [Mock Support and Payment Simulator](mock-support-payment-simulator.md).

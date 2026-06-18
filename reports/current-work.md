@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-17
+Updated: 2026-06-18
 
 ## Objective
 
@@ -30,14 +30,18 @@ Finish the partially completed project areas before starting untouched feature g
 - Verified the shared OBS browser source scene-switching behavior with shutdown-when-hidden disabled; chat overlay behavior remains unverified because live/test chat input was unavailable.
 - Added approved Creator Hub Twitch, YouTube, and Discord/community destination links for the dev site.
 - Added the first read-only Projects vertical slice with public project list/detail pages, public API endpoints, domain read-model helpers, and non-monetary dev seeds.
+- Added the first manual project-admin implementation for non-money project content: typed owner/project-admin permission rules, admin API service/store/route files, focused domain/API tests, and the `/admin/projects` form page.
+- Registered the project-admin API route from the coordinator-owned API entrypoint.
+- Kept AI assistance, support, funding, provider, donation, wishlist integration, ledger, and price/estimate behavior out of the admin forms and mutation payloads.
+- Added a mock support/payment simulator planning card and linked it from the simulator and money planning docs.
 
 ## Current Task
 
-Prepare manual owner/admin content tools so projects, links, and other public content can be maintained without seed-file edits before AI-assisted workflows are added.
+Verify, commit, deploy, and dev-smoke the manual owner/admin project tools.
 
 ## Next Tasks
 
-1. Build the manual owner/admin project-management slice.
+1. Add the Creator Hub link admin slice.
 2. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State

@@ -7,6 +7,8 @@ import type {
 export interface ProjectReadRepository {
   listProjects(): Promise<readonly ProjectReadModelSource[]>;
   findProjectBySlug(slug: string): Promise<ProjectReadModelSource | null>;
+  listAllProjects(): Promise<readonly ProjectReadModelSource[]>;
+  findAnyProjectById(id: string): Promise<ProjectReadModelSource | null>;
 }
 
 export type ProjectListResult = {

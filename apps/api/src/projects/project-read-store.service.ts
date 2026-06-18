@@ -234,5 +234,38 @@ export const createProjectReadRepository = (
     const projects = await hydrateProjects(pool, [row]);
 
     return projects[0] ?? null;
+  },
+
+  async listAllProjects() {
+    const [rows] = await pool.execute(
+      `
+        ${projectSelect}
+        ORDER BY updated_at DESC, title
+      `
+    );
+
+    return Array.isArray(rows)
+      ? hydrateProjects(pool, rows as ProjectRow[])
+      : [];
+  },
+
+  async findAnyProjectById(id) {
+    const [rows] = await pool.execute(
+      `
+        ${projectSelect}
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [id]
+    );
+    const row = firstRow<ProjectRow>(rows);
+
+    if (!row) {
+      return null;
+    }
+
+    const projects = await hydrateProjects(pool, [row]);
+
+    return projects[0] ?? null;
   }
 });

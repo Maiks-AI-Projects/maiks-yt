@@ -9,6 +9,7 @@ Possible events:
 - chat messages
 - raids
 - donations
+- simulated support/payment events
 - paid messages
 - stream goal progress
 - notification bursts
@@ -65,9 +66,12 @@ Examples:
 
 - Twitch raid plus fake YouTube chat burst plus project milestone update
 - donation alert plus center-screen notification plus sponsor visibility toggle
+- simulated support event using a real dev user's avatar and display name
 - multiple top notifications arriving faster than they can display
 - backend reconnect while overlay keeps last-known state
 - private-message AI preamble while public chat continues
+
+Related card: [Mock Support and Payment Simulator](mock-support-payment-simulator.md).
 
 ## Custom Layer
 

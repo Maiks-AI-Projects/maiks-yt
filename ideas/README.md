@@ -72,6 +72,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [Store product links and price tracking](./store-product-links-and-price-tracking.md)
 - [Wishlist integrations](./wishlist-integrations.md)
 - [Payment provider and money reality check](./payment-provider-and-money-reality-check.md)
+- [Mock support and payment simulator](./mock-support-payment-simulator.md)
 - [Legal, tax, and policy pages](./legal-tax-and-policy-pages.md)
 - [Streaming platform benefits as site credits](./platform-benefits-as-site-credits.md)
 - [Live stream goals and auto-allocation](./live-stream-goals-and-auto-allocation.md)

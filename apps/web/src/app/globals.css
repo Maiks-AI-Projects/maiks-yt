@@ -1039,6 +1039,197 @@ button:disabled {
   margin: 0;
 }
 
+.project-admin-page {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 78rem;
+}
+
+.project-admin-header,
+.project-admin-state,
+.project-admin-layout,
+.project-admin-workspace,
+.project-admin-panel,
+.project-admin-form,
+.project-admin-sidebar {
+  display: grid;
+  gap: 1rem;
+}
+
+.project-admin-header h1,
+.project-admin-header p,
+.project-admin-state h2,
+.project-admin-state p,
+.project-admin-panel h2,
+.project-admin-panel p,
+.project-admin-sidebar h2,
+.project-admin-sidebar p {
+  margin: 0;
+}
+
+.project-admin-header h1 {
+  font-size: 2rem;
+}
+
+.project-admin-header p:not(.eyebrow),
+.project-admin-state p,
+.project-admin-panel p,
+.project-admin-sidebar p,
+.project-admin-record-list span {
+  color: #4b5966;
+}
+
+.project-admin-state,
+.project-admin-sidebar,
+.project-admin-panel {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.project-admin-state.forbidden,
+.project-admin-state.failed {
+  border-color: #e5bd65;
+}
+
+.project-admin-layout {
+  align-items: start;
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+}
+
+.project-admin-sidebar {
+  position: sticky;
+  top: 5.25rem;
+}
+
+.project-admin-sidebar-heading,
+.project-admin-panel-heading,
+.project-admin-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.project-admin-selector {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.project-admin-selector button {
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 6px;
+  color: #141920;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.project-admin-selector button.selected {
+  background: #edf7f2;
+  border-color: #238a55;
+}
+
+.project-admin-selector span {
+  color: #4b5966;
+  font-size: 0.85rem;
+}
+
+.visibility-panel {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.project-admin-form label,
+.project-admin-inline-form {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.project-admin-form label,
+.project-admin-checkbox {
+  color: #141920;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.project-admin-form input,
+.project-admin-form textarea,
+.project-admin-form select,
+.project-admin-inline-form input,
+.project-admin-inline-form textarea,
+.project-admin-inline-form select,
+.project-admin-record-list select {
+  border: 1px solid #b8c4cf;
+  border-radius: 6px;
+  color: #141920;
+  font: inherit;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.project-admin-form textarea,
+.project-admin-inline-form textarea {
+  resize: vertical;
+}
+
+.project-admin-form-grid,
+.project-admin-inline-form {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.project-admin-checkbox {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.project-admin-checkbox input {
+  height: 1rem;
+  width: 1rem;
+}
+
+.project-admin-record-list {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-admin-record-list li {
+  align-items: start;
+  border-top: 1px solid #d8e0e8;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) minmax(9rem, auto);
+  padding-top: 0.75rem;
+}
+
+.project-admin-record-list li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.project-admin-record-list div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.project-admin-record-list p {
+  color: #4b5966;
+}
+
+.project-admin-note {
+  background: #eef2f5;
+}
+
 .actions-page,
 .action-panel {
   display: grid;
@@ -1312,6 +1503,9 @@ button:disabled {
 
   .account-page-header,
   .account-section-heading-row,
+  .project-admin-layout,
+  .visibility-panel,
+  .project-admin-record-list li,
   .action-history-list li,
   .action-panel-toolbar {
     grid-template-columns: 1fr;
@@ -1323,6 +1517,14 @@ button:disabled {
   }
 
   .action-toolbar-controls {
+    justify-content: start;
+  }
+
+  .project-admin-sidebar {
+    position: static;
+  }
+
+  .project-admin-actions {
     justify-content: start;
   }
 
