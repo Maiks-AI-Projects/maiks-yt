@@ -1181,6 +1181,7 @@ button:disabled {
 .project-admin-inline-form input,
 .project-admin-inline-form textarea,
 .project-admin-inline-form select,
+.project-admin-record-list input,
 .project-admin-record-list select {
   border: 1px solid #b8c4cf;
   border-radius: 6px;
@@ -1246,6 +1247,13 @@ button:disabled {
 
 .project-admin-note {
   background: #eef2f5;
+}
+
+.link-admin-warning {
+  background: #fff7df;
+  border: 1px solid #e5bd65;
+  border-radius: 6px;
+  padding: 0.75rem;
 }
 
 .actions-page,

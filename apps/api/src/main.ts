@@ -27,7 +27,7 @@ import { z } from "zod";
 
 import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
 import { registerActionPanelRoutes } from "./actions/index.js";
-import { registerCreatorLinkReadRoutes } from "./links/index.js";
+import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 
 const config = createRuntimeConfig({
@@ -823,6 +823,10 @@ registerProjectReadRoutes(server, {
   getDatabasePool
 });
 registerCreatorLinkReadRoutes(server, {
+  getDatabasePool
+});
+registerCreatorLinkAdminRoutes(server, {
+  getAuthSession,
   getDatabasePool
 });
 registerProjectAdminRoutes(server, {
