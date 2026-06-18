@@ -212,6 +212,15 @@ button:disabled {
   margin-bottom: 0.1rem;
 }
 
+.fake-chat-settings {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.fake-chat-settings .status-action {
+  justify-self: start;
+}
+
 .quiet-section {
   background: #151d25;
   border: 1px solid #2d3a47;

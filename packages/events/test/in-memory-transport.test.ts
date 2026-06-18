@@ -13,6 +13,18 @@ const event: RealtimeEvent = {
   }
 };
 
+const fakeChatEvent: RealtimeEvent = {
+  type: "overlay.fake-chat.message.received",
+  payload: {
+    id: "chat-event-1",
+    authorName: "Test chatter",
+    authorKind: "human",
+    message: "Hello from the fake chat harness",
+    source: "fake-local",
+    createdAt: "2026-06-18T12:00:00.000Z"
+  }
+};
+
 describe("createInMemoryRealtimeTransport", () => {
   it("starts disconnected and can connect", async () => {
     const transport = createInMemoryRealtimeTransport();
@@ -32,6 +44,18 @@ describe("createInMemoryRealtimeTransport", () => {
 
     expect(receivedEvents).toEqual([event]);
     expect(transport.getPublishedEvents()).toEqual([event]);
+  });
+
+  it("publishes typed fake chat messages to subscribers", async () => {
+    const transport = createInMemoryRealtimeTransport();
+    const receivedEvents: RealtimeEvent[] = [];
+
+    transport.subscribe((nextEvent) => receivedEvents.push(nextEvent));
+    await transport.connect();
+    await transport.publish(fakeChatEvent);
+
+    expect(receivedEvents).toEqual([fakeChatEvent]);
+    expect(transport.getPublishedEvents()).toEqual([fakeChatEvent]);
   });
 
   it("stops sending events after unsubscribe", async () => {

@@ -313,6 +313,58 @@ body {
   right: 1.25rem;
 }
 
+.fake-chat-overlay {
+  align-content: end;
+  display: grid;
+  gap: 0.45rem;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+}
+
+.fake-chat-message {
+  animation: fake-chat-enter 180ms ease both;
+  background: rgba(12, 16, 21, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 2px solid var(--maiks-accent);
+  border-radius: 6px;
+  box-shadow: 0 0.65rem 1.4rem rgba(0, 0, 0, 0.22);
+  color: var(--maiks-notification-fg);
+  display: grid;
+  gap: 0.15rem;
+  max-width: 100%;
+  padding: 0.48rem 0.62rem;
+}
+
+.fake-chat-message strong,
+.fake-chat-message span {
+  overflow-wrap: anywhere;
+}
+
+.fake-chat-message strong {
+  color: var(--maiks-accent);
+  font-size: 0.86rem;
+  line-height: 1.1;
+}
+
+.fake-chat-message span {
+  color: var(--maiks-notification-fg);
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+@keyframes fake-chat-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .sponsor-primary-slot {
   height: 4.25rem;
   left: 50%;

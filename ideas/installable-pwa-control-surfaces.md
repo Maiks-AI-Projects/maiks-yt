@@ -50,6 +50,8 @@ PWA installability should not weaken authentication. Private tools should still 
 
 Private stream surfaces should avoid aggressive caching. Static assets can be cached, but sensitive API responses should stay network-only unless there is a deliberate encrypted local-cache design later.
 
+Current foundation decision: the first manifest starts at `/tools/actions` and scopes only `/tools/`. No service worker or API/data cache is included in this slice. Private chat, moderation, OAuth, account, action panel, admin, and money responses remain network-only; future service-worker work must be limited to static assets unless a reviewed encrypted local-cache design is approved.
+
 ## UX Notes
 
 The installed windows should be dense and practical, not landing pages.
@@ -69,3 +71,18 @@ The main website can still link to these tools as a backup, but those links shou
 - Should each installed surface remember its last stream/layout mode?
 - Should mobile install be supported from the start or only after the desktop control flow works?
 - Should the notifications panel be part of the control panel or a separate PWA window?
+
+## Foundation Checkpoint
+
+- Added shared Maiks.yt Stream Tools manifest metadata with standalone display, `/tools/actions` start URL, `/tools/` scope, and Action Panel shortcut metadata.
+- Added first placeholder shared stream-tools icons for browser install metadata.
+- Kept the existing Action Panel authentication/session behavior unchanged.
+- Kept chat and notifications panels uncreated.
+
+## Remaining Before More Installable Surfaces
+
+- Control panel: decide whether it remains in `apps/control-panel` or gains a web `/tools/control` wrapper, then add route-specific app naming and verify the existing private access model.
+- Streamer chat: build the real chat surface and moderation/privacy rules first; do not make it installable until private chat data remains network-only by default.
+- Notifications panel: define notification categories, urgency states, and private access rules before adding an installable route.
+- Service worker: add only after a reviewer-approved strategy exists; cache static shell assets only and explicitly exclude private API routes and auth/OAuth/account/admin/money endpoints.
+- Installed-window QA: test `/tools/actions` without browser chrome on stream-monitor sizes, then repeat for each future tool route.

@@ -66,6 +66,11 @@ export const sanitizeReplayEvent = (event: RealtimeEvent): RealtimeEvent => {
         ...event,
         payload: sanitizeValue(event.payload) as typeof event.payload
       };
+    case "overlay.fake-chat.message.received":
+      return {
+        ...event,
+        payload: sanitizeValue(event.payload) as typeof event.payload
+      };
     case "project.focus.changed":
       return {
         ...event,

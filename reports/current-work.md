@@ -27,7 +27,7 @@ Finish the partially completed project areas before starting untouched feature g
 - Added recent Action Panel decision history, signed-out/forbidden/stale states, and server-provided decision controls.
 - Added a dev-only explicit owner-role claim path for approved test emails so the real creator account can access owner-gated tools.
 - Added the standalone `/tools/actions` Action Panel route without normal website navigation.
-- Verified the shared OBS browser source scene-switching behavior with shutdown-when-hidden disabled; chat overlay behavior remains unverified because live/test chat input was unavailable.
+- Verified the shared OBS browser source scene-switching behavior with shutdown-when-hidden disabled; live platform chat remains unverified.
 - Added approved Creator Hub Twitch, YouTube, and Discord/community destination links for the dev site.
 - Added the first read-only Projects vertical slice with public project list/detail pages, public API endpoints, domain read-model helpers, and non-monetary dev seeds.
 - Added the first manual project-admin implementation for non-money project content: typed owner/project-admin permission rules, admin API service/store/route files, focused domain/API tests, and the `/admin/projects` form page.
@@ -38,15 +38,18 @@ Finish the partially completed project areas before starting untouched feature g
 - Kept the Creator Hub support link unavailable in the database seed and static fallback.
 - Added the first manual Creator Hub link admin workflow with owner-gated API mutations, focused validation/tests, and `/admin/links` forms for create/edit/reorder/publish state.
 - Kept support destinations forced unavailable in the Creator Hub link admin slice until Michael approves the URL and public wording.
+- Added the first Stream Tools PWA foundation with a standalone `/tools/actions` manifest start URL, shared placeholder icons, and no private API/data caching.
+- Added a fake/local chat verification harness with typed events, a control-panel sender, and overlay rendering that respects chat visibility and hides bot/system messages by default.
 
 ## Current Task
 
-Send the Stream Tools PWA foundation slice to a clean-context worker.
+Review the Stream Tools PWA foundation and fake/local chat harness slices.
 
 ## Next Tasks
 
-1. Add the Stream Tools PWA foundation so streamer tool pages can become installable app windows.
-2. Add the remaining Creator Hub support destination after Michael creates or approves it.
+1. Browser/OBS-smoke the fake/local chat harness and installed Action Panel route.
+2. Make the control panel installable after the `/tools/actions` foundation is verified.
+3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
 
@@ -71,12 +74,12 @@ Send the Stream Tools PWA foundation slice to a clean-context worker.
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
-- Chat overlay behavior still needs verification with live or test chat input.
+- Chat overlay behavior has fake/local test input now; browser/OBS verification and real Twitch/YouTube chat remain open.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Full PWA installability is not started yet; the route/app-shell foundation is in place for streamer tool surfaces.
+- Full PWA installability is partially started: `/tools/actions` now has manifest/installability metadata, but control panel, chat, notifications, service-worker strategy, and installed-window QA remain open.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Do not begin scheduling, full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
 

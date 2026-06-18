@@ -8,6 +8,7 @@ import type {
   OverlayPresentationState,
   OverlayLayoutKey,
   OverlayLiveMessage,
+  OverlayFakeChatMessageReceivedEvent,
   OverlayNotificationDisplay,
   OverlaySceneDefinition,
   OverlaySceneKey,
@@ -119,6 +120,12 @@ const overlayEmergencyCleanModeRequestSchema = z.object({
 const overlayChatVisibilityRequestSchema = z.object({
   accessToken: z.string().min(24),
   visible: z.boolean()
+});
+const overlayFakeChatTestRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  authorName: z.string().trim().min(1).max(40).default("Test chatter"),
+  authorKind: z.enum(["human", "bot", "system"]).default("human"),
+  message: z.string().trim().min(1).max(280)
 });
 const overlaySponsorVisibilityRequestSchema = z.object({
   accessToken: z.string().min(24),
@@ -581,6 +588,26 @@ const createDemoRoutedNotification = (
     }
   };
 };
+
+const createFakeChatMessageEvent = ({
+  authorKind,
+  authorName,
+  message
+}: {
+  authorKind: OverlayFakeChatMessageReceivedEvent["payload"]["authorKind"];
+  authorName: string;
+  message: string;
+}): OverlayFakeChatMessageReceivedEvent => ({
+  type: "overlay.fake-chat.message.received",
+  payload: {
+    id: randomUUID(),
+    authorKind,
+    authorName,
+    createdAt: new Date().toISOString(),
+    message,
+    source: "fake-local"
+  }
+});
 
 const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
   const serializedMessage = JSON.stringify(message);
@@ -1793,6 +1820,44 @@ server.post("/overlay/chat/visibility", async (request, reply) => {
   return {
     ok: true,
     chatVisible: overlayChatVisible,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/chat/test", async (request, reply) => {
+  const parsedRequest = overlayFakeChatTestRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  const event = createFakeChatMessageEvent(parsedRequest.data);
+
+  broadcastOverlayMessage(event);
+
+  return {
+    ok: true,
+    queued: 1,
+    chatVisible: overlayChatVisible,
+    event,
     activeOverlayConnections: activeOverlayConnections.size
   };
 });

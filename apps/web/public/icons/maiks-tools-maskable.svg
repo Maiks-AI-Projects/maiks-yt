@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Maiks.yt Stream Tools Maskable</title>
+  <rect width="512" height="512" fill="#141920"/>
+  <circle cx="256" cy="256" r="196" fill="#edf1f5"/>
+  <path d="M160 204h192a32 32 0 0 1 32 32v80a32 32 0 0 1-32 32H160a32 32 0 0 1-32-32v-80a32 32 0 0 1 32-32Z" fill="#141920"/>
+  <path d="M176 248h104v28H176v-28Zm0 52h148v28H176v-28Z" fill="#edf1f5"/>
+  <path d="m330 238 50 50-50 50-20-20 30-30-30-30 20-20Z" fill="#238a55"/>
+</svg>

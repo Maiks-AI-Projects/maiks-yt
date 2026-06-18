@@ -13,7 +13,9 @@ body {
 
 .tool-surface-body {
   background: #edf1f5;
+  color-scheme: light;
   min-height: 100vh;
+  overscroll-behavior: none;
 }
 
 a {
@@ -67,6 +69,16 @@ main {
   min-height: 100vh;
   max-width: none;
   padding: 1rem;
+}
+
+@media (display-mode: standalone) {
+  .tool-surface-body {
+    background: #edf1f5;
+  }
+
+  .tool-surface-page {
+    padding: 0.75rem;
+  }
 }
 
 section {

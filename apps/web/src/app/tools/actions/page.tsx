@@ -1,12 +1,25 @@
+import type { Metadata } from "next";
+
 import ActionPanelClient from "../../actions/action-panel-client";
 
 type ToolActionsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Action Panel App | Maiks.yt",
-  description: "Standalone approval inbox for stream and admin decisions."
+  description: "Standalone approval inbox for stream and admin decisions.",
+  applicationName: "Maiks.yt Stream Tools",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Action Panel",
+    statusBarStyle: "black-translucent"
+  },
+  icons: {
+    icon: "/icons/maiks-tools-icon.svg",
+    apple: "/icons/maiks-tools-icon.svg"
+  }
 };
 
 const getSingleParam = (value: string | string[] | undefined): string | null =>
@@ -24,4 +37,3 @@ const ToolActionsPage = async ({ searchParams }: ToolActionsPageProps): Promise<
 };
 
 export default ToolActionsPage;
-

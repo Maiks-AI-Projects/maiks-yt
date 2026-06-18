@@ -29,6 +29,22 @@ export type OverlayNotificationDisplay = {
   priority: OverlayNotificationPriority;
 };
 
+export type OverlayFakeChatMessageAuthorKind = "human" | "bot" | "system";
+
+export type OverlayFakeChatMessage = {
+  id: string;
+  authorName: string;
+  authorKind: OverlayFakeChatMessageAuthorKind;
+  message: string;
+  source: "fake-local";
+  createdAt: string;
+};
+
+export type OverlayFakeChatMessageReceivedEvent = {
+  type: "overlay.fake-chat.message.received";
+  payload: OverlayFakeChatMessage;
+};
+
 export type OverlayTopBarNotificationQueuedEvent = {
   type: "overlay.top-bar-notification.queued";
   payload: OverlayNotificationDisplay;
@@ -77,6 +93,7 @@ export type ProjectFocusChangedEvent = {
 };
 
 export type OverlayEvent =
+  | OverlayFakeChatMessageReceivedEvent
   | OverlayNotificationQueuedEvent
   | OverlayRoutedNotificationQueuedEvent
   | OverlayTopBarNotificationQueuedEvent

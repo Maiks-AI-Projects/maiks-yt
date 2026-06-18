@@ -128,6 +128,16 @@ type OverlayRedeemTestResponse = {
   reason: string;
 };
 
+type OverlayFakeChatTestResponse = {
+  ok: true;
+  queued: number;
+  chatVisible: boolean;
+  activeOverlayConnections: number;
+} | {
+  ok: false;
+  reason: string;
+};
+
 type OverlayScenesResponse = {
   ok: true;
   scenes: OverlaySceneDefinition[];
@@ -281,6 +291,8 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
   const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
   const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
   const [sceneOptions, setSceneOptions] = useState<OverlaySceneDefinition[]>([]);
+  const [fakeChatAuthorName, setFakeChatAuthorName] = useState("Test chatter");
+  const [fakeChatMessage, setFakeChatMessage] = useState("Hello from local test chat.");
   const [goalDraft, setGoalDraft] = useState<OverlayActiveGoalState>(defaultGoalDraft);
 
   useEffect(() => {
@@ -669,6 +681,51 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
     setTopBarActionStatus(result.queued > 0 ? `${result.redeem} redeem queued.` : `Redeem skipped: ${result.reason ?? "not queued"}.`);
   };
 
+  const sendFakeChatMessage = async (): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+    const trimmedAuthorName = fakeChatAuthorName.trim();
+    const trimmedMessage = fakeChatMessage.trim();
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    if (!trimmedAuthorName || !trimmedMessage) {
+      setTopBarActionStatus("Fake chat author and message are required.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/chat/test`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        authorKind: "human",
+        authorName: trimmedAuthorName,
+        message: trimmedMessage
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Fake chat failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlayFakeChatTestResponse;
+
+    if (!result.ok) {
+      setTopBarActionStatus(`Fake chat failed: ${result.reason}.`);
+      return;
+    }
+
+    setTopBarActionStatus(result.chatVisible
+      ? `Fake chat sent to ${result.activeOverlayConnections} overlay connection(s).`
+      : "Fake chat sent, but chat is currently hidden.");
+  };
+
   const updateCenterSettings = async (patch: Partial<CenterNotificationTiming> & { enabled?: boolean }): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
@@ -903,6 +960,30 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
             <option value="satisfactory">Satisfactory</option>
           </select>
         </label>
+      </div>
+      <div className="notification-settings fake-chat-settings" aria-label="Fake chat test">
+        <strong>Fake chat test</strong>
+        <label>
+          <span>Name</span>
+          <input
+            maxLength={40}
+            type="text"
+            value={fakeChatAuthorName}
+            onChange={(event) => setFakeChatAuthorName(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <span>Message</span>
+          <input
+            maxLength={280}
+            type="text"
+            value={fakeChatMessage}
+            onChange={(event) => setFakeChatMessage(event.currentTarget.value)}
+          />
+        </label>
+        <button type="button" className="status-action" onClick={() => void sendFakeChatMessage()}>
+          Send fake chat
+        </button>
       </div>
       <details className="notification-settings">
         <summary>Goal widget</summary>

@@ -1,5 +1,6 @@
 import type {
   OverlayActiveGoalState,
+  OverlayFakeChatMessageReceivedEvent,
   OverlayLayoutKey,
   OverlayLiveMessage,
   OverlaySceneKey,
@@ -20,6 +21,7 @@ const overlayCanvasWidth = 1920;
 const overlayCanvasHeight = 1080;
 const topBarIntakeDelayMs = 500;
 const maxVisibleTopBarNotifications = 8;
+const maxVisibleFakeChatMessages = 6;
 const safeDefaultAvatarUrl = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%23161b22'/%3E%3Ccircle cx='32' cy='25' r='11' fill='%23f2c94c'/%3E%3Cpath d='M14 57c3-13 13-20 18-20s15 7 18 20' fill='%23d64545'/%3E%3C/svg%3E";
 
 type OverlayRuntimeState =
@@ -59,6 +61,7 @@ type CachedOverlaySnapshotRecord = {
 
 type TopBarNotification = OverlayTopBarNotificationQueuedEvent["payload"];
 type RoutedNotification = OverlayRoutedNotificationQueuedEvent["payload"];
+type FakeChatMessage = OverlayFakeChatMessageReceivedEvent["payload"];
 type CenterNotificationRuntime = {
   notification: RoutedNotification;
   phase: "onscreen" | "fading";
@@ -67,6 +70,12 @@ type OverlayLiveStatus = "snapshot" | "live" | "reconnecting" | "offline";
 
 const isMinimalFallbackLiveStatus = (liveStatus: OverlayLiveStatus): boolean =>
   liveStatus === "reconnecting" || liveStatus === "offline";
+
+const canRenderFakeChat = (snapshot: OverlayStateSnapshot): boolean =>
+  snapshot.slots.chat.visible && snapshot.sceneDefinition.slots.chat.visible;
+
+const isRenderableFakeChatMessage = (message: FakeChatMessage): boolean =>
+  message.source === "fake-local" && message.authorKind === "human";
 
 const getOverlayCanvasScale = (): number => {
   if (typeof window === "undefined") {
@@ -351,10 +360,34 @@ const StreamGoalWidget = ({
   );
 };
 
+const FakeChatOverlay = ({
+  messages,
+  slotStyle
+}: {
+  messages: FakeChatMessage[];
+  slotStyle: CSSProperties;
+}): React.ReactNode => {
+  if (messages.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="fake-chat-overlay" style={slotStyle} aria-label="Fake chat messages" aria-live="polite">
+      {messages.map((message) => (
+        <article className="fake-chat-message" key={message.id}>
+          <strong>{message.authorName}</strong>
+          <span>{message.message}</span>
+        </article>
+      ))}
+    </section>
+  );
+};
+
 const App = (): React.ReactNode => {
   const [gateState, setGateState] = useState<UrlAccessGateState>({ status: "checking" });
   const [runtimeState, setRuntimeState] = useState<OverlayRuntimeState>({ status: "loading" });
   const [topBarNotifications, setTopBarNotifications] = useState<TopBarNotification[]>([]);
+  const [fakeChatMessages, setFakeChatMessages] = useState<FakeChatMessage[]>([]);
   const [centerNotification, setCenterNotification] = useState<CenterNotificationRuntime | null>(null);
   const [canvasScale, setCanvasScale] = useState(getOverlayCanvasScale);
   const fallbackHighlightIndexRef = useRef(0);
@@ -387,6 +420,7 @@ const App = (): React.ReactNode => {
     topBarProcessingRef.current = false;
     centerProcessingRef.current = false;
     setTopBarNotifications([]);
+    setFakeChatMessages([]);
     setCenterNotification(null);
   };
 
@@ -488,6 +522,24 @@ const App = (): React.ReactNode => {
     enqueueTopBarNotification(notification);
   };
 
+  const receiveFakeChatMessage = (message: FakeChatMessage): void => {
+    const currentState = runtimeStateRef.current;
+
+    if (
+      currentState.status !== "ready"
+      || isMinimalFallbackLiveStatus(currentState.liveStatus)
+      || !canRenderFakeChat(currentState.snapshot)
+      || !isRenderableFakeChatMessage(message)
+    ) {
+      return;
+    }
+
+    setFakeChatMessages((messages) => [
+      message,
+      ...messages
+    ].slice(0, maxVisibleFakeChatMessages));
+  };
+
   useEffect(() => {
     void validateUrlAccessGate({
       apiBaseUrl,
@@ -558,6 +610,11 @@ const App = (): React.ReactNode => {
             return;
           }
 
+          if (message.type === "overlay.fake-chat.message.received") {
+            receiveFakeChatMessage(message.payload);
+            return;
+          }
+
           if (message.type === "overlay.connection.heartbeat") {
             setRuntimeState((currentState) => currentState.status === "ready"
               ? {
@@ -625,6 +682,12 @@ const App = (): React.ReactNode => {
   useEffect(() => {
     if (runtimeState.status === "ready" && isMinimalFallbackLiveStatus(runtimeState.liveStatus)) {
       clearTransientNotifications();
+    }
+  }, [runtimeState]);
+
+  useEffect(() => {
+    if (runtimeState.status === "ready" && !canRenderFakeChat(runtimeState.snapshot)) {
+      setFakeChatMessages([]);
     }
   }, [runtimeState]);
 
@@ -710,7 +773,10 @@ const App = (): React.ReactNode => {
         <div className="reservation slot camera-slot" style={createSlotStyle(slots.camera)} aria-hidden="true" />
       ) : null}
       {snapshot.slots.chat.visible && slots.chat.visible ? (
-        <div className="reservation slot chat-slot" style={createSlotStyle(slots.chat)} aria-hidden="true" />
+        <FakeChatOverlay
+          messages={fakeChatMessages}
+          slotStyle={createSlotStyle(slots.chat)}
+        />
       ) : null}
       {snapshot.slots.sponsorPrimary.visible && slots.sponsorPrimary.visible ? (
         <div

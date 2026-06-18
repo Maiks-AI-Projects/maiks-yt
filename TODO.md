@@ -203,10 +203,10 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 
 ## 11. Chat and Stream Bot
 
-- [ ] Connect fake/local chat source first.
-- [ ] Normalize chat messages.
-- [ ] Tag messages as human, bot, system, or moderator tool.
-- [ ] Hide bot/system messages from overlay by default.
+- [x] Connect fake/local chat source first.
+- [x] Normalize fake/local chat messages.
+- [x] Tag fake/local messages as human, bot, or system.
+- [x] Hide fake/local bot/system messages from overlay by default.
 - [ ] Build streamer-only unified chat window.
 - [ ] Add quick moderation buttons to streamer chat messages.
 - [ ] Add advanced moderation context menu.
@@ -258,11 +258,11 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 
 - [x] Add standalone tool route foundation without normal website navigation.
 - [x] Add standalone Action Panel route.
-- [ ] Add PWA manifest and icon set.
+- [x] Add PWA manifest and first shared stream-tools icon set.
 - [ ] Make control panel installable.
 - [ ] Make streamer chat installable.
 - [ ] Make private notifications panel installable.
-- [ ] Define safe cache rules for private stream tools.
+- [x] Define initial safe cache rule: no private data caching; static assets only until an explicit encrypted/offline design exists.
 - [ ] Test installed windows without browser chrome on stream-monitor sizes.
 
 ## 15. Money Prep, Not Public Money Yet
