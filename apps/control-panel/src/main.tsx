@@ -314,9 +314,12 @@ const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(un
   second: "2-digit"
 }).format(new Date(createdAt));
 
+const maxStreamerChatViewerMessages = 12;
+
 const StreamerChatViewer = (): React.ReactNode => {
   const [messages, setMessages] = useState<StreamerChatMessage[]>([]);
   const [status, setStatus] = useState<string>("Loading fake/local chat.");
+  const visibleMessages = messages.slice(0, maxStreamerChatViewerMessages).reverse();
 
   useEffect(() => {
     let disposed = false;
@@ -401,11 +404,11 @@ const StreamerChatViewer = (): React.ReactNode => {
         <strong>Streamer chat</strong>
         <span>{status}</span>
       </div>
-      {messages.length === 0 ? (
+      {visibleMessages.length === 0 ? (
         <p className="streamer-chat-empty">No fake/local messages yet.</p>
       ) : (
         <ol className="streamer-chat-list">
-          {messages.map((message) => (
+          {visibleMessages.map((message) => (
             <li className={message.visibleOnOverlayByDefault ? "overlay-visible" : "streamer-only"} key={message.id}>
               <div>
                 <strong>{message.authorName}</strong>

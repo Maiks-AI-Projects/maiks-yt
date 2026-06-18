@@ -317,6 +317,7 @@ body {
   align-content: end;
   display: grid;
   gap: 0.45rem;
+  grid-auto-flow: row;
   overflow: hidden;
   pointer-events: none;
   position: absolute;

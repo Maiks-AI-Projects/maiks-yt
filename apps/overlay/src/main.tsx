@@ -535,9 +535,9 @@ const App = (): React.ReactNode => {
     }
 
     setFakeChatMessages((messages) => [
-      message,
-      ...messages
-    ].slice(0, maxVisibleFakeChatMessages));
+      ...messages,
+      message
+    ].slice(-maxVisibleFakeChatMessages));
   };
 
   useEffect(() => {
