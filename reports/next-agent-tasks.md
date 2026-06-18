@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-06-17
+Updated: 2026-06-18
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -18,65 +18,11 @@ The first read-only Projects and Milestones vertical slice is implemented, revie
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 2: Manual Project Admin Vertical Slice
+## Chunk 2: Manual Project Admin Vertical Slice (Completed)
 
-Model: GPT-5.5
+Manual project-admin tools are implemented, coordinator-reviewed, committed, mirrored to `dev`, deployed, and dev-smoked.
 
-Prompt:
-
-```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 9A, TODO.md section 5, ideas/manual-admin-content-tools.md, and the existing project read-model/API/web files.
-
-Task:
-Build the first manual owner/admin project-management slice for non-money project content.
-
-You may edit:
-- packages/domain/src/projects/
-- packages/domain/test/
-- apps/api/src/projects/
-- apps/api/test/projects/
-- apps/web/src/app/admin/projects/
-- apps/web/src/app/tools/projects/ only if adding a standalone admin-tool route wrapper
-- apps/web/src/app/globals.css project/admin-specific styles
-- apps/web/src/app/account/ only if linking to owner/admin tools is necessary
-- TODO.md
-- reports/current-work.md
-
-Acceptance criteria:
-- Add authenticated owner-only API mutations for non-money project content:
-  - create/update project basics
-  - set public/private visibility
-  - create/update milestones
-  - create/update non-monetary project items
-  - simple reorder support for milestones/items if practical
-- Reuse existing auth/session and role-permission patterns; do not invent a parallel auth system.
-- Require owner wildcard or a clearly typed project-admin permission.
-- Add manual admin web pages under `/admin/projects`.
-- Admin pages should be efficient forms, not marketing pages.
-- Include preview or clear visibility state before making content public.
-- Keep money fields passive or absent; do not add donations, credits, ledgers, payouts, support CTAs, wishlist provider calls, store price tracking, or funding progress.
-- Keep AI assistance out of this chunk except for documenting that it is deferred.
-- Add focused domain/API tests for permission checks, validation, public/private behavior, and non-money mutation behavior.
-- Update TODO/current-work only for things actually completed.
-- If the existing database schema is insufficient, stop and report the specific missing schema instead of adding a migration.
-
-Run once near the end:
-- corepack pnpm --filter @maiks-yt/domain test
-- corepack pnpm --filter @maiks-yt/api test
-- corepack pnpm --filter @maiks-yt/web typecheck
-- corepack pnpm --filter @maiks-yt/web build
-- node scripts/check-architecture.mjs
-
-Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
-Report changed files, checks run, any skipped checks, and unresolved concerns.
-```
-
-Reviewer gate:
-
-- Confirm the admin slice is owner-gated and cannot be used by normal logged-in users.
-- Confirm no real money/support/donation/wishlist behavior was introduced.
-- Verify admin changes affect the public `/projects` pages after review.
-- Commit, deploy, and verify on public dev only after review succeeds.
+Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
 ## Chunk 3: Creator Hub Link Admin Slice
 
@@ -247,4 +193,3 @@ Run:
 
 Do not commit, push, deploy, or edit outside the allowed scope.
 ```
-

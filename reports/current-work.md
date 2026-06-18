@@ -37,7 +37,7 @@ Finish the partially completed project areas before starting untouched feature g
 
 ## Current Task
 
-Verify, commit, deploy, and dev-smoke the manual owner/admin project tools.
+Send the Creator Hub link admin slice to a clean-context worker.
 
 ## Next Tasks
 
@@ -48,6 +48,7 @@ Verify, commit, deploy, and dev-smoke the manual owner/admin project tools.
 
 - GPT-5.5 is the default model for implementation and review agents.
 - Creator Hub link foundations are current through the latest reviewed main commit.
+- Manual project-admin tools are implemented, reviewed, committed, deployed to dev, and dev-smoked.
 - Action Panel Task 1 domain contracts are complete and reviewed.
 - Action Panel Task 2 persistence and migration are complete and reviewed.
 - Action Panel Task 3 authorized API is complete and reviewed.
