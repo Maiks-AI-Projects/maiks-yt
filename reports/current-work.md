@@ -41,11 +41,11 @@ Finish the partially completed project areas before starting untouched feature g
 
 ## Current Task
 
-Review the Creator Hub link admin slice.
+Send the Stream Tools PWA foundation slice to a clean-context worker.
 
 ## Next Tasks
 
-1. Review, commit, mirror, deploy, and dev-smoke the Creator Hub link admin slice.
+1. Add the Stream Tools PWA foundation so streamer tool pages can become installable app windows.
 2. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
@@ -54,7 +54,7 @@ Review the Creator Hub link admin slice.
 - Creator Hub link foundations are current through the latest reviewed main commit.
 - The first Creator Hub link admin worker stopped correctly: current links are a compiled TypeScript array, so runtime admin editing needs a database-backed link model first.
 - Creator Links Chunk 3A is implemented, reviewed, committed, migrated on dev, seeded, deployed, and dev-smoked.
-- Creator Links Chunk 3B is implemented locally and awaits coordinator review, commit, deploy, and public dev smoke.
+- Creator Links Chunk 3B is implemented, reviewed, committed, deployed, dev-smoked, and accepted by Michael as usable enough to move on.
 - Manual project-admin tools are implemented, reviewed, committed, deployed to dev, and dev-smoked.
 - Action Panel Task 1 domain contracts are complete and reviewed.
 - Action Panel Task 2 persistence and migration are complete and reviewed.
@@ -71,7 +71,6 @@ Review the Creator Hub link admin slice.
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
-- Creator Hub link admin is implemented locally on top of the database-backed link foundation and still needs review/deploy.
 - Chat overlay behavior still needs verification with live or test chat input.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.

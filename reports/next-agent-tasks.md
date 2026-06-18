@@ -37,57 +37,11 @@ Database-backed Creator Links are implemented, coordinator-reviewed, committed, 
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 3B: Creator Hub Link Admin Slice
+## Chunk 3B: Creator Hub Link Admin Slice (Completed)
 
-Model: GPT-5.5
+Creator Hub link admin is implemented, coordinator-reviewed, committed, mirrored to `dev`, deployed, dev-smoked, and accepted by Michael as usable enough to move on.
 
-Start after Chunk 3A is reviewed, committed, migrated on dev, seeded, and smoke-tested.
-
-Prompt:
-
-```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 9A, ideas/manual-admin-content-tools.md, ideas/creator-hub-links-and-feeds.md, and the database-backed Creator Links files.
-
-Task:
-Implement the first manual owner/admin workflow for Creator Hub links.
-
-You may edit:
-- packages/domain/src/links/
-- packages/domain/test/
-- apps/api/src/links/
-- apps/api/test/
-- apps/web/src/app/admin/links/
-- apps/web/src/app/links/page.tsx only if needed to reflect admin-managed data
-- apps/web/src/app/globals.css link/admin-specific styles
-- TODO.md
-- reports/current-work.md
-
-Acceptance criteria:
-- Provide owner/admin API mutations to manage link title, description, destination, availability, purpose, icon, primary/order state, and published state.
-- Reuse the existing auth/session and owner/project-admin permission patterns; do not invent a parallel auth system.
-- Add efficient admin forms under `/admin/links`.
-- Keep support destination unavailable unless Michael supplies/approves it.
-- Preserve clear unavailable states for unpublished links.
-- Do not add affiliate tracking, sponsor telemetry, money, or AI-generated publishing.
-- Add focused domain/API tests for permission checks, validation, publish/unpublish behavior, and available/unavailable invariants.
-
-Run once near the end:
-- corepack pnpm --filter @maiks-yt/domain test
-- corepack pnpm --filter @maiks-yt/api test
-- corepack pnpm --filter @maiks-yt/api typecheck
-- corepack pnpm --filter @maiks-yt/web typecheck
-- corepack pnpm --filter @maiks-yt/web build
-- node scripts/check-architecture.mjs
-
-Do not commit, push, deploy, apply migrations, or edit outside the allowed scope.
-Report changed files, checks run, any skipped checks, and unresolved concerns.
-```
-
-Reviewer gate:
-
-- Confirm link admin is owner-gated and cannot be used by normal logged-in users.
-- Confirm unavailable support messaging remains honest.
-- Verify admin changes affect the public `/links` page after review.
+Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
 ## Chunk 4: Stream Tools PWA Foundation
 
