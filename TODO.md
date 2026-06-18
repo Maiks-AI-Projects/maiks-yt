@@ -184,11 +184,12 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Build project admin create/edit pages.
 - [x] Build milestone admin create/edit/reorder controls.
 - [x] Build non-monetary project item admin create/edit/reorder controls.
+- [x] Add database-backed Creator Hub link read-model foundation.
 - [ ] Build Creator Hub link admin create/edit/reorder controls.
 - [ ] Add preview-before-publish behavior for public content changes.
 - [ ] Keep AI assistance draft-only until manual admin workflows exist.
 
-Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content.
+Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation, but owner/admin link mutations are still intentionally deferred.
 
 ## 10. Stream Scheduling
 

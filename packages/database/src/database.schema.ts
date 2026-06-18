@@ -300,6 +300,73 @@ export const projectItemLinks = mysqlTable(
   ]
 );
 
+export const creatorLinks = mysqlTable(
+  "creator_links",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    key: varchar("key", { length: 80 }).notNull().unique(),
+    title: varchar("title", { length: 191 }).notNull(),
+    description: text("description").notNull(),
+    purpose: mysqlEnum("purpose", [
+      "account",
+      "accountability",
+      "affiliate",
+      "community",
+      "context",
+      "feed",
+      "project",
+      "social",
+      "stream",
+      "support",
+      "tool"
+    ]).notNull(),
+    icon: mysqlEnum("icon", [
+      "account",
+      "accountability",
+      "affiliate",
+      "community",
+      "context",
+      "discord",
+      "feed",
+      "project",
+      "social",
+      "stream",
+      "support",
+      "twitch",
+      "tool",
+      "youtube"
+    ]).notNull(),
+    availability: mysqlEnum("availability", ["available", "unavailable"]).notNull().default("unavailable"),
+    href: varchar("href", { length: 1024 }),
+    availabilityNote: varchar("availability_note", { length: 191 }),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    sortOrder: int("sort_order").notNull().default(0),
+    isPublished: boolean("is_published").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("creator_links_published_sort_idx").on(table.isPublished, table.sortOrder),
+    index("creator_links_purpose_idx").on(table.purpose),
+    check(
+      "creator_links_availability_check",
+      sql`(
+        (
+          ${table.availability} = 'available'
+          and ${table.href} is not null
+          and trim(${table.href}) <> ''
+        )
+        or
+        (
+          ${table.availability} = 'unavailable'
+          and ${table.availabilityNote} is not null
+          and trim(${table.availabilityNote}) <> ''
+        )
+      )`
+    )
+  ]
+);
+
 export const valueSources = mysqlTable(
   "value_sources",
   {

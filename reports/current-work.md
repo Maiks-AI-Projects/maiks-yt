@@ -34,15 +34,17 @@ Finish the partially completed project areas before starting untouched feature g
 - Registered the project-admin API route from the coordinator-owned API entrypoint.
 - Kept AI assistance, support, funding, provider, donation, wishlist integration, ledger, and price/estimate behavior out of the admin forms and mutation payloads.
 - Added a mock support/payment simulator planning card and linked it from the simulator and money planning docs.
+- Added the database-backed Creator Links foundation with a `creator_links` schema/migration, dev seeds, public domain read-model rules, public API route, and `/links` runtime loading with a reviewed static fallback.
+- Kept the Creator Hub support link unavailable in the database seed and static fallback.
 
 ## Current Task
 
-Prepare a database-backed Creator Links foundation chunk because static source-file editing is not realistic for owner/admin link management.
+Review the database-backed Creator Links foundation before enabling owner/admin link editing.
 
 ## Next Tasks
 
-1. Add a database-backed Creator Links read model, migration, dev seed, public API route, and `/links` runtime data loading.
-2. Add the Creator Hub link admin slice after the database-backed foundation is reviewed.
+1. Review and apply the Creator Links migration/seed only after coordinator approval.
+2. Add the Creator Hub link admin slice after the database-backed foundation is reviewed and migrated on dev.
 3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
@@ -50,6 +52,7 @@ Prepare a database-backed Creator Links foundation chunk because static source-f
 - GPT-5.5 is the default model for implementation and review agents.
 - Creator Hub link foundations are current through the latest reviewed main commit.
 - The first Creator Hub link admin worker stopped correctly: current links are a compiled TypeScript array, so runtime admin editing needs a database-backed link model first.
+- Creator Links Chunk 3A is implemented locally and awaiting coordinator review; no migrations have been applied.
 - Manual project-admin tools are implemented, reviewed, committed, deployed to dev, and dev-smoked.
 - Action Panel Task 1 domain contracts are complete and reviewed.
 - Action Panel Task 2 persistence and migration are complete and reviewed.

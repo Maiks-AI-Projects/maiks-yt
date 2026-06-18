@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 
 import { createDatabase, createDatabasePool } from "./database.service.js";
 import {
   actionItems,
+  creatorLinks,
   eventReplayEvents,
   eventReplaySessions,
   linkedAccounts,
@@ -40,6 +41,218 @@ const communityItemId = "00000000-0000-4000-8000-000000000082";
 const streamSessionId = "00000000-0000-4000-8000-000000000030";
 const overlayStateId = "00000000-0000-4000-8000-000000000031";
 const replaySessionId = "00000000-0000-4000-8000-000000000040";
+const creatorLinkSeeds = [
+  {
+    id: "00000000-0000-4000-8000-000000000100",
+    key: "current-stream-home",
+    title: "Current Stream Home",
+    description: "Main public entry point for streams, projects, updates, and account access.",
+    purpose: "stream",
+    icon: "stream",
+    availability: "available",
+    href: "/",
+    availabilityNote: null,
+    isPrimary: true,
+    sortOrder: 10,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000101",
+    key: "projects",
+    title: "Projects",
+    description: "Public read-only project plans, milestones, and non-monetary work items.",
+    purpose: "project",
+    icon: "project",
+    availability: "available",
+    href: "/projects",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 20,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000102",
+    key: "twitch",
+    title: "Twitch",
+    description: "Live streams, chat, and stream alerts on the main MaiksMC Twitch channel.",
+    purpose: "social",
+    icon: "twitch",
+    availability: "available",
+    href: "https://www.twitch.tv/maiksmc",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 30,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000103",
+    key: "maiksmc-youtube",
+    title: "MaiksMC YouTube",
+    description: "The main YouTube channel for MaiksMC uploads and stream-adjacent videos.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@maiksMC",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 40,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000104",
+    key: "wow-with-maiks",
+    title: "WoW with Maiks",
+    description: "World of Warcraft videos and related channel experiments.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@wowwithmaiks2218",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 50,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000105",
+    key: "maiks-talking",
+    title: "Maiks Talking",
+    description: "Talking, updates, and creator-side video experiments.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@maikstalking9763",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 60,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000106",
+    key: "coding-with-maiks",
+    title: "Coding with Maiks",
+    description: "Coding videos and build-log style experiments.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@codingwithmaiks1339/featured",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 70,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000107",
+    key: "discord-community",
+    title: "Discord Community",
+    description: "Join the community Discord while the full community pages are still being prepared.",
+    purpose: "community",
+    icon: "discord",
+    availability: "available",
+    href: "https://discord.gg/ZjaBEppKY8",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 80,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000108",
+    key: "support",
+    title: "Support",
+    description: "A support destination can be added after its terms and public wording are approved.",
+    purpose: "support",
+    icon: "support",
+    availability: "unavailable",
+    href: null,
+    availabilityNote: "Support link not available",
+    isPrimary: false,
+    sortOrder: 90,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000109",
+    key: "personal-context",
+    title: "Personal Context",
+    description: "Creator-provided context about personal circumstances that can affect streams.",
+    purpose: "context",
+    icon: "context",
+    availability: "available",
+    href: "/context",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 100,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000110",
+    key: "accountability-and-history",
+    title: "Accountability and History",
+    description: "The public structure for project history, corrections, and archived outcomes.",
+    purpose: "accountability",
+    icon: "accountability",
+    availability: "available",
+    href: "/accountability",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 110,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000111",
+    key: "affiliate-disclosure",
+    title: "Affiliate Disclosure",
+    description: "How income links will be identified separately from personal recommendations.",
+    purpose: "affiliate",
+    icon: "affiliate",
+    availability: "available",
+    href: "/affiliates",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 120,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000112",
+    key: "account",
+    title: "Account",
+    description: "Sign in, link providers, choose privacy, and manage identities used on stream.",
+    purpose: "account",
+    icon: "account",
+    availability: "available",
+    href: "/account",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 130,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000113",
+    key: "layout-lab",
+    title: "Layout Lab",
+    description: "Preview landing-page directions while the creator site design settles.",
+    purpose: "tool",
+    icon: "tool",
+    availability: "available",
+    href: "/gemini-lab",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 140,
+    isPublished: true
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000114",
+    key: "rss-updates",
+    title: "RSS Updates",
+    description: "Public project and blog updates in an open feed.",
+    purpose: "feed",
+    icon: "feed",
+    availability: "available",
+    href: "/feed.xml",
+    availabilityNote: null,
+    isPrimary: false,
+    sortOrder: 150,
+    isPublished: true
+  }
+] as const;
 const actionItemSeeds = [
   {
     id: "00000000-0000-4000-8000-000000000050",
@@ -196,6 +409,21 @@ await database.insert(projectItemLinks).values({
   set: {
     url: "https://web-dev.maiks.yt/",
     label: "Dev site"
+  }
+});
+
+await database.insert(creatorLinks).values([...creatorLinkSeeds]).onDuplicateKeyUpdate({
+  set: {
+    title: sql`VALUES(title)`,
+    description: sql`VALUES(description)`,
+    purpose: sql`VALUES(purpose)`,
+    icon: sql`VALUES(icon)`,
+    availability: sql`VALUES(availability)`,
+    href: sql`VALUES(href)`,
+    availabilityNote: sql`VALUES(availability_note)`,
+    isPrimary: sql`VALUES(is_primary)`,
+    sortOrder: sql`VALUES(sort_order)`,
+    isPublished: sql`VALUES(is_published)`
   }
 });
 

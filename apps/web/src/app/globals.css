@@ -699,6 +699,24 @@ button:disabled {
   margin: 0;
 }
 
+.links-load-state {
+  background: #fff8e8;
+  border: 1px solid #e5bd65;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.links-load-state h2,
+.links-load-state p {
+  margin: 0;
+}
+
+.links-load-state h2 {
+  font-size: 1rem;
+}
+
 .creator-link {
   align-items: center;
   background: #ffffff;
