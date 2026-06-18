@@ -40,15 +40,16 @@ Finish the partially completed project areas before starting untouched feature g
 - Kept support destinations forced unavailable in the Creator Hub link admin slice until Michael approves the URL and public wording.
 - Added the first Stream Tools PWA foundation with a standalone `/tools/actions` manifest start URL, shared placeholder icons, and no private API/data caching.
 - Added a fake/local chat verification harness with typed events, a control-panel sender, and overlay rendering that respects chat visibility and hides bot/system messages by default.
+- Verified the dev Stream Tools manifest, standalone `/tools/actions` route, fake chat token gate, and absence of newly introduced service-worker/private API caching.
 
 ## Current Task
 
-Review the Stream Tools PWA foundation and fake/local chat harness slices.
+Prepare the next installable stream-tools slice after the PWA foundation and fake/local chat harness review.
 
 ## Next Tasks
 
-1. Browser/OBS-smoke the fake/local chat harness and installed Action Panel route.
-2. Make the control panel installable after the `/tools/actions` foundation is verified.
+1. Make the control panel installable using the verified `/tools/actions` PWA foundation.
+2. Browser/OBS-smoke the fake/local chat harness with a valid control/overlay token pair.
 3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
@@ -74,12 +75,12 @@ Review the Stream Tools PWA foundation and fake/local chat harness slices.
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
-- Chat overlay behavior has fake/local test input now; browser/OBS verification and real Twitch/YouTube chat remain open.
+- Chat overlay behavior has fake/local test input now; the fake chat endpoint is present and rejects dummy valid-length tokens with `token_not_found`, but browser/OBS verification still needs a valid control/overlay token pair. Real Twitch/YouTube chat remains open.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Full PWA installability is partially started: `/tools/actions` now has manifest/installability metadata, but control panel, chat, notifications, service-worker strategy, and installed-window QA remain open.
+- Full PWA installability is partially started: `/tools/actions` now has verified manifest/installability metadata and no normal website navbar, but control panel, chat, notifications, service-worker strategy, and installed-window QA remain open.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Do not begin scheduling, full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
 

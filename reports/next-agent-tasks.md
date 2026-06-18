@@ -43,82 +43,121 @@ Creator Hub link admin is implemented, coordinator-reviewed, committed, mirrored
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 4: Stream Tools PWA Foundation
+## Chunk 4: Stream Tools PWA Foundation (Completed)
+
+The first Stream Tools PWA foundation is implemented, coordinator-reviewed, committed, mirrored to `dev`, deployed, and smoke-checked at a basic endpoint level.
+
+Reviewer notes:
+
+- `https://web-dev.maiks.yt/manifest.webmanifest` returns `200`, `application/manifest+json`, `display: "standalone"`, `scope: "/tools/"`, and `start_url: "/tools/actions"`.
+- `https://web-dev.maiks.yt/tools/actions` returns `200`, contains the Action Panel surface, and did not show normal website navbar markers in the fetched HTML.
+- No service worker/private API caching was introduced; the only cache-control hits found in app code were the public manifest cache and existing SSE no-cache headers.
+
+Do not rerun this chunk unless the coordinator explicitly asks for fixes.
+
+## Chunk 5: Chat Verification Harness, Not Full Chat (Completed)
+
+The fake/local chat verification harness is implemented, coordinator-reviewed, committed, mirrored to `dev`, deployed, and endpoint-gate checked.
+
+Reviewer notes:
+
+- `https://api-dev.maiks.yt/overlay/chat/test` exists and rejects a dummy valid-length token with `403` and `{"ok":false,"reason":"token_not_found"}`.
+- `https://api-dev.maiks.yt/overlay/status` rejects the same dummy token with `token_not_found`, confirming the control-panel gate remains in place.
+- Browser/OBS verification of real fake-message rendering remains manual because this review did not have a valid control/overlay token pair.
+- This remains a fake verification harness only; real Twitch/YouTube chat, moderation, stream bot commands, ranks, profiles, and AI reading are still deferred.
+
+Do not rerun this chunk unless the coordinator explicitly asks for fixes.
+
+## Chunk 6: Control Panel Installability Slice
 
 Model: GPT-5.5
+
+Use a larger vertical slice. Keep auth/token gates exactly as strict as they are now.
 
 Prompt:
 
 ```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 14A, and ideas/installable-pwa-control-surfaces.md.
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md sections 7, 11, and 14A, and ideas/installable-pwa-control-surfaces.md.
 
 Task:
-Add the first installable PWA foundation for streamer tool surfaces.
+Make the existing control panel installable as a stream-tool PWA surface, building on the verified `/tools/actions` manifest foundation.
 
 You may edit:
-- apps/web/src/app/manifest.ts or equivalent Next manifest route
+- apps/control-panel/src/
+- apps/control-panel/index.html
+- apps/control-panel/vite.config.ts only if needed for metadata/build output
+- apps/web/src/app/manifest.webmanifest/route.ts
 - apps/web/src/app/tools/
-- apps/web/src/app/globals.css
-- public/static icon assets only if they are simple generated placeholders
+- public icon/static assets only if they are simple generated placeholders and safe for all stream tools
+- ideas/installable-pwa-control-surfaces.md
 - TODO.md
 - reports/current-work.md
-- ideas/installable-pwa-control-surfaces.md
+- reports/next-agent-tasks.md
 
 Acceptance criteria:
-- Add a basic PWA manifest for Maiks.yt stream tools.
-- Keep private tool routes using the existing auth/token direction; do not weaken access.
-- Do not cache private chat, moderation, OAuth, account, action panel, admin, or money data.
-- Add installability metadata suitable for the standalone Action Panel route.
-- Document what remains before making control panel/chat/notifications installable.
-- Do not build service-worker data caching unless it is static-assets-only and clearly safe.
-- Do not create the chat panel or notifications panel yet.
+- Add installability metadata for the control panel without weakening `control-panel` token access.
+- Keep the existing control token storage/gate behavior; do not add login, account, OAuth, or admin changes.
+- Keep private API/chat/moderation/account/action-panel/admin/money data out of service-worker or offline caches.
+- If a service worker is introduced, it must be static-assets-only, narrowly scoped, and explicitly documented; otherwise document why service-worker work remains deferred.
+- Preserve the current fake/local chat sender and overlay visibility controls.
+- Add a small installability/manual QA note for stream-monitor window sizes and what must be checked after deployment.
+- Do not add streamer chat, notifications panel, moderation, live Twitch/YouTube chat, AI reading, or money behavior.
 
-Run once near the end:
+Verification:
+- corepack pnpm --filter @maiks-yt/control-panel typecheck
+- corepack pnpm --filter @maiks-yt/control-panel build
 - corepack pnpm --filter @maiks-yt/web typecheck
 - corepack pnpm --filter @maiks-yt/web build
 - node scripts/check-architecture.mjs
 
-Do not commit, push, deploy, or edit files outside the allowed scope.
-Report changed files, checks run, any skipped checks, and unresolved concerns.
+Browser/manual smoke if practical:
+- Open the local or dev control panel with a valid control token and confirm installability metadata is present.
+- Confirm missing/invalid tokens still block access.
+- Confirm the control panel can still send fake chat when paired with a valid overlay token, or document the exact blocker.
+
+Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
+Report changed files, checks run, skipped browser/manual checks, and unresolved concerns.
 ```
 
 Reviewer gate:
 
-- Verify the manifest is reachable.
-- Verify `/tools/actions` still has no website navbar.
-- Confirm no sensitive API response caching was introduced.
+- Verify control-panel installability metadata on dev.
+- Verify invalid/dummy control tokens are still rejected.
+- Confirm no private API response caching or broad service-worker scope was introduced.
+- If a valid token pair is available, browser-smoke fake chat from control panel to overlay; otherwise keep that as an explicit manual item.
 
-## Chunk 5: Chat Verification Harness, Not Full Chat
+## Chunk 7: Streamer Chat Foundation Planning/First Slice
 
 Model: GPT-5.5
+
+Start only after the control-panel installability slice is reviewed, unless Michael explicitly prioritizes streamer chat first.
 
 Prompt:
 
 ```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 11, and only the existing overlay/control-panel realtime files needed.
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 11, and only the existing overlay/control-panel/API realtime files needed.
 
 Task:
-Create a minimal fake/test chat input path so the existing overlay chat visibility and future chat overlay behavior can be verified without going live.
+Prepare the first streamer-only chat foundation on top of the fake/local harness. This is not live Twitch/YouTube chat yet.
 
 You may edit:
 - packages/events/src/
 - packages/events/test/
-- apps/api/src/main.ts only for narrowly scoped test chat endpoints/events
+- apps/api/src/main.ts only for narrowly scoped chat foundation endpoints/events
 - apps/control-panel/src/
 - apps/overlay/src/
 - TODO.md
 - reports/current-work.md
+- reports/next-agent-tasks.md
 
 Acceptance criteria:
-- Add typed fake chat/test message events.
-- Add a control-panel test input/button for sending a fake chat message.
-- Render fake chat messages in the overlay only when chat is visible.
-- Keep bot/system message hiding rules simple or explicitly deferred.
-- Do not connect real Twitch/YouTube chat.
-- Do not add moderation, bans, mutes, ranks, user profiles, AI reading, or stream bot commands.
-- Add or update focused event tests where practical.
+- Keep the fake/local source as the only message source.
+- Add the smallest streamer-only chat viewing surface needed to inspect fake/local messages.
+- Preserve overlay rendering rules: chat slot visibility is respected and bot/system messages stay hidden from overlay by default.
+- Keep moderation, bans, mutes, ranks, user profiles, AI reading, stream bot commands, and real Twitch/YouTube chat out of scope.
+- Add focused event/API/UI tests where practical.
 
-Run once near the end:
+Verification:
 - corepack pnpm --filter @maiks-yt/events test
 - corepack pnpm --filter @maiks-yt/events typecheck
 - corepack pnpm --filter @maiks-yt/api typecheck
@@ -126,16 +165,21 @@ Run once near the end:
 - corepack pnpm --filter @maiks-yt/overlay typecheck
 - node scripts/check-architecture.mjs
 
-Do not commit, push, deploy, or edit files outside the allowed scope.
-Report changed files, checks run, any skipped checks, and unresolved concerns.
+Browser/manual smoke if practical:
+- With a valid control/overlay token pair, send a fake human chat message and confirm streamer-only chat receives it.
+- Confirm bot/system fake messages do not appear on the overlay by default.
+- Confirm hidden chat slot does not render new fake messages on the overlay.
+
+Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
+Report changed files, checks run, skipped browser/manual checks, and unresolved concerns.
 ```
 
 Reviewer gate:
 
-- Verify with overlay/control-panel browser pages if practical.
-- Confirm this remains a fake verification harness, not the full chat system.
+- Verify this remains a local/fake streamer-chat foundation, not a live platform chat integration.
+- Verify overlay chat visibility and bot/system hiding with a valid token pair if available.
 
-## Chunk 6: Next Queue Review
+## Chunk 8: Next Queue Review
 
 Model: GPT-5.5
 
