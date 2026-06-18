@@ -9,6 +9,7 @@ The coordinator reviews, tests, commits, pushes, mirrors `main` to `dev`, applie
 ## Current Blocked/Manual Items
 
 - Creator Hub support destination is blocked until Michael creates or approves the support URL and wording.
+- Creator Hub link admin is blocked until a database-backed Creator Links foundation exists; static TypeScript source-file editing is not acceptable for runtime admin edits.
 - Chat overlay behavior still needs verification with live or test chat input.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
 
@@ -24,7 +25,13 @@ Manual project-admin tools are implemented, coordinator-reviewed, committed, mir
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 3: Creator Hub Link Admin Slice
+## Chunk 3: Creator Hub Link Admin Slice (Blocked Pending Database Foundation)
+
+The first worker stopped at the correct gate: current links live in `apps/web/src/content/public-creator-links-data.ts`, and a real owner/admin workflow cannot safely edit compiled TypeScript source at runtime.
+
+Do not rerun this chunk until Chunk 3A is complete and reviewed.
+
+## Chunk 3A: Database-backed Creator Links Foundation
 
 Model: GPT-5.5
 
@@ -33,31 +40,47 @@ Start after Chunk 2 unless the coordinator explicitly chooses a smaller content-
 Prompt:
 
 ```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 9A, ideas/manual-admin-content-tools.md, ideas/creator-hub-links-and-feeds.md, and the Creator Hub link data/page files.
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 9A, ideas/manual-admin-content-tools.md, ideas/creator-hub-links-and-feeds.md, apps/web/src/content/public-creator-links-data.ts, apps/web/src/app/links/page.tsx, packages/database/src/database.schema.ts, packages/database/src/seed-dev.service.ts, and the existing Projects read-model/API patterns.
 
 Task:
-Design and implement the first manual owner/admin workflow for Creator Hub links.
+Add the database-backed Creator Links foundation needed before owner/admin link editing can exist.
 
 You may edit:
-- packages/domain/src/links/ only if adding typed link rules is necessary
-- apps/api/src/links/ or a focused existing route area
+- packages/domain/src/links/
+- packages/domain/test/
+- packages/database/src/database.schema.ts
+- packages/database/src/seed-dev.service.ts
+- packages/database/drizzle/
+- apps/api/src/links/
+- apps/api/src/main.ts only to register public link read routes
 - apps/api/test/
-- apps/web/src/app/admin/links/
-- apps/web/src/content/public-creator-links-data.ts only if keeping static data for now is intentional
+- apps/web/src/content/public-creator-links-data.ts only to reuse/export shared labels/types or preserve a static fallback
 - apps/web/src/app/links/page.tsx
 - apps/web/src/app/globals.css link/admin-specific styles
 - TODO.md
 - reports/current-work.md
 
 Acceptance criteria:
-- Provide a manual owner/admin path to manage link title, description, destination, availability, purpose, icon, primary/order state.
+- Add a `creator_links` database table using the existing Drizzle/MySQL migration style.
+- Preserve the current link fields: key, title, description, purpose, icon, availability, href, availability note, primary state, sort order, and published state.
+- Enforce or validate that available links require `href`, and unavailable links require `availability_note`.
+- Seed the current public links into development data without making the support destination available.
+- Add typed domain/read-model rules for Creator Links.
+- Add a public API read route for published creator links.
+- Update `/links` to load runtime link data from the API or server-side data path, with a clear safe fallback if the API is unavailable.
+- Preserve the existing public `/links` behavior and unavailable support messaging.
+- Do not add owner/admin mutations in this chunk.
 - Keep support destination unavailable unless Michael supplies/approves it.
 - Preserve clear unavailable states for unpublished links.
 - Do not add affiliate tracking, sponsor telemetry, money, or AI-generated publishing.
-- If static file-backed editing is not realistic, stop and propose the minimal database-backed schema/migration needed instead of forcing it.
+- Do not apply migrations to any database and do not deploy.
+- If Drizzle generation or the existing schema pattern is insufficient, stop and report the exact blocker.
 
 Run once near the end:
+- corepack pnpm --filter @maiks-yt/domain test
+- corepack pnpm --filter @maiks-yt/database typecheck
 - corepack pnpm --filter @maiks-yt/api test
+- corepack pnpm --filter @maiks-yt/api typecheck
 - corepack pnpm --filter @maiks-yt/web typecheck
 - corepack pnpm --filter @maiks-yt/web build
 - node scripts/check-architecture.mjs
@@ -68,8 +91,61 @@ Report changed files, checks run, any skipped checks, and unresolved concerns.
 
 Reviewer gate:
 
-- Decide whether link admin should remain static-data-backed or move to database-backed content.
+- Review generated migration before applying it to dev.
+- Confirm `/links` still works when API/data loading succeeds and has a safe unavailable state if it fails.
 - Confirm unavailable support messaging remains honest.
+
+## Chunk 3B: Creator Hub Link Admin Slice
+
+Model: GPT-5.5
+
+Start after Chunk 3A is reviewed, committed, migrated on dev, seeded, and smoke-tested.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 9A, ideas/manual-admin-content-tools.md, ideas/creator-hub-links-and-feeds.md, and the database-backed Creator Links files.
+
+Task:
+Implement the first manual owner/admin workflow for Creator Hub links.
+
+You may edit:
+- packages/domain/src/links/
+- packages/domain/test/
+- apps/api/src/links/
+- apps/api/test/
+- apps/web/src/app/admin/links/
+- apps/web/src/app/links/page.tsx only if needed to reflect admin-managed data
+- apps/web/src/app/globals.css link/admin-specific styles
+- TODO.md
+- reports/current-work.md
+
+Acceptance criteria:
+- Provide owner/admin API mutations to manage link title, description, destination, availability, purpose, icon, primary/order state, and published state.
+- Reuse the existing auth/session and owner/project-admin permission patterns; do not invent a parallel auth system.
+- Add efficient admin forms under `/admin/links`.
+- Keep support destination unavailable unless Michael supplies/approves it.
+- Preserve clear unavailable states for unpublished links.
+- Do not add affiliate tracking, sponsor telemetry, money, or AI-generated publishing.
+- Add focused domain/API tests for permission checks, validation, publish/unpublish behavior, and available/unavailable invariants.
+
+Run once near the end:
+- corepack pnpm --filter @maiks-yt/domain test
+- corepack pnpm --filter @maiks-yt/api test
+- corepack pnpm --filter @maiks-yt/api typecheck
+- corepack pnpm --filter @maiks-yt/web typecheck
+- corepack pnpm --filter @maiks-yt/web build
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, apply migrations, or edit outside the allowed scope.
+Report changed files, checks run, any skipped checks, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Confirm link admin is owner-gated and cannot be used by normal logged-in users.
+- Confirm unavailable support messaging remains honest.
+- Verify admin changes affect the public `/links` page after review.
 
 ## Chunk 4: Stream Tools PWA Foundation
 
