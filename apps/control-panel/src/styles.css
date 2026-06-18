@@ -245,7 +245,6 @@ button:disabled {
 }
 
 .streamer-chat-list {
-  align-content: end;
   display: grid;
   gap: 0.5rem;
   list-style: none;
@@ -253,6 +252,14 @@ button:disabled {
   max-height: 18rem;
   overflow: hidden;
   padding: 0;
+}
+
+.streamer-chat-list.newest-on-top {
+  align-content: start;
+}
+
+.streamer-chat-list.newest-on-bottom {
+  align-content: end;
 }
 
 .streamer-chat-list li {

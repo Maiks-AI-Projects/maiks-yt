@@ -46,6 +46,7 @@ const activeOverlayConnections = new Set<string>();
 const maxStreamerChatHistory = 75;
 let overlayEmergencyCleanModeEnabled = false;
 let overlayChatVisible = true;
+let overlayChatNewestOnTop = false;
 let overlaySponsorVisible = true;
 let overlayAiMuted = false;
 let overlayTopBarEnabled = true;
@@ -126,6 +127,10 @@ const overlayEmergencyCleanModeRequestSchema = z.object({
 const overlayChatVisibilityRequestSchema = z.object({
   accessToken: z.string().min(24),
   visible: z.boolean()
+});
+const overlayChatOrderRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  newestOnTop: z.boolean()
 });
 const overlayFakeChatTestRequestSchema = z.object({
   accessToken: z.string().min(24),
@@ -404,6 +409,9 @@ const createOverlayStateSnapshot = ({
     center: {
       enabled: overlayCenterEnabled,
       defaultTiming: overlayCenterDefaultTiming
+    },
+    chat: {
+      newestOnTop: overlayChatNewestOnTop
     },
     activeGoal: overlayActiveGoal ? { ...overlayActiveGoal } : null,
     topNotification: null,
@@ -1528,6 +1536,7 @@ server.get("/overlay/status", async (request, reply) => {
     },
     emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
     chatVisible: overlayChatVisible,
+    chatNewestOnTop: overlayChatNewestOnTop,
     sponsorVisible: overlaySponsorVisible,
     aiMuted: overlayAiMuted,
     topBarEnabled: overlayTopBarEnabled,
@@ -1923,6 +1932,41 @@ server.post("/overlay/chat/visibility", async (request, reply) => {
   return {
     ok: true,
     chatVisible: overlayChatVisible,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+});
+
+server.post("/overlay/chat/order", async (request, reply) => {
+  const parsedRequest = overlayChatOrderRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  overlayChatNewestOnTop = parsedRequest.data.newestOnTop;
+  broadcastOverlaySnapshots();
+
+  return {
+    ok: true,
+    chatNewestOnTop: overlayChatNewestOnTop,
     activeOverlayConnections: activeOverlayConnections.size
   };
 });

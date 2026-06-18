@@ -314,13 +314,20 @@ body {
 }
 
 .fake-chat-overlay {
-  align-content: end;
   display: grid;
   gap: 0.45rem;
   grid-auto-flow: row;
   overflow: hidden;
   pointer-events: none;
   position: absolute;
+}
+
+.fake-chat-overlay.newest-on-top {
+  align-content: start;
+}
+
+.fake-chat-overlay.newest-on-bottom {
+  align-content: end;
 }
 
 .fake-chat-message {

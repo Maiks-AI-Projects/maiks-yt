@@ -71,6 +71,10 @@ export type OverlayCenterNotificationState = {
   defaultTiming: OverlayCenterNotificationTiming;
 };
 
+export type OverlayChatState = {
+  newestOnTop: boolean;
+};
+
 export type OverlayActiveGoalState = {
   enabled: boolean;
   label: string;
@@ -89,6 +93,7 @@ export type OverlayStateSnapshot = {
   sceneDefinition: OverlaySceneDefinition;
   topBar: OverlayTopBarState;
   center: OverlayCenterNotificationState;
+  chat: OverlayChatState;
   activeGoal: OverlayActiveGoalState | null;
   topNotification: OverlayNotificationQueuedEvent["payload"] | null;
   centerNotification: OverlayNotificationQueuedEvent["payload"] | null;

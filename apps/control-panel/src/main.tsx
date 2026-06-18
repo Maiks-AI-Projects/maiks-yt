@@ -72,6 +72,7 @@ type OverlayPresenceState =
     checkedAt: string;
     emergencyCleanModeEnabled: boolean;
     chatVisible: boolean;
+    chatNewestOnTop: boolean;
     sponsorVisible: boolean;
     aiMuted: boolean;
     topBarEnabled: boolean;
@@ -99,6 +100,7 @@ type OverlayStatusResponse = {
   presentationState: OverlayPresentationState;
   emergencyCleanModeEnabled: boolean;
   chatVisible: boolean;
+  chatNewestOnTop: boolean;
   sponsorVisible: boolean;
   aiMuted: boolean;
   topBarEnabled: boolean;
@@ -135,6 +137,15 @@ type OverlayFakeChatTestResponse = {
   queued: number;
   chatVisible: boolean;
   streamerChatMessage: StreamerChatMessage;
+  activeOverlayConnections: number;
+} | {
+  ok: false;
+  reason: string;
+};
+
+type OverlayChatOrderResponse = {
+  ok: true;
+  chatNewestOnTop: boolean;
   activeOverlayConnections: number;
 } | {
   ok: false;
@@ -316,10 +327,12 @@ const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(un
 
 const maxStreamerChatViewerMessages = 12;
 
-const StreamerChatViewer = (): React.ReactNode => {
+const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.ReactNode => {
   const [messages, setMessages] = useState<StreamerChatMessage[]>([]);
   const [status, setStatus] = useState<string>("Loading fake/local chat.");
-  const visibleMessages = messages.slice(0, maxStreamerChatViewerMessages).reverse();
+  const visibleMessages = newestOnTop
+    ? messages.slice(0, maxStreamerChatViewerMessages)
+    : messages.slice(0, maxStreamerChatViewerMessages).reverse();
 
   useEffect(() => {
     let disposed = false;
@@ -407,7 +420,7 @@ const StreamerChatViewer = (): React.ReactNode => {
       {visibleMessages.length === 0 ? (
         <p className="streamer-chat-empty">No fake/local messages yet.</p>
       ) : (
-        <ol className="streamer-chat-list">
+        <ol className={`streamer-chat-list ${newestOnTop ? "newest-on-top" : "newest-on-bottom"}`}>
           {visibleMessages.map((message) => (
             <li className={message.visibleOnOverlayByDefault ? "overlay-visible" : "streamer-only"} key={message.id}>
               <div>
@@ -467,6 +480,7 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
             checkedAt: result.checkedAt,
             emergencyCleanModeEnabled: result.emergencyCleanModeEnabled,
             chatVisible: result.chatVisible,
+            chatNewestOnTop: result.chatNewestOnTop,
             sponsorVisible: result.sponsorVisible,
             aiMuted: result.aiMuted,
             topBarEnabled: result.topBarEnabled,
@@ -529,6 +543,7 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
   const emergencyCleanModeEnabled = overlayPresence.status === "ready" && overlayPresence.emergencyCleanModeEnabled;
   const chatVisible = overlayPresence.status === "ready" && overlayPresence.chatVisible;
+  const chatNewestOnTop = overlayPresence.status === "ready" && overlayPresence.chatNewestOnTop;
   const sponsorVisible = overlayPresence.status === "ready" && overlayPresence.sponsorVisible;
   const aiMuted = overlayPresence.status === "ready" && overlayPresence.aiMuted;
   const topBarEnabled = overlayPresence.status === "ready" && overlayPresence.topBarEnabled;
@@ -663,6 +678,46 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
       }
       : currentState);
     setTopBarActionStatus(visible ? "Chat on." : "Chat off.");
+  };
+
+  const updateChatOrder = async (newestOnTop: boolean): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setTopBarActionStatus("Control token missing.");
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/overlay/chat/order`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        accessToken: token,
+        newestOnTop
+      })
+    });
+
+    if (!response.ok) {
+      setTopBarActionStatus(`Chat order failed with ${response.status}.`);
+      return;
+    }
+
+    const result = await response.json() as OverlayChatOrderResponse;
+
+    if (!result.ok) {
+      setTopBarActionStatus(`Chat order failed: ${result.reason}.`);
+      return;
+    }
+
+    setOverlayPresence((currentState) => currentState.status === "ready"
+      ? {
+        ...currentState,
+        chatNewestOnTop: result.chatNewestOnTop
+      }
+      : currentState);
+    setTopBarActionStatus(result.chatNewestOnTop ? "Newest chat on top." : "Newest chat on bottom.");
   };
 
   const updateSponsorVisibility = async (visible: boolean): Promise<void> => {
@@ -1036,6 +1091,9 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
         <button type="button" className="status-action" onClick={() => void updateChatVisibility(!chatVisible)}>
           {chatVisible ? "Chat on" : "Chat off"}
         </button>
+        <button type="button" className="status-action" onClick={() => void updateChatOrder(!chatNewestOnTop)}>
+          {chatNewestOnTop ? "Newest top" : "Newest bottom"}
+        </button>
         <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
           {sponsorVisible ? "Sponsor on" : "Sponsor off"}
         </button>
@@ -1122,7 +1180,7 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
           Send fake chat
         </button>
       </div>
-      <StreamerChatViewer />
+      <StreamerChatViewer newestOnTop={chatNewestOnTop} />
       <details className="notification-settings">
         <summary>Goal widget</summary>
         <label>

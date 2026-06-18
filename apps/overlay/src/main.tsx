@@ -361,9 +361,11 @@ const StreamGoalWidget = ({
 };
 
 const FakeChatOverlay = ({
+  newestOnTop,
   messages,
   slotStyle
 }: {
+  newestOnTop: boolean;
   messages: FakeChatMessage[];
   slotStyle: CSSProperties;
 }): React.ReactNode => {
@@ -372,7 +374,12 @@ const FakeChatOverlay = ({
   }
 
   return (
-    <section className="fake-chat-overlay" style={slotStyle} aria-label="Fake chat messages" aria-live="polite">
+    <section
+      className={`fake-chat-overlay ${newestOnTop ? "newest-on-top" : "newest-on-bottom"}`}
+      style={slotStyle}
+      aria-label="Fake chat messages"
+      aria-live="polite"
+    >
       {messages.map((message) => (
         <article className="fake-chat-message" key={message.id}>
           <strong>{message.authorName}</strong>
@@ -692,6 +699,9 @@ const App = (): React.ReactNode => {
   }, [runtimeState]);
 
   const topBarEnabled = runtimeState.status === "ready" && runtimeState.snapshot.topBar.enabled;
+  const fakeChatMessagesForDisplay = runtimeState.status === "ready" && runtimeState.snapshot.chat.newestOnTop
+    ? [...fakeChatMessages].reverse()
+    : fakeChatMessages;
   const isMinimalFallback = runtimeState.status === "ready" && isMinimalFallbackLiveStatus(runtimeState.liveStatus);
   const quietHighlightIntervalMs = runtimeState.status === "ready"
     ? runtimeState.snapshot.topBar.quietHighlightIntervalMs
@@ -774,7 +784,8 @@ const App = (): React.ReactNode => {
       ) : null}
       {snapshot.slots.chat.visible && slots.chat.visible ? (
         <FakeChatOverlay
-          messages={fakeChatMessages}
+          newestOnTop={snapshot.chat.newestOnTop}
+          messages={fakeChatMessagesForDisplay}
           slotStyle={createSlotStyle(slots.chat)}
         />
       ) : null}
