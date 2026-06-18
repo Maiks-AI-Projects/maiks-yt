@@ -138,11 +138,21 @@ Reviewer gate:
 - Confirm no private API response caching or broad service-worker scope was introduced.
 - If a valid token pair is available, browser-smoke fake chat from control panel to overlay; otherwise keep that as an explicit manual item.
 
-## Chunk 7: Streamer Chat Foundation Planning/First Slice
+## Chunk 7: Streamer Chat Foundation Planning/First Slice (Implemented, Needs Review)
 
 Model: GPT-5.5
 
-Start only after the control-panel installability slice is reviewed, unless Michael explicitly prioritizes streamer chat first.
+Implemented locally after Michael explicitly prioritized streamer chat first.
+
+Reviewer notes:
+
+- The streamer chat surface is fake/local-only and lives inside the existing token-gated control panel.
+- `GET /streamer-chat/messages` returns the in-memory fake/local history for control tokens.
+- `WS /streamer-chat/live` sends a snapshot and new fake/local messages to streamer chat viewers.
+- Overlay still receives the existing fake chat event and keeps its human-only, visible-slot rendering rules.
+- No real Twitch/YouTube chat, moderation, bans, mutes, ranks, profiles, stream bot commands, AI reading, money, auth, secrets, deploy, or migration work was added.
+
+Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
 Prompt:
 

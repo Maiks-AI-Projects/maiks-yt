@@ -207,7 +207,8 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 - [x] Normalize fake/local chat messages.
 - [x] Tag fake/local messages as human, bot, or system.
 - [x] Hide fake/local bot/system messages from overlay by default.
-- [ ] Build streamer-only unified chat window.
+- [x] Build first streamer-only fake/local chat window.
+- [ ] Extend streamer-only unified chat beyond fake/local after live platform chat is approved.
 - [ ] Add quick moderation buttons to streamer chat messages.
 - [ ] Add advanced moderation context menu.
 - [ ] Add typed moderation commands for ban, mute, warning, and rank/status changes.

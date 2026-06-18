@@ -17,8 +17,11 @@ import type {
   OverlayCenterNotificationTiming,
   OverlayRoutedNotificationQueuedEvent,
   OverlayTopBarNotificationQueuedEvent,
-  RealtimeEvent
+  RealtimeEvent,
+  StreamerChatLiveMessage,
+  StreamerChatMessage
 } from "@maiks-yt/events";
+import { createStreamerChatMessageFromFakeLocal } from "@maiks-yt/events";
 import { allThemeScenes, overlaySceneSlotIds } from "@maiks-yt/themes";
 import fastifyCors from "@fastify/cors";
 import fastifyWebsocket from "@fastify/websocket";
@@ -40,6 +43,7 @@ const config = createRuntimeConfig({
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
 const activeOverlayConnections = new Set<string>();
+const maxStreamerChatHistory = 75;
 let overlayEmergencyCleanModeEnabled = false;
 let overlayChatVisible = true;
 let overlaySponsorVisible = true;
@@ -60,6 +64,8 @@ const overlayLiveClients = new Map<string, {
   snapshot: OverlayStateSnapshot;
   socket: OverlayLiveSocket;
 }>();
+const streamerChatLiveClients = new Map<string, StreamerChatLiveSocket>();
+const streamerChatMessages: StreamerChatMessage[] = [];
 const overlaySceneDefinitions = new Map<string, OverlaySceneDefinition>(
   allThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
 );
@@ -259,6 +265,12 @@ interface RealtimeSpikeSocket {
 }
 
 interface OverlayLiveSocket {
+  close: (code?: number, reason?: string) => void;
+  send: (message: string) => void;
+  on(event: "close", listener: () => void): void;
+}
+
+interface StreamerChatLiveSocket {
   close: (code?: number, reason?: string) => void;
   send: (message: string) => void;
   on(event: "close", listener: () => void): void;
@@ -615,6 +627,37 @@ const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
   for (const client of overlayLiveClients.values()) {
     client.socket.send(serializedMessage);
   }
+};
+
+const createStreamerChatSnapshot = (): StreamerChatLiveMessage => ({
+  type: "streamer-chat.snapshot",
+  payload: {
+    messages: streamerChatMessages.map((message) => ({ ...message })),
+    sentAt: new Date().toISOString()
+  }
+});
+
+const broadcastStreamerChatMessage = (message: StreamerChatMessage): void => {
+  const serializedMessage = JSON.stringify({
+    type: "streamer-chat.message.received",
+    payload: message
+  } satisfies StreamerChatLiveMessage);
+
+  for (const client of streamerChatLiveClients.values()) {
+    client.send(serializedMessage);
+  }
+};
+
+const recordFakeLocalStreamerChatMessage = (
+  event: OverlayFakeChatMessageReceivedEvent
+): StreamerChatMessage => {
+  const message = createStreamerChatMessageFromFakeLocal(event.payload);
+
+  streamerChatMessages.unshift(message);
+  streamerChatMessages.splice(maxStreamerChatHistory);
+  broadcastStreamerChatMessage(message);
+
+  return message;
 };
 
 const broadcastOverlaySnapshots = (): void => {
@@ -1495,6 +1538,66 @@ server.get("/overlay/status", async (request, reply) => {
   };
 });
 
+server.get("/streamer-chat/messages", async (request, reply) => {
+  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  return {
+    ok: true,
+    source: "fake-local",
+    messages: streamerChatMessages.map((message) => ({ ...message })),
+    checkedAt: new Date().toISOString()
+  };
+});
+
+server.get("/streamer-chat/live", { websocket: true }, async (socket: StreamerChatLiveSocket, request) => {
+  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    socket.close(1008, "invalid_request");
+    return;
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    socket.close(1008, tokenValidation.reason ?? "control_panel_access_denied");
+    return;
+  }
+
+  const connectionId = randomUUID();
+  streamerChatLiveClients.set(connectionId, socket);
+  socket.send(JSON.stringify(createStreamerChatSnapshot()));
+  socket.on("close", () => {
+    streamerChatLiveClients.delete(connectionId);
+  });
+});
+
 server.post("/overlay/goal", async (request, reply) => {
   const parsedRequest = overlayGoalStateSchema.safeParse(request.body);
 
@@ -1850,6 +1953,7 @@ server.post("/overlay/chat/test", async (request, reply) => {
   }
 
   const event = createFakeChatMessageEvent(parsedRequest.data);
+  const streamerChatMessage = recordFakeLocalStreamerChatMessage(event);
 
   broadcastOverlayMessage(event);
 
@@ -1857,6 +1961,7 @@ server.post("/overlay/chat/test", async (request, reply) => {
     ok: true,
     queued: 1,
     chatVisible: overlayChatVisible,
+    streamerChatMessage,
     event,
     activeOverlayConnections: activeOverlayConnections.size
   };

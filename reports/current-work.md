@@ -43,15 +43,16 @@ Finish the partially completed project areas before starting untouched feature g
 - Verified the dev Stream Tools manifest, standalone `/tools/actions` route, fake chat token gate, and absence of newly introduced service-worker/private API caching.
 - Added same-origin PWA installability metadata for the existing control panel app while preserving its `control-panel` URL-token gate and current fake/local chat controls.
 - Deferred control-panel service-worker work so private API, fake/local chat, moderation, account/session, action-panel, admin, and money responses remain outside offline caches.
+- Added the first streamer-only fake/local chat viewing surface with in-memory API history and a token-gated live feed, while keeping overlay chat visibility and bot/system hiding behavior unchanged.
 
 ## Current Task
 
-Review the control-panel installability slice and then continue with the next bounded stream-tools task.
+Review the streamer chat foundation first slice and then continue with the next bounded stream-tools task.
 
 ## Next Tasks
 
-1. Review and deploy-smoke the control-panel installability metadata on the control-panel origin.
-2. Browser/OBS-smoke the fake/local chat harness with a valid control/overlay token pair.
+1. Review and deploy-smoke the streamer-only fake/local chat viewer with a valid control/overlay token pair.
+2. Verify overlay chat visibility and bot/system hiding still hold during fake/local chat smoke.
 3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
@@ -83,6 +84,7 @@ Review the control-panel installability slice and then continue with the next bo
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
 - Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, and the existing control panel now has same-origin install metadata. Streamer chat, notifications, service-worker strategy, and installed-window QA remain open.
+- Streamer chat has a fake/local-only control-panel viewing surface; real Twitch/YouTube chat, moderation, ranks, profiles, bot commands, AI reading, and installability remain deferred.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Do not begin scheduling, full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.

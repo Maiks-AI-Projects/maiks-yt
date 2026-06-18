@@ -4,7 +4,9 @@ import type {
   OverlayPresentationState,
   OverlaySceneDefinition,
   OverlaySceneSlotDefinition,
-  OverlaySceneSlotId
+  OverlaySceneSlotId,
+  StreamerChatLiveMessage,
+  StreamerChatMessage
 } from "@maiks-yt/events";
 import { createNotificationScenario, createReplaySessionFromPreset, type EventStormPreset } from "@maiks-yt/testing";
 import { getDefaultThemeScene, overlaySceneSlotIds } from "@maiks-yt/themes";
@@ -132,7 +134,18 @@ type OverlayFakeChatTestResponse = {
   ok: true;
   queued: number;
   chatVisible: boolean;
+  streamerChatMessage: StreamerChatMessage;
   activeOverlayConnections: number;
+} | {
+  ok: false;
+  reason: string;
+};
+
+type StreamerChatMessagesResponse = {
+  ok: true;
+  source: "fake-local";
+  messages: StreamerChatMessage[];
+  checkedAt: string;
 } | {
   ok: false;
   reason: string;
@@ -222,6 +235,14 @@ const createWebSocketUrl = (baseUrl: string, path: string): string => {
   return url.toString();
 };
 
+const createAuthenticatedWebSocketUrl = (baseUrl: string, path: string, accessToken: string): string => {
+  const url = new URL(createWebSocketUrl(baseUrl, path));
+
+  url.searchParams.set("accessToken", accessToken);
+
+  return url.toString();
+};
+
 const appendProbeMessage = (messages: string[], message: string): string[] => [
   message,
   ...messages
@@ -285,6 +306,119 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
     status: "allowed",
     displayName: session.user.name ?? session.user.email ?? "Signed-in user"
   };
+};
+
+const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit"
+}).format(new Date(createdAt));
+
+const StreamerChatViewer = (): React.ReactNode => {
+  const [messages, setMessages] = useState<StreamerChatMessage[]>([]);
+  const [status, setStatus] = useState<string>("Loading fake/local chat.");
+
+  useEffect(() => {
+    let disposed = false;
+    let webSocket: WebSocket | null = null;
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    const loadMessages = async (): Promise<void> => {
+      if (!token) {
+        setStatus("Control token missing.");
+        return;
+      }
+
+      try {
+        const url = new URL("/streamer-chat/messages", apiBaseUrl);
+        url.searchParams.set("accessToken", token);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Streamer chat failed with ${response.status}.`);
+        }
+
+        const result = await response.json() as StreamerChatMessagesResponse;
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        if (!disposed) {
+          setMessages(result.messages);
+          setStatus(`Fake/local chat ready. ${result.messages.length} message(s) loaded.`);
+        }
+      } catch (error) {
+        if (!disposed) {
+          setStatus(error instanceof Error ? error.message : "Streamer chat unavailable.");
+        }
+      }
+    };
+
+    void loadMessages();
+
+    if (token) {
+      webSocket = new WebSocket(createAuthenticatedWebSocketUrl(apiBaseUrl, "/streamer-chat/live", token));
+      webSocket.addEventListener("open", () => {
+        if (!disposed) {
+          setStatus("Fake/local chat live.");
+        }
+      });
+      webSocket.addEventListener("message", (event) => {
+        const liveMessage = JSON.parse(String(event.data)) as StreamerChatLiveMessage;
+
+        if (liveMessage.type === "streamer-chat.snapshot") {
+          setMessages(liveMessage.payload.messages);
+          return;
+        }
+
+        setMessages((currentMessages) => [
+          liveMessage.payload,
+          ...currentMessages.filter((message) => message.id !== liveMessage.payload.id)
+        ].slice(0, 75));
+      });
+      webSocket.addEventListener("close", () => {
+        if (!disposed) {
+          setStatus("Fake/local chat live feed closed.");
+        }
+      });
+      webSocket.addEventListener("error", () => {
+        if (!disposed) {
+          setStatus("Fake/local chat live feed unavailable.");
+        }
+      });
+    }
+
+    return () => {
+      disposed = true;
+      webSocket?.close();
+    };
+  }, []);
+
+  return (
+    <div className="streamer-chat-viewer" aria-label="Streamer fake chat viewer">
+      <div className="streamer-chat-header">
+        <strong>Streamer chat</strong>
+        <span>{status}</span>
+      </div>
+      {messages.length === 0 ? (
+        <p className="streamer-chat-empty">No fake/local messages yet.</p>
+      ) : (
+        <ol className="streamer-chat-list">
+          {messages.map((message) => (
+            <li className={message.visibleOnOverlayByDefault ? "overlay-visible" : "streamer-only"} key={message.id}>
+              <div>
+                <strong>{message.authorName}</strong>
+                <span>{message.authorKind}</span>
+                <time dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
+              </div>
+              <p>{message.message}</p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
 };
 
 const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode => {
@@ -985,6 +1119,7 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
           Send fake chat
         </button>
       </div>
+      <StreamerChatViewer />
       <details className="notification-settings">
         <summary>Goal widget</summary>
         <label>
