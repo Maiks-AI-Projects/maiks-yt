@@ -87,6 +87,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [Sponsor spots and ad telemetry](./sponsor-spots-and-ad-telemetry.md)
 - [Overlay control panel](./overlay-control-panel.md)
 - [Installable PWA control surfaces](./installable-pwa-control-surfaces.md)
+- [Viewer-influenced stream-safe music](./viewer-influenced-stream-safe-music.md)
 - [Overlay static fallback mode](./overlay-static-fallback-mode.md)
 - [Notification priority zones](./notification-priority-zones.md)
 - [Website actions as overlay notifications](./website-actions-overlay-notifications.md)

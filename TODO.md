@@ -272,6 +272,19 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
   - Control panel metadata is ready; after deployment, verify installed-window layout at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes, including token-blocked state, overlay visibility controls, scene designer, and fake/local chat sender.
   - 2026-06-19 endpoint/token QA passed for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state. Visual installed-window screenshots at the three target sizes remain open because the in-app browser failed to attach in the Windows sandbox.
 
+## 14B. Stream-Safe Music, Future Phase
+
+- [x] Capture viewer-influenced stream-safe music idea card.
+- [ ] Research stream-safe music libraries and license proof requirements before implementation.
+- [ ] Define approved music catalog and review workflow.
+- [ ] Add website admin page for approving/rejecting suggested tracks and editing license metadata.
+- [ ] Add separate `/music/player` browser/audio source for OBS audio routing.
+- [ ] Add `/music/overlay` now-playing, attribution, safety, and vote display.
+- [ ] Add music controls to the existing stream control panel, not a separate music panel.
+- [ ] Add viewer voting only for approved tracks.
+- [ ] Add public music suggestion form.
+- [ ] Consider Twitch Extension only after the website/control-panel flow is safe.
+
 ## 15. Money Prep, Not Public Money Yet
 
 - [ ] Compare payment providers available in the Netherlands.
