@@ -97,19 +97,20 @@ Reviewer notes:
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 8: Stream Scheduling MVP (Implemented, Pending Coordinator Review)
+## Chunk 8: Stream Scheduling MVP (Completed)
 
 Model: GPT-5.5
 
-Worker result:
+Result:
 
 - Implemented typed stream scheduling domain rules and focused tests.
 - Added `stream_schedule_entries` schema plus generated migration `packages/database/drizzle/0009_concerned_molecule_man.sql`.
 - Added non-destructive dev seed examples for one upcoming public stream and one cancelled public stream.
 - Added public `GET /schedule` and owner-gated `/admin/schedule` create/edit/cancel API routes.
 - Added public `/schedule` with fallback/dev data and owner `/admin/schedule` manual controls.
-- Migration was generated only and was not applied.
-- Still needs coordinator review, migration application on dev if accepted, deploy, and dev/browser smoke with owner auth.
+- Coordinator review accepted the migration/schema after adding merged-update validation so invalid partial schedule edits are rejected before database checks.
+- Committed as `f73aae4 feat: add stream schedule mvp`, mirrored to `dev`, migrated on dev, seeded, deployed, and public API/web-smoked.
+- Owner-auth create/edit/cancel browser smoke remains manual.
 
 Prompt:
 
@@ -156,22 +157,36 @@ Browser/manual smoke if practical:
 - Open `/admin/schedule` as an owner if auth is available, or document the exact blocker.
 - Confirm cancelled streams remain visible with clear cancellation wording when public.
 
-Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
-Report changed files, checks run, skipped browser/manual checks, and unresolved concerns.
+Completed. Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 ```
 
 Reviewer gate:
 
-- Review migration/schema carefully before applying anything on dev.
-- Verify owner-gated admin access remains strict.
-- Verify public schedule page does not expose private/draft streams.
-- Apply dev migration/seed only after coordinator review.
+- Public `/schedule` returned the two seeded dev entries and cancellation wording after deploy.
+- `GET /admin/schedule` without auth returned `401 not_authenticated`.
+- Owner-auth admin smoke still needs an authenticated browser session.
 
-## Chunk 9: Installed Stream Tools QA Slice
+## Chunk 9: Installed Stream Tools QA Slice (Endpoint/Token QA Completed, Visual QA Still Open)
 
 Model: GPT-5.5
 
-Start when Michael wants visual/browser QA instead of product feature work.
+Endpoint/token QA result:
+
+- Verified `https://web-dev.maiks.yt/tools/actions` returns `200`.
+- Verified `control-dev` and `overlay-dev` app shells return `200`.
+- Verified `control-dev` and web stream-tools manifests return `200` with standalone display metadata.
+- Verified invalid control tokens still return `403 token_not_found`.
+- Verified valid control token can read overlay status and streamer chat history.
+- Verified fake/local human chat can be sent, appears in streamer chat history, and reports active overlay connections.
+- Verified chat order can be toggled through the API, then restored to the previous `newestOnTop: false` state.
+- Verified valid overlay token can read overlay state with the gameplay/camera-left scene layout.
+- Verified no new service-worker/private API cache code is present in `apps/control-panel`, `apps/overlay`, or `apps/web/src`.
+
+Visual QA blocker:
+
+- The in-app browser failed to attach in this Windows sandbox with `CreateProcessAsUserW failed: 5`, and no local Playwright/Puppeteer dependency is installed. Visual installed-window checks at 1920x1080, 1600x900, and 1366x768 still need a browser-capable thread or manual pass.
+
+Follow-up prompt for visual-only QA:
 
 Prompt:
 
@@ -179,7 +194,7 @@ Prompt:
 Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 14A, and ideas/installable-pwa-control-surfaces.md.
 
 Task:
-Do an installed-window/browser QA pass for the installable stream tools and fake/local chat surfaces.
+Do the remaining visual installed-window/browser QA pass for the installable stream tools and fake/local chat surfaces.
 
 You may edit:
 - TODO.md
@@ -190,7 +205,7 @@ You may edit:
 Acceptance criteria:
 - Test `/tools/actions`, `control-dev`, and `overlay-dev` at 1920x1080, 1600x900, and 1366x768.
 - Verify no normal website navbar appears on standalone tools.
-- Verify control-panel token-blocked state, dense controls, scene designer sizing, overlay visibility toggles, fake/local chat sender, streamer chat viewer, and chat order toggle.
+- Visually verify control-panel token-blocked state, dense controls, scene designer sizing, overlay visibility toggles, fake/local chat sender, streamer chat viewer, and chat order toggle.
 - Verify overlay chat stays inside the chat slot and respects visibility/order settings.
 - Keep service workers, offline caches, real chat providers, moderation, AI, and money out of scope.
 

@@ -49,16 +49,18 @@ Finish the partially completed project areas before starting untouched feature g
 - Added a fake chat order toggle so streamer chat and overlay chat can show newest messages at the top or bottom.
 - Kept `reports/usable-urls.md` as a local ignored token reference file so private dev access URLs are easy to find without being committed.
 - Added the first manual Stream Scheduling MVP with typed planned-stream rules, a generated `stream_schedule_entries` migration, non-destructive dev seed examples, public `/schedule`, owner-gated `/admin/schedule`, and constrained cancellation reason templates.
-- Kept Twitch/YouTube scheduling sync, Discord/social announcements, recurrence automation, notifications, AI, money, moderation, auth, secrets, deploy, and migration application out of the scheduling worker slice.
+- Reviewed, committed, migrated, seeded, deployed, and dev-smoked the first manual Stream Scheduling MVP.
+- Kept Twitch/YouTube scheduling sync, Discord/social announcements, recurrence automation, notifications, AI, money, moderation, auth, and secrets out of the scheduling slice.
+- Ran a stream-tools endpoint/token QA pass for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state.
 
 ## Current Task
 
-Prepare coordinator review for the Stream Scheduling MVP worker slice.
+Prepare the next larger agent chunk after stream scheduling and stream-tools QA.
 
 ## Next Tasks
 
-1. Coordinator-review the Stream Scheduling MVP, including the generated migration before applying it on dev.
-2. Browser/OBS-smoke the fake/local chat harness with a valid control/overlay token pair.
+1. Browser/OBS-smoke the fake/local chat harness and installed stream-tool windows with a visual browser at 1920x1080, 1600x900, and 1366x768.
+2. Prepare the next larger implementation chunk after reviewing the partial/blocked areas.
 3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
@@ -80,7 +82,7 @@ Prepare coordinator review for the Stream Scheduling MVP worker slice.
 - WebSocket is the primary realtime transport; SSE remains a fallback option.
 - The next worker prompts and reviewer gates are in `reports/next-agent-tasks.md`.
 - Next agents should use larger vertical chunks to reduce repeated context and check overhead.
-- Stream Scheduling Chunk 8 is implemented but not yet coordinator-reviewed, committed, migrated, deployed, or dev-smoked.
+- Stream Scheduling Chunk 8 is implemented, coordinator-reviewed, committed, mirrored to `dev`, migrated, seeded, deployed, and dev-smoked at public API/web level.
 
 ## Blockers And Decisions
 
@@ -90,12 +92,12 @@ Prepare coordinator review for the Stream Scheduling MVP worker slice.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, and the existing control panel now has same-origin install metadata. Separate streamer chat installability, notifications, service-worker strategy, and installed-window QA remain open.
+- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, and the existing control panel now has same-origin install metadata. Separate streamer chat installability, notifications, service-worker strategy, and visual installed-window QA remain open.
 - Streamer chat has a fake/local-only control-panel viewing surface and order toggle; real Twitch/YouTube chat, moderation, ranks, profiles, bot commands, AI reading, and separate installability remain deferred.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
-- Do not begin scheduling, full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
-- Do not apply the generated stream schedule migration until coordinator review accepts it.
+- Do not begin full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
+- In-app browser visual QA is blocked in this session by a Windows sandbox attach failure; use a fresh browser-capable thread or manual installed-window pass for pixel/layout checks.
 
 ## Working Tree
 

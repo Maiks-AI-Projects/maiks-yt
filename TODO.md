@@ -270,6 +270,7 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [x] Keep local tokenized URL reference files ignored by git.
 - [ ] Test installed windows without browser chrome on stream-monitor sizes.
   - Control panel metadata is ready; after deployment, verify installed-window layout at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes, including token-blocked state, overlay visibility controls, scene designer, and fake/local chat sender.
+  - 2026-06-19 endpoint/token QA passed for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state. Visual installed-window screenshots at the three target sizes remain open because the in-app browser failed to attach in the Windows sandbox.
 
 ## 15. Money Prep, Not Public Money Yet
 
