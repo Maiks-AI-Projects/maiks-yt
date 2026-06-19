@@ -405,6 +405,60 @@ export const streamSessions = mysqlTable(
   (table) => [index("stream_sessions_status_idx").on(table.status), index("stream_sessions_channel_key_idx").on(table.channelKey)]
 );
 
+export const streamScheduleEntries = mysqlTable(
+  "stream_schedule_entries",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    title: varchar("title", { length: 191 }).notNull(),
+    description: text("description"),
+    startsAt: timestamp("starts_at").notNull(),
+    endsAt: timestamp("ends_at"),
+    channelKey: varchar("channel_key", { length: 80 }).notNull(),
+    topicKey: varchar("topic_key", { length: 80 }),
+    themeKey: varchar("theme_key", { length: 80 }),
+    visibility: mysqlEnum("visibility", ["draft", "public", "private"]).notNull().default("draft"),
+    status: mysqlEnum("status", ["planned", "live", "completed", "cancelled"]).notNull().default("planned"),
+    cancellationReasonCode: mysqlEnum("cancellation_reason_code", [
+      "health",
+      "family",
+      "energy",
+      "technical",
+      "schedule-conflict",
+      "other"
+    ]),
+    cancellationReason: varchar("cancellation_reason", { length: 500 }),
+    createdByUserId: varchar("created_by_user_id", { length: 36 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("stream_schedule_public_starts_idx").on(table.visibility, table.startsAt),
+    index("stream_schedule_status_idx").on(table.status),
+    index("stream_schedule_channel_idx").on(table.channelKey),
+    check(
+      "stream_schedule_time_window_check",
+      sql`${table.endsAt} is null or ${table.endsAt} > ${table.startsAt}`
+    ),
+    check(
+      "stream_schedule_cancellation_check",
+      sql`(
+        (
+          ${table.status} = 'cancelled'
+          and ${table.cancellationReasonCode} is not null
+          and ${table.cancellationReason} is not null
+          and trim(${table.cancellationReason}) <> ''
+        )
+        or
+        (
+          ${table.status} <> 'cancelled'
+          and ${table.cancellationReasonCode} is null
+          and ${table.cancellationReason} is null
+        )
+      )`
+    )
+  ]
+);
+
 export const overlayStates = mysqlTable(
   "overlay_states",
   {

@@ -193,13 +193,15 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 
 ## 10. Stream Scheduling
 
-- [ ] Build stream schedule model.
-- [ ] Build admin schedule page.
-- [ ] Build public schedule page.
-- [ ] Add cancellation flow.
-- [ ] Add cancellation reason templates.
+- [x] Build stream schedule model.
+- [x] Build admin schedule page.
+- [x] Build public schedule page.
+- [x] Add cancellation flow.
+- [x] Add cancellation reason templates.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.
+
+Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed scheduled-stream domain model, generated database migration, dev seed examples, public `/schedule`, owner-gated `/admin/schedule`, and constrained cancellation reason templates. External platform sync, Discord/social announcements, recurrence, notifications, AI, money, and moderation remain deferred.
 
 ## 11. Chat and Stream Bot
 

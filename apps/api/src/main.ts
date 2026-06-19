@@ -33,6 +33,7 @@ import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/bette
 import { registerActionPanelRoutes } from "./actions/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
+import { registerStreamScheduleRoutes } from "./schedule/index.js";
 
 const config = createRuntimeConfig({
   environment: "development",
@@ -908,6 +909,10 @@ registerCreatorLinkAdminRoutes(server, {
   getDatabasePool
 });
 registerProjectAdminRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
+registerStreamScheduleRoutes(server, {
   getAuthSession,
   getDatabasePool
 });

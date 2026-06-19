@@ -97,9 +97,19 @@ Reviewer notes:
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 8: Stream Scheduling MVP
+## Chunk 8: Stream Scheduling MVP (Implemented, Pending Coordinator Review)
 
 Model: GPT-5.5
+
+Worker result:
+
+- Implemented typed stream scheduling domain rules and focused tests.
+- Added `stream_schedule_entries` schema plus generated migration `packages/database/drizzle/0009_concerned_molecule_man.sql`.
+- Added non-destructive dev seed examples for one upcoming public stream and one cancelled public stream.
+- Added public `GET /schedule` and owner-gated `/admin/schedule` create/edit/cancel API routes.
+- Added public `/schedule` with fallback/dev data and owner `/admin/schedule` manual controls.
+- Migration was generated only and was not applied.
+- Still needs coordinator review, migration application on dev if accepted, deploy, and dev/browser smoke with owner auth.
 
 Prompt:
 

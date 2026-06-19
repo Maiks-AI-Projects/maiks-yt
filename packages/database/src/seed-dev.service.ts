@@ -15,6 +15,7 @@ import {
   projectMilestones,
   projects,
   roles,
+  streamScheduleEntries,
   streamSessions,
   userRoles,
   users,
@@ -40,6 +41,8 @@ const communityMilestoneId = "00000000-0000-4000-8000-000000000081";
 const communityItemId = "00000000-0000-4000-8000-000000000082";
 const streamSessionId = "00000000-0000-4000-8000-000000000030";
 const overlayStateId = "00000000-0000-4000-8000-000000000031";
+const upcomingStreamScheduleId = "00000000-0000-4000-8000-000000000032";
+const cancelledStreamScheduleId = "00000000-0000-4000-8000-000000000033";
 const replaySessionId = "00000000-0000-4000-8000-000000000040";
 const creatorLinkSeeds = [
   {
@@ -518,6 +521,51 @@ await database.insert(streamSessions).values({
   set: {
     title: "Maiks.yt V2 build stream",
     activeProjectId: projectId
+  }
+});
+
+await database.insert(streamScheduleEntries).values([
+  {
+    id: upcomingStreamScheduleId,
+    title: "Maiks.yt V2 build stream",
+    description: "Manual schedule seed for testing the public stream schedule page.",
+    startsAt: new Date("2026-06-20T18:00:00.000Z"),
+    endsAt: new Date("2026-06-20T20:00:00.000Z"),
+    channelKey: "coding",
+    topicKey: "maiks-yt",
+    themeKey: "default",
+    visibility: "public",
+    status: "planned",
+    createdByUserId: creatorUserId
+  },
+  {
+    id: cancelledStreamScheduleId,
+    title: "Late night layout polish",
+    description: "Cancelled dev seed so public cancellation wording is easy to inspect.",
+    startsAt: new Date("2026-06-21T20:00:00.000Z"),
+    endsAt: new Date("2026-06-21T21:30:00.000Z"),
+    channelKey: "coding",
+    topicKey: "overlays",
+    themeKey: "default",
+    visibility: "public",
+    status: "cancelled",
+    cancellationReasonCode: "energy",
+    cancellationReason: "I need to save energy and will pick this up another day.",
+    createdByUserId: creatorUserId
+  }
+]).onDuplicateKeyUpdate({
+  set: {
+    title: sql`VALUES(title)`,
+    description: sql`VALUES(description)`,
+    startsAt: sql`VALUES(starts_at)`,
+    endsAt: sql`VALUES(ends_at)`,
+    channelKey: sql`VALUES(channel_key)`,
+    topicKey: sql`VALUES(topic_key)`,
+    themeKey: sql`VALUES(theme_key)`,
+    visibility: sql`VALUES(visibility)`,
+    status: sql`VALUES(status)`,
+    cancellationReasonCode: sql`VALUES(cancellation_reason_code)`,
+    cancellationReason: sql`VALUES(cancellation_reason)`
   }
 });
 
