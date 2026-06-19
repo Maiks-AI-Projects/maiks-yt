@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-06-18
+Updated: 2026-06-19
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -10,7 +10,7 @@ The coordinator reviews, tests, commits, pushes, mirrors `main` to `dev`, applie
 
 - Creator Hub support destination is blocked until Michael creates or approves the support URL and wording.
 - Creator Hub link admin should use the database-backed Creator Links foundation from Chunk 3A; static TypeScript source-file editing is not acceptable for runtime admin edits.
-- Chat overlay behavior still needs verification with live or test chat input.
+- Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but valid-token browser/OBS verification is still manual.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
 
 ## Chunk 1: Read-Only Projects Vertical Slice (Completed)
@@ -68,129 +68,83 @@ Reviewer notes:
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-## Chunk 6: Control Panel Installability Slice (Implemented, Needs Review)
+## Chunk 6: Control Panel Installability Slice (Completed)
 
-Model: GPT-5.5
-
-Implemented locally and awaiting coordinator review. The control panel remains in `apps/control-panel`, has same-origin PWA metadata, keeps the existing `control-panel` URL-token gate, and does not register a service worker.
+The control panel installability slice is implemented, coordinator-reviewed, committed, mirrored to `dev`, deployed, and smoke-tested.
 
 Reviewer notes:
 
-- Verify `https://control-dev.maiks.yt/manifest.webmanifest` returns control-panel manifest metadata after deployment.
-- Verify missing/invalid control tokens still block access.
-- Confirm no private API response caching or broad service-worker scope was introduced; this slice intentionally has no service worker.
-- If a valid token pair is available, browser-smoke fake chat from control panel to overlay; otherwise keep that as an explicit manual item.
-- Installed-window QA should cover 1920x1080, 1600x900, and 1366x768 stream-monitor sizes.
+- `https://control-dev.maiks.yt/manifest.webmanifest` returned `200` after deployment.
+- `https://control-dev.maiks.yt/` returned `200`.
+- Invalid control tokens still return `403 token_not_found`.
+- No service worker/private API caching was introduced.
+- Installed-window visual QA at 1920x1080, 1600x900, and 1366x768 remains manual.
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
 
-Original prompt:
+## Chunk 7: Streamer Chat Foundation Planning/First Slice (Completed)
 
-Prompt:
-
-```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md sections 7, 11, and 14A, and ideas/installable-pwa-control-surfaces.md.
-
-Task:
-Make the existing control panel installable as a stream-tool PWA surface, building on the verified `/tools/actions` manifest foundation.
-
-You may edit:
-- apps/control-panel/src/
-- apps/control-panel/index.html
-- apps/control-panel/vite.config.ts only if needed for metadata/build output
-- apps/web/src/app/manifest.webmanifest/route.ts
-- apps/web/src/app/tools/
-- public icon/static assets only if they are simple generated placeholders and safe for all stream tools
-- ideas/installable-pwa-control-surfaces.md
-- TODO.md
-- reports/current-work.md
-- reports/next-agent-tasks.md
-
-Acceptance criteria:
-- Add installability metadata for the control panel without weakening `control-panel` token access.
-- Keep the existing control token storage/gate behavior; do not add login, account, OAuth, or admin changes.
-- Keep private API/chat/moderation/account/action-panel/admin/money data out of service-worker or offline caches.
-- If a service worker is introduced, it must be static-assets-only, narrowly scoped, and explicitly documented; otherwise document why service-worker work remains deferred.
-- Preserve the current fake/local chat sender and overlay visibility controls.
-- Add a small installability/manual QA note for stream-monitor window sizes and what must be checked after deployment.
-- Do not add streamer chat, notifications panel, moderation, live Twitch/YouTube chat, AI reading, or money behavior.
-
-Verification:
-- corepack pnpm --filter @maiks-yt/control-panel typecheck
-- corepack pnpm --filter @maiks-yt/control-panel build
-- corepack pnpm --filter @maiks-yt/web typecheck
-- corepack pnpm --filter @maiks-yt/web build
-- node scripts/check-architecture.mjs
-
-Browser/manual smoke if practical:
-- Open the local or dev control panel with a valid control token and confirm installability metadata is present.
-- Confirm missing/invalid tokens still block access.
-- Confirm the control panel can still send fake chat when paired with a valid overlay token, or document the exact blocker.
-
-Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
-Report changed files, checks run, skipped browser/manual checks, and unresolved concerns.
-```
-
-Reviewer gate:
-
-- Verify control-panel installability metadata on dev.
-- Verify invalid/dummy control tokens are still rejected.
-- Confirm no private API response caching or broad service-worker scope was introduced.
-- If a valid token pair is available, browser-smoke fake chat from control panel to overlay; otherwise keep that as an explicit manual item.
-
-## Chunk 7: Streamer Chat Foundation Planning/First Slice (Implemented, Needs Review)
-
-Model: GPT-5.5
-
-Implemented locally after Michael explicitly prioritized streamer chat first.
+The fake/local streamer chat foundation is implemented, coordinator-reviewed, committed, mirrored to `dev`, deployed, and smoke-tested at the protected endpoint level.
 
 Reviewer notes:
 
 - The streamer chat surface is fake/local-only and lives inside the existing token-gated control panel.
-- `GET /streamer-chat/messages` returns the in-memory fake/local history for control tokens.
-- `WS /streamer-chat/live` sends a snapshot and new fake/local messages to streamer chat viewers.
+- `GET /streamer-chat/messages` is deployed and rejects dummy tokens with `403 token_not_found`.
+- `WS /streamer-chat/live` sends a snapshot and new fake/local messages to streamer chat viewers when given a valid control token.
 - Overlay still receives the existing fake chat event and keeps its human-only, visible-slot rendering rules.
-- No real Twitch/YouTube chat, moderation, bans, mutes, ranks, profiles, stream bot commands, AI reading, money, auth, secrets, deploy, or migration work was added.
+- A follow-up added a chat order toggle so fake/local chat can display newest-on-top or newest-on-bottom.
+- No real Twitch/YouTube chat, moderation, bans, mutes, ranks, profiles, stream bot commands, AI reading, money, auth, secrets, or migration work was added.
 
 Do not rerun this chunk unless the coordinator explicitly asks for fixes.
+
+## Chunk 8: Stream Scheduling MVP
+
+Model: GPT-5.5
 
 Prompt:
 
 ```text
-Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 11, and only the existing overlay/control-panel/API realtime files needed.
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 10, and the stream scheduling idea cards if present.
 
 Task:
-Prepare the first streamer-only chat foundation on top of the fake/local harness. This is not live Twitch/YouTube chat yet.
+Build the first Stream Scheduling MVP for internal schedules and public visibility.
 
 You may edit:
-- packages/events/src/
-- packages/events/test/
-- apps/api/src/main.ts only for narrowly scoped chat foundation endpoints/events
-- apps/control-panel/src/
-- apps/overlay/src/
+- packages/domain/src/schedule/ or equivalent established domain structure
+- packages/domain/test/
+- packages/database/src/database.schema.ts
+- packages/database/drizzle/ generated migration files only; do not apply migrations
+- packages/database/src/seed-dev.service.ts if useful for non-destructive dev examples
+- apps/api/src/schedule/ or equivalent route/service/store files
+- apps/api/src/main.ts only to register schedule routes
+- apps/api/test/schedule/
+- apps/web/src/app/schedule/
+- apps/web/src/app/admin/schedule/
 - TODO.md
 - reports/current-work.md
 - reports/next-agent-tasks.md
 
 Acceptance criteria:
-- Keep the fake/local source as the only message source.
-- Add the smallest streamer-only chat viewing surface needed to inspect fake/local messages.
-- Preserve overlay rendering rules: chat slot visibility is respected and bot/system messages stay hidden from overlay by default.
-- Keep moderation, bans, mutes, ranks, user profiles, AI reading, stream bot commands, and real Twitch/YouTube chat out of scope.
-- Add focused event/API/UI tests where practical.
+- Add a typed stream schedule model for planned streams with title, start time, optional end time, channel/topic/theme fields, visibility, status, and cancellation reason.
+- Add owner-gated admin create/edit/cancel controls.
+- Add a public schedule page that shows upcoming public streams and clearly marks cancellations.
+- Add cancellation reason templates or a constrained cancellation reason field.
+- Keep external Twitch/YouTube scheduling sync, Discord/social announcements, recurrence automation, notifications, AI, money, and moderation out of scope.
+- Keep the first slice manual and easy to test with dev seed data.
 
 Verification:
-- corepack pnpm --filter @maiks-yt/events test
-- corepack pnpm --filter @maiks-yt/events typecheck
+- corepack pnpm --filter @maiks-yt/domain test
+- corepack pnpm --filter @maiks-yt/api test
 - corepack pnpm --filter @maiks-yt/api typecheck
-- corepack pnpm --filter @maiks-yt/control-panel typecheck
-- corepack pnpm --filter @maiks-yt/overlay typecheck
+- corepack pnpm --filter @maiks-yt/web typecheck
+- corepack pnpm --filter @maiks-yt/web build
+- corepack pnpm --filter @maiks-yt/database typecheck
 - node scripts/check-architecture.mjs
 
 Browser/manual smoke if practical:
-- With a valid control/overlay token pair, send a fake human chat message and confirm streamer-only chat receives it.
-- Confirm bot/system fake messages do not appear on the overlay by default.
-- Confirm hidden chat slot does not render new fake messages on the overlay.
+- Open `/schedule` and confirm the public schedule renders with dev/fallback data.
+- Open `/admin/schedule` as an owner if auth is available, or document the exact blocker.
+- Confirm cancelled streams remain visible with clear cancellation wording when public.
 
 Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
 Report changed files, checks run, skipped browser/manual checks, and unresolved concerns.
@@ -198,10 +152,54 @@ Report changed files, checks run, skipped browser/manual checks, and unresolved 
 
 Reviewer gate:
 
-- Verify this remains a local/fake streamer-chat foundation, not a live platform chat integration.
-- Verify overlay chat visibility and bot/system hiding with a valid token pair if available.
+- Review migration/schema carefully before applying anything on dev.
+- Verify owner-gated admin access remains strict.
+- Verify public schedule page does not expose private/draft streams.
+- Apply dev migration/seed only after coordinator review.
 
-## Chunk 8: Next Queue Review
+## Chunk 9: Installed Stream Tools QA Slice
+
+Model: GPT-5.5
+
+Start when Michael wants visual/browser QA instead of product feature work.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 14A, and ideas/installable-pwa-control-surfaces.md.
+
+Task:
+Do an installed-window/browser QA pass for the installable stream tools and fake/local chat surfaces.
+
+You may edit:
+- TODO.md
+- reports/current-work.md
+- reports/next-agent-tasks.md
+- small CSS/UI fixes in apps/control-panel/src/ and apps/overlay/src/ only if directly required by QA findings
+
+Acceptance criteria:
+- Test `/tools/actions`, `control-dev`, and `overlay-dev` at 1920x1080, 1600x900, and 1366x768.
+- Verify no normal website navbar appears on standalone tools.
+- Verify control-panel token-blocked state, dense controls, scene designer sizing, overlay visibility toggles, fake/local chat sender, streamer chat viewer, and chat order toggle.
+- Verify overlay chat stays inside the chat slot and respects visibility/order settings.
+- Keep service workers, offline caches, real chat providers, moderation, AI, and money out of scope.
+
+Verification:
+- corepack pnpm --filter @maiks-yt/control-panel typecheck
+- corepack pnpm --filter @maiks-yt/overlay typecheck
+- corepack pnpm --filter @maiks-yt/web typecheck
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
+Report changed files, checks run, skipped browser/manual checks, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Review screenshots/notes for overlap and installability regressions.
+- Verify any CSS/UI fixes are narrow and do not change auth/token behavior.
+
+## Chunk 10: Next Queue Review
 
 Model: GPT-5.5
 

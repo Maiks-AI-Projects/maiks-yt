@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-18
+Updated: 2026-06-19
 
 ## Objective
 
@@ -44,15 +44,19 @@ Finish the partially completed project areas before starting untouched feature g
 - Added same-origin PWA installability metadata for the existing control panel app while preserving its `control-panel` URL-token gate and current fake/local chat controls.
 - Deferred control-panel service-worker work so private API, fake/local chat, moderation, account/session, action-panel, admin, and money responses remain outside offline caches.
 - Added the first streamer-only fake/local chat viewing surface with in-memory API history and a token-gated live feed, while keeping overlay chat visibility and bot/system hiding behavior unchanged.
+- Reviewed and deployed the control-panel installability slice.
+- Reviewed and deployed the streamer-only fake/local chat viewer.
+- Added a fake chat order toggle so streamer chat and overlay chat can show newest messages at the top or bottom.
+- Kept `reports/usable-urls.md` as a local ignored token reference file so private dev access URLs are easy to find without being committed.
 
 ## Current Task
 
-Review the streamer chat foundation first slice and then continue with the next bounded stream-tools task.
+Prepare the next bounded product slice after the reviewed stream-tools/chat work.
 
 ## Next Tasks
 
-1. Review and deploy-smoke the streamer-only fake/local chat viewer with a valid control/overlay token pair.
-2. Verify overlay chat visibility and bot/system hiding still hold during fake/local chat smoke.
+1. Build the Stream Scheduling MVP with internal schedule data, admin controls, public schedule display, and cancellation basics.
+2. Browser/OBS-smoke the fake/local chat harness with a valid control/overlay token pair.
 3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
@@ -78,13 +82,13 @@ Review the streamer chat foundation first slice and then continue with the next 
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
-- Chat overlay behavior has fake/local test input now; the fake chat endpoint is present and rejects dummy valid-length tokens with `token_not_found`, but browser/OBS verification still needs a valid control/overlay token pair. Real Twitch/YouTube chat remains open.
+- Chat overlay behavior has fake/local test input, streamer-only fake/local viewing, and a chat order toggle now; browser/OBS verification still needs a valid control/overlay token pair. Real Twitch/YouTube chat remains open.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, and the existing control panel now has same-origin install metadata. Streamer chat, notifications, service-worker strategy, and installed-window QA remain open.
-- Streamer chat has a fake/local-only control-panel viewing surface; real Twitch/YouTube chat, moderation, ranks, profiles, bot commands, AI reading, and installability remain deferred.
+- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, and the existing control panel now has same-origin install metadata. Separate streamer chat installability, notifications, service-worker strategy, and installed-window QA remain open.
+- Streamer chat has a fake/local-only control-panel viewing surface and order toggle; real Twitch/YouTube chat, moderation, ranks, profiles, bot commands, AI reading, and separate installability remain deferred.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Do not begin scheduling, full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.

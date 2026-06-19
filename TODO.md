@@ -208,6 +208,7 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 - [x] Tag fake/local messages as human, bot, or system.
 - [x] Hide fake/local bot/system messages from overlay by default.
 - [x] Build first streamer-only fake/local chat window.
+- [x] Add fake/local chat display order toggle.
 - [ ] Extend streamer-only unified chat beyond fake/local after live platform chat is approved.
 - [ ] Add quick moderation buttons to streamer chat messages.
 - [ ] Add advanced moderation context menu.
@@ -264,6 +265,7 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 - [ ] Make streamer chat installable.
 - [ ] Make private notifications panel installable.
 - [x] Define initial safe cache rule: no private data caching; static assets only until an explicit encrypted/offline design exists.
+- [x] Keep local tokenized URL reference files ignored by git.
 - [ ] Test installed windows without browser chrome on stream-monitor sizes.
   - Control panel metadata is ready; after deployment, verify installed-window layout at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes, including token-blocked state, overlay visibility controls, scene designer, and fake/local chat sender.
 
