@@ -48,6 +48,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [Supporter profile recognition](./supporter-profile-recognition.md)
 - [Privacy, data retention, and account deletion](./privacy-data-retention-and-account-deletion.md)
 - [URL token access gates](./url-token-access-gates.md)
+- [Admin token management surface](./admin-token-management-surface.md)
 
 ## Content and Channels
 

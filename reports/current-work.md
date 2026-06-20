@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-19
+Updated: 2026-06-20
 
 ## Objective
 
@@ -52,21 +52,22 @@ Finish the partially completed project areas before starting untouched feature g
 - Reviewed, committed, migrated, seeded, deployed, and dev-smoked the first manual Stream Scheduling MVP.
 - Kept Twitch/YouTube scheduling sync, Discord/social announcements, recurrence automation, notifications, AI, money, moderation, auth, and secrets out of the scheduling slice.
 - Ran a stream-tools endpoint/token QA pass for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state.
+- Added the first dev admin token management surface with typed strict overlay/control-panel URL token targets, owner-gated API list/create/rotate/revoke routes, focused tests, and a dense `/admin/tokens` page that shows raw token URLs only after create/rotate.
 
 ## Current Task
 
-Prepare the next larger agent chunk after stream scheduling and stream-tools QA.
+Review and deploy the dev admin token management surface, then continue to the installed-window visual QA pass after fresh overlay/control URLs exist.
 
 ## Next Tasks
 
-1. Browser/OBS-smoke the fake/local chat harness and installed stream-tool windows with a visual browser at 1920x1080, 1600x900, and 1366x768.
-2. Prepare the next larger implementation chunk after reviewing the partial/blocked areas.
+1. Coordinator-review, deploy, and owner-smoke `/admin/tokens`; create fresh overlay/control URLs for OBS/control setup.
+2. Run the remaining visual installed-window QA pass with Computer Use at 1920x1080, 1600x900, and 1366x768 after fresh overlay/control tokens exist.
 3. Add the remaining Creator Hub support destination after Michael creates or approves it.
 
 ## Known State
 
 - GPT-5.5 is the default model for implementation and review agents.
-- Creator Hub link foundations are current through the latest reviewed main commit.
+- Creator Hub link foundations are current through the latest reviewed dev/main commit.
 - The first Creator Hub link admin worker stopped correctly: current links are a compiled TypeScript array, so runtime admin editing needs a database-backed link model first.
 - Creator Links Chunk 3A is implemented, reviewed, committed, migrated on dev, seeded, deployed, and dev-smoked.
 - Creator Links Chunk 3B is implemented, reviewed, committed, deployed, dev-smoked, and accepted by Michael as usable enough to move on.
@@ -76,17 +77,21 @@ Prepare the next larger agent chunk after stream scheduling and stream-tools QA.
 - Action Panel Task 3 authorized API is complete and reviewed.
 - Action Panel Task 4 authenticated UI is complete and reviewed.
 - Projects Chunk 1 is implemented and coordinator-reviewed as a read-only public slice.
-- Local and dev-server workflows use `main` mirrored to `dev`.
+- Local work normally happens on the `dev` branch, then reviewed work is deployed to the dev server for testing.
 - Dev services run on `codex-server-1` in container `maiks-yt-dev`.
 - Public dev surfaces use `web-dev`, `api-dev`, `overlay-dev`, and `control-dev` under `maiks.yt`.
 - WebSocket is the primary realtime transport; SSE remains a fallback option.
 - The next worker prompts and reviewer gates are in `reports/next-agent-tasks.md`.
 - Next agents should use larger vertical chunks to reduce repeated context and check overhead.
 - Stream Scheduling Chunk 8 is implemented, coordinator-reviewed, committed, mirrored to `dev`, migrated, seeded, deployed, and dev-smoked at public API/web level.
+- Stream Tools Chunk 9 endpoint/token QA is complete; visual installed-window QA remains open.
+- Chunk 10 queue review is complete and the proposed larger next chunks are recorded in `reports/next-agent-tasks.md`.
+- Chunk 11 admin token management is implemented in the worker tree and needs coordinator review/deploy/owner smoke before visual QA relies on the generated URLs.
 
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
+- Lost OBS/control tokens now have a dev-first admin-token management implementation, but fresh usable URLs still require coordinator review, deployment, and owner-auth smoke.
 - Chat overlay behavior has fake/local test input, streamer-only fake/local viewing, and a chat order toggle now; browser/OBS verification still needs a valid control/overlay token pair. Real Twitch/YouTube chat remains open.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
@@ -97,7 +102,7 @@ Prepare the next larger agent chunk after stream scheduling and stream-tools QA.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Do not begin full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
-- In-app browser visual QA is blocked in this session by a Windows sandbox attach failure; use a fresh browser-capable thread or manual installed-window pass for pixel/layout checks.
+- Chrome/in-app browser visual QA is blocked in this setup by a Windows sandbox attach failure; use Computer Use for the next visual installed-window pass, or document the exact blocker if Computer Use is unavailable.
 
 ## Working Tree
 

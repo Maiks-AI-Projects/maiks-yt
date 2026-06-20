@@ -34,6 +34,7 @@ import { registerActionPanelRoutes } from "./actions/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
+import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
 
 const config = createRuntimeConfig({
   environment: "development",
@@ -913,6 +914,10 @@ registerProjectAdminRoutes(server, {
   getDatabasePool
 });
 registerStreamScheduleRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
+registerUrlAccessTokenAdminRoutes(server, {
   getAuthSession,
   getDatabasePool
 });

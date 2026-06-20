@@ -1,16 +1,18 @@
 # Next Agent Tasks
 
-Updated: 2026-06-19
+Updated: 2026-06-20
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
-The coordinator reviews, tests, commits, pushes, mirrors `main` to `dev`, applies any approved dev-only seed/migration step, and verifies public dev after each accepted chunk.
+The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the dev server for testing, applies any approved dev-only seed/migration step, and verifies public dev after each accepted chunk.
 
 ## Current Blocked/Manual Items
 
 - Creator Hub support destination is blocked until Michael creates or approves the support URL and wording.
 - Creator Hub link admin should use the database-backed Creator Links foundation from Chunk 3A; static TypeScript source-file editing is not acceptable for runtime admin edits.
-- Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but valid-token browser/OBS verification is still manual.
+- Lost OBS/control tokens have a dev-first admin-token management worker implementation; coordinator review/deploy/owner smoke should create fresh usable URLs before the Computer Use installed-window pass.
+- Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
+- Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
 
 ## Chunk 1: Read-Only Projects Vertical Slice (Completed)
@@ -144,12 +146,12 @@ Acceptance criteria:
 - Keep the first slice manual and easy to test with dev seed data.
 
 Verification:
-- corepack pnpm --filter @maiks-yt/domain test
-- corepack pnpm --filter @maiks-yt/api test
-- corepack pnpm --filter @maiks-yt/api typecheck
-- corepack pnpm --filter @maiks-yt/web typecheck
-- corepack pnpm --filter @maiks-yt/web build
-- corepack pnpm --filter @maiks-yt/database typecheck
+- pnpm --filter @maiks-yt/domain test
+- pnpm --filter @maiks-yt/api test
+- pnpm --filter @maiks-yt/api typecheck
+- pnpm --filter @maiks-yt/web typecheck
+- pnpm --filter @maiks-yt/web build
+- pnpm --filter @maiks-yt/database typecheck
 - node scripts/check-architecture.mjs
 
 Browser/manual smoke if practical:
@@ -184,7 +186,7 @@ Endpoint/token QA result:
 
 Visual QA blocker:
 
-- The in-app browser failed to attach in this Windows sandbox with `CreateProcessAsUserW failed: 5`, and no local Playwright/Puppeteer dependency is installed. Visual installed-window checks at 1920x1080, 1600x900, and 1366x768 still need a browser-capable thread or manual pass.
+- The Chrome/in-app browser plugin failed to attach in this setup with `CreateProcessAsUserW failed: 5`, and no local Playwright/Puppeteer dependency is installed. Visual installed-window checks at 1920x1080, 1600x900, and 1366x768 still need Computer Use or a documented manual pass.
 
 Follow-up prompt for visual-only QA:
 
@@ -194,7 +196,7 @@ Prompt:
 Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 14A, and ideas/installable-pwa-control-surfaces.md.
 
 Task:
-Do the remaining visual installed-window/browser QA pass for the installable stream tools and fake/local chat surfaces.
+Do the remaining visual installed-window/browser QA pass for the installable stream tools and fake/local chat surfaces using Computer Use.
 
 You may edit:
 - TODO.md
@@ -203,20 +205,20 @@ You may edit:
 - small CSS/UI fixes in apps/control-panel/src/ and apps/overlay/src/ only if directly required by QA findings
 
 Acceptance criteria:
-- Test `/tools/actions`, `control-dev`, and `overlay-dev` at 1920x1080, 1600x900, and 1366x768.
+- Test `/tools/actions`, `control-dev`, and `overlay-dev` at 1920x1080, 1600x900, and 1366x768 with Computer Use.
 - Verify no normal website navbar appears on standalone tools.
 - Visually verify control-panel token-blocked state, dense controls, scene designer sizing, overlay visibility toggles, fake/local chat sender, streamer chat viewer, and chat order toggle.
 - Verify overlay chat stays inside the chat slot and respects visibility/order settings.
 - Keep service workers, offline caches, real chat providers, moderation, AI, and money out of scope.
 
 Verification:
-- corepack pnpm --filter @maiks-yt/control-panel typecheck
-- corepack pnpm --filter @maiks-yt/overlay typecheck
-- corepack pnpm --filter @maiks-yt/web typecheck
+- pnpm --filter @maiks-yt/control-panel typecheck
+- pnpm --filter @maiks-yt/overlay typecheck
+- pnpm --filter @maiks-yt/web typecheck
 - node scripts/check-architecture.mjs
 
 Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
-Report changed files, checks run, skipped browser/manual checks, and unresolved concerns.
+Report changed files, checks run, skipped Computer Use/manual checks, and unresolved concerns.
 ```
 
 Reviewer gate:
@@ -224,11 +226,23 @@ Reviewer gate:
 - Review screenshots/notes for overlap and installability regressions.
 - Verify any CSS/UI fixes are narrow and do not change auth/token behavior.
 
-## Chunk 10: Next Queue Review
+## Chunk 10: Next Queue Review (Completed)
 
 Model: GPT-5.5
 
-Start after one or two chunks are completed.
+Completed 2026-06-20.
+
+Status review:
+
+- Completed: localization, privacy/analytics boundaries, overlay renderer foundations, control panel foundations, Action Panel, public projects read slice, manual project admin, database-backed Creator Links and link admin, stream-tools PWA foundation, fake/local chat harness, streamer-only fake/local chat viewer, chat order toggle, and manual Stream Scheduling MVP.
+- Partial: installable stream tools are endpoint/token verified but still need visual installed-window QA; Creator Hub support link is structurally supported but unavailable; projects still need updates/session focus/wishlist follow-ups; manual content admin still needs preview-before-publish.
+- Blocked: Creator Hub support destination needs Michael-approved URL and public wording; owner-auth schedule admin smoke needs an authenticated owner session; real Twitch/YouTube chat needs an approved integration phase.
+- Risky/gated: money/ledger/credits/refunds, moderation/bans/ranks, auth/owner assignment, provider integrations, database migrations, service workers/offline caching, and AI public output remain gated and should not be combined into casual UI polish tasks.
+
+Result:
+
+- Next larger chunks are proposed below as Chunks 11-14.
+- Visual QA notes now point to Computer Use instead of the broken Chrome/in-app browser plugin path.
 
 Prompt:
 
@@ -254,3 +268,275 @@ Run:
 
 Do not commit, push, deploy, or edit outside the allowed scope.
 ```
+
+## Chunk 11: Dev Admin Token Management Surface (Implementation Ready For Review)
+
+Model: GPT-5.5
+
+Purpose:
+
+- Let the owner create, rotate, revoke, and copy scoped dev URLs for OBS overlays and the control panel without direct database access.
+- Unblock OBS/control setup and the later visual QA pass.
+
+Worker result:
+
+- Added typed first-slice token admin targets for overlay and control-panel scopes.
+- Added owner-gated `GET /admin/tokens`, `POST /admin/tokens`, `POST /admin/tokens/:id/rotate`, and `POST /admin/tokens/:id/revoke` routes backed by the existing `url_access_tokens` table.
+- Kept token hashes out of list responses; raw token values appear only in create/rotate mutation responses with dev URLs for `overlay-dev.maiks.yt` and `control-dev.maiks.yt`.
+- Added `/admin/tokens` as a practical owner admin page for listing, creating, rotating, revoking, and copying one-time generated URLs.
+- Did not add migrations, production token architecture, Cloudflare Access, secrets management, or deployment changes.
+
+Verification run by worker:
+
+- `pnpm --filter @maiks-yt/domain test` passed: 9 files, 55 tests.
+- First `pnpm --filter @maiks-yt/api test` run failed before tests because package entrypoints had not been built for workspace resolution; after typecheck/build references were present, rerun passed: 7 files, 49 tests.
+- `pnpm --filter @maiks-yt/api typecheck` passed.
+- `pnpm --filter @maiks-yt/web typecheck` passed.
+- `node scripts/check-architecture.mjs` passed.
+
+Still needed:
+
+- Coordinator-review, deploy to dev, and owner-smoke `/admin/tokens`.
+- After deploy, create one fresh overlay token and one fresh control-panel token, then verify the generated URLs against `overlay-dev` and `control-dev`.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 4, ideas/url-token-access-gates.md, and ideas/admin-token-management-surface.md.
+
+Task:
+Build the first dev admin token management surface for scoped URL access tokens.
+
+You may edit:
+- packages/domain/src/security/
+- packages/domain/test/
+- apps/api/src/tokens/ or an equivalent established admin-token route/service/store folder
+- apps/api/src/main.ts only to register token admin routes
+- apps/api/test/tokens/ or equivalent focused API tests
+- apps/web/src/app/admin/tokens/
+- TODO.md
+- reports/current-work.md
+- reports/next-agent-tasks.md
+
+Acceptance criteria:
+- Add owner/admin authenticated API routes to list existing URL access tokens without exposing token hashes.
+- Add create actions for overlay and control-panel tokens using the existing `url_access_tokens` table.
+- Show the raw token only in the create/rotate response so it can be copied once.
+- Add revoke behavior for lost tokens.
+- Generate copyable dev URLs for `overlay-dev.maiks.yt` and `control-dev.maiks.yt`.
+- Keep token scopes strict: overlay tokens must not work for control-panel access, and control-panel tokens must not work for overlay access.
+- Keep current dev DB/token plumbing acceptable; do not add production token architecture, Cloudflare Access, secrets management, migrations, or deployment changes.
+- Keep the page practical and dense. Do not spend time on broad aesthetics outside making the admin surface usable.
+
+Verification:
+- pnpm --filter @maiks-yt/domain test
+- pnpm --filter @maiks-yt/api test
+- pnpm --filter @maiks-yt/api typecheck
+- pnpm --filter @maiks-yt/web typecheck
+- node scripts/check-architecture.mjs
+
+Manual/dev smoke after coordinator deploys:
+- Open `/admin/tokens` as owner.
+- Create one overlay token and one control-panel token.
+- Confirm the generated overlay URL validates on `overlay-dev`.
+- Confirm the generated control URL opens the token gate on `control-dev`.
+- Revoke the old/lost token if known, or document that the lost token value is unavailable and cannot be selectively revoked.
+
+Do not commit, push, deploy, apply migrations, edit secrets, edit Cloudflare config, or edit Docker/deployment scripts.
+Report changed files, checks run, skipped smoke checks, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Confirm raw token values are never listed after creation/rotation.
+- Confirm generated URLs use dev hostnames only.
+- Confirm no production credential assumptions were added.
+- Confirm revoked tokens stop validating through `/access/url-token/validate`.
+
+## Chunk 12: Computer Use Visual QA For Installed Stream Tools
+
+Model: GPT-5.5
+
+Purpose:
+
+- Finish the visual gap left by Chunk 9 without reopening endpoint/token QA.
+- Run after Chunk 11 so fresh overlay/control URLs are available.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md section 14A, and ideas/installable-pwa-control-surfaces.md.
+
+Task:
+Use Computer Use to visually QA the installed stream-tool surfaces and fake/local chat surfaces.
+
+You may edit:
+- TODO.md
+- reports/current-work.md
+- reports/next-agent-tasks.md
+- small CSS/UI fixes in apps/control-panel/src/ and apps/overlay/src/ only if directly required by QA findings
+
+Acceptance criteria:
+- Test `/tools/actions`, `control-dev`, and `overlay-dev` at 1920x1080, 1600x900, and 1366x768.
+- Verify no normal website navbar appears on standalone tools.
+- Visually verify control-panel token-blocked state, dense controls, scene designer sizing, overlay visibility toggles, fake/local chat sender, streamer chat viewer, and chat order toggle.
+- Verify overlay chat stays inside the chat slot and respects visibility/order settings.
+- Keep service workers, offline caches, real chat providers, moderation, AI, auth changes, and money out of scope.
+- If Computer Use is unavailable, stop after the read-only checks and report the exact blocker.
+
+Verification:
+- pnpm --filter @maiks-yt/control-panel typecheck
+- pnpm --filter @maiks-yt/overlay typecheck
+- pnpm --filter @maiks-yt/web typecheck
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
+Report screenshots/observations, changed files, checks run, skipped checks, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Confirm screenshots/notes cover all three target sizes.
+- Verify any CSS/UI fixes are narrow and do not change auth/token behavior.
+
+## Chunk 13: Manual Content Publishing Polish
+
+Model: GPT-5.5
+
+Purpose:
+
+- Finish the next useful manual content layer before AI-assisted content generation.
+- Bundle project updates, preview-before-publish behavior, and optional support-link activation only if Michael provides approved wording.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md sections 5, 9, and 9A, and only the relevant project/admin idea card if product intent is needed.
+
+Task:
+Add the next manual content publishing slice for project updates and preview-before-publish behavior.
+
+You may edit:
+- packages/domain/src/projects/ or established project/content domain files
+- packages/domain/test/
+- apps/api/src/projects/ or established project/content API files
+- apps/api/test/projects/
+- apps/web/src/app/projects/
+- apps/web/src/app/admin/projects/
+- apps/web/src/app/admin/links/ only if Michael has approved the support URL and wording
+- TODO.md
+- reports/current-work.md
+- reports/next-agent-tasks.md
+
+Acceptance criteria:
+- Add manual project update create/edit/publish-state behavior, or extend the existing project admin with preview-before-publish behavior if that is the smaller coherent slice.
+- Public pages show only published/visible content.
+- Admin pages can preview draft or unpublished public-content changes before publishing.
+- Support link activation is allowed only with Michael-approved destination and wording; otherwise keep it unavailable and document the blocker.
+- Keep AI drafting, money/support payments, provider integrations, moderation, auth changes, and migrations out of scope unless the coordinator explicitly assigns a generated migration.
+
+Verification:
+- pnpm --filter @maiks-yt/domain test
+- pnpm --filter @maiks-yt/api test
+- pnpm --filter @maiks-yt/api typecheck
+- pnpm --filter @maiks-yt/web typecheck
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
+Report changed files, checks run, skipped checks, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Confirm no unpublished content leaks onto public pages.
+- Confirm support destination wording was explicitly provided before enabling support.
+
+## Chunk 14: Stream Focus And Project Link Planning Slice
+
+Model: GPT-5.5
+
+Purpose:
+
+- Move from standalone schedules/projects toward a manual live-stream focus workflow without touching external provider sync.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md sections 5, 10, and 13, and one relevant stream/session/project idea card if needed.
+
+Task:
+Design and, if the existing schema supports it without risky changes, implement the first manual stream focus/project-link slice.
+
+You may edit:
+- packages/domain/src/schedule/ and/or packages/domain/src/projects/ only for typed contracts
+- packages/domain/test/
+- apps/api/src/schedule/ and/or apps/api/src/projects/
+- apps/api/test/
+- apps/web/src/app/schedule/
+- apps/web/src/app/admin/schedule/
+- apps/web/src/app/projects/
+- TODO.md
+- reports/current-work.md
+- reports/next-agent-tasks.md
+
+Acceptance criteria:
+- Define the smallest manual workflow for linking a scheduled/current stream to a project or active focus.
+- If no migration is needed, implement the read/update flow and public display.
+- If a migration is needed, stop after a design note and proposed generated-migration scope for coordinator approval.
+- Keep Twitch/YouTube scheduling sync, Discord/social announcements, recurrence automation, notifications, moderation, AI, auth changes, and money out of scope.
+
+Verification:
+- pnpm --filter @maiks-yt/domain test
+- pnpm --filter @maiks-yt/api test
+- pnpm --filter @maiks-yt/api typecheck
+- pnpm --filter @maiks-yt/web typecheck
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, apply migrations, or edit files outside the allowed scope.
+Report changed files, checks run, skipped checks, migration needs, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Decide explicitly whether any database migration is accepted before assigning implementation that requires it.
+- Confirm public display cannot imply money goals or automated provider sync.
+
+## Chunk 15: Safety Gates Review Before Risky Phases
+
+Model: GPT-5.5
+
+Purpose:
+
+- Reduce risk before auth/moderation/money/AI work by turning open risks into explicit phase gates.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md sections 12, 14, 15, 16, and 17, plus one relevant principles or idea card only if needed.
+
+Task:
+Do a read-only safety-gates review for upcoming high-risk phases.
+
+You may edit:
+- TODO.md
+- reports/current-work.md
+- reports/next-agent-tasks.md
+- one new or existing idea card only if the coordinator explicitly includes it in the write scope
+
+Acceptance criteria:
+- Separate auth/owner assignment, moderation, AI public output, money/ledger/credits/refunds, backups, and provider integrations into clearly gated future phases.
+- Identify prerequisites and first safe non-money/non-provider slices.
+- Do not implement features.
+- Do not edit migrations, auth code, secrets, Cloudflare config, Docker config, deployment scripts, or money behavior.
+
+Verification:
+- git status --short --branch
+- node scripts/check-architecture.mjs
+
+Do not commit, push, deploy, apply migrations, or edit outside the allowed scope.
+Report changed files, checks run, skipped checks, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Confirm every risky phase has an explicit go/no-go decision point before code work starts.

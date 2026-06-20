@@ -86,6 +86,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add identity conflict rules for claiming linked accounts.
 - [x] Add scoped URL token gates for non-public surfaces.
 - [x] Require login after URL token for privileged control/admin pages.
+- [x] Add owner/admin token management surface for creating, rotating, revoking, and copying scoped overlay/control URLs.
+  - 2026-06-20 worker implementation adds `/admin/tokens` plus owner-gated API routes for list/create/rotate/revoke using the existing `url_access_tokens` table; coordinator review, deploy, and owner smoke remain.
 
 ## 5. Projects and Milestones
 
@@ -270,7 +272,7 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [x] Keep local tokenized URL reference files ignored by git.
 - [ ] Test installed windows without browser chrome on stream-monitor sizes.
   - Control panel metadata is ready; after deployment, verify installed-window layout at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes, including token-blocked state, overlay visibility controls, scene designer, and fake/local chat sender.
-  - 2026-06-19 endpoint/token QA passed for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state. Visual installed-window screenshots at the three target sizes remain open because the in-app browser failed to attach in the Windows sandbox.
+  - 2026-06-19 endpoint/token QA passed for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state. Visual installed-window screenshots at the three target sizes remain open because the Chrome/in-app browser plugin failed to attach in this setup; use Computer Use for the next visual QA pass.
 
 ## 14B. Stream-Safe Music, Future Phase
 
