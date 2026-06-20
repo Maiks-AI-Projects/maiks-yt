@@ -1,0 +1,11 @@
+{
+  "offStatus": 200,
+  "offOk": true,
+  "offTextVisible": false,
+  "onStatus": 200,
+  "onOk": true,
+  "orderStatus": 200,
+  "orderOk": true,
+  "newestOnTop": true,
+  "onTextVisible": true
+}

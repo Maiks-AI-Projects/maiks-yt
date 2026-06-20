@@ -356,7 +356,7 @@ Reviewer gate:
 - Confirm no production credential assumptions were added.
 - Confirm revoked tokens stop validating through `/access/url-token/validate`.
 
-## Chunk 12: Computer Use Visual QA For Installed Stream Tools
+## Chunk 12: Computer Use Visual QA For Installed Stream Tools (Headless Chrome Fallback Complete)
 
 Model: GPT-5.5
 
@@ -364,6 +364,20 @@ Purpose:
 
 - Finish the visual gap left by Chunk 9 without reopening endpoint/token QA.
 - Run after Chunk 11 so fresh overlay/control URLs are available.
+
+Coordinator fallback result:
+
+- Computer Use was not exposed in the 2026-06-21 thread, so true installed-window/browser-chrome-free QA could not be completed.
+- Headless Chrome via DevTools captured screenshots at 1920x1080, 1600x900, and 1366x768 for `/tools/actions`, token-blocked control panel, dev-authenticated control panel, scene designer, overlay-ready state, and overlay chat.
+- Screenshots and machine summaries are in `reports/visual-qa/chunk-12/`.
+- No normal website navbar appeared on the tested standalone surfaces.
+- No horizontal overflow was detected at any target size.
+- Dev-authenticated control panel showed dense controls, fake/local chat viewer, newest-on-top order, and scene designer sizing.
+- Overlay chat stayed inside its slot, newest-on-top displayed correctly, chat-off hid new fake/local messages, and chat-on restored display.
+
+Remaining if strict QA is required:
+
+- Rerun with Computer Use or a real installed PWA window when available, because headless Chrome does not prove browser-chrome-free installed-window behavior.
 
 Prompt:
 

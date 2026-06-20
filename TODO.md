@@ -273,6 +273,7 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Test installed windows without browser chrome on stream-monitor sizes.
   - Control panel metadata is ready; after deployment, verify installed-window layout at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes, including token-blocked state, overlay visibility controls, scene designer, and fake/local chat sender.
   - 2026-06-19 endpoint/token QA passed for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state. Visual installed-window screenshots at the three target sizes remain open because the Chrome/in-app browser plugin failed to attach in this setup; use Computer Use for the next visual QA pass.
+  - 2026-06-21 Computer Use was not exposed in this thread, so a headless Chrome fallback captured screenshots at 1920x1080, 1600x900, and 1366x768 for `/tools/actions`, token-blocked control panel, dev-authenticated control panel, scene designer, and overlay states. No horizontal overflow or normal website navbar was found; fake/local chat order and visibility worked. True installed-window/browser-chrome-free QA remains a manual follow-up if Computer Use becomes available.
 
 ## 14B. Stream-Safe Music, Future Phase
 

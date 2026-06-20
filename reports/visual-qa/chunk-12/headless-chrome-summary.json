@@ -1,0 +1,142 @@
+[
+  {
+    "label": "tools-actions",
+    "size": "1920x1080",
+    "title": "Action Panel App | Maiks.yt",
+    "url": "https://web-dev.maiks.yt/tools/actions",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Persistent Actions\n\nSign in to review Action Panel items.\n\nLive-safe view off\nRefresh\n0 visible actions\nSign In Required\n\nSign in to review Action Panel items.\n\nRetry"
+  },
+  {
+    "label": "tools-actions",
+    "size": "1600x900",
+    "title": "Action Panel App | Maiks.yt",
+    "url": "https://web-dev.maiks.yt/tools/actions",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Persistent Actions\n\nSign in to review Action Panel items.\n\nLive-safe view off\nRefresh\n0 visible actions\nSign In Required\n\nSign in to review Action Panel items.\n\nRetry"
+  },
+  {
+    "label": "tools-actions",
+    "size": "1366x768",
+    "title": "Action Panel App | Maiks.yt",
+    "url": "https://web-dev.maiks.yt/tools/actions",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Persistent Actions\n\nSign in to review Action Panel items.\n\nLive-safe view off\nRefresh\n0 visible actions\nSign In Required\n\nSign in to review Action Panel items.\n\nRetry"
+  },
+  {
+    "label": "control-blocked",
+    "size": "1920x1080",
+    "title": "Maiks.yt Control Panel",
+    "url": "https://control-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Access Required\n\nAccess token required."
+  },
+  {
+    "label": "control-blocked",
+    "size": "1600x900",
+    "title": "Maiks.yt Control Panel",
+    "url": "https://control-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Access Required\n\nAccess token required."
+  },
+  {
+    "label": "control-blocked",
+    "size": "1366x768",
+    "title": "Maiks.yt Control Panel",
+    "url": "https://control-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Access Required\n\nAccess token required."
+  },
+  {
+    "label": "control-valid",
+    "size": "1920x1080",
+    "title": "Maiks.yt Control Panel",
+    "url": "https://control-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Access Required\n\nSign in on the main site before opening the control panel."
+  },
+  {
+    "label": "control-valid",
+    "size": "1600x900",
+    "title": "Maiks.yt Control Panel",
+    "url": "https://control-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Access Required\n\nSign in on the main site before opening the control panel."
+  },
+  {
+    "label": "control-valid",
+    "size": "1366x768",
+    "title": "Maiks.yt Control Panel",
+    "url": "https://control-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "Access Required\n\nSign in on the main site before opening the control panel."
+  },
+  {
+    "label": "overlay-ready",
+    "size": "1920x1080",
+    "title": "",
+    "url": "https://overlay-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": ""
+  },
+  {
+    "label": "overlay-ready",
+    "size": "1600x900",
+    "title": "",
+    "url": "https://overlay-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": ""
+  },
+  {
+    "label": "overlay-ready",
+    "size": "1366x768",
+    "title": "",
+    "url": "https://overlay-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": ""
+  },
+  {
+    "label": "api-chat-order",
+    "size": "api",
+    "title": "",
+    "url": "api",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "{\"orderStatus\":200,\"orderOk\":true,\"newestOnTop\":true,\"chat1Status\":200,\"chat1Ok\":true,\"chat2Status\":200,\"chat2Ok\":true}"
+  },
+  {
+    "label": "overlay-chat-after-send",
+    "size": "1920x1080",
+    "title": "",
+    "url": "https://overlay-dev.maiks.yt/",
+    "navCount": 0,
+    "overflowX": false,
+    "overflowY": false,
+    "bodySample": "QA Test\nChunk 12 visual QA newest-on-top message.\nQA Test\nChunk 12 visual QA first message."
+  }
+]

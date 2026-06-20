@@ -56,15 +56,18 @@ Finish the partially completed project areas before starting untouched feature g
 - Reviewed, committed, pushed, deployed, and dev-smoked the dev admin token management surface on `dev`.
 - Created fresh private dev owner, OBS overlay, and control-panel URLs; stored them in ignored `reports/usable-urls.md` with local `0600` permissions.
 - Confirmed owner-gated token listing works with the dev owner bearer, generated overlay/control tokens validate with the expected `requiresLogin` values, and a revoked smoke token stops validating through `/access/url-token/validate`.
+- Ran the Chunk 12 visual QA fallback with headless Chrome because Computer Use was not exposed in this thread.
+- Captured `/tools/actions`, token-blocked control panel, dev-authenticated control panel, scene designer, overlay-ready, overlay chat, and overlay chat visibility screenshots at the requested stream-monitor sizes under `reports/visual-qa/chunk-12/`.
+- Confirmed the tested standalone surfaces have no normal website navbar and no horizontal overflow at 1920x1080, 1600x900, or 1366x768; fake/local chat newest-on-top and chat visibility toggles worked through the live dev API.
 
 ## Current Task
 
-Continue to the installed-window visual QA pass now that fresh overlay/control URLs exist.
+Decide whether the headless Chrome visual QA fallback is enough for now, or keep waiting for true Computer Use / installed-window QA.
 
 ## Next Tasks
 
-1. Run the remaining visual installed-window QA pass with Computer Use at 1920x1080, 1600x900, and 1366x768 using the fresh private URLs in `reports/usable-urls.md`.
-2. Add the remaining Creator Hub support destination after Michael creates or approves it.
+1. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
+2. Otherwise, move to the next implementation chunk: manual content publishing polish, or Creator Hub support destination after Michael creates or approves it.
 3. Keep real Twitch/YouTube chat, moderation, AI, money, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
@@ -90,6 +93,7 @@ Continue to the installed-window visual QA pass now that fresh overlay/control U
 - Stream Tools Chunk 9 endpoint/token QA is complete; visual installed-window QA remains open.
 - Chunk 10 queue review is complete and the proposed larger next chunks are recorded in `reports/next-agent-tasks.md`.
 - Chunk 11 admin token management is implemented, coordinator-reviewed, committed, pushed to `dev`, deployed, and dev-smoked.
+- Chunk 12 visual QA has a completed headless Chrome fallback with screenshots and summaries, but not a true Computer Use / installed-window pass.
 
 ## Blockers And Decisions
 
@@ -105,7 +109,7 @@ Continue to the installed-window visual QA pass now that fresh overlay/control U
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Do not begin full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
-- Chrome/in-app browser visual QA is blocked in this setup by a Windows sandbox attach failure; use Computer Use for the next visual installed-window pass, or document the exact blocker if Computer Use is unavailable.
+- Chrome/in-app browser visual QA is blocked in this setup by a Windows sandbox attach failure, and Computer Use was not exposed in the 2026-06-21 thread. Headless Chrome fallback covered rendered layout at the target sizes; true installed-window verification remains manual/tool-dependent.
 
 ## Working Tree
 
