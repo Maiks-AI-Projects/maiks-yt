@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-20
+Updated: 2026-06-21
 
 ## Objective
 
@@ -53,16 +53,19 @@ Finish the partially completed project areas before starting untouched feature g
 - Kept Twitch/YouTube scheduling sync, Discord/social announcements, recurrence automation, notifications, AI, money, moderation, auth, and secrets out of the scheduling slice.
 - Ran a stream-tools endpoint/token QA pass for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state.
 - Added the first dev admin token management surface with typed strict overlay/control-panel URL token targets, owner-gated API list/create/rotate/revoke routes, focused tests, and a dense `/admin/tokens` page that shows raw token URLs only after create/rotate.
+- Reviewed, committed, pushed, deployed, and dev-smoked the dev admin token management surface on `dev`.
+- Created fresh private dev owner, OBS overlay, and control-panel URLs; stored them in ignored `reports/usable-urls.md` with local `0600` permissions.
+- Confirmed owner-gated token listing works with the dev owner bearer, generated overlay/control tokens validate with the expected `requiresLogin` values, and a revoked smoke token stops validating through `/access/url-token/validate`.
 
 ## Current Task
 
-Review and deploy the dev admin token management surface, then continue to the installed-window visual QA pass after fresh overlay/control URLs exist.
+Continue to the installed-window visual QA pass now that fresh overlay/control URLs exist.
 
 ## Next Tasks
 
-1. Coordinator-review, deploy, and owner-smoke `/admin/tokens`; create fresh overlay/control URLs for OBS/control setup.
-2. Run the remaining visual installed-window QA pass with Computer Use at 1920x1080, 1600x900, and 1366x768 after fresh overlay/control tokens exist.
-3. Add the remaining Creator Hub support destination after Michael creates or approves it.
+1. Run the remaining visual installed-window QA pass with Computer Use at 1920x1080, 1600x900, and 1366x768 using the fresh private URLs in `reports/usable-urls.md`.
+2. Add the remaining Creator Hub support destination after Michael creates or approves it.
+3. Keep real Twitch/YouTube chat, moderation, AI, money, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
 
@@ -86,12 +89,12 @@ Review and deploy the dev admin token management surface, then continue to the i
 - Stream Scheduling Chunk 8 is implemented, coordinator-reviewed, committed, mirrored to `dev`, migrated, seeded, deployed, and dev-smoked at public API/web level.
 - Stream Tools Chunk 9 endpoint/token QA is complete; visual installed-window QA remains open.
 - Chunk 10 queue review is complete and the proposed larger next chunks are recorded in `reports/next-agent-tasks.md`.
-- Chunk 11 admin token management is implemented in the worker tree and needs coordinator review/deploy/owner smoke before visual QA relies on the generated URLs.
+- Chunk 11 admin token management is implemented, coordinator-reviewed, committed, pushed to `dev`, deployed, and dev-smoked.
 
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
-- Lost OBS/control tokens now have a dev-first admin-token management implementation, but fresh usable URLs still require coordinator review, deployment, and owner-auth smoke.
+- Lost OBS/control tokens now have a dev-first admin-token management implementation, and fresh usable dev URLs are available in ignored `reports/usable-urls.md`.
 - Chat overlay behavior has fake/local test input, streamer-only fake/local viewing, and a chat order toggle now; browser/OBS verification still needs a valid control/overlay token pair. Real Twitch/YouTube chat remains open.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.

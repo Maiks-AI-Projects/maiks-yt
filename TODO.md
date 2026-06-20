@@ -87,7 +87,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add scoped URL token gates for non-public surfaces.
 - [x] Require login after URL token for privileged control/admin pages.
 - [x] Add owner/admin token management surface for creating, rotating, revoking, and copying scoped overlay/control URLs.
-  - 2026-06-20 worker implementation adds `/admin/tokens` plus owner-gated API routes for list/create/rotate/revoke using the existing `url_access_tokens` table; coordinator review, deploy, and owner smoke remain.
+  - 2026-06-21 reviewed, deployed to dev, and dev-smoked with fresh private overlay/control URLs written to ignored `reports/usable-urls.md`; list responses keep token hashes/raw values hidden, create/rotate return raw URLs once, and revoked tokens stop validating through `/access/url-token/validate`.
 
 ## 5. Projects and Milestones
 

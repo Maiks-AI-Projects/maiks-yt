@@ -269,7 +269,7 @@ Run:
 Do not commit, push, deploy, or edit outside the allowed scope.
 ```
 
-## Chunk 11: Dev Admin Token Management Surface (Implementation Ready For Review)
+## Chunk 11: Dev Admin Token Management Surface (Completed)
 
 Model: GPT-5.5
 
@@ -278,13 +278,16 @@ Purpose:
 - Let the owner create, rotate, revoke, and copy scoped dev URLs for OBS overlays and the control panel without direct database access.
 - Unblock OBS/control setup and the later visual QA pass.
 
-Worker result:
+Result:
 
 - Added typed first-slice token admin targets for overlay and control-panel scopes.
 - Added owner-gated `GET /admin/tokens`, `POST /admin/tokens`, `POST /admin/tokens/:id/rotate`, and `POST /admin/tokens/:id/revoke` routes backed by the existing `url_access_tokens` table.
 - Kept token hashes out of list responses; raw token values appear only in create/rotate mutation responses with dev URLs for `overlay-dev.maiks.yt` and `control-dev.maiks.yt`.
 - Added `/admin/tokens` as a practical owner admin page for listing, creating, rotating, revoking, and copying one-time generated URLs.
 - Did not add migrations, production token architecture, Cloudflare Access, secrets management, or deployment changes.
+- Coordinator reviewed, committed, pushed to `dev`, deployed with `scripts/deploy-dev.sh` on `codex-server-1`, and smoked the public/admin API boundary.
+- Fresh private dev owner, overlay, and control-panel URLs were generated and stored in ignored `reports/usable-urls.md` with local `0600` permissions.
+- Live token smoke confirmed overlay tokens validate for `overlay:connect` with `requiresLogin=false`, control-panel tokens validate for `control:open` with `requiresLogin=true`, and revoked tokens stop validating.
 
 Verification run by worker:
 
@@ -296,8 +299,8 @@ Verification run by worker:
 
 Still needed:
 
-- Coordinator-review, deploy to dev, and owner-smoke `/admin/tokens`.
-- After deploy, create one fresh overlay token and one fresh control-panel token, then verify the generated URLs against `overlay-dev` and `control-dev`.
+- Browser-level owner UI smoke is still useful during Chunk 12 because visual QA must use the installed-window/browser environment.
+- Do not rerun this implementation chunk unless a regression is found.
 
 Prompt:
 
