@@ -59,16 +59,18 @@ Finish the partially completed project areas before starting untouched feature g
 - Ran the Chunk 12 visual QA fallback with headless Chrome because Computer Use was not exposed in this thread.
 - Captured `/tools/actions`, token-blocked control panel, dev-authenticated control panel, scene designer, overlay-ready, overlay chat, and overlay chat visibility screenshots at the requested stream-monitor sizes under `reports/visual-qa/chunk-12/`.
 - Confirmed the tested standalone surfaces have no normal website navbar and no horizontal overflow at 1920x1080, 1600x900, or 1366x768; fake/local chat newest-on-top and chat visibility toggles worked through the live dev API.
+- Added the manual project-admin preview-before-publish slice with a typed public-preview projection, draft/unpublished admin preview UI, and focused domain coverage while leaving public project routes filtered to published/visible content only.
 
 ## Current Task
 
-Decide whether the headless Chrome visual QA fallback is enough for now, or keep waiting for true Computer Use / installed-window QA.
+Coordinator review for Chunk 13 manual content publishing polish.
 
 ## Next Tasks
 
-1. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
-2. Otherwise, move to the next implementation chunk: manual content publishing polish, or Creator Hub support destination after Michael creates or approves it.
-3. Keep real Twitch/YouTube chat, moderation, AI, money, and production auth/token architecture gated until explicitly assigned.
+1. Review the Chunk 13 project-admin preview-before-publish patch, then commit/deploy/dev-smoke if accepted.
+2. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
+3. Move to Chunk 14 stream focus/project-link planning after the manual publishing patch is reviewed, or Creator Hub support destination after Michael creates or approves it.
+4. Keep real Twitch/YouTube chat, moderation, AI, money, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
 
@@ -108,6 +110,7 @@ Decide whether the headless Chrome visual QA fallback is enough for now, or keep
 - Streamer chat has a fake/local-only control-panel viewing surface and order toggle; real Twitch/YouTube chat, moderation, ranks, profiles, bot commands, AI reading, and separate installability remain deferred.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
+- Project admin now has preview-before-publish for project basics plus saved milestones/items; manual project updates still need a separate schema-approved slice if they require new tables.
 - Do not begin full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
 - Chrome/in-app browser visual QA is blocked in this setup by a Windows sandbox attach failure, and Computer Use was not exposed in the 2026-06-21 thread. Headless Chrome fallback covered rendered layout at the target sizes; true installed-window verification remains manual/tool-dependent.
 

@@ -2,8 +2,11 @@ import type {
   ProjectAdminCapability,
   ProjectAdminItemInput,
   ProjectAdminMilestoneInput,
+  ProjectAdminPublicPreviewResult,
   ProjectAdminProjectInput
 } from "./project-admin.types.js";
+import type { ProjectReadModelSource } from "./project-read-model.types.js";
+import { buildPublicProjectDetail } from "./project-read-model.rules.js";
 
 export const projectAdminTitleMaxLength = 191;
 export const projectAdminSummaryMaxLength = 2_000;
@@ -54,3 +57,22 @@ export const isValidProjectAdminItemInput = (
   && input.quantity >= 1
   && Number.isInteger(input.sortOrder)
   && input.sortOrder >= 0;
+
+export const buildProjectAdminPublicPreview = (
+  project: ProjectReadModelSource
+): ProjectAdminPublicPreviewResult => {
+  const previewProject = buildPublicProjectDetail({
+    ...project,
+    isPublic: true
+  });
+
+  return previewProject
+    ? {
+      ok: true,
+      project: previewProject
+    }
+    : {
+      ok: false,
+      reason: "project_admin_preview_unavailable_status"
+    };
+};

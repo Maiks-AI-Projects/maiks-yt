@@ -1,6 +1,7 @@
 import type { MilestoneStatus } from "./milestone.types.js";
 import type { ProjectCategory } from "./project-category.types.js";
 import type { ProjectItemKind, ProjectItemStatus } from "./project-item.types.js";
+import type { PublicProjectDetail } from "./project-read-model.types.js";
 import type { ProjectReadModelSource } from "./project-read-model.types.js";
 import type { ProjectStatus, ProjectType } from "./project.types.js";
 
@@ -51,6 +52,16 @@ export type ProjectAdminItemUpdateInput = Partial<ProjectAdminItemInput>;
 export type ProjectAdminReorderInput = {
   orderedIds: readonly string[];
 };
+
+export type ProjectAdminPublicPreviewResult =
+  | {
+    ok: true;
+    project: PublicProjectDetail;
+  }
+  | {
+    ok: false;
+    reason: "project_admin_preview_unavailable_status";
+  };
 
 export type ProjectAdminListResult =
   | {

@@ -1,12 +1,31 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildProjectAdminPublicPreview,
   canManageProjects,
   isValidProjectAdminItemInput,
   isValidProjectAdminMilestoneInput,
   isValidProjectAdminProjectInput,
-  projectAdminManageCapability
+  projectAdminManageCapability,
+  type ProjectReadModelSource
 } from "../src/projects/index.js";
+
+const createProject = (
+  id: string,
+  overrides: Partial<ProjectReadModelSource> = {}
+): ProjectReadModelSource => ({
+  id,
+  slug: id,
+  title: `Project ${id}`,
+  summary: `Summary for ${id}`,
+  type: "milestone-only",
+  category: "software-project",
+  status: "planning",
+  isPublic: false,
+  milestones: [],
+  items: [],
+  ...overrides
+});
 
 describe("project admin permissions", () => {
   it("allows owner wildcard and project-admin manage capability", () => {
@@ -71,5 +90,63 @@ describe("project admin validation", () => {
       quantity: 0,
       sortOrder: 0
     })).toBe(false);
+  });
+});
+
+describe("project admin public preview", () => {
+  it("builds a public projection for private draft projects without publishing them", () => {
+    const preview = buildProjectAdminPublicPreview(createProject("draft", {
+      isPublic: false,
+      status: "active",
+      milestones: [
+        {
+          id: "live",
+          title: "Live milestone",
+          status: "active",
+          sortOrder: 1
+        },
+        {
+          id: "cancelled",
+          title: "Cancelled milestone",
+          status: "cancelled",
+          sortOrder: 2
+        }
+      ],
+      items: [
+        {
+          id: "visible",
+          title: "Visible item",
+          kind: "task",
+          status: "planned",
+          quantity: 1,
+          sortOrder: 1
+        },
+        {
+          id: "removed",
+          title: "Removed item",
+          kind: "task",
+          status: "removed",
+          quantity: 1,
+          sortOrder: 2
+        }
+      ]
+    }));
+
+    expect(preview.ok).toBe(true);
+
+    if (preview.ok) {
+      expect(preview.project.slug).toBe("draft");
+      expect(preview.project.milestones.map((milestone) => milestone.id)).toEqual(["live"]);
+      expect(preview.project.items.map((item) => item.id)).toEqual(["visible"]);
+    }
+  });
+
+  it("blocks preview when the project status would not be public", () => {
+    expect(buildProjectAdminPublicPreview(createProject("cancelled", {
+      status: "cancelled"
+    }))).toEqual({
+      ok: false,
+      reason: "project_admin_preview_unavailable_status"
+    });
   });
 });

@@ -6,10 +6,13 @@ import type {
   ProjectItemKind,
   ProjectItemStatus,
   ProjectReadModelSource,
+  PublicProjectDetail,
+  PublicProjectItem,
   ProjectStatus,
   ProjectType,
   MilestoneStatus
 } from "@maiks-yt/domain/projects";
+import { buildProjectAdminPublicPreview } from "@maiks-yt/domain/projects";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { formatProjectLabel } from "../../projects/project-read-data";
@@ -168,6 +171,9 @@ const toProjectForm = (project: ProjectReadModelSource): ProjectFormState => ({
 const getProjectPublicHref = (project: ProjectReadModelSource): string =>
   `/projects/${encodeURIComponent(project.slug)}`;
 
+const isPublicRouteVisible = (project: ProjectReadModelSource): boolean =>
+  buildProjectAdminPublicPreview(project).ok && project.isPublic;
+
 const flattenItemOptions = (
   project: ProjectReadModelSource
 ): Array<{ id: string; label: string }> =>
@@ -178,6 +184,85 @@ const flattenItemOptions = (
       id: item.id,
       label: item.parentItemId ? `${item.title} (${item.parentItemId})` : item.title
     }));
+
+const PreviewItemList = ({
+  items
+}: {
+  items: readonly PublicProjectItem[];
+}): React.ReactNode => (
+  <ul className="project-admin-record-list">
+    {items.map((item) => (
+      <li key={item.id}>
+        <div>
+          <span>{formatProjectLabel(item.kind)}</span>
+          <strong>{item.title}</strong>
+          <em>{formatProjectLabel(item.status)}</em>
+        </div>
+        {item.description ? <p>{item.description}</p> : null}
+        {item.quantity > 1 ? <small>Quantity: {item.quantity}</small> : null}
+        {item.children.length > 0 ? <PreviewItemList items={item.children} /> : null}
+      </li>
+    ))}
+  </ul>
+);
+
+const ProjectAdminPublicPreview = ({
+  isPublished,
+  project
+}: {
+  isPublished: boolean;
+  project: PublicProjectDetail;
+}): React.ReactNode => (
+  <article className="project-admin-preview" aria-label="Public project preview">
+    <div className="project-admin-preview-banner">
+      <span>{isPublished ? "Published page preview" : "Draft page preview"}</span>
+      <span>{formatProjectLabel(project.status)}</span>
+    </div>
+    <header>
+      <p className="eyebrow">{formatProjectLabel(project.category)}</p>
+      <h3>{project.title}</h3>
+      <p>{project.summary}</p>
+      <dl className="project-card-stats">
+        <div>
+          <dt>Milestones</dt>
+          <dd>{project.milestoneCount}</dd>
+        </div>
+        <div>
+          <dt>Items</dt>
+          <dd>{project.itemCount}</dd>
+        </div>
+        <div>
+          <dt>Type</dt>
+          <dd>{formatProjectLabel(project.type)}</dd>
+        </div>
+      </dl>
+    </header>
+    <section>
+      <h4>Milestones</h4>
+      {project.milestones.length === 0 ? (
+        <p className="project-muted">No public milestones are available yet.</p>
+      ) : (
+        <ol className="project-admin-record-list">
+          {project.milestones.map((milestone) => (
+            <li key={milestone.id}>
+              <span>{formatProjectLabel(milestone.status)}</span>
+              <strong>{milestone.title}</strong>
+              {milestone.description ? <p>{milestone.description}</p> : null}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+    <section>
+      <h4>Project Items</h4>
+      {project.items.length === 0 ? (
+        <p className="project-muted">No public project items are available yet.</p>
+      ) : (
+        <PreviewItemList items={project.items} />
+      )}
+    </section>
+  </article>
+);
 
 const ProjectAdminClient = (): React.ReactNode => {
   const [projects, setProjects] = useState<readonly ProjectReadModelSource[]>([]);
@@ -192,6 +277,43 @@ const ProjectAdminClient = (): React.ReactNode => {
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId]
+  );
+
+  const previewSource = useMemo<ProjectReadModelSource | null>(() => {
+    if (!selectedProject) {
+      if (!projectForm.slug.trim() || !projectForm.title.trim()) {
+        return null;
+      }
+
+      return {
+        id: "new-project-preview",
+        slug: projectForm.slug.trim(),
+        title: projectForm.title.trim(),
+        summary: projectForm.summary.trim() || null,
+        type: projectForm.type,
+        category: projectForm.category,
+        status: projectForm.status,
+        isPublic: projectForm.isPublic,
+        milestones: [],
+        items: []
+      };
+    }
+
+    return {
+      ...selectedProject,
+      slug: projectForm.slug.trim() || selectedProject.slug,
+      title: projectForm.title.trim() || selectedProject.title,
+      summary: projectForm.summary.trim() || null,
+      type: projectForm.type,
+      category: projectForm.category,
+      status: projectForm.status,
+      isPublic: projectForm.isPublic
+    };
+  }, [projectForm, selectedProject]);
+
+  const publicPreview = useMemo(
+    () => previewSource ? buildProjectAdminPublicPreview(previewSource) : null,
+    [previewSource]
   );
 
   const replaceProject = useCallback((project: ProjectReadModelSource): void => {
@@ -553,9 +675,11 @@ const ProjectAdminClient = (): React.ReactNode => {
               </div>
               {selectedProject ? (
                 <div className="project-admin-actions">
-                  <a className="button-link secondary-action" href={getProjectPublicHref(selectedProject)}>
-                    Preview
-                  </a>
+                  {isPublicRouteVisible(selectedProject) ? (
+                    <a className="button-link secondary-action" href={getProjectPublicHref(selectedProject)}>
+                      Open Public Page
+                    </a>
+                  ) : null}
                   <button type="button" className="secondary-action" onClick={() => void saveVisibility(false)} disabled={busyAction !== null || !selectedProject.isPublic}>
                     Make Private
                   </button>
@@ -610,6 +734,33 @@ const ProjectAdminClient = (): React.ReactNode => {
                 </label>
               </div>
             </form>
+
+            <section className="project-admin-panel">
+              <div className="project-admin-panel-heading">
+                <h2>Public Preview</h2>
+                <span className="project-admin-preview-state">
+                  {selectedProject?.isPublic ? "Currently published" : "Not published"}
+                </span>
+              </div>
+              <p>
+                {selectedProject?.isPublic
+                  ? "This preview includes unsaved basic field edits; the public page keeps showing the last saved public version."
+                  : "This preview shows the public page shape before publishing; public routes still hide this project."}
+              </p>
+              {!previewSource ? (
+                <p className="project-muted">Add a slug and title to preview the public page shape.</p>
+              ) : publicPreview?.ok ? (
+                <ProjectAdminPublicPreview
+                  isPublished={selectedProject?.isPublic === true}
+                  project={publicPreview.project}
+                />
+              ) : (
+                <section className="link-admin-warning">
+                  <h3>Preview Unavailable</h3>
+                  <p>Public project pages only show planning, active, or completed projects. Change the status to preview the public page shape.</p>
+                </section>
+              )}
+            </section>
 
             {selectedProject ? (
               <>

@@ -425,6 +425,31 @@ Purpose:
 - Finish the next useful manual content layer before AI-assisted content generation.
 - Bundle project updates, preview-before-publish behavior, and optional support-link activation only if Michael provides approved wording.
 
+Worker result:
+
+- Implemented the smaller coherent slice: preview-before-publish for existing project admin content.
+- Added a typed domain helper that builds the public project detail projection for admin preview while only bypassing `isPublic`; statuses hidden from public pages still block preview.
+- Added `/admin/projects` preview UI for unsaved project basics plus saved public milestones/items, including draft/unpublished projects before publish.
+- Kept public `/projects` list/detail behavior unchanged; public read-model rules still filter to `isPublic` projects with planning, active, or completed status and strip cancelled/removed children.
+- Did not add project updates, support payments/links, AI drafting, provider integrations, moderation, auth changes, migrations, secrets, Cloudflare config, Docker/deploy changes, commits, pushes, or deployments.
+
+Worker verification:
+
+- `pnpm --filter @maiks-yt/domain test` passed: 9 files, 57 tests.
+- First `pnpm --filter @maiks-yt/api test` and `pnpm --filter @maiks-yt/api typecheck` failed on missing fresh-worktree package dist entrypoints; after the shared package build fallback below, both passed.
+- `pnpm --filter @maiks-yt/config --filter @maiks-yt/database --filter @maiks-yt/domain --filter @maiks-yt/events --filter @maiks-yt/integrations --filter @maiks-yt/testing --filter @maiks-yt/themes --filter @maiks-yt/ui build` passed.
+- `pnpm --filter @maiks-yt/api test` passed after build fallback: 7 files, 49 tests.
+- `pnpm --filter @maiks-yt/api typecheck` passed after build fallback.
+- `pnpm --filter @maiks-yt/web typecheck` passed.
+- `node scripts/check-architecture.mjs` passed.
+
+Reviewer gate:
+
+- Confirm the admin preview is sufficient for the no-migration publishing polish slice.
+- Browser-smoke `/admin/projects` as an owner if an authenticated dev session is available.
+- Confirm no unpublished project appears on public `/projects` or `/projects/:slug`.
+- Do not rerun this implementation chunk unless a regression is found.
+
 Prompt:
 
 ```text
