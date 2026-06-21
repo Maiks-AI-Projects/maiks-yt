@@ -67,7 +67,8 @@ export class StreamScheduleService {
 
     return {
       ok: true,
-      streams: await this.repository.listAdminStreams()
+      streams: await this.repository.listAdminStreams(),
+      projectOptions: await this.repository.listProjectOptions()
     };
   }
 
@@ -226,6 +227,9 @@ const toFullStreamScheduleInput = (
   channelKey: update.channelKey ?? existingStream.channelKey,
   topicKey: update.topicKey === undefined ? existingStream.topicKey : update.topicKey,
   themeKey: update.themeKey === undefined ? existingStream.themeKey : update.themeKey,
+  projectId: update.projectId === undefined ? existingStream.projectId : update.projectId,
+  focusLabel: update.focusLabel === undefined ? existingStream.focusLabel : update.focusLabel,
+  focusNote: update.focusNote === undefined ? existingStream.focusNote : update.focusNote,
   visibility: update.visibility ?? existingStream.visibility,
   status: update.status ?? existingStream.status,
   cancellationReasonCode: update.cancellationReasonCode === undefined

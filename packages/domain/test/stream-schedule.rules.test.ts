@@ -17,6 +17,9 @@ const baseInput = {
   channelKey: "coding",
   topicKey: "maiks-yt",
   themeKey: "default",
+  projectId: null,
+  focusLabel: null,
+  focusNote: null,
   visibility: "public",
   status: "planned",
   cancellationReasonCode: null,
@@ -30,12 +33,34 @@ describe("stream schedule rules", () => {
       ...baseInput,
       title: "  Build stream  ",
       description: "  notes  ",
-      topicKey: ""
+      topicKey: "",
+      focusLabel: "  Stream focus  ",
+      focusNote: "  Build the schedule bridge  "
     })).toMatchObject({
       title: "Build stream",
       description: "notes",
-      topicKey: null
+      topicKey: null,
+      focusLabel: "Stream focus",
+      focusNote: "Build the schedule bridge"
     });
+  });
+
+  it("accepts optional manual focus fields but keeps them bounded", () => {
+    expect(isValidStreamScheduleInput({
+      ...baseInput,
+      projectId: "00000000-0000-4000-8000-000000000020",
+      focusLabel: "Stream focus",
+      focusNote: "Working on the creator platform schedule flow."
+    })).toBe(true);
+    expect(isValidStreamScheduleInput({
+      ...baseInput,
+      focusLabel: "x".repeat(121)
+    })).toBe(false);
+    expect(isValidStreamScheduleUpdateInput({
+      projectId: null,
+      focusLabel: null,
+      focusNote: null
+    })).toBe(true);
   });
 
   it("rejects invalid windows and stray cancellation fields", () => {

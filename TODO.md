@@ -101,6 +101,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Add internal wishlist entries linked to project items.
 
 Note: Chunk 14 stopped at the migration gate. The existing public schedule table has no project/focus fields, while the older `stream_sessions.active_project_id` is not connected to the manual schedule/admin/public display flow. The smallest approved next slice is a generated migration that adds nullable manual focus fields to `stream_schedule_entries`, then exposes them in owner schedule admin and public schedule display without money, provider sync, announcements, AI, moderation, or support promises.
+  - 2026-06-21 Chunk 14A generated migration `0010_lonely_whistler.sql` and implemented the manual schedule focus flow; coordinator still needs to apply the migration and dev-smoke before this is marked complete.
 
 ## 5.5 Stream Simulator and Event Replayer
 

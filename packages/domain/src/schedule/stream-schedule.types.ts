@@ -22,6 +22,10 @@ export type StreamScheduleEntry = {
   channelKey: string;
   topicKey: string | null;
   themeKey: string | null;
+  projectId: string | null;
+  focusLabel: string | null;
+  focusNote: string | null;
+  focusProject: StreamScheduleFocusProject | null;
   visibility: StreamScheduleVisibility;
   status: StreamScheduleStatus;
   cancellationReasonCode: StreamScheduleCancellationReasonCode | null;
@@ -29,6 +33,14 @@ export type StreamScheduleEntry = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type StreamScheduleFocusProject = {
+  id: string;
+  slug: string;
+  title: string;
+};
+
+export type StreamScheduleProjectOption = StreamScheduleFocusProject;
 
 export type StreamScheduleInput = {
   title: string;
@@ -38,6 +50,9 @@ export type StreamScheduleInput = {
   channelKey: string;
   topicKey?: string | null | undefined;
   themeKey?: string | null | undefined;
+  projectId?: string | null | undefined;
+  focusLabel?: string | null | undefined;
+  focusNote?: string | null | undefined;
   visibility: StreamScheduleVisibility;
   status: StreamScheduleStatus;
   cancellationReasonCode?: StreamScheduleCancellationReasonCode | null | undefined;
@@ -52,6 +67,9 @@ export type StreamScheduleUpdateInput = {
   channelKey?: string | undefined;
   topicKey?: string | null | undefined;
   themeKey?: string | null | undefined;
+  projectId?: string | null | undefined;
+  focusLabel?: string | null | undefined;
+  focusNote?: string | null | undefined;
   visibility?: StreamScheduleVisibility | undefined;
   status?: StreamScheduleStatus | undefined;
   cancellationReasonCode?: StreamScheduleCancellationReasonCode | null | undefined;

@@ -23,6 +23,10 @@ const createStream = (overrides: Partial<StreamScheduleEntry> = {}): StreamSched
   channelKey: "coding",
   topicKey: "maiks-yt",
   themeKey: "default",
+  projectId: null,
+  focusLabel: null,
+  focusNote: null,
+  focusProject: null,
   visibility: "public",
   status: "planned",
   cancellationReasonCode: null,
@@ -40,6 +44,9 @@ const createPayload = (overrides: Partial<StreamScheduleInput> = {}): StreamSche
   channelKey: "coding",
   topicKey: "maiks-yt",
   themeKey: "default",
+  projectId: null,
+  focusLabel: null,
+  focusNote: null,
   visibility: "public",
   status: "planned",
   cancellationReasonCode: null,
@@ -81,6 +88,16 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
 
   public async listAdminStreams(): Promise<readonly StreamScheduleEntry[]> {
     return [...this.streams.values()];
+  }
+
+  public async listProjectOptions() {
+    return [
+      {
+        id: "project-1",
+        slug: "maiks-yt-v2",
+        title: "Maiks.yt V2"
+      }
+    ];
   }
 
   public async createStream(input: StreamScheduleInput & { actorUserId: string }): Promise<StreamScheduleEntry> {
@@ -158,7 +175,61 @@ describe("StreamScheduleService", () => {
       rolePermissionValues: [JSON.stringify(["schedule:manage"])]
     };
     await expect(service.listAdminStreams({ authUserId: "auth-user" })).resolves.toMatchObject({
-      ok: true
+      ok: true,
+      projectOptions: [
+        {
+          id: "project-1",
+          slug: "maiks-yt-v2"
+        }
+      ]
+    });
+  });
+
+  it("stores and clears manual stream focus fields through admin mutations", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const service = new StreamScheduleService(repository);
+
+    await expect(service.createStream({
+      authUserId: "auth-user",
+      ...createPayload({
+        projectId: "project-1",
+        focusLabel: "Stream focus",
+        focusNote: "Working on the schedule link."
+      })
+    })).resolves.toMatchObject({
+      ok: true,
+      stream: {
+        projectId: "project-1",
+        focusLabel: "Stream focus",
+        focusNote: "Working on the schedule link."
+      }
+    });
+    expect(repository.lastCreated).toMatchObject({
+      projectId: "project-1",
+      focusLabel: "Stream focus",
+      focusNote: "Working on the schedule link."
+    });
+
+    await expect(service.updateStream({
+      authUserId: "auth-user",
+      id: "created-stream",
+      stream: {
+        projectId: null,
+        focusLabel: null,
+        focusNote: null
+      }
+    })).resolves.toMatchObject({
+      ok: true,
+      stream: {
+        projectId: null,
+        focusLabel: null,
+        focusNote: null
+      }
+    });
+    expect(repository.lastUpdated).toEqual({
+      projectId: null,
+      focusLabel: null,
+      focusNote: null
     });
   });
 
@@ -213,6 +284,17 @@ describe("StreamScheduleService", () => {
 describe("stream schedule route boundary", () => {
   it("returns public schedules without an auth session", async () => {
     const repository = new FakeStreamScheduleRepository();
+    repository.streams.set("focused-stream", createStream({
+      id: "focused-stream",
+      projectId: "project-1",
+      focusLabel: "Stream focus",
+      focusNote: "Working on the creator platform.",
+      focusProject: {
+        id: "project-1",
+        slug: "maiks-yt-v2",
+        title: "Maiks.yt V2"
+      }
+    }));
     const server = Fastify();
     registerStreamScheduleRoutes(server, {
       getAuthSession: async () => null,
@@ -233,6 +315,13 @@ describe("stream schedule route boundary", () => {
       streams: [
         {
           id: "stream-1"
+        },
+        {
+          id: "focused-stream",
+          focusProject: {
+            slug: "maiks-yt-v2"
+          },
+          focusLabel: "Stream focus"
         }
       ]
     });

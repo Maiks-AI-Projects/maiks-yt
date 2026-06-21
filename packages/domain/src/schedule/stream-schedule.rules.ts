@@ -13,6 +13,8 @@ export const streamScheduleTitleMaxLength = 191;
 export const streamScheduleDescriptionMaxLength = 2_000;
 export const streamScheduleKeyMaxLength = 80;
 export const streamScheduleCancellationReasonMaxLength = 500;
+export const streamScheduleFocusLabelMaxLength = 120;
+export const streamScheduleFocusNoteMaxLength = 280;
 
 const streamScheduleKeyPattern = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
@@ -35,6 +37,11 @@ const isValidKey = (value: unknown): value is string =>
 
 const isValidOptionalKey = (value: unknown): boolean =>
   value === undefined || value === null || isValidKey(value);
+
+const isValidOptionalProjectId = (value: unknown): boolean =>
+  value === undefined
+  || value === null
+  || (typeof value === "string" && value.trim().length > 0 && value.trim().length <= 36);
 
 const isValidWindow = (startsAt: string, endsAt?: string | null): boolean =>
   !endsAt || Date.parse(endsAt) > Date.parse(startsAt);
@@ -60,6 +67,9 @@ export const isValidStreamScheduleInput = (input: StreamScheduleInput): boolean 
   && isValidKey(input.channelKey)
   && isValidOptionalKey(input.topicKey)
   && isValidOptionalKey(input.themeKey)
+  && isValidOptionalProjectId(input.projectId)
+  && isValidOptionalText(input.focusLabel, streamScheduleFocusLabelMaxLength)
+  && isValidOptionalText(input.focusNote, streamScheduleFocusNoteMaxLength)
   && streamScheduleVisibilities.includes(input.visibility)
   && streamScheduleStatuses.includes(input.status)
   && hasValidCancellation(input);
@@ -73,6 +83,9 @@ export const isValidStreamScheduleUpdateInput = (input: StreamScheduleUpdateInpu
   && (input.channelKey === undefined || isValidKey(input.channelKey))
   && isValidOptionalKey(input.topicKey)
   && isValidOptionalKey(input.themeKey)
+  && isValidOptionalProjectId(input.projectId)
+  && isValidOptionalText(input.focusLabel, streamScheduleFocusLabelMaxLength)
+  && isValidOptionalText(input.focusNote, streamScheduleFocusNoteMaxLength)
   && (input.visibility === undefined || streamScheduleVisibilities.includes(input.visibility))
   && (input.status === undefined || streamScheduleStatuses.includes(input.status))
   && (
@@ -98,6 +111,9 @@ export const normalizeStreamScheduleInput = (input: StreamScheduleInput): Stream
   channelKey: input.channelKey.trim(),
   topicKey: input.topicKey?.trim() || null,
   themeKey: input.themeKey?.trim() || null,
+  projectId: input.projectId?.trim() || null,
+  focusLabel: input.focusLabel?.trim() || null,
+  focusNote: input.focusNote?.trim() || null,
   cancellationReasonCode: input.status === "cancelled" ? input.cancellationReasonCode ?? null : null,
   cancellationReason: input.status === "cancelled" ? input.cancellationReason?.trim() ?? "" : null
 });
@@ -111,5 +127,8 @@ export const normalizeStreamScheduleUpdateInput = (
   ...(input.channelKey === undefined ? {} : { channelKey: input.channelKey.trim() }),
   ...(input.topicKey === undefined ? {} : { topicKey: input.topicKey?.trim() || null }),
   ...(input.themeKey === undefined ? {} : { themeKey: input.themeKey?.trim() || null }),
+  ...(input.projectId === undefined ? {} : { projectId: input.projectId?.trim() || null }),
+  ...(input.focusLabel === undefined ? {} : { focusLabel: input.focusLabel?.trim() || null }),
+  ...(input.focusNote === undefined ? {} : { focusNote: input.focusNote?.trim() || null }),
   ...(input.cancellationReason === undefined ? {} : { cancellationReason: input.cancellationReason?.trim() || null })
 });

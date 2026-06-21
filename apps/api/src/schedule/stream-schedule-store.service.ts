@@ -5,6 +5,7 @@ import type {
   StreamScheduleCancellationInput,
   StreamScheduleCancellationReasonCode,
   StreamScheduleEntry,
+  StreamScheduleProjectOption,
   StreamScheduleInput,
   StreamScheduleStatus,
   StreamScheduleUpdateInput,
@@ -28,6 +29,12 @@ type StreamScheduleRow = {
   channelKey: string;
   topicKey?: string | null;
   themeKey?: string | null;
+  projectId?: string | null;
+  focusLabel?: string | null;
+  focusNote?: string | null;
+  focusProjectId?: string | null;
+  focusProjectSlug?: string | null;
+  focusProjectTitle?: string | null;
   visibility: StreamScheduleVisibility;
   status: StreamScheduleStatus;
   cancellationReasonCode?: StreamScheduleCancellationReasonCode | null;
@@ -45,6 +52,16 @@ const mapStream = (row: StreamScheduleRow): StreamScheduleEntry => ({
   channelKey: row.channelKey,
   topicKey: row.topicKey ?? null,
   themeKey: row.themeKey ?? null,
+  projectId: row.projectId ?? null,
+  focusLabel: row.focusLabel ?? null,
+  focusNote: row.focusNote ?? null,
+  focusProject: row.focusProjectId && row.focusProjectSlug && row.focusProjectTitle
+    ? {
+      id: row.focusProjectId,
+      slug: row.focusProjectSlug,
+      title: row.focusProjectTitle
+    }
+    : null,
   visibility: row.visibility,
   status: row.status,
   cancellationReasonCode: row.cancellationReasonCode ?? null,
@@ -62,12 +79,38 @@ const selectStreamFields = `
   channel_key AS channelKey,
   topic_key AS topicKey,
   theme_key AS themeKey,
+  project_id AS projectId,
+  focus_label AS focusLabel,
+  focus_note AS focusNote,
   visibility,
   status,
   cancellation_reason_code AS cancellationReasonCode,
   cancellation_reason AS cancellationReason,
   created_at AS createdAt,
   updated_at AS updatedAt
+`;
+
+const publicStreamFields = `
+  stream_schedule_entries.id,
+  stream_schedule_entries.title,
+  stream_schedule_entries.description,
+  stream_schedule_entries.starts_at AS startsAt,
+  stream_schedule_entries.ends_at AS endsAt,
+  stream_schedule_entries.channel_key AS channelKey,
+  stream_schedule_entries.topic_key AS topicKey,
+  stream_schedule_entries.theme_key AS themeKey,
+  CASE WHEN projects.id IS NOT NULL THEN stream_schedule_entries.project_id ELSE NULL END AS projectId,
+  CASE WHEN projects.id IS NOT NULL THEN stream_schedule_entries.focus_label ELSE NULL END AS focusLabel,
+  CASE WHEN projects.id IS NOT NULL THEN stream_schedule_entries.focus_note ELSE NULL END AS focusNote,
+  stream_schedule_entries.visibility,
+  stream_schedule_entries.status,
+  stream_schedule_entries.cancellation_reason_code AS cancellationReasonCode,
+  stream_schedule_entries.cancellation_reason AS cancellationReason,
+  stream_schedule_entries.created_at AS createdAt,
+  stream_schedule_entries.updated_at AS updatedAt,
+  projects.id AS focusProjectId,
+  projects.slug AS focusProjectSlug,
+  projects.title AS focusProjectTitle
 `;
 
 const readStream = async (
@@ -137,6 +180,9 @@ const writeValues = (input: StreamScheduleInput) => [
   input.channelKey,
   input.topicKey ?? null,
   input.themeKey ?? null,
+  input.projectId ?? null,
+  input.focusLabel ?? null,
+  input.focusNote ?? null,
   input.visibility,
   input.status,
   input.cancellationReasonCode ?? null,
@@ -161,6 +207,9 @@ const toUpdateAssignments = (input: StreamScheduleUpdateInput): {
   if (input.channelKey !== undefined) add("channel_key", input.channelKey);
   if (input.topicKey !== undefined) add("topic_key", input.topicKey);
   if (input.themeKey !== undefined) add("theme_key", input.themeKey);
+  if (input.projectId !== undefined) add("project_id", input.projectId);
+  if (input.focusLabel !== undefined) add("focus_label", input.focusLabel);
+  if (input.focusNote !== undefined) add("focus_note", input.focusNote);
   if (input.visibility !== undefined) add("visibility", input.visibility);
   if (input.status !== undefined) add("status", input.status);
   if (input.cancellationReasonCode !== undefined) add("cancellation_reason_code", input.cancellationReasonCode);
@@ -183,12 +232,16 @@ export const createStreamScheduleRepository = (
   async listPublicStreams({ now }) {
     const [rows] = await pool.execute(
       `
-        SELECT ${selectStreamFields}
+        SELECT ${publicStreamFields}
         FROM stream_schedule_entries
+        LEFT JOIN projects
+          ON projects.id = stream_schedule_entries.project_id
+          AND projects.is_public = 1
+          AND projects.status IN ('planning', 'active', 'completed')
         WHERE visibility = 'public'
-          AND status IN ('planned', 'cancelled')
-          AND starts_at >= ?
-        ORDER BY starts_at, title
+          AND stream_schedule_entries.status IN ('planned', 'cancelled')
+          AND stream_schedule_entries.starts_at >= ?
+        ORDER BY stream_schedule_entries.starts_at, stream_schedule_entries.title
       `,
       [now]
     );
@@ -212,13 +265,29 @@ export const createStreamScheduleRepository = (
       : [];
   },
 
+  async listProjectOptions() {
+    const [rows] = await pool.execute(
+      `
+        SELECT id, slug, title
+        FROM projects
+        WHERE is_public = 1
+          AND status IN ('planning', 'active', 'completed')
+        ORDER BY title, slug
+      `
+    );
+
+    return Array.isArray(rows)
+      ? (rows as StreamScheduleProjectOption[])
+      : [];
+  },
+
   async createStream(input) {
     const id = randomUUID();
     await pool.execute(
       `
         INSERT INTO stream_schedule_entries
-          (id, title, description, starts_at, ends_at, channel_key, topic_key, theme_key, visibility, status, cancellation_reason_code, cancellation_reason, created_by_user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          (id, title, description, starts_at, ends_at, channel_key, topic_key, theme_key, project_id, focus_label, focus_note, visibility, status, cancellation_reason_code, cancellation_reason, created_by_user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [id, ...writeValues(input), input.actorUserId]
     );

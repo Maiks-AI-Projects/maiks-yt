@@ -2,6 +2,7 @@ import type {
   StreamScheduleCancellationInput,
   StreamScheduleEntry,
   StreamScheduleInput,
+  StreamScheduleProjectOption,
   StreamScheduleUpdateInput
 } from "@maiks-yt/domain/schedule";
 
@@ -16,7 +17,11 @@ export type StreamScheduleListResult = {
 };
 
 export type StreamScheduleAdminListResult =
-  | StreamScheduleListResult
+  | {
+    ok: true;
+    streams: readonly StreamScheduleEntry[];
+    projectOptions: readonly StreamScheduleProjectOption[];
+  }
   | {
     ok: false;
     reason: "stream_schedule_admin_user_unlinked" | "stream_schedule_admin_forbidden";
@@ -41,6 +46,7 @@ export interface StreamScheduleRepository {
   getStream(id: string): Promise<StreamScheduleEntry | null>;
   listPublicStreams(input: { now: Date }): Promise<readonly StreamScheduleEntry[]>;
   listAdminStreams(): Promise<readonly StreamScheduleEntry[]>;
+  listProjectOptions(): Promise<readonly StreamScheduleProjectOption[]>;
   createStream(input: StreamScheduleInput & { actorUserId: string }): Promise<StreamScheduleEntry>;
   updateStream(id: string, input: StreamScheduleUpdateInput): Promise<StreamScheduleEntry | "not-found">;
   cancelStream(id: string, input: StreamScheduleCancellationInput): Promise<StreamScheduleEntry | "not-found">;

@@ -48,6 +48,15 @@ const SchedulePage = async (): Promise<React.ReactNode> => {
                 {stream.endsAt ? ` until ${formatScheduleDate(stream.endsAt)}` : ""}
               </p>
               {stream.description ? <p>{stream.description}</p> : null}
+              {stream.focusProject ? (
+                <div className="schedule-focus">
+                  <strong>{stream.focusLabel || "Stream focus"}</strong>
+                  <a href={`/projects/${encodeURIComponent(stream.focusProject.slug)}`}>
+                    {stream.focusProject.title}
+                  </a>
+                  {stream.focusNote ? <span>{stream.focusNote}</span> : null}
+                </div>
+              ) : null}
               {stream.status === "cancelled" ? (
                 <div className="schedule-cancellation" role="status">
                   <strong>Cancelled</strong>

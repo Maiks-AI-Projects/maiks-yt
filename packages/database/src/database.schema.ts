@@ -416,6 +416,9 @@ export const streamScheduleEntries = mysqlTable(
     channelKey: varchar("channel_key", { length: 80 }).notNull(),
     topicKey: varchar("topic_key", { length: 80 }),
     themeKey: varchar("theme_key", { length: 80 }),
+    projectId: varchar("project_id", { length: 36 }),
+    focusLabel: varchar("focus_label", { length: 120 }),
+    focusNote: varchar("focus_note", { length: 280 }),
     visibility: mysqlEnum("visibility", ["draft", "public", "private"]).notNull().default("draft"),
     status: mysqlEnum("status", ["planned", "live", "completed", "cancelled"]).notNull().default("planned"),
     cancellationReasonCode: mysqlEnum("cancellation_reason_code", [
@@ -435,6 +438,7 @@ export const streamScheduleEntries = mysqlTable(
     index("stream_schedule_public_starts_idx").on(table.visibility, table.startsAt),
     index("stream_schedule_status_idx").on(table.status),
     index("stream_schedule_channel_idx").on(table.channelKey),
+    index("stream_schedule_project_id_idx").on(table.projectId),
     check(
       "stream_schedule_time_window_check",
       sql`${table.endsAt} is null or ${table.endsAt} > ${table.startsAt}`

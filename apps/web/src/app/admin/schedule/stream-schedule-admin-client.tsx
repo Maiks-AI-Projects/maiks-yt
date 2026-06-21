@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   StreamScheduleCancellationReasonCode,
   StreamScheduleEntry,
+  StreamScheduleProjectOption,
   StreamScheduleStatus,
   StreamScheduleVisibility
 } from "@maiks-yt/domain/schedule";
@@ -19,6 +20,7 @@ type AdminScheduleResponse =
   | {
     ok: true;
     streams: readonly StreamScheduleEntry[];
+    projectOptions: readonly StreamScheduleProjectOption[];
   }
   | {
     ok: false;
@@ -45,6 +47,9 @@ type ScheduleFormState = {
   channelKey: string;
   topicKey: string;
   themeKey: string;
+  projectId: string;
+  focusLabel: string;
+  focusNote: string;
   visibility: StreamScheduleVisibility;
   status: StreamScheduleStatus;
 };
@@ -75,6 +80,9 @@ const defaultScheduleForm: ScheduleFormState = {
   channelKey: "coding",
   topicKey: "maiks-yt",
   themeKey: "default",
+  projectId: "",
+  focusLabel: "",
+  focusNote: "",
   visibility: "draft",
   status: "planned"
 };
@@ -105,6 +113,9 @@ const toScheduleForm = (stream: StreamScheduleEntry): ScheduleFormState => ({
   channelKey: stream.channelKey,
   topicKey: stream.topicKey ?? "",
   themeKey: stream.themeKey ?? "",
+  projectId: stream.projectId ?? "",
+  focusLabel: stream.focusLabel ?? "",
+  focusNote: stream.focusNote ?? "",
   visibility: stream.visibility,
   status: stream.status
 });
@@ -143,6 +154,7 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
 
 const StreamScheduleAdminClient = (): React.ReactNode => {
   const [streams, setStreams] = useState<readonly StreamScheduleEntry[]>([]);
+  const [projectOptions, setProjectOptions] = useState<readonly StreamScheduleProjectOption[]>([]);
   const [selectedStreamId, setSelectedStreamId] = useState<string>("");
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(defaultScheduleForm);
   const [cancellationForm, setCancellationForm] = useState<CancellationFormState>(defaultCancellationForm);
@@ -193,6 +205,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
 
       if (response.ok && payload?.ok) {
         setStreams(payload.streams);
+        setProjectOptions(payload.projectOptions);
         const firstStream = payload.streams[0] ?? null;
         setSelectedStreamId(firstStream?.id ?? "");
         setScheduleForm(firstStream ? toScheduleForm(firstStream) : defaultScheduleForm);
@@ -280,6 +293,9 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     endsAt: scheduleForm.endsAt ? fromDateTimeLocal(scheduleForm.endsAt) : null,
     topicKey: scheduleForm.topicKey.trim() || null,
     themeKey: scheduleForm.themeKey.trim() || null,
+    projectId: scheduleForm.projectId || null,
+    focusLabel: scheduleForm.focusLabel.trim() || null,
+    focusNote: scheduleForm.focusNote.trim() || null,
     cancellationReasonCode: scheduleForm.status === "cancelled" ? cancellationForm.cancellationReasonCode : null,
     cancellationReason: scheduleForm.status === "cancelled" ? cancellationForm.cancellationReason : null
   });
@@ -430,6 +446,23 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
                   <input value={scheduleForm.themeKey} onChange={(event) => setScheduleForm((current) => ({ ...current, themeKey: event.target.value }))} pattern="[a-z0-9][a-z0-9-]{0,79}" maxLength={80} />
                 </label>
                 <label>
+                  Stream Focus
+                  <select value={scheduleForm.projectId} onChange={(event) => setScheduleForm((current) => ({ ...current, projectId: event.target.value }))}>
+                    <option value="">No linked project</option>
+                    {projectOptions.map((project) => (
+                      <option key={project.id} value={project.id}>{project.title}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Focus Label
+                  <input value={scheduleForm.focusLabel} onChange={(event) => setScheduleForm((current) => ({ ...current, focusLabel: event.target.value }))} maxLength={120} placeholder="Stream focus" />
+                </label>
+                <label>
+                  Focus Note
+                  <textarea value={scheduleForm.focusNote} onChange={(event) => setScheduleForm((current) => ({ ...current, focusNote: event.target.value }))} maxLength={280} rows={2} />
+                </label>
+                <label>
                   Visibility
                   <select value={scheduleForm.visibility} onChange={(event) => setScheduleForm((current) => ({ ...current, visibility: event.target.value as StreamScheduleVisibility }))}>
                     {visibilities.map((visibility) => <option key={visibility} value={visibility}>{formatScheduleLabel(visibility)}</option>)}
@@ -476,6 +509,9 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
                   <span>{formatScheduleDate(selectedStream.startsAt)}</span>
                   {selectedStream.status === "cancelled" ? (
                     <p>Cancelled: {selectedStream.cancellationReason}</p>
+                  ) : null}
+                  {selectedStream.focusProject ? (
+                    <p>Stream focus: {selectedStream.focusLabel || selectedStream.focusProject.title}</p>
                   ) : null}
                 </div>
               ) : (

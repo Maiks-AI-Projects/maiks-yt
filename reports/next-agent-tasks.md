@@ -510,6 +510,25 @@ Result:
 
 Do not implement this chunk until the coordinator explicitly approves or revises the migration scope.
 
+## Chunk 14A: Manual Schedule Stream Focus Implementation (Ready For Coordinator Review)
+
+Model: GPT-5.5
+
+Result:
+
+- Generated migration `packages/database/drizzle/0010_lonely_whistler.sql`.
+- Added nullable `project_id`, `focus_label`, and `focus_note` to `stream_schedule_entries`, plus index `stream_schedule_project_id_idx`.
+- Updated typed schedule domain/API/admin/public flow so the owner can set/clear a public-project stream focus and short non-monetary focus copy.
+- Public `/schedule` renders restrained "Stream focus" copy only when the schedule entry is public and the linked project is public/visible.
+- Public API reads null out focus fields when the linked project is not public/visible.
+- Did not add provider sync, announcements, recurrence automation, notifications, moderation, AI, auth changes, secrets, Cloudflare/Docker/deploy changes, or money behavior.
+
+Still needed:
+
+- Coordinator review, migration application on dev, deploy, and smoke.
+- Confirm owner `/admin/schedule` can set and clear focus fields.
+- Confirm public `/schedule` shows public linked-project focus and does not expose private linked-project focus.
+
 Purpose:
 
 - Move from standalone schedules/projects toward a manual live-stream focus workflow without touching external provider sync.
