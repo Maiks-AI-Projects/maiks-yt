@@ -510,7 +510,7 @@ Result:
 
 Do not implement this chunk until the coordinator explicitly approves or revises the migration scope.
 
-## Chunk 14A: Manual Schedule Stream Focus Implementation (Ready For Coordinator Review)
+## Chunk 14A: Manual Schedule Stream Focus Implementation (Completed)
 
 Model: GPT-5.5
 
@@ -523,11 +523,12 @@ Result:
 - Public API reads null out focus fields when the linked project is not public/visible.
 - Did not add provider sync, announcements, recurrence automation, notifications, moderation, AI, auth changes, secrets, Cloudflare/Docker/deploy changes, or money behavior.
 
-Still needed:
+Reviewer notes:
 
-- Coordinator review, migration application on dev, deploy, and smoke.
-- Confirm owner `/admin/schedule` can set and clear focus fields.
-- Confirm public `/schedule` shows public linked-project focus and does not expose private linked-project focus.
+- Coordinator reviewed, committed, pushed to `dev`, applied migration `0010_lonely_whistler.sql` on the dev database, deployed commit `6cc3c0c`, and dev-smoked owner editing plus public schedule rendering.
+- Dev smoke left "Maiks.yt V2 build stream" linked to "Build Maiks.yt V2" with short focus copy so `/schedule` has a visible example.
+- Owner `/admin/schedule` returned project options and accepted the focus-field PATCH.
+- Public `/schedule` rendered the focus label, public project link, and note for the linked public project.
 
 Purpose:
 
