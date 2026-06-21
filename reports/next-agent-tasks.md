@@ -416,7 +416,7 @@ Reviewer gate:
 - Confirm screenshots/notes cover all three target sizes.
 - Verify any CSS/UI fixes are narrow and do not change auth/token behavior.
 
-## Chunk 13: Manual Content Publishing Polish
+## Chunk 13: Manual Content Publishing Polish (Completed)
 
 Model: GPT-5.5
 
@@ -432,6 +432,8 @@ Worker result:
 - Added `/admin/projects` preview UI for unsaved project basics plus saved public milestones/items, including draft/unpublished projects before publish.
 - Kept public `/projects` list/detail behavior unchanged; public read-model rules still filter to `isPublic` projects with planning, active, or completed status and strip cancelled/removed children.
 - Did not add project updates, support payments/links, AI drafting, provider integrations, moderation, auth changes, migrations, secrets, Cloudflare config, Docker/deploy changes, commits, pushes, or deployments.
+- Coordinator reviewed, committed, pushed to `dev`, deployed to `maiks-yt-dev`, and dev-smoked the slice.
+- Dev smoke confirmed `/admin/projects` renders the Public Preview UI with the dev owner bearer, public project list/detail routes respond, and no private admin projects appeared in the public project list.
 
 Worker verification:
 
@@ -445,9 +447,9 @@ Worker verification:
 
 Reviewer gate:
 
-- Confirm the admin preview is sufficient for the no-migration publishing polish slice.
-- Browser-smoke `/admin/projects` as an owner if an authenticated dev session is available.
-- Confirm no unpublished project appears on public `/projects` or `/projects/:slug`.
+- Confirmed the admin preview is sufficient for the no-migration publishing polish slice.
+- Smoked `/admin/projects` as owner through the dev bearer.
+- Confirmed no private admin project appeared in public `/projects`.
 - Do not rerun this implementation chunk unless a regression is found.
 
 Prompt:

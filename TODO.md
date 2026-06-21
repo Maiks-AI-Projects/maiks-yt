@@ -191,7 +191,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add preview-before-publish behavior for public content changes.
 - [ ] Keep AI assistance draft-only until manual admin workflows exist.
 
-Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation. Chunk 3B added owner/admin Creator Hub link mutations and `/admin/links` manual controls while keeping support unavailable. Chunk 13 added project-admin preview-before-publish behavior without schema or migration work.
+Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation. Chunk 3B added owner/admin Creator Hub link mutations and `/admin/links` manual controls while keeping support unavailable. Chunk 13 added reviewed/deployed project-admin preview-before-publish behavior without schema or migration work.
 
 ## 10. Stream Scheduling
 
