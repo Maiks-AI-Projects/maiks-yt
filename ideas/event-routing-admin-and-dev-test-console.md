@@ -100,17 +100,52 @@ Likely guardrails:
 - overlay/control-panel test receivers
 - clear separation between simulated and real provider/money events
 
+## Persistence Gate Design
+
+Real routed dispatch should not start until the routing decision, event intake record, approval state, opt-out state, and cooldown state can all be stored durably. The first generated migration should be approved before implementation and should cover these future tables or equivalent names:
+
+- `event_routing_rules`: one rule per event kind plus optional source platform, with `destination` constrained to `ignore`, `internal_audit`, `control_panel`, `top_notification`, `center_notification`, `streamer_feed`, `streamer_chat`, or `approval_queue`.
+- `event_routing_rules` flags: `enabled`, `live_only`, `offline_only`, `approval_required`, `per_user_cooldown_seconds`, `global_cooldown_seconds`, `once_per_stream`, and audit fields for owner/admin changes.
+- `event_routing_rules` display fields: nullable `template_key`, `theme_key`, `sound_key`, and `notification_priority` are acceptable as inert references, but asset upload, theme editing, sound management, and scene-specific routing should stay deferred.
+- `event_user_opt_outs`: website-user opt-out state for stream-visible website events, initially global for signup/name/avatar/free-TTS style events, with optional per-event-kind rows later.
+- `event_history`: append-only intake/audit records with source platform, event kind, actor identifiers, stream/session id when known, simulated/test flag, routing outcome, destination, approval decision id when any, redacted display payload, and timestamps.
+- `event_approval_queue`: pending routed events that require owner review before public display/playback, including status, reviewer id, reviewed timestamp, and review note.
+- `event_cooldown_state`: durable rate-limit state keyed by rule, event kind, source platform, optional user/actor id, optional stream/session id, and window timestamps.
+- `simulated_event_history`: optional dev-only history/reset boundary for test/system and simulated-money events. If folded into `event_history`, simulated rows must be explicitly flagged and the reset operation must be dev-only and refuse real/provider money rows.
+
+Safety defaults:
+
+- Privacy, account-security, provider-token, auth, and internal audit events are internal-only and cannot route to overlay, streamer chat, TTS, or public notification destinations.
+- Website signup, username-change, and profile-image-update events may become promotional overlay events only when opt-out-aware, cooldown-aware, and routed through approval or conservative defaults.
+- Free website TTS remains a later promotional feature. Its first real implementation needs opt-in or clear disclosure, approval by default, once-per-stream enforcement, and streamer emergency disable.
+- Simulated support/money may be used for dev/test routing only. Real money, provider payments, ledger entries, refunds, credits, and immutable audit behavior remain behind the money gate.
+- Real Twitch, YouTube, Discord, payment, moderation-enforcement, auth, secret, Cloudflare/Docker/deploy, and production behavior are out of this schema-gate slice.
+
+## First Safe Implementation Slice
+
+After the generated migration is approved, the first implementation should be manual and provider-neutral:
+
+- Add typed domain rules for routing-rule validation and destination safety.
+- Add an owner-gated admin page/API to list and edit rules for existing registry event kinds.
+- Persist user website opt-outs for stream-visible website events.
+- Persist test/system event history and approval/cooldown decisions for dev dispatch only.
+- Let `/dev/test-console` dispatch only `test/system` or explicitly simulated events through the durable router into internal audit/control-panel/notification preview receivers.
+- Keep all real provider events, real money, moderation enforcement, auth changes, secrets, migrations application, deployments, and production dispatch disabled.
+
+The first slice should not wire live Twitch/YouTube/Discord providers or real website production events into overlay routing. It should prove that the rule model, safety defaults, opt-outs, approval, history, and cooldown checks work with safe simulated input first.
+
 ## Implementation Notes
 
 - 2026-06-21: Added the first no-schema typed event registry and platform capability matrix in `@maiks-yt/domain/events`.
 - This is an in-code planning/runtime contract only. It does not add durable routing rules, event history, opt-out storage, cooldown state, admin persistence, provider integrations, moderation enforcement, or money behavior.
 - Future Event Routing Admin and Dev Test Console work still needs a schema-gated persistence design before owner-configured routing, history, opt-outs, or simulated-money state can be saved.
 - 2026-06-21: Added the first `/dev/test-console` web foundation as a local preview only. It reads the registry, filters valid source/event combinations, labels safety defaults, marks internal-only events as not overlay-eligible, marks support/money examples as simulated/test only, and generates mock display data without dispatching or persisting events.
+- 2026-06-22: Completed the design-only persistence gate for Event Routing Admin. Real routing/dispatch now explicitly requires an approved generated migration for durable rules, opt-outs, event history, approval queue, cooldown state, and simulated/test reset boundaries before implementation.
 
 ## Open Questions
 
-- Should website signup/name/avatar notifications default on, or start conservative until Michael tunes them?
-- Should first-time profile image changes require approval before overlay display?
+- Should website signup/name/avatar notifications start disabled until Michael tunes them, or enabled only for opted-in users with approval and cooldowns?
+- Should first-time profile image changes always require approval before overlay display?
 - Where should the user-facing opt-out live in the profile settings?
 - Should free website TTS require manual approval by default?
 - Should routing rules be global first, then per-scene/per-theme later?

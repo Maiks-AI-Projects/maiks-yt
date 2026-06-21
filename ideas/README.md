@@ -60,6 +60,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [Creator hub links and feeds](./creator-hub-links-and-feeds.md)
 - [Transparent affiliate pages](./transparent-affiliate-pages.md)
 - [Manual admin content tools](./manual-admin-content-tools.md)
+- [Page creator and route admin](./page-creator-and-route-admin.md)
 
 ## Projects and Money
 

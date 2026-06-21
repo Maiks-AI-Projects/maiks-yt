@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-06-20
+Updated: 2026-06-22
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -14,7 +14,43 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation only; durable routing rules, event history, opt-outs, cooldown state, provider credentials, moderation enforcement, and money/simulation persistence remain a future schema gate.
+- Event routing now has an in-code typed registry/capability matrix foundation and a design-only persistence gate. Durable routing rules, event history/audit, approval queue, opt-outs, cooldown state, and simulated/test reset boundaries need a coordinator-approved generated migration before implementation. Provider credentials, moderation enforcement, and real money remain later gates.
+
+## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
+
+Worker scope:
+
+- Completed a design-only persistence gate for Event Routing Admin and the Dev Test Console.
+- Proposed a future generated migration shape covering routing rules per event kind/source, destination settings, enabled/live-only/offline-only flags, approval required, per-user/global/once-per-stream cooldown fields, user opt-outs, event history/audit, approval queue, cooldown state, and simulated/test reset boundaries.
+- Chose conservative safety defaults: privacy, account-security, provider-token, auth, and internal audit events stay internal-only; website signup/name/avatar events require opt-out and cooldown awareness before overlay eligibility; free website TTS stays later promotional scope; simulated money stays dev/test-only and separated from real money.
+- No code implementation, migration generation/application, provider integrations, real money behavior, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, commits, pushes, deployments, or server state changes were made.
+
+Reviewer gate:
+
+- Review the proposed schema shape in `ideas/event-routing-admin-and-dev-test-console.md`.
+- Decide whether to approve a generated migration slice before assigning any real routing/dispatch implementation.
+
+## Chunk 20: Event Routing Persistence Migration (Proposed, Requires Approval)
+
+Assign only after coordinator approval of Chunk 19's schema shape.
+
+Worker scope:
+
+- Generate, but do not apply, the minimal database migration for Event Routing Admin persistence.
+- Add database schema definitions only where required for the generated migration.
+- Keep implementation behavior disabled: no real dispatch, no admin UI/API, no provider integrations, no real money, no moderation enforcement, no auth changes, no secrets, no Cloudflare/Docker/deploy config, no commits, pushes, deployments, or server state changes.
+
+Acceptance criteria:
+
+- Migration can persist routing rules, opt-outs, event history/audit, approval queue, cooldown state, and simulated/test reset boundaries.
+- Destination values are constrained to ignore/internal audit/control panel/top notification/center notification/streamer feed/streamer chat/approval queue.
+- Privacy/security/provider-token event rules cannot become overlay/public destinations without explicit later code-level safety validation.
+- Simulated/test records are clearly separated from real/provider money records.
+
+Suggested checks:
+
+- `corepack pnpm --filter @maiks-yt/database typecheck`
+- `node scripts/check-architecture.mjs`
 
 ## Chunk 17: No-Schema Event Registry Foundation (Completed)
 

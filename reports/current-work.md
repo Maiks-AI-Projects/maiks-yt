@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-21
+Updated: 2026-06-22
 
 ## Objective
 
@@ -72,16 +72,18 @@ Finish the partially completed project areas before starting untouched feature g
 - Added the first dev-only `/dev/test-console` foundation as a local preview surface over `@maiks-yt/domain/events`: source selection, event-kind filtering, safety/default badges, impossible-combo prevention, and mock display data generation.
 - Kept the test console local-preview only: no real dispatch, durable routing rules, event history, approval queues, opt-out storage, cooldown state, provider credentials, real money behavior, simulated-money persistence, auth changes, migrations, deploy changes, or server state.
 - Reviewed, committed, pushed, deployed, and dev-smoked the `/dev/test-console` preview foundation on commit `c92e589`; `web-dev` returned 200 and rendered the local-preview, source selector, mock display data, and simulated-money markers.
+- Completed the design-only Event Routing Admin persistence gate: real routing/dispatch should wait for a coordinator-approved generated migration covering durable routing rules, user opt-outs, event history/audit, approval queue, cooldown state, and simulated/test reset boundaries.
+- Defined the first safe implementation slice after schema approval as manual/provider-neutral routing-rule admin plus safe simulated/test dispatch only. Real provider integrations, real money, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, migration generation/application, and production behavior stayed out of scope.
 
 ## Current Task
 
-Pick the next bounded chunk after the dev test console foundation.
+Review the Event Routing Admin persistence-gate design and decide whether to approve a generated migration slice.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
-3. Choose between Event Routing Admin schema design, overlay/control fake receiver wiring, support-link wording, or visual installed-window QA.
+3. If approved, assign the generated migration for Event Routing Admin persistence before any real dispatch/routing implementation.
 4. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
@@ -132,6 +134,8 @@ Pick the next bounded chunk after the dev test console foundation.
 - The typed event registry is an in-code domain foundation only. Durable routing rules, event history, per-user opt-outs, cooldown state, provider credentials, moderation enforcement, and money/simulation persistence still require future schema-gated work.
 - Chunk 17 no-schema typed event registry is coordinator-reviewed with passing domain checks and architecture validation; it is safe as a domain-only foundation for future routing/test-console work.
 - The first dev test console foundation is reviewed, committed, pushed, deployed to dev, and dev-smoked. It is guarded to 404 under `NODE_ENV=production`, uses the typed event registry directly, and remains local-preview only. Future real dispatch/routing/history/opt-out/cooldown/simulated-money behavior remains schema-gated.
+- Event Routing Admin now has a design-only persistence gate. The likely generated migration should add routing rules per event kind/source, destination settings, enabled/live-only/offline-only flags, approval-required and cooldown fields, user opt-outs for stream-visible website events, event history/audit, approval queue, cooldown state, and a dev-only simulated/test reset boundary. Migration is required before implementation.
+- Website signup/name/avatar overlay eligibility must be opt-out-aware and cooldown-aware; privacy/security/account/provider-token events stay internal-only. Free website TTS remains later promotional scope. Simulated money remains dev/test-only and separate from real money.
 - Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - First safe slices after this point should be manual/non-provider work: project updates design, visual QA, support-link wording decision, or read-only/provider-neutral planning.
 - Chunk 16A generated and applied `0011_mean_doctor_strange.sql` on dev. Production/main still needs the normal migration/deploy decision later.
