@@ -8,18 +8,22 @@ import type {
   ProjectAdminProjectInput,
   ProjectAdminProjectUpdateInput,
   ProjectAdminReorderInput,
+  ProjectAdminUpdateInput,
+  ProjectAdminUpdateUpdateInput,
   ProjectAdminRepository
 } from "./project-admin.types.js";
 import type {
   ProjectAdminItemInput as DomainProjectAdminItemInput,
   ProjectAdminMilestoneInput as DomainProjectAdminMilestoneInput,
-  ProjectAdminProjectInput as DomainProjectAdminProjectInput
+  ProjectAdminProjectInput as DomainProjectAdminProjectInput,
+  ProjectAdminUpdateInput as DomainProjectAdminUpdateInput
 } from "@maiks-yt/domain/projects";
 import {
   canManageProjects,
   isValidProjectAdminItemInput,
   isValidProjectAdminMilestoneInput,
-  isValidProjectAdminProjectInput
+  isValidProjectAdminProjectInput,
+  isValidProjectAdminUpdateInput
 } from "@maiks-yt/domain/projects";
 
 const validProjectUpdateFallback = {
@@ -44,6 +48,15 @@ const validItemUpdateFallback = {
   quantity: 1,
   sortOrder: 0
 } satisfies ProjectAdminItemInput;
+
+const validUpdateFallback = {
+  title: "Valid title",
+  body: "Valid body",
+  status: "draft",
+  isVisible: true,
+  isPinned: false,
+  sortOrder: 0
+} satisfies ProjectAdminUpdateInput;
 
 const toDomainProjectInput = (
   input: ProjectAdminProjectInput | ProjectAdminProjectUpdateInput,
@@ -78,6 +91,20 @@ const toDomainItemInput = (
   kind: input.kind ?? fallback.kind,
   status: input.status ?? fallback.status,
   quantity: input.quantity ?? fallback.quantity,
+  sortOrder: input.sortOrder ?? fallback.sortOrder
+});
+
+const toDomainUpdateInput = (
+  input: ProjectAdminUpdateInput | ProjectAdminUpdateUpdateInput,
+  fallback: ProjectAdminUpdateInput = validUpdateFallback
+): DomainProjectAdminUpdateInput => ({
+  title: input.title ?? fallback.title,
+  ...(input.summary !== undefined ? { summary: input.summary } : {}),
+  body: input.body ?? fallback.body,
+  status: input.status ?? fallback.status,
+  isVisible: input.isVisible ?? fallback.isVisible,
+  ...(input.publishedAt !== undefined ? { publishedAt: input.publishedAt } : {}),
+  isPinned: input.isPinned ?? fallback.isPinned,
   sortOrder: input.sortOrder ?? fallback.sortOrder
 });
 
@@ -330,6 +357,51 @@ export class ProjectAdminService {
     return this.mapProjectMutationResult(await this.repository.reorderItems(input.projectId, input.reorder));
   }
 
+  public async createUpdate(input: {
+    authUserId: string;
+    projectId: string;
+    update: ProjectAdminUpdateInput;
+  }): Promise<ProjectAdminMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    if (!isValidProjectAdminUpdateInput(toDomainUpdateInput(input.update))) {
+      return {
+        ok: false,
+        reason: "project_admin_invalid_input"
+      };
+    }
+
+    return this.mapProjectMutationResult(await this.repository.createUpdate(input.projectId, input.update));
+  }
+
+  public async updateUpdate(input: {
+    authUserId: string;
+    projectId: string;
+    updateId: string;
+    update: ProjectAdminUpdateUpdateInput;
+  }): Promise<ProjectAdminMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    if (!this.isValidUpdateUpdate(input.update)) {
+      return {
+        ok: false,
+        reason: "project_admin_invalid_input"
+      };
+    }
+
+    return this.mapProjectMutationResult(
+      await this.repository.updateUpdate(input.projectId, input.updateId, input.update)
+    );
+  }
+
   private async requireActor(authUserId: string): Promise<{
     ok: true;
     domainUserId: string;
@@ -374,6 +446,11 @@ export class ProjectAdminService {
       && isValidProjectAdminItemInput(toDomainItemInput(input));
   }
 
+  private isValidUpdateUpdate(input: ProjectAdminUpdateUpdateInput): boolean {
+    return Object.keys(input).length > 0
+      && isValidProjectAdminUpdateInput(toDomainUpdateInput(input));
+  }
+
   private isValidReorderInput(input: ProjectAdminReorderInput): boolean {
     return input.orderedIds.length > 0
       && input.orderedIds.every((id) => typeof id === "string" && id.trim().length > 0)
@@ -389,6 +466,8 @@ export class ProjectAdminService {
       | Awaited<ReturnType<ProjectAdminRepository["createItem"]>>
       | Awaited<ReturnType<ProjectAdminRepository["updateItem"]>>
       | Awaited<ReturnType<ProjectAdminRepository["reorderItems"]>>
+      | Awaited<ReturnType<ProjectAdminRepository["createUpdate"]>>
+      | Awaited<ReturnType<ProjectAdminRepository["updateUpdate"]>>
   ): ProjectAdminMutationResult {
     if (typeof result !== "string") {
       return {
@@ -407,6 +486,11 @@ export class ProjectAdminService {
         return {
           ok: false,
           reason: "project_milestone_not_found"
+        };
+      case "update-not-found":
+        return {
+          ok: false,
+          reason: "project_update_not_found"
         };
       case "parent-not-found":
         return {

@@ -300,6 +300,35 @@ export const projectItemLinks = mysqlTable(
   ]
 );
 
+export const projectUpdates = mysqlTable(
+  "project_updates",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    projectId: varchar("project_id", { length: 36 }).notNull(),
+    title: varchar("title", { length: 191 }).notNull(),
+    summary: varchar("summary", { length: 280 }),
+    body: text("body").notNull(),
+    status: mysqlEnum("status", ["draft", "published"]).notNull().default("draft"),
+    isVisible: boolean("is_visible").notNull().default(true),
+    publishedAt: timestamp("published_at"),
+    isPinned: boolean("is_pinned").notNull().default(false),
+    sortOrder: int("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("project_updates_project_id_idx").on(table.projectId),
+    index("project_updates_public_order_idx").on(
+      table.projectId,
+      table.status,
+      table.isVisible,
+      table.isPinned,
+      table.sortOrder,
+      table.publishedAt
+    )
+  ]
+);
+
 export const creatorLinks = mysqlTable(
   "creator_links",
   {

@@ -5,6 +5,7 @@ import type {
   ProjectItemStatus,
   ProjectReadModelSource,
   ProjectStatus,
+  ProjectUpdateStatus,
   ProjectType
 } from "@maiks-yt/domain/projects";
 
@@ -67,6 +68,28 @@ export type ProjectAdminItemUpdateInput = {
   sortOrder?: number | undefined;
 };
 
+export type ProjectAdminUpdateInput = {
+  title: string;
+  summary?: string | null | undefined;
+  body: string;
+  status: ProjectUpdateStatus;
+  isVisible: boolean;
+  publishedAt?: string | null | undefined;
+  isPinned: boolean;
+  sortOrder: number;
+};
+
+export type ProjectAdminUpdateUpdateInput = {
+  title?: string | undefined;
+  summary?: string | null | undefined;
+  body?: string | undefined;
+  status?: ProjectUpdateStatus | undefined;
+  isVisible?: boolean | undefined;
+  publishedAt?: string | null | undefined;
+  isPinned?: boolean | undefined;
+  sortOrder?: number | undefined;
+};
+
 export type ProjectAdminReorderInput = {
   orderedIds: readonly string[];
 };
@@ -94,6 +117,7 @@ export type ProjectAdminMutationResult =
       | "project_not_found"
       | "project_milestone_not_found"
       | "project_item_not_found"
+      | "project_update_not_found"
       | "project_item_parent_not_found"
       | "project_admin_invalid_input"
       | "project_slug_conflict";
@@ -110,6 +134,8 @@ export interface ProjectAdminRepository {
   createItem(projectId: string, input: ProjectAdminItemInput): Promise<ProjectReadModelSource | "project-not-found" | "parent-not-found">;
   updateItem(projectId: string, itemId: string, input: ProjectAdminItemUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found" | "parent-not-found">;
   reorderItems(projectId: string, input: ProjectAdminReorderInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found">;
+  createUpdate(projectId: string, input: ProjectAdminUpdateInput): Promise<ProjectReadModelSource | "project-not-found">;
+  updateUpdate(projectId: string, updateId: string, input: ProjectAdminUpdateUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "update-not-found">;
 }
 
 export type ProjectAdminWriteResult = ProjectAdminMutationResult;

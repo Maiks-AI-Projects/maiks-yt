@@ -7,7 +7,9 @@ import type {
   ProjectReadItemSource,
   ProjectReadMilestoneSource,
   ProjectReadModelSource,
+  ProjectReadUpdateSource,
   ProjectStatus,
+  ProjectUpdateStatus,
   ProjectType
 } from "@maiks-yt/domain/projects";
 
@@ -43,6 +45,19 @@ type ItemRow = {
   kind: ProjectItemKind;
   status: ProjectItemStatus;
   quantity: number;
+  sortOrder: number;
+};
+
+type UpdateRow = {
+  id: string;
+  projectId: string;
+  title: string;
+  summary?: string | null;
+  body: string;
+  status: ProjectUpdateStatus;
+  isVisible: number | boolean;
+  publishedAt?: Date | string | null;
+  isPinned: number | boolean;
   sortOrder: number;
 };
 
@@ -85,10 +100,23 @@ const mapItem = (row: ItemRow): ProjectReadItemSource => ({
   sortOrder: row.sortOrder
 });
 
+const mapUpdate = (row: UpdateRow): ProjectReadUpdateSource => ({
+  id: row.id,
+  title: row.title,
+  ...(row.summary ? { summary: row.summary } : {}),
+  body: row.body,
+  status: row.status,
+  isVisible: Boolean(row.isVisible),
+  ...(row.publishedAt ? { publishedAt: toIsoString(row.publishedAt) } : {}),
+  isPinned: Boolean(row.isPinned),
+  sortOrder: row.sortOrder
+});
+
 const mapProject = (
   row: ProjectRow,
   milestones: readonly ProjectReadMilestoneSource[],
-  items: readonly ProjectReadItemSource[]
+  items: readonly ProjectReadItemSource[],
+  updates: readonly ProjectReadUpdateSource[]
 ): ProjectReadModelSource => ({
   id: row.id,
   slug: row.slug,
@@ -100,7 +128,8 @@ const mapProject = (
   isPublic: Boolean(row.isPublic),
   updatedAt: toIsoString(row.updatedAt),
   milestones,
-  items
+  items,
+  updates
 });
 
 const loadMilestonesByProjectId = async (
@@ -182,6 +211,48 @@ const loadItemsByProjectId = async (
   return groupedItems;
 };
 
+const loadUpdatesByProjectId = async (
+  pool: Pick<DatabasePool, "execute">,
+  projectIds: readonly string[]
+): Promise<Map<string, ProjectReadUpdateSource[]>> => {
+  if (projectIds.length === 0) {
+    return new Map();
+  }
+
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        id,
+        project_id AS projectId,
+        title,
+        summary,
+        body,
+        status,
+        is_visible AS isVisible,
+        published_at AS publishedAt,
+        is_pinned AS isPinned,
+        sort_order AS sortOrder
+      FROM project_updates
+      WHERE project_id IN (${projectIds.map(() => "?").join(", ")})
+      ORDER BY is_pinned DESC, sort_order, published_at DESC, title
+    `,
+    [...projectIds]
+  );
+  const groupedUpdates = new Map<string, ProjectReadUpdateSource[]>();
+
+  if (!Array.isArray(rows)) {
+    return groupedUpdates;
+  }
+
+  for (const row of rows as UpdateRow[]) {
+    const updates = groupedUpdates.get(row.projectId) ?? [];
+    updates.push(mapUpdate(row));
+    groupedUpdates.set(row.projectId, updates);
+  }
+
+  return groupedUpdates;
+};
+
 const hydrateProjects = async (
   pool: Pick<DatabasePool, "execute">,
   rows: readonly ProjectRow[]
@@ -189,11 +260,13 @@ const hydrateProjects = async (
   const projectIds = rows.map((row) => row.id);
   const milestonesByProjectId = await loadMilestonesByProjectId(pool, projectIds);
   const itemsByProjectId = await loadItemsByProjectId(pool, projectIds);
+  const updatesByProjectId = await loadUpdatesByProjectId(pool, projectIds);
 
   return rows.map((row) => mapProject(
     row,
     milestonesByProjectId.get(row.id) ?? [],
-    itemsByProjectId.get(row.id) ?? []
+    itemsByProjectId.get(row.id) ?? [],
+    updatesByProjectId.get(row.id) ?? []
   ));
 };
 

@@ -3,6 +3,7 @@ import type { ProjectCategory } from "./project-category.types.js";
 import type { ProjectItemKind, ProjectItemStatus } from "./project-item.types.js";
 import type { PublicProjectDetail } from "./project-read-model.types.js";
 import type { ProjectReadModelSource } from "./project-read-model.types.js";
+import type { ProjectUpdateStatus } from "./project-update.types.js";
 import type { ProjectStatus, ProjectType } from "./project.types.js";
 
 export const projectAdminManageCapability = "project-admin:manage" as const;
@@ -49,6 +50,19 @@ export type ProjectAdminItemInput = {
 
 export type ProjectAdminItemUpdateInput = Partial<ProjectAdminItemInput>;
 
+export type ProjectAdminUpdateInput = {
+  title: string;
+  summary?: string | null;
+  body: string;
+  status: ProjectUpdateStatus;
+  isVisible: boolean;
+  publishedAt?: string | null;
+  isPinned: boolean;
+  sortOrder: number;
+};
+
+export type ProjectAdminUpdateUpdateInput = Partial<ProjectAdminUpdateInput>;
+
 export type ProjectAdminReorderInput = {
   orderedIds: readonly string[];
 };
@@ -86,6 +100,7 @@ export type ProjectAdminMutationResult =
       | "project_not_found"
       | "project_milestone_not_found"
       | "project_item_not_found"
+      | "project_update_not_found"
       | "project_item_parent_not_found"
       | "project_admin_invalid_input"
       | "project_slug_conflict";

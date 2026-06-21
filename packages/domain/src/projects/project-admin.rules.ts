@@ -2,8 +2,9 @@ import type {
   ProjectAdminCapability,
   ProjectAdminItemInput,
   ProjectAdminMilestoneInput,
+  ProjectAdminProjectInput,
   ProjectAdminPublicPreviewResult,
-  ProjectAdminProjectInput
+  ProjectAdminUpdateInput
 } from "./project-admin.types.js";
 import type { ProjectReadModelSource } from "./project-read-model.types.js";
 import { buildPublicProjectDetail } from "./project-read-model.rules.js";
@@ -11,6 +12,8 @@ import { buildPublicProjectDetail } from "./project-read-model.rules.js";
 export const projectAdminTitleMaxLength = 191;
 export const projectAdminSummaryMaxLength = 2_000;
 export const projectAdminDescriptionMaxLength = 2_000;
+export const projectAdminUpdateSummaryMaxLength = 280;
+export const projectAdminUpdateBodyMaxLength = 10_000;
 
 const projectSlugPattern = /^[a-z0-9][a-z0-9-]{0,190}$/;
 
@@ -57,6 +60,18 @@ export const isValidProjectAdminItemInput = (
   && input.quantity >= 1
   && Number.isInteger(input.sortOrder)
   && input.sortOrder >= 0;
+
+export const isValidProjectAdminUpdateInput = (
+  input: ProjectAdminUpdateInput
+): boolean =>
+  isValidProjectAdminText(input.title)
+  && isValidOptionalText(input.summary, projectAdminUpdateSummaryMaxLength)
+  && isValidProjectAdminText(input.body, projectAdminUpdateBodyMaxLength)
+  && Number.isInteger(input.sortOrder)
+  && input.sortOrder >= 0
+  && (input.publishedAt === undefined
+    || input.publishedAt === null
+    || !Number.isNaN(Date.parse(input.publishedAt)));
 
 export const buildProjectAdminPublicPreview = (
   project: ProjectReadModelSource

@@ -82,6 +82,25 @@ const ProjectDetailPage = async ({ params }: ProjectPageProps): Promise<React.Re
         </header>
 
         <section className="project-detail-section">
+          <h2>Updates</h2>
+          {project.updates.length === 0 ? (
+            <p className="project-muted">No public updates are available yet.</p>
+          ) : (
+            <ol className="project-milestone-list">
+              {project.updates.map((update) => (
+                <li key={update.id}>
+                  <span>{update.isPinned ? "Pinned" : "Update"}</span>
+                  <strong>{update.title}</strong>
+                  {update.summary ? <p>{update.summary}</p> : null}
+                  <p>{update.body}</p>
+                  {update.publishedAt ? <small>{new Date(update.publishedAt).toLocaleDateString()}</small> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+
+        <section className="project-detail-section">
           <h2>Milestones</h2>
           {project.milestones.length === 0 ? (
             <p className="project-muted">No public milestones are available yet.</p>

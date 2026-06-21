@@ -11,6 +11,8 @@ import type {
   ProjectAdminItemUpdateInput,
   ProjectAdminMilestoneUpdateInput,
   ProjectAdminProjectUpdateInput,
+  ProjectAdminUpdateInput,
+  ProjectAdminUpdateUpdateInput,
   ProjectAdminRepository
 } from "./project-admin.types.js";
 
@@ -77,6 +79,19 @@ const itemExistsInProject = async (
   const [rows] = await executor.execute(
     "SELECT id FROM project_items WHERE id = ? AND project_id = ? LIMIT 1",
     [itemId, projectId]
+  );
+
+  return firstRow<{ id: string }>(rows) !== null;
+};
+
+const updateExistsInProject = async (
+  executor: QueryExecutor,
+  projectId: string,
+  updateId: string
+): Promise<boolean> => {
+  const [rows] = await executor.execute(
+    "SELECT id FROM project_updates WHERE id = ? AND project_id = ? LIMIT 1",
+    [updateId, projectId]
   );
 
   return firstRow<{ id: string }>(rows) !== null;
@@ -280,6 +295,85 @@ const updateItemFields = async (
   return await assertReadProject(pool, projectId);
 };
 
+const updateProjectUpdateFields = async (
+  pool: DatabasePool,
+  projectId: string,
+  updateId: string,
+  input: ProjectAdminUpdateUpdateInput
+): Promise<ProjectReadModelSource | "project-not-found" | "update-not-found"> => {
+  if (!await projectExists(pool, projectId)) {
+    return "project-not-found";
+  }
+
+  if (!await updateExistsInProject(pool, projectId, updateId)) {
+    return "update-not-found";
+  }
+
+  const fields: string[] = [];
+  const values: SqlValue[] = [];
+
+  if (input.title !== undefined) {
+    fields.push("title = ?");
+    values.push(input.title.trim());
+  }
+  if (input.summary !== undefined) {
+    fields.push("summary = ?");
+    values.push(input.summary?.trim() || null);
+  }
+  if (input.body !== undefined) {
+    fields.push("body = ?");
+    values.push(input.body.trim());
+  }
+  if (input.status !== undefined) {
+    fields.push("status = ?");
+    values.push(input.status);
+    if (input.status === "published" && input.publishedAt === undefined) {
+      fields.push("published_at = COALESCE(published_at, NOW())");
+    }
+    if (input.status === "draft" && input.publishedAt === undefined) {
+      fields.push("published_at = NULL");
+    }
+  }
+  if (input.isVisible !== undefined) {
+    fields.push("is_visible = ?");
+    values.push(input.isVisible);
+  }
+  if (input.publishedAt !== undefined) {
+    fields.push("published_at = ?");
+    values.push(input.publishedAt ? new Date(input.publishedAt).toISOString().slice(0, 19).replace("T", " ") : null);
+  }
+  if (input.isPinned !== undefined) {
+    fields.push("is_pinned = ?");
+    values.push(input.isPinned);
+  }
+  if (input.sortOrder !== undefined) {
+    fields.push("sort_order = ?");
+    values.push(input.sortOrder);
+  }
+
+  const [result] = await pool.execute(
+    `UPDATE project_updates SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ? AND project_id = ?`,
+    [...values, updateId, projectId]
+  );
+
+  if (typeof result === "object"
+    && result !== null
+    && "affectedRows" in result
+    && result.affectedRows === 0) {
+    return "update-not-found";
+  }
+
+  return await assertReadProject(pool, projectId);
+};
+
+const normalizePublishedAt = (input: ProjectAdminUpdateInput): string | null => {
+  if (input.publishedAt) {
+    return new Date(input.publishedAt).toISOString().slice(0, 19).replace("T", " ");
+  }
+
+  return null;
+};
+
 export const createProjectAdminRepository = (
   pool: DatabasePool
 ): ProjectAdminRepository => ({
@@ -433,5 +527,37 @@ export const createProjectAdminRepository = (
     }
 
     return await assertReadProject(pool, projectId);
+  },
+
+  async createUpdate(projectId, input) {
+    if (!await projectExists(pool, projectId)) {
+      return "project-not-found";
+    }
+
+    await pool.execute(
+      `
+        INSERT INTO project_updates
+          (id, project_id, title, summary, body, status, is_visible, published_at, is_pinned, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ${input.status === "published" && !input.publishedAt ? "NOW()" : "?"}, ?, ?)
+      `,
+      [
+        randomUUID(),
+        projectId,
+        input.title.trim(),
+        input.summary?.trim() || null,
+        input.body.trim(),
+        input.status,
+        input.isVisible,
+        ...(input.status === "published" && !input.publishedAt ? [] : [normalizePublishedAt(input)]),
+        input.isPinned,
+        input.sortOrder
+      ]
+    );
+
+    return await assertReadProject(pool, projectId);
+  },
+
+  async updateUpdate(projectId, updateId, input) {
+    return await updateProjectUpdateFields(pool, projectId, updateId, input);
   }
 });

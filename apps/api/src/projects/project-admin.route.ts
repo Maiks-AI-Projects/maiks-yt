@@ -25,6 +25,8 @@ type ProjectAdminRouteDependencies = {
     | "createItem"
     | "updateItem"
     | "reorderItems"
+    | "createUpdate"
+    | "updateUpdate"
   >;
 };
 
@@ -40,6 +42,11 @@ const milestoneParamsSchema = z.object({
 const itemParamsSchema = z.object({
   id: z.string().trim().min(1).max(191),
   itemId: z.string().trim().min(1).max(191)
+}).strict();
+
+const updateParamsSchema = z.object({
+  id: z.string().trim().min(1).max(191),
+  updateId: z.string().trim().min(1).max(191)
 }).strict();
 
 const projectPayloadSchema = z.object({
@@ -106,6 +113,22 @@ const reorderPayloadSchema = z.object({
   orderedIds: z.array(z.string().trim().min(1).max(191)).min(1)
 }).strict();
 
+const updatePayloadSchema = z.object({
+  title: z.string().trim().min(1).max(191),
+  summary: z.string().trim().max(280).nullable().optional(),
+  body: z.string().trim().min(1).max(10_000),
+  status: z.enum(["draft", "published"]),
+  isVisible: z.boolean(),
+  publishedAt: z.string().datetime().nullable().optional(),
+  isPinned: z.boolean(),
+  sortOrder: z.number().int().min(0)
+}).strict();
+
+const updateUpdatePayloadSchema = updatePayloadSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  "at_least_one_update_field_required"
+);
+
 const sendAdminMutationResult = (
   result: ProjectAdminWriteResult,
   reply: FastifyReply
@@ -141,6 +164,8 @@ export const registerProjectAdminRoutes = (
     | "createItem"
     | "updateItem"
     | "reorderItems"
+    | "createUpdate"
+    | "updateUpdate"
   > =>
     dependencies.createService?.()
     ?? new ProjectAdminService(createProjectAdminRepository(dependencies.getDatabasePool()));
@@ -478,6 +503,81 @@ export const registerProjectAdminRoutes = (
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Project admin item reorder failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "project_admin_unavailable"
+      };
+    }
+  });
+
+  server.post<{ Params: { id: string } }>("/admin/projects/:id/updates", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "project_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = projectIdParamsSchema.safeParse(request.params);
+    const parsedBody = updatePayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "project_admin_invalid_input"
+      };
+    }
+
+    try {
+      return sendAdminMutationResult(await getService().createUpdate({
+        authUserId: session.user.id,
+        projectId: parsedParams.data.id,
+        update: parsedBody.data
+      }), reply);
+    } catch (error) {
+      server.log.warn({ err: error }, "Project admin update create failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "project_admin_unavailable"
+      };
+    }
+  });
+
+  server.patch<{ Params: { id: string; updateId: string } }>("/admin/projects/:id/updates/:updateId", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "project_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = updateParamsSchema.safeParse(request.params);
+    const parsedBody = updateUpdatePayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "project_admin_invalid_input"
+      };
+    }
+
+    try {
+      return sendAdminMutationResult(await getService().updateUpdate({
+        authUserId: session.user.id,
+        projectId: parsedParams.data.id,
+        updateId: parsedParams.data.updateId,
+        update: parsedBody.data
+      }), reply);
+    } catch (error) {
+      server.log.warn({ err: error }, "Project admin update edit failed.");
       reply.code(503);
       return {
         ok: false,

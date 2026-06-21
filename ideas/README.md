@@ -92,6 +92,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [Overlay static fallback mode](./overlay-static-fallback-mode.md)
 - [Notification priority zones](./notification-priority-zones.md)
 - [Website actions as overlay notifications](./website-actions-overlay-notifications.md)
+- [Event routing admin and dev test console](./event-routing-admin-and-dev-test-console.md)
 - [Stream simulator and event replayer](./stream-simulator-and-event-replayer.md)
 
 ## AI

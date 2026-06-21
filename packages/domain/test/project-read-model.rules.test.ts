@@ -19,6 +19,7 @@ const createProject = (
   isPublic: true,
   milestones: [],
   items: [],
+  updates: [],
   ...overrides
 });
 
@@ -115,5 +116,58 @@ describe("project public read models", () => {
       isPublic: false,
       status: "active"
     }))).toBeNull();
+  });
+
+  it("shows only published visible updates in public project detail", () => {
+    const detail = buildPublicProjectDetail(createProject("updates", {
+      status: "active",
+      updates: [
+        {
+          id: "draft",
+          title: "Draft update",
+          body: "Hidden draft.",
+          status: "draft",
+          isVisible: true,
+          isPinned: false,
+          sortOrder: 1
+        },
+        {
+          id: "hidden",
+          title: "Hidden update",
+          body: "Published but hidden.",
+          status: "published",
+          isVisible: false,
+          publishedAt: "2026-06-20T10:00:00.000Z",
+          isPinned: false,
+          sortOrder: 2
+        },
+        {
+          id: "newer",
+          title: "Newer update",
+          summary: "Public summary",
+          body: "Visible update.",
+          status: "published",
+          isVisible: true,
+          publishedAt: "2026-06-21T10:00:00.000Z",
+          isPinned: false,
+          sortOrder: 2
+        },
+        {
+          id: "pinned",
+          title: "Pinned update",
+          body: "Pinned update.",
+          status: "published",
+          isVisible: true,
+          publishedAt: "2026-06-19T10:00:00.000Z",
+          isPinned: true,
+          sortOrder: 1
+        }
+      ]
+    }));
+
+    expect(detail?.updates.map((update) => update.id)).toEqual(["pinned", "newer"]);
+    expect(detail?.updateCount).toBe(2);
+    expect(JSON.stringify(detail)).not.toContain("Hidden draft");
+    expect(JSON.stringify(detail)).not.toContain("Published but hidden");
   });
 });

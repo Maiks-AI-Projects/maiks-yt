@@ -12,6 +12,8 @@ import type {
   ProjectAdminMilestoneInput,
   ProjectAdminProjectInput,
   ProjectAdminProjectUpdateInput,
+  ProjectAdminUpdateInput,
+  ProjectAdminUpdateUpdateInput,
   ProjectAdminRepository
 } from "../../src/projects/project-admin.types.js";
 
@@ -29,6 +31,7 @@ const createProject = (
   isPublic: false,
   milestones: [],
   items: [],
+  updates: [],
   ...overrides
 });
 
@@ -42,6 +45,8 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
   public lastProjectUpdate: ProjectAdminProjectUpdateInput | null = null;
   public lastCreatedMilestone: ProjectAdminMilestoneInput | null = null;
   public lastCreatedItem: ProjectAdminItemInput | null = null;
+  public lastCreatedUpdate: ProjectAdminUpdateInput | null = null;
+  public lastUpdateUpdate: ProjectAdminUpdateUpdateInput | null = null;
   public lastMilestoneReorder: readonly string[] | null = null;
   public lastItemReorder: readonly string[] | null = null;
 
@@ -184,6 +189,48 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
 
     this.lastItemReorder = [...input.orderedIds];
     return structuredClone(project);
+  }
+
+  public async createUpdate(projectId: string, input: ProjectAdminUpdateInput) {
+    const project = this.projects.get(projectId);
+
+    if (!project) {
+      return "project-not-found" as const;
+    }
+
+    this.lastCreatedUpdate = structuredClone(input);
+    const updated = {
+      ...project,
+      updates: [
+        ...project.updates,
+        {
+          id: "update-created",
+          ...input
+        }
+      ]
+    };
+    this.projects.set(projectId, updated);
+    return structuredClone(updated);
+  }
+
+  public async updateUpdate(projectId: string, updateId: string, input: ProjectAdminUpdateUpdateInput) {
+    const project = this.projects.get(projectId);
+
+    if (!project) {
+      return "project-not-found" as const;
+    }
+
+    if (!project.updates.some((update) => update.id === updateId)) {
+      return "update-not-found" as const;
+    }
+
+    this.lastUpdateUpdate = structuredClone(input);
+    const updated = {
+      ...project,
+      updates: project.updates.map((update) => update.id === updateId ? { ...update, ...input } : update)
+    };
+    this.projects.set(projectId, updated);
+    return structuredClone(updated);
   }
 }
 
@@ -329,6 +376,43 @@ describe("ProjectAdminService", () => {
     expect(repository.lastItemReorder).toEqual(["item-created"]);
   });
 
+  it("creates and edits manual project updates without publishing drafts publicly", async () => {
+    const repository = new FakeProjectAdminRepository();
+    const service = new ProjectAdminService(repository);
+
+    await expect(service.createUpdate({
+      authUserId: "auth-user",
+      projectId: "project",
+      update: {
+        title: "Manual update",
+        summary: "Admin-written update.",
+        body: "This starts as a draft.",
+        status: "draft",
+        isVisible: true,
+        isPinned: false,
+        sortOrder: 1
+      }
+    })).resolves.toMatchObject({ ok: true });
+    expect(repository.lastCreatedUpdate).toMatchObject({
+      status: "draft",
+      isVisible: true
+    });
+
+    await expect(service.updateUpdate({
+      authUserId: "auth-user",
+      projectId: "project",
+      updateId: "update-created",
+      update: {
+        status: "published",
+        isVisible: true
+      }
+    })).resolves.toMatchObject({ ok: true });
+    expect(repository.lastUpdateUpdate).toEqual({
+      status: "published",
+      isVisible: true
+    });
+  });
+
   it("rejects invalid input and missing parent item links", async () => {
     const repository = new FakeProjectAdminRepository();
     const service = new ProjectAdminService(repository);
@@ -448,7 +532,9 @@ describe("Project admin route boundary", () => {
           reorderMilestones: async () => testCase.result,
           createItem: async () => testCase.result,
           updateItem: async () => testCase.result,
-          reorderItems: async () => testCase.result
+          reorderItems: async () => testCase.result,
+          createUpdate: async () => testCase.result,
+          updateUpdate: async () => testCase.result
         })
       });
 

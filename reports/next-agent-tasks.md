@@ -576,13 +576,21 @@ Reviewer gate:
 - Decide explicitly whether any database migration is accepted before assigning implementation that requires it.
 - Confirm public display cannot imply money goals or automated provider sync.
 
-## Chunk 15: Safety Gates Review Before Risky Phases
+## Chunk 15: Safety Gates Review Before Risky Phases (Completed)
 
 Model: GPT-5.5
 
 Purpose:
 
 - Reduce risk before auth/moderation/money/AI work by turning open risks into explicit phase gates.
+
+Result:
+
+- Completed as a design-only documentation slice.
+- Added explicit phase gates for production auth/owner assignment, moderation, AI public output, money/ledger/credits/refunds, backup/export/recovery, and provider integrations.
+- Identified first safe slices: project updates design, visual installed-window QA, support-link wording/destination decision, provider-neutral research, and backup inventory/runbook work using dev/staging data only.
+- Reconfirmed that real Twitch/YouTube/Discord/music/payment integrations, production OAuth secrets, enforcement moderation, public AI output, real money behavior, and production backup automation all need separate explicit go/no-go decisions.
+- Did not implement features, edit auth, edit migrations, edit secrets, edit Cloudflare/Docker/deployment config, commit, push, deploy, or apply migrations.
 
 Prompt:
 
@@ -615,3 +623,70 @@ Report changed files, checks run, skipped checks, and unresolved concerns.
 Reviewer gate:
 
 - Confirm every risky phase has an explicit go/no-go decision point before code work starts.
+
+## Chunk 16: Manual Project Updates Design Gate
+
+Model: GPT-5.5
+
+Purpose:
+
+- Move projects from static admin-managed content toward a living public update log without mixing in AI, money, provider sync, or support promises.
+
+Prompt:
+
+```text
+Read AGENTS.md, reports/current-work.md, reports/next-agent-tasks.md, TODO.md sections 5, 9, and 9A, plus one relevant project/admin idea card only if needed.
+
+Task:
+Design the manual project updates workflow and, only if the current schema already supports it safely, implement the smallest read/write slice. If new tables or columns are required, stop at a proposed generated-migration scope for coordinator approval.
+
+You may edit:
+- packages/domain/src/projects/ only for typed contracts/rules if implementing is safe without migration
+- packages/domain/test/ only for focused project update rules if implementing is safe without migration
+- apps/api/src/projects/ only if implementing is safe without migration
+- apps/api/test/projects/ only if implementing is safe without migration
+- apps/web/src/app/projects/
+- apps/web/src/app/admin/projects/
+- TODO.md
+- reports/current-work.md
+- reports/next-agent-tasks.md
+
+Acceptance criteria:
+- Define manual create/edit/publish-state behavior for project updates.
+- Public pages must show only published/visible updates for public/visible projects.
+- Admin pages must support preview-before-publish or clearly preserve the existing preview workflow.
+- If schema work is needed, document the minimal migration shape and stop.
+- Keep AI drafting, support/money, provider sync, notifications, moderation, auth changes, secrets, Cloudflare/Docker/deploy changes, and production behavior out of scope.
+
+Verification:
+- If docs/design only: git status --short --branch and node scripts/check-architecture.mjs.
+- If implementation is safe without migration: pnpm --filter @maiks-yt/domain test, pnpm --filter @maiks-yt/api test, pnpm --filter @maiks-yt/api typecheck, pnpm --filter @maiks-yt/web typecheck, node scripts/check-architecture.mjs.
+
+Do not commit, push, deploy, apply migrations, edit secrets, edit auth, or edit outside the allowed scope.
+Report changed files, checks run, skipped checks, migration needs, and unresolved concerns.
+```
+
+Reviewer gate:
+
+- Confirm unpublished updates cannot leak publicly.
+- Decide explicitly whether any proposed migration is accepted before implementation.
+
+## Chunk 16A: Project Updates Migration + Manual Admin/Public Slice (Coordinator Reviewed)
+
+Model: GPT-5.5
+
+Result:
+
+- Generated unapplied migration `packages/database/drizzle/0011_mean_doctor_strange.sql`.
+- Added durable `project_updates` schema with `project_id`, title, optional summary, body, draft/published status, visible flag, optional `published_at`, pinned flag, sort order, timestamps, and project/public ordering indexes.
+- Added typed domain read/admin rules so public project details include only published visible updates and admin preview reuses the public projection.
+- Added owner/project-admin API create/edit/publish-state routes under `/admin/projects/:id/updates`.
+- Added `/admin/projects` manual update controls and public `/projects/[slug]` update rendering.
+- Coordinator review fixed the public summary projection so project list summaries keep `updateCount` but do not carry full update bodies.
+- Kept AI drafting, support links, money, provider sync/notifications, moderation, auth, secrets, Cloudflare/Docker/deploy changes, migration application, commits, pushes, and deploys out of scope.
+
+Reviewer gate:
+
+- Review the migration before applying it anywhere.
+- Confirm public draft/hidden updates do not leak through API or web detail pages.
+- Browser-smoke `/admin/projects` with an owner session after the migration is applied in the selected dev environment.

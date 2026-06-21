@@ -2,10 +2,12 @@ import type {
   ProjectReadItemSource,
   ProjectReadMilestoneSource,
   ProjectReadModelSource,
+  ProjectReadUpdateSource,
   PublicProjectDetail,
   PublicProjectItem,
   PublicProjectMilestone,
   PublicProjectStatus,
+  PublicProjectUpdate,
   PublicProjectSummary
 } from "./project-read-model.types.js";
 import type { ProjectStatus } from "./project.types.js";
@@ -43,8 +45,24 @@ const compareItems = (
   right: ProjectReadItemSource
 ): number => left.sortOrder - right.sortOrder || compareText(left.title, right.title);
 
+const compareUpdates = (
+  left: ProjectReadUpdateSource,
+  right: ProjectReadUpdateSource
+): number => {
+  const pinnedRank = Number(right.isPinned) - Number(left.isPinned);
+  const publishedRank = new Date(right.publishedAt ?? 0).getTime() - new Date(left.publishedAt ?? 0).getTime();
+
+  return pinnedRank
+    || left.sortOrder - right.sortOrder
+    || publishedRank
+    || compareText(left.title, right.title);
+};
+
 export const isPublicProjectSource = (project: ProjectReadModelSource): boolean =>
   project.isPublic && publicProjectStatuses.has(project.status);
+
+export const isPublicProjectUpdateSource = (update: ProjectReadUpdateSource): boolean =>
+  update.status === "published" && update.isVisible;
 
 const toPublicProjectMilestone = (
   milestone: ProjectReadMilestoneSource
@@ -93,6 +111,23 @@ const buildProjectItemTree = (
 const flattenItemCount = (items: readonly PublicProjectItem[]): number =>
   items.reduce((count, item) => count + 1 + flattenItemCount(item.children), 0);
 
+const toPublicProjectUpdate = (
+  update: ProjectReadUpdateSource
+): PublicProjectUpdate | null => {
+  if (!isPublicProjectUpdateSource(update)) {
+    return null;
+  }
+
+  return {
+    id: update.id,
+    title: update.title,
+    body: update.body,
+    isPinned: update.isPinned,
+    ...(update.summary ? { summary: update.summary } : {}),
+    ...(update.publishedAt ? { publishedAt: update.publishedAt } : {})
+  };
+};
+
 export const buildPublicProjectDetail = (
   project: ProjectReadModelSource
 ): PublicProjectDetail | null => {
@@ -106,6 +141,11 @@ export const buildPublicProjectDetail = (
     .map(toPublicProjectMilestone)
     .filter((milestone): milestone is PublicProjectMilestone => milestone !== null);
   const items = buildProjectItemTree(project.items, null);
+  const updates = project.updates
+    .slice()
+    .sort(compareUpdates)
+    .map(toPublicProjectUpdate)
+    .filter((update): update is PublicProjectUpdate => update !== null);
   const nextMilestone = milestones.find((milestone) => milestone.status === "active")
     ?? milestones.find((milestone) => milestone.status === "planned");
 
@@ -119,10 +159,12 @@ export const buildPublicProjectDetail = (
     status: project.status as PublicProjectStatus,
     milestoneCount: milestones.length,
     itemCount: flattenItemCount(items),
+    updateCount: updates.length,
     ...(nextMilestone ? { nextMilestone } : {}),
     ...(project.updatedAt ? { updatedAt: project.updatedAt } : {}),
     milestones,
-    items
+    items,
+    updates
   };
 };
 
@@ -135,7 +177,7 @@ export const buildPublicProjectSummary = (
     return null;
   }
 
-  const { milestones: _milestones, items: _items, ...summary } = detail;
+  const { milestones: _milestones, items: _items, updates: _updates, ...summary } = detail;
 
   return summary;
 };

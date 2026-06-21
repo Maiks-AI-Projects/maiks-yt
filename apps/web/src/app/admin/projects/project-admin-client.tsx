@@ -6,9 +6,11 @@ import type {
   ProjectItemKind,
   ProjectItemStatus,
   ProjectReadModelSource,
+  ProjectReadUpdateSource,
   PublicProjectDetail,
   PublicProjectItem,
   ProjectStatus,
+  ProjectUpdateStatus,
   ProjectType,
   MilestoneStatus
 } from "@maiks-yt/domain/projects";
@@ -66,6 +68,17 @@ type ItemFormState = {
   sortOrder: number;
 };
 
+type UpdateFormState = {
+  title: string;
+  summary: string;
+  body: string;
+  status: ProjectUpdateStatus;
+  isVisible: boolean;
+  publishedAt: string;
+  isPinned: boolean;
+  sortOrder: number;
+};
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const projectTypes = [
@@ -94,6 +107,7 @@ const projectStatuses = ["planning", "active", "completed", "mothballed", "cance
 const milestoneStatuses = ["planned", "active", "completed", "cancelled"] satisfies MilestoneStatus[];
 const itemKinds = ["product", "service", "subscription", "task", "wishlist", "other"] satisfies ProjectItemKind[];
 const itemStatuses = ["planned", "active", "acquired", "completed", "removed"] satisfies ProjectItemStatus[];
+const updateStatuses = ["draft", "published"] satisfies ProjectUpdateStatus[];
 
 const defaultProjectForm: ProjectFormState = {
   slug: "",
@@ -119,6 +133,17 @@ const defaultItemForm: ItemFormState = {
   kind: "task",
   status: "planned",
   quantity: 1,
+  sortOrder: 1
+};
+
+const defaultUpdateForm: UpdateFormState = {
+  title: "",
+  summary: "",
+  body: "",
+  status: "draft",
+  isVisible: true,
+  publishedAt: "",
+  isPinned: false,
   sortOrder: 1
 };
 
@@ -166,6 +191,28 @@ const toProjectForm = (project: ProjectReadModelSource): ProjectFormState => ({
   category: project.category,
   status: project.status,
   isPublic: project.isPublic
+});
+
+const toUpdateForm = (update: ProjectReadUpdateSource): UpdateFormState => ({
+  title: update.title,
+  summary: update.summary ?? "",
+  body: update.body,
+  status: update.status,
+  isVisible: update.isVisible,
+  publishedAt: update.publishedAt ?? "",
+  isPinned: update.isPinned,
+  sortOrder: update.sortOrder
+});
+
+const toAdminUpdatePayload = (updateForm: UpdateFormState): Record<string, unknown> => ({
+  title: updateForm.title,
+  summary: updateForm.summary.trim() || null,
+  body: updateForm.body,
+  status: updateForm.status,
+  isVisible: updateForm.isVisible,
+  ...(updateForm.publishedAt.trim() ? { publishedAt: updateForm.publishedAt.trim() } : {}),
+  isPinned: updateForm.isPinned,
+  sortOrder: updateForm.sortOrder
 });
 
 const getProjectPublicHref = (project: ProjectReadModelSource): string =>
@@ -238,6 +285,24 @@ const ProjectAdminPublicPreview = ({
       </dl>
     </header>
     <section>
+      <h4>Updates</h4>
+      {project.updates.length === 0 ? (
+        <p className="project-muted">No public updates are available yet.</p>
+      ) : (
+        <ol className="project-admin-record-list">
+          {project.updates.map((update) => (
+            <li key={update.id}>
+              <span>{update.isPinned ? "Pinned" : "Update"}</span>
+              <strong>{update.title}</strong>
+              {update.summary ? <p>{update.summary}</p> : null}
+              <p>{update.body}</p>
+              {update.publishedAt ? <small>{new Date(update.publishedAt).toLocaleDateString()}</small> : null}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+    <section>
       <h4>Milestones</h4>
       {project.milestones.length === 0 ? (
         <p className="project-muted">No public milestones are available yet.</p>
@@ -270,6 +335,8 @@ const ProjectAdminClient = (): React.ReactNode => {
   const [projectForm, setProjectForm] = useState<ProjectFormState>(defaultProjectForm);
   const [milestoneForm, setMilestoneForm] = useState<MilestoneFormState>(defaultMilestoneForm);
   const [itemForm, setItemForm] = useState<ItemFormState>(defaultItemForm);
+  const [selectedUpdateId, setSelectedUpdateId] = useState<string>("");
+  const [updateForm, setUpdateForm] = useState<UpdateFormState>(defaultUpdateForm);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading project admin...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -277,6 +344,11 @@ const ProjectAdminClient = (): React.ReactNode => {
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId]
+  );
+
+  const selectedUpdate = useMemo(
+    () => selectedProject?.updates.find((update) => update.id === selectedUpdateId) ?? null,
+    [selectedProject, selectedUpdateId]
   );
 
   const previewSource = useMemo<ProjectReadModelSource | null>(() => {
@@ -295,9 +367,29 @@ const ProjectAdminClient = (): React.ReactNode => {
         status: projectForm.status,
         isPublic: projectForm.isPublic,
         milestones: [],
-        items: []
+        items: [],
+        updates: []
       };
     }
+
+    const formUpdate = selectedProject && updateForm.title.trim() && updateForm.body.trim()
+      ? {
+        id: selectedUpdate?.id ?? "update-preview",
+        title: updateForm.title.trim(),
+        summary: updateForm.summary.trim() || null,
+        body: updateForm.body.trim(),
+        status: updateForm.status,
+        isVisible: updateForm.isVisible,
+        publishedAt: updateForm.publishedAt.trim() || (updateForm.status === "published" ? new Date().toISOString() : null),
+        isPinned: updateForm.isPinned,
+        sortOrder: updateForm.sortOrder
+      } satisfies ProjectReadUpdateSource
+      : null;
+    const updates = formUpdate
+      ? selectedUpdate
+        ? selectedProject.updates.map((update) => update.id === selectedUpdate.id ? formUpdate : update)
+        : [...selectedProject.updates, formUpdate]
+      : selectedProject.updates;
 
     return {
       ...selectedProject,
@@ -307,9 +399,10 @@ const ProjectAdminClient = (): React.ReactNode => {
       type: projectForm.type,
       category: projectForm.category,
       status: projectForm.status,
-      isPublic: projectForm.isPublic
+      isPublic: projectForm.isPublic,
+      updates
     };
-  }, [projectForm, selectedProject]);
+  }, [projectForm, selectedProject, selectedUpdate, updateForm]);
 
   const publicPreview = useMemo(
     () => previewSource ? buildProjectAdminPublicPreview(previewSource) : null,
@@ -327,6 +420,10 @@ const ProjectAdminClient = (): React.ReactNode => {
     });
     setSelectedProjectId(project.id);
     setProjectForm(toProjectForm(project));
+    setUpdateForm({
+      ...defaultUpdateForm,
+      sortOrder: project.updates.length + 1
+    });
   }, []);
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
@@ -360,6 +457,10 @@ const ProjectAdminClient = (): React.ReactNode => {
         setItemForm({
           ...defaultItemForm,
           sortOrder: firstProject ? firstProject.items.length + 1 : 1
+        });
+        setUpdateForm({
+          ...defaultUpdateForm,
+          sortOrder: firstProject ? firstProject.updates.length + 1 : 1
         });
         setLoadState("ready");
         setMessage(payload.projects.length === 0 ? "No projects exist yet." : "Project admin loaded.");
@@ -435,6 +536,11 @@ const ProjectAdminClient = (): React.ReactNode => {
         ...defaultItemForm,
         sortOrder: project.items.length + 1
       });
+      setSelectedUpdateId("");
+      setUpdateForm({
+        ...defaultUpdateForm,
+        sortOrder: project.updates.length + 1
+      });
     }
   };
 
@@ -457,6 +563,8 @@ const ProjectAdminClient = (): React.ReactNode => {
         ...defaultItemForm,
         sortOrder: 1
       });
+      setSelectedUpdateId("");
+      setUpdateForm(defaultUpdateForm);
     }
   };
 
@@ -538,6 +646,61 @@ const ProjectAdminClient = (): React.ReactNode => {
         sortOrder: updated.items.length + 1
       });
     }
+  };
+
+  const createUpdate = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    if (!selectedProject) {
+      setMessage("Choose a project before adding an update.");
+      return;
+    }
+
+    const updated = await runMutation("Creating update", `/admin/projects/${encodeURIComponent(selectedProject.id)}/updates`, {
+      method: "POST",
+      body: toAdminUpdatePayload(updateForm)
+    });
+
+    if (updated) {
+      setSelectedUpdateId("");
+      setUpdateForm({
+        ...defaultUpdateForm,
+        sortOrder: updated.updates.length + 1
+      });
+    }
+  };
+
+  const updateUpdate = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    if (!selectedProject || !selectedUpdate) {
+      setMessage("Choose an update before saving changes.");
+      return;
+    }
+
+    await runMutation("Saving update", `/admin/projects/${encodeURIComponent(selectedProject.id)}/updates/${encodeURIComponent(selectedUpdate.id)}`, {
+      method: "PATCH",
+      body: toAdminUpdatePayload(updateForm)
+    });
+  };
+
+  const editUpdate = (update: ProjectReadUpdateSource): void => {
+    setSelectedUpdateId(update.id);
+    setUpdateForm(toUpdateForm(update));
+  };
+
+  const updateUpdateState = async (
+    updateId: string,
+    body: Record<string, unknown>
+  ): Promise<void> => {
+    if (!selectedProject) {
+      return;
+    }
+
+    await runMutation("Updating project update", `/admin/projects/${encodeURIComponent(selectedProject.id)}/updates/${encodeURIComponent(updateId)}`, {
+      method: "PATCH",
+      body
+    });
   };
 
   const updateMilestoneStatus = async (
@@ -638,6 +801,8 @@ const ProjectAdminClient = (): React.ReactNode => {
               <button type="button" className="secondary-action" onClick={() => {
                 setSelectedProjectId("");
                 setProjectForm(defaultProjectForm);
+                setSelectedUpdateId("");
+                setUpdateForm(defaultUpdateForm);
               }}>
                 New
               </button>
@@ -764,6 +929,70 @@ const ProjectAdminClient = (): React.ReactNode => {
 
             {selectedProject ? (
               <>
+                <section className="project-admin-panel">
+                  <div className="project-admin-panel-heading">
+                    <h2>Manual Updates</h2>
+                    {selectedUpdate ? (
+                      <button type="button" className="secondary-action" onClick={() => {
+                        setSelectedUpdateId("");
+                        setUpdateForm({
+                          ...defaultUpdateForm,
+                          sortOrder: selectedProject.updates.length + 1
+                        });
+                      }}>
+                        New Update
+                      </button>
+                    ) : null}
+                  </div>
+                  {selectedProject.updates.length === 0 ? (
+                    <p>No project updates yet.</p>
+                  ) : (
+                    <ol className="project-admin-record-list">
+                      {selectedProject.updates
+                        .slice()
+                        .sort((left, right) => Number(right.isPinned) - Number(left.isPinned) || left.sortOrder - right.sortOrder || left.title.localeCompare(right.title))
+                        .map((update) => (
+                          <li key={update.id}>
+                            <div>
+                              <strong>{update.title}</strong>
+                              <span>{formatProjectLabel(update.status)} / {update.isVisible ? "Visible" : "Hidden"} / {update.isPinned ? "Pinned" : "Unpinned"} / Order {update.sortOrder}</span>
+                              {update.summary ? <p>{update.summary}</p> : null}
+                            </div>
+                            <button type="button" className="secondary-action" onClick={() => editUpdate(update)} disabled={busyAction !== null}>
+                              Edit
+                            </button>
+                            <select value={update.status} onChange={(event) => void updateUpdateState(update.id, { status: event.target.value as ProjectUpdateStatus })} disabled={busyAction !== null}>
+                              {updateStatuses.map((status) => <option key={status} value={status}>{formatProjectLabel(status)}</option>)}
+                            </select>
+                            <label className="project-admin-checkbox">
+                              <input type="checkbox" checked={update.isVisible} onChange={(event) => void updateUpdateState(update.id, { isVisible: event.target.checked })} disabled={busyAction !== null} />
+                              Visible
+                            </label>
+                          </li>
+                        ))}
+                    </ol>
+                  )}
+                  <form className="project-admin-inline-form" onSubmit={(event) => selectedUpdate ? void updateUpdate(event) : void createUpdate(event)}>
+                    <input value={updateForm.title} onChange={(event) => setUpdateForm((current) => ({ ...current, title: event.target.value }))} placeholder="Update title" required maxLength={191} />
+                    <input value={updateForm.summary} onChange={(event) => setUpdateForm((current) => ({ ...current, summary: event.target.value }))} placeholder="Optional summary" maxLength={280} />
+                    <select value={updateForm.status} onChange={(event) => setUpdateForm((current) => ({ ...current, status: event.target.value as ProjectUpdateStatus }))}>
+                      {updateStatuses.map((status) => <option key={status} value={status}>{formatProjectLabel(status)}</option>)}
+                    </select>
+                    <input type="number" min={0} value={updateForm.sortOrder} onChange={(event) => setUpdateForm((current) => ({ ...current, sortOrder: event.target.valueAsNumber || 0 }))} aria-label="Update sort order" />
+                    <label className="project-admin-checkbox">
+                      <input type="checkbox" checked={updateForm.isVisible} onChange={(event) => setUpdateForm((current) => ({ ...current, isVisible: event.target.checked }))} />
+                      Visible
+                    </label>
+                    <label className="project-admin-checkbox">
+                      <input type="checkbox" checked={updateForm.isPinned} onChange={(event) => setUpdateForm((current) => ({ ...current, isPinned: event.target.checked }))} />
+                      Pinned
+                    </label>
+                    <input value={updateForm.publishedAt} onChange={(event) => setUpdateForm((current) => ({ ...current, publishedAt: event.target.value }))} placeholder="Published ISO time, optional" />
+                    <textarea value={updateForm.body} onChange={(event) => setUpdateForm((current) => ({ ...current, body: event.target.value }))} placeholder="Update body" required maxLength={10000} rows={4} />
+                    <button type="submit" disabled={busyAction !== null}>{selectedUpdate ? "Save Update" : "Add Update"}</button>
+                  </form>
+                </section>
+
                 <section className="project-admin-panel">
                   <div className="project-admin-panel-heading">
                     <h2>Milestones</h2>

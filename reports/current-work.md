@@ -65,17 +65,20 @@ Finish the partially completed project areas before starting untouched feature g
 - Proposed the generated-migration scope for coordinator approval: add nullable `project_id`, nullable `focus_label`, and nullable `focus_note` fields to `stream_schedule_entries`, plus an index on `project_id`; no provider sync, announcements, recurrence automation, notifications, AI, moderation, auth changes, secrets, Cloudflare/Docker/deploy changes, or money behavior.
 - Implemented Chunk 14A against the approved scope: generated migration `packages/database/drizzle/0010_lonely_whistler.sql`, added manual focus fields to schedule domain/API/admin/public flow, and kept public focus output gated to public/visible linked projects.
 - Reviewed, committed, pushed, migrated, deployed, and dev-smoked Chunk 14A on `dev` commit `6cc3c0c`; `/admin/schedule` returned project options, owner PATCH saved focus fields, public `/schedule` rendered the focus label, project link, and focus note.
+- Completed Chunk 15 as a design-only safety-gates review: auth/owner assignment, moderation, AI public output, money/ledger/credits/refunds, backups, and provider integrations are now explicit future gates with safe first-slice boundaries.
+- Implemented Chunk 16A against the approved schema scope: generated unapplied migration `packages/database/drizzle/0011_mean_doctor_strange.sql`, added typed project update read/admin rules, owner/project-admin API create/edit/publish-state behavior, `/admin/projects` manual update controls, and public project detail rendering for published visible updates only.
+- Kept AI drafting, support links, money, provider notifications/sync, moderation, auth, secrets, Cloudflare/Docker/deploy changes, migration application, commits, pushes, and deploys out of the project updates slice.
 
 ## Current Task
 
-Pick the next bounded chunk after Chunk 14A.
+Coordinator migration application, deploy, and dev smoke for Chunk 16A.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
-3. Keep manual project updates separate until a schema-approved slice exists if they require new tables.
-4. Keep real Twitch/YouTube chat, moderation, AI, money, and production auth/token architecture gated until explicitly assigned.
+3. Apply `0011_mean_doctor_strange.sql` on dev before deploying the Chunk 16A API/store changes, then smoke `/admin/projects` and public project detail pages.
+4. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
 
@@ -103,6 +106,8 @@ Pick the next bounded chunk after Chunk 14A.
 - Chunk 12 visual QA has a completed headless Chrome fallback with screenshots and summaries, but not a true Computer Use / installed-window pass.
 - Chunk 14 stream focus/project-link planning is complete as a design-only stop at the migration gate; no code implementation was made because the current public schedule schema cannot persist the link/focus safely.
 - Chunk 14A manual schedule focus implementation is reviewed, committed, pushed to `dev`, migrated on dev, deployed, and dev-smoked. The dev DB intentionally has the public "Maiks.yt V2 build stream" linked to "Build Maiks.yt V2" with short focus copy so `/schedule` visibly exercises the feature.
+- Chunk 15 safety-gates review is complete as a docs-only planning slice. It did not implement risky features, change auth, edit secrets, generate/apply migrations, or deploy.
+- Chunk 16A project updates implementation is coordinator-reviewed with passing focused checks, pending commit, dev migration application, deploy, and smoke.
 
 ## Blockers And Decisions
 
@@ -120,7 +125,9 @@ Pick the next bounded chunk after Chunk 14A.
 - Project admin now has reviewed/deployed preview-before-publish for project basics plus saved milestones/items; manual project updates still need a separate schema-approved slice if they require new tables.
 - Stream focus/project linking needs an explicitly approved generated migration before implementation. Do not overload `topic_key`, `theme_key`, or disconnected `stream_sessions.active_project_id` to represent a public schedule focus.
 - Chunk 14A generated and applied the approved nullable schedule focus migration on dev. Production/main still needs the normal migration/deploy decision later.
-- Do not begin full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
+- Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
+- First safe slices after this point should be manual/non-provider work: project updates design, visual QA, support-link wording decision, or read-only/provider-neutral planning.
+- Chunk 16A generated but did not apply `0011_mean_doctor_strange.sql`; any environment that runs the new project update API/store needs that migration first.
 - Chrome/in-app browser visual QA is blocked in this setup by a Windows sandbox attach failure, and Computer Use was not exposed in the 2026-06-21 thread. Headless Chrome fallback covered rendered layout at the target sizes; true installed-window verification remains manual/tool-dependent.
 
 ## Working Tree

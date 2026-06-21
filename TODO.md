@@ -95,13 +95,14 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Build project detail page.
 - [x] Support project categories.
 - [x] Support non-monetary milestones.
-- [ ] Support project updates.
+- [x] Support project updates.
 - [ ] Support linking stream sessions to projects.
 - [ ] Add active project/stream focus display.
 - [ ] Add internal wishlist entries linked to project items.
 
 Note: Chunk 14 stopped at the migration gate. The existing public schedule table has no project/focus fields, while the older `stream_sessions.active_project_id` is not connected to the manual schedule/admin/public display flow. The smallest approved next slice is a generated migration that adds nullable manual focus fields to `stream_schedule_entries`, then exposes them in owner schedule admin and public schedule display without money, provider sync, announcements, AI, moderation, or support promises.
   - 2026-06-21 Chunk 14A generated migration `0010_lonely_whistler.sql`, applied it on dev, deployed commit `6cc3c0c`, and dev-smoked owner schedule focus editing plus public `/schedule` focus rendering.
+  - 2026-06-21 Chunk 16A generated unapplied migration `0011_mean_doctor_strange.sql` for durable `project_updates`, added manual owner/project-admin create/edit/publish-state controls, and kept public project details filtered to published visible updates on public/visible projects only.
 
 ## 5.5 Stream Simulator and Event Replayer
 
@@ -194,7 +195,7 @@ Note: Chunk 14 stopped at the migration gate. The existing public schedule table
 - [x] Add preview-before-publish behavior for public content changes.
 - [ ] Keep AI assistance draft-only until manual admin workflows exist.
 
-Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation. Chunk 3B added owner/admin Creator Hub link mutations and `/admin/links` manual controls while keeping support unavailable. Chunk 13 added reviewed/deployed project-admin preview-before-publish behavior without schema or migration work.
+Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation. Chunk 3B added owner/admin Creator Hub link mutations and `/admin/links` manual controls while keeping support unavailable. Chunk 13 added reviewed/deployed project-admin preview-before-publish behavior without schema or migration work. Chunk 16A extends project admin preview-before-publish to manual project updates with drafts hidden from public read models.
 
 ## 10. Stream Scheduling
 
@@ -240,6 +241,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Add optional stream-end wellness checkpoint.
 - [ ] Keep mute/off controls easy to reach.
 
+Gate note: AI public output must start in a private draft/shadow mode before anything can speak on stream, post publicly, read paid messages, or make moderation-like decisions. First safe slice is a local/control-panel-only assistant settings and shadow transcript design with obvious mute/off controls; no provider secrets, no public speech, no paid-message readout, and no autonomous actions.
+
 ## 13. Action Panel
 
 - [x] Build action item model.
@@ -262,6 +265,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Add abuse policy page, including police-report warning for serious abuse.
 - [ ] Add offensive display name handling.
 - [ ] Add malicious linking/claiming handling.
+
+Gate note: moderation needs a domain-first rules/audit design before UI buttons or commands. First safe slice is a read-only moderation model/card plus typed action vocabulary for warnings, mutes, bans, display-name handling, and appeal/audit requirements. Do not add enforcement, automatic warnings, provider bans, rank/status changes, or public abuse-policy promises until the model is reviewed.
 
 ## 14A. Installable Stream Tools
 
@@ -303,6 +308,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Draft affiliate/sponsor disclosure.
 - [ ] Decide when real money features can safely start.
 
+Gate note: money remains design-only until Michael explicitly approves a money phase. First safe slice is provider/legal reality-check documentation for the Netherlands, refund/chargeback/recurring-support constraints, and ledger requirements. No payment provider integration, donation buttons, credits, balances, support promises, allocation UI, or real transaction storage before the money gate is opened.
+
 ## 16. Later Money Features
 
 - [ ] Build immutable ledger.
@@ -317,6 +324,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Add product price tracking.
 - [ ] Add external wishlist provider integrations.
 
+Gate note: later money features require an immutable ledger design, refund/revocation policy, audit/export plan, and provider decision before implementation. External wishlist/provider integrations are provider phases, not casual project-admin or schedule follow-ups.
+
 ## 17. Backup, Export, and Recovery
 
 - [ ] Add automated database backups.
@@ -325,3 +334,15 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Document restore process.
 - [ ] Document rare improper-deletion restore process.
 - [ ] Decide backup retention and encryption.
+
+Gate note: backup/export can start before production money, but must be treated as reliability/security work. First safe slice is a backup inventory and restore runbook using dev/staging data only; do not automate production backups, touch secrets, or claim recovery guarantees until retention, encryption, and restore testing are defined.
+
+## 18. Phase Gates Before Risky Work
+
+- [x] Record explicit gates for AI, moderation, money, backups, provider integrations, and production auth/owner assignment.
+- [ ] Production auth gate: define explicit owner assignment, fresh production OAuth secrets, account recovery, and no first-login auto-promotion before production release work.
+- [ ] Provider integration gate: define provider scopes, failure handling, rate limits, token storage, revocation, and manual override before Twitch/YouTube/Discord/music/payment integrations.
+- [ ] Moderation gate: approve rules, actions, audit log, appeal/review expectations, and streamer override before enforcement.
+- [ ] AI gate: approve private shadow mode, prompt boundaries, mute/off controls, and public-safety review before public AI output.
+- [ ] Money gate: approve provider, ledger, refunds/chargebacks, terms, and audit/export behavior before any real money behavior.
+- [ ] Backup gate: approve retention, encryption, restore testing, and manual export shape before production backup automation.

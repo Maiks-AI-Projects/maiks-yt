@@ -20,6 +20,7 @@ const createProject = (
   isPublic: true,
   milestones: [],
   items: [],
+  updates: [],
   ...overrides
 });
 
@@ -72,7 +73,7 @@ describe("public project read API", () => {
     await server.close();
   });
 
-  it("returns project detail with public milestones and non-monetary items", async () => {
+  it("returns project detail with public milestones, items, and published updates", async () => {
     const repository = new FakeProjectReadRepository([
       createProject("maiks-yt-v2", {
         status: "active",
@@ -99,6 +100,26 @@ describe("public project read API", () => {
             status: "active",
             quantity: 1,
             sortOrder: 1
+          }
+        ],
+        updates: [
+          {
+            id: "published-update",
+            title: "Published update",
+            body: "This is visible.",
+            status: "published",
+            isVisible: true,
+            isPinned: false,
+            sortOrder: 1
+          },
+          {
+            id: "draft-update",
+            title: "Draft update",
+            body: "This should not leak.",
+            status: "draft",
+            isVisible: true,
+            isPinned: false,
+            sortOrder: 2
           }
         ]
       })
@@ -135,10 +156,17 @@ describe("public project read API", () => {
             kind: "task",
             status: "active"
           }
+        ],
+        updates: [
+          {
+            id: "published-update",
+            title: "Published update"
+          }
         ]
       }
     });
     expect(JSON.stringify(response.json())).not.toContain("minorAmount");
+    expect(JSON.stringify(response.json())).not.toContain("This should not leak");
     await server.close();
   });
 
