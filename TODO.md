@@ -115,6 +115,7 @@ Note: Chunk 14 stopped at the migration gate. The existing public schedule table
 - [x] Use simulator events for overlay and control panel testing.
 
 Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-console planning only. Durable event routing rules, event history, per-user opt-outs, cooldown state, provider credentials, moderation enforcement, and real/simulated money persistence remain a future schema gate.
+  - 2026-06-21 worker patch added the first `/dev/test-console` local preview surface that reads the typed registry, filters event kinds by source capability, labels safety/default state, prevents impossible source/event combinations, and generates mock display data without dispatching, persisting, routing, or touching money/provider/auth state.
 
 ## 6. Overlay Renderer
 

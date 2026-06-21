@@ -105,6 +105,7 @@ Likely guardrails:
 - 2026-06-21: Added the first no-schema typed event registry and platform capability matrix in `@maiks-yt/domain/events`.
 - This is an in-code planning/runtime contract only. It does not add durable routing rules, event history, opt-out storage, cooldown state, admin persistence, provider integrations, moderation enforcement, or money behavior.
 - Future Event Routing Admin and Dev Test Console work still needs a schema-gated persistence design before owner-configured routing, history, opt-outs, or simulated-money state can be saved.
+- 2026-06-21: Added the first `/dev/test-console` web foundation as a local preview only. It reads the registry, filters valid source/event combinations, labels safety defaults, marks internal-only events as not overlay-eligible, marks support/money examples as simulated/test only, and generates mock display data without dispatching or persisting events.
 
 ## Open Questions
 

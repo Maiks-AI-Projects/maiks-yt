@@ -1354,6 +1354,150 @@ button:disabled {
   background: #eef2f5;
 }
 
+.dev-test-console-page {
+  max-width: 82rem;
+}
+
+.dev-test-console-warning {
+  background: #fff8e8;
+  border-color: #e5bd65;
+}
+
+.dev-test-console-controls label {
+  color: #141920;
+  display: grid;
+  font-size: 0.9rem;
+  font-weight: 700;
+  gap: 0.4rem;
+}
+
+.dev-test-console-controls select {
+  border: 1px solid #b8c4cf;
+  border-radius: 6px;
+  color: #141920;
+  font: inherit;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.dev-test-console-event-list {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.dev-test-console-event-list button {
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  color: #141920;
+  display: grid;
+  gap: 0.2rem;
+  min-height: 4.25rem;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.dev-test-console-event-list button.selected {
+  background: #edf7f2;
+  border-color: #238a55;
+}
+
+.dev-test-console-event-list span,
+.dev-test-console-preview-id {
+  color: #4b5966;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.82rem;
+  overflow-wrap: anywhere;
+}
+
+.dev-test-console-safety {
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.dev-test-console-safety h3,
+.dev-test-console-safety p,
+.dev-test-console-preview-card h3,
+.dev-test-console-preview-card p,
+.dev-test-console-preview-card dl {
+  margin: 0;
+}
+
+.dev-test-console-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dev-test-console-badges span {
+  background: #e5ebf1;
+  border-radius: 999px;
+  color: #141920;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+}
+
+.dev-test-console-badges span.blocked,
+.dev-test-console-badges span.warning {
+  background: #fff0d5;
+  color: #805000;
+}
+
+.dev-test-console-preview-card {
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.dev-test-console-preview-card > div:first-child {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.dev-test-console-preview-card > div:first-child span {
+  color: #4b5966;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dev-test-console-preview-card dl {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.dev-test-console-preview-card dt {
+  color: #141920;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.dev-test-console-preview-card dd {
+  color: #4b5966;
+  margin: 0.15rem 0 0;
+}
+
+.dev-test-console-preview pre {
+  background: #141920;
+  border-radius: 8px;
+  color: #f5f7fb;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  margin: 0;
+  overflow: auto;
+  padding: 1rem;
+}
+
 .link-admin-warning {
   background: #fff7df;
   border: 1px solid #e5bd65;
