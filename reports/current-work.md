@@ -68,16 +68,17 @@ Finish the partially completed project areas before starting untouched feature g
 - Completed Chunk 15 as a design-only safety-gates review: auth/owner assignment, moderation, AI public output, money/ledger/credits/refunds, backups, and provider integrations are now explicit future gates with safe first-slice boundaries.
 - Implemented Chunk 16A against the approved schema scope: generated unapplied migration `packages/database/drizzle/0011_mean_doctor_strange.sql`, added typed project update read/admin rules, owner/project-admin API create/edit/publish-state behavior, `/admin/projects` manual update controls, and public project detail rendering for published visible updates only.
 - Kept AI drafting, support links, money, provider notifications/sync, moderation, auth, secrets, Cloudflare/Docker/deploy changes, migration application, commits, pushes, and deploys out of the project updates slice.
+- Reviewed, committed, pushed, migrated, deployed, and dev-smoked Chunk 16A on `dev` commit `dce7989`; owner admin create/publish worked, public API hid the draft before publish, and public project detail rendered the published update.
 
 ## Current Task
 
-Coordinator migration application, deploy, and dev smoke for Chunk 16A.
+Pick the next bounded chunk after Chunk 16A.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
-3. Apply `0011_mean_doctor_strange.sql` on dev before deploying the Chunk 16A API/store changes, then smoke `/admin/projects` and public project detail pages.
+3. Choose between visual installed-window QA, support-link wording/destination, or dev test console/event-routing design.
 4. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
@@ -107,7 +108,7 @@ Coordinator migration application, deploy, and dev smoke for Chunk 16A.
 - Chunk 14 stream focus/project-link planning is complete as a design-only stop at the migration gate; no code implementation was made because the current public schedule schema cannot persist the link/focus safely.
 - Chunk 14A manual schedule focus implementation is reviewed, committed, pushed to `dev`, migrated on dev, deployed, and dev-smoked. The dev DB intentionally has the public "Maiks.yt V2 build stream" linked to "Build Maiks.yt V2" with short focus copy so `/schedule` visibly exercises the feature.
 - Chunk 15 safety-gates review is complete as a docs-only planning slice. It did not implement risky features, change auth, edit secrets, generate/apply migrations, or deploy.
-- Chunk 16A project updates implementation is coordinator-reviewed with passing focused checks, pending commit, dev migration application, deploy, and smoke.
+- Chunk 16A project updates implementation is reviewed, committed, pushed to `dev`, migrated on dev, deployed, and dev-smoked. The dev DB intentionally has a published "Dev smoke project update" on the Maiks.yt V2 project so `/projects/maiks-yt-v2` visibly exercises the feature.
 
 ## Blockers And Decisions
 
@@ -127,7 +128,7 @@ Coordinator migration application, deploy, and dev smoke for Chunk 16A.
 - Chunk 14A generated and applied the approved nullable schedule focus migration on dev. Production/main still needs the normal migration/deploy decision later.
 - Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - First safe slices after this point should be manual/non-provider work: project updates design, visual QA, support-link wording decision, or read-only/provider-neutral planning.
-- Chunk 16A generated but did not apply `0011_mean_doctor_strange.sql`; any environment that runs the new project update API/store needs that migration first.
+- Chunk 16A generated and applied `0011_mean_doctor_strange.sql` on dev. Production/main still needs the normal migration/deploy decision later.
 - Chrome/in-app browser visual QA is blocked in this setup by a Windows sandbox attach failure, and Computer Use was not exposed in the 2026-06-21 thread. Headless Chrome fallback covered rendered layout at the target sizes; true installed-window verification remains manual/tool-dependent.
 
 ## Working Tree

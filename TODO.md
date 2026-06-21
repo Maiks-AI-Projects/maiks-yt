@@ -102,7 +102,7 @@ This is the working checklist. We should work down it in order unless a new idea
 
 Note: Chunk 14 stopped at the migration gate. The existing public schedule table has no project/focus fields, while the older `stream_sessions.active_project_id` is not connected to the manual schedule/admin/public display flow. The smallest approved next slice is a generated migration that adds nullable manual focus fields to `stream_schedule_entries`, then exposes them in owner schedule admin and public schedule display without money, provider sync, announcements, AI, moderation, or support promises.
   - 2026-06-21 Chunk 14A generated migration `0010_lonely_whistler.sql`, applied it on dev, deployed commit `6cc3c0c`, and dev-smoked owner schedule focus editing plus public `/schedule` focus rendering.
-  - 2026-06-21 Chunk 16A generated unapplied migration `0011_mean_doctor_strange.sql` for durable `project_updates`, added manual owner/project-admin create/edit/publish-state controls, and kept public project details filtered to published visible updates on public/visible projects only.
+  - 2026-06-21 Chunk 16A generated migration `0011_mean_doctor_strange.sql`, applied it on dev, deployed commit `dce7989`, dev-smoked owner create/publish behavior, and kept public project details filtered to published visible updates on public/visible projects only.
 
 ## 5.5 Stream Simulator and Event Replayer
 

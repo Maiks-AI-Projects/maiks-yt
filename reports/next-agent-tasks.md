@@ -671,7 +671,7 @@ Reviewer gate:
 - Confirm unpublished updates cannot leak publicly.
 - Decide explicitly whether any proposed migration is accepted before implementation.
 
-## Chunk 16A: Project Updates Migration + Manual Admin/Public Slice (Coordinator Reviewed)
+## Chunk 16A: Project Updates Migration + Manual Admin/Public Slice (Completed)
 
 Model: GPT-5.5
 
@@ -683,10 +683,10 @@ Result:
 - Added owner/project-admin API create/edit/publish-state routes under `/admin/projects/:id/updates`.
 - Added `/admin/projects` manual update controls and public `/projects/[slug]` update rendering.
 - Coordinator review fixed the public summary projection so project list summaries keep `updateCount` but do not carry full update bodies.
+- Coordinator committed and pushed `dce7989`, applied migration `0011_mean_doctor_strange.sql` on the dev database, deployed `maiks-yt-dev`, and dev-smoked owner create/publish plus public API/web rendering.
+- Dev smoke left a published "Dev smoke project update" on the Maiks.yt V2 project so public project detail visibly exercises the feature.
 - Kept AI drafting, support links, money, provider sync/notifications, moderation, auth, secrets, Cloudflare/Docker/deploy changes, migration application, commits, pushes, and deploys out of scope.
 
 Reviewer gate:
 
-- Review the migration before applying it anywhere.
-- Confirm public draft/hidden updates do not leak through API or web detail pages.
-- Browser-smoke `/admin/projects` with an owner session after the migration is applied in the selected dev environment.
+- Completed on dev. Do not rerun unless a regression is found.
