@@ -107,11 +107,14 @@ Note: Chunk 14 stopped at the migration gate. The existing public schedule table
 ## 5.5 Stream Simulator and Event Replayer
 
 - [x] Build fake typed event generator.
+- [x] Add no-schema typed event registry and platform capability matrix.
 - [x] Add event storm presets.
 - [x] Add event replay controls.
 - [x] Support recording/replaying local stream sessions.
 - [x] Strip sensitive data from recorded replay fixtures.
 - [x] Use simulator events for overlay and control panel testing.
+
+Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-console planning only. Durable event routing rules, event history, per-user opt-outs, cooldown state, provider credentials, moderation enforcement, and real/simulated money persistence remain a future schema gate.
 
 ## 6. Overlay Renderer
 
@@ -120,6 +123,7 @@ Note: Chunk 14 stopped at the migration gate. The existing public schedule table
 - [x] Load initial state snapshot on page load.
 - [x] Connect to live state updates after loading.
 - [x] Create typed notification events.
+- [x] Add provider/source capability defaults for future routed notifications.
 - [x] Build notification queue before display rendering.
 - [x] Add top notification zone.
 - [x] Resolve top notification avatar from website profile image, then platform avatar, then safe default.

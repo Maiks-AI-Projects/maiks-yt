@@ -100,6 +100,12 @@ Likely guardrails:
 - overlay/control-panel test receivers
 - clear separation between simulated and real provider/money events
 
+## Implementation Notes
+
+- 2026-06-21: Added the first no-schema typed event registry and platform capability matrix in `@maiks-yt/domain/events`.
+- This is an in-code planning/runtime contract only. It does not add durable routing rules, event history, opt-out storage, cooldown state, admin persistence, provider integrations, moderation enforcement, or money behavior.
+- Future Event Routing Admin and Dev Test Console work still needs a schema-gated persistence design before owner-configured routing, history, opt-outs, or simulated-money state can be saved.
+
 ## Open Questions
 
 - Should website signup/name/avatar notifications default on, or start conservative until Michael tunes them?

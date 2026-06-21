@@ -72,13 +72,13 @@ Finish the partially completed project areas before starting untouched feature g
 
 ## Current Task
 
-Pick the next bounded chunk after Chunk 16A.
+Pick the next bounded chunk after the no-schema typed event registry.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
-3. Choose between visual installed-window QA, support-link wording/destination, or dev test console/event-routing design.
+3. Choose whether the next chunk is Dev Test Console design, first dev-only console implementation, event routing schema gate, or visual installed-window QA.
 4. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
@@ -126,6 +126,8 @@ Pick the next bounded chunk after Chunk 16A.
 - Project admin now has reviewed/deployed preview-before-publish for project basics plus saved milestones/items; manual project updates still need a separate schema-approved slice if they require new tables.
 - Stream focus/project linking needs an explicitly approved generated migration before implementation. Do not overload `topic_key`, `theme_key`, or disconnected `stream_sessions.active_project_id` to represent a public schedule focus.
 - Chunk 14A generated and applied the approved nullable schedule focus migration on dev. Production/main still needs the normal migration/deploy decision later.
+- The typed event registry is an in-code domain foundation only. Durable routing rules, event history, per-user opt-outs, cooldown state, provider credentials, moderation enforcement, and money/simulation persistence still require future schema-gated work.
+- Chunk 17 no-schema typed event registry is coordinator-reviewed with passing domain checks and architecture validation; it is safe as a domain-only foundation for future routing/test-console work.
 - Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - First safe slices after this point should be manual/non-provider work: project updates design, visual QA, support-link wording decision, or read-only/provider-neutral planning.
 - Chunk 16A generated and applied `0011_mean_doctor_strange.sql` on dev. Production/main still needs the normal migration/deploy decision later.

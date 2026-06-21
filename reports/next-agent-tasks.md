@@ -14,6 +14,18 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
+- Event routing now has an in-code typed registry/capability matrix foundation only; durable routing rules, event history, opt-outs, cooldown state, provider credentials, moderation enforcement, and money/simulation persistence remain a future schema gate.
+
+## Chunk 17: No-Schema Event Registry Foundation (Completed)
+
+Worker scope:
+
+- Added `@maiks-yt/domain/events` with typed source platforms, event kinds, platform capability helpers, and routing-safety defaults for future Event Routing Admin and Dev Test Console work.
+- Kept this as an in-code domain registry only. No admin persistence, DB schema, migrations, provider integrations, real money behavior, auth changes, moderation enforcement, secrets, Cloudflare/Docker/deploy config, commits, pushes, or deployments were added.
+- Future schema-gated work still needs durable routing rules, event history, per-user opt-outs, cooldown state, and simulated/real money separation before any runtime admin console can persist decisions.
+- Coordinator review accepted the source/platform categories, event-kind naming, conservative internal-only defaults for account/security/provider-token events, and money-gated/simulated-only metadata.
+
+Do not rerun unless event kinds need to change before UI work depends on them.
 
 ## Chunk 1: Read-Only Projects Vertical Slice (Completed)
 
