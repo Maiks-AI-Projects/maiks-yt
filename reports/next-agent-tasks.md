@@ -27,7 +27,7 @@ Worker scope:
 
 Do not rerun unless event kinds need to change before UI work depends on them.
 
-## Chunk 18: First Dev Test Console Foundation (Coordinator Reviewed)
+## Chunk 18: First Dev Test Console Foundation (Completed)
 
 Worker scope:
 
@@ -35,10 +35,11 @@ Worker scope:
 - The page surfaces source selectors, event kinds filtered by source capability, safety/default badges, internal-only and simulated/test-money labels, impossible-combo prevention, and a random valid preview generator.
 - Mock event previews are generated in the browser only. No real event dispatch, persistence, routing rules, approval queues, event history, opt-out storage, cooldown state, provider credentials, real money behavior, simulated-money persistence, auth changes, migrations, Cloudflare/Docker/deploy config, commits, pushes, deployments, or server state were added.
 - Coordinator review added a production `notFound()` guard so the route stays dev-only when `NODE_ENV=production`.
+- Coordinator committed and pushed `c92e589`, deployed `maiks-yt-dev`, and smoked `https://web-dev.maiks.yt/dev/test-console`.
 
 Reviewer gate:
 
-- Deploy and smoke `/dev/test-console` on `web-dev`.
+- Completed on dev. Do not rerun unless a regression is found.
 
 ## Chunk 1: Read-Only Projects Vertical Slice (Completed)
 

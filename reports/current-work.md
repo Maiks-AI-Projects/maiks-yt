@@ -71,16 +71,17 @@ Finish the partially completed project areas before starting untouched feature g
 - Reviewed, committed, pushed, migrated, deployed, and dev-smoked Chunk 16A on `dev` commit `dce7989`; owner admin create/publish worked, public API hid the draft before publish, and public project detail rendered the published update.
 - Added the first dev-only `/dev/test-console` foundation as a local preview surface over `@maiks-yt/domain/events`: source selection, event-kind filtering, safety/default badges, impossible-combo prevention, and mock display data generation.
 - Kept the test console local-preview only: no real dispatch, durable routing rules, event history, approval queues, opt-out storage, cooldown state, provider credentials, real money behavior, simulated-money persistence, auth changes, migrations, deploy changes, or server state.
+- Reviewed, committed, pushed, deployed, and dev-smoked the `/dev/test-console` preview foundation on commit `c92e589`; `web-dev` returned 200 and rendered the local-preview, source selector, mock display data, and simulated-money markers.
 
 ## Current Task
 
-Deploy and smoke the first dev-only test console foundation.
+Pick the next bounded chunk after the dev test console foundation.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
-3. Review the `/dev/test-console` worker patch, then choose between Event Routing Admin schema design, overlay/control fake receiver wiring, support-link wording, or visual installed-window QA.
+3. Choose between Event Routing Admin schema design, overlay/control fake receiver wiring, support-link wording, or visual installed-window QA.
 4. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
@@ -130,7 +131,7 @@ Deploy and smoke the first dev-only test console foundation.
 - Chunk 14A generated and applied the approved nullable schedule focus migration on dev. Production/main still needs the normal migration/deploy decision later.
 - The typed event registry is an in-code domain foundation only. Durable routing rules, event history, per-user opt-outs, cooldown state, provider credentials, moderation enforcement, and money/simulation persistence still require future schema-gated work.
 - Chunk 17 no-schema typed event registry is coordinator-reviewed with passing domain checks and architecture validation; it is safe as a domain-only foundation for future routing/test-console work.
-- The first dev test console foundation is coordinator-reviewed and guarded to 404 under `NODE_ENV=production`; it uses the typed event registry directly and remains local-preview only. Future real dispatch/routing/history/opt-out/cooldown/simulated-money behavior remains schema-gated.
+- The first dev test console foundation is reviewed, committed, pushed, deployed to dev, and dev-smoked. It is guarded to 404 under `NODE_ENV=production`, uses the typed event registry directly, and remains local-preview only. Future real dispatch/routing/history/opt-out/cooldown/simulated-money behavior remains schema-gated.
 - Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - First safe slices after this point should be manual/non-provider work: project updates design, visual QA, support-link wording decision, or read-only/provider-neutral planning.
 - Chunk 16A generated and applied `0011_mean_doctor_strange.sql` on dev. Production/main still needs the normal migration/deploy decision later.
