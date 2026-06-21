@@ -499,6 +499,17 @@ Reviewer gate:
 
 Model: GPT-5.5
 
+Result:
+
+- Completed as a design-only slice because implementation needs an explicitly approved generated migration.
+- Current schema finding: `stream_schedule_entries` powers the manual schedule admin/public flow but has no project link or active focus fields.
+- Existing `stream_sessions.active_project_id` is not a safe substitute because `stream_sessions` is only seeded today and is not wired into `/admin/schedule`, public `/schedule`, or the schedule domain/API contracts.
+- Smallest manual workflow: owner edits a scheduled stream, chooses one existing public project as the stream focus, optionally enters short non-monetary focus copy, and public `/schedule` shows a restrained "Stream focus" project link/copy only when the scheduled stream is public and the linked project is public.
+- Proposed generated-migration scope: add nullable `project_id`, nullable `focus_label`, and nullable `focus_note` columns to `stream_schedule_entries`, plus an index on `project_id`. Keep any foreign-key decision for coordinator review because current project relations are index-based rather than enforced in this schema.
+- Public wording must stay non-monetary and must not imply donations, support goals, automated provider sync, announcements, recurrence, notifications, moderation, AI, or support promises.
+
+Do not implement this chunk until the coordinator explicitly approves or revises the migration scope.
+
 Purpose:
 
 - Move from standalone schedules/projects toward a manual live-stream focus workflow without touching external provider sync.

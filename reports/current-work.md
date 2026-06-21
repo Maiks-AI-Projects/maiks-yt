@@ -60,17 +60,22 @@ Finish the partially completed project areas before starting untouched feature g
 - Captured `/tools/actions`, token-blocked control panel, dev-authenticated control panel, scene designer, overlay-ready, overlay chat, and overlay chat visibility screenshots at the requested stream-monitor sizes under `reports/visual-qa/chunk-12/`.
 - Confirmed the tested standalone surfaces have no normal website navbar and no horizontal overflow at 1920x1080, 1600x900, or 1366x768; fake/local chat newest-on-top and chat visibility toggles worked through the live dev API.
 - Reviewed, committed, deployed, and dev-smoked the manual project-admin preview-before-publish slice with a typed public-preview projection, draft/unpublished admin preview UI, and focused domain coverage while leaving public project routes filtered to published/visible content only.
+- Completed Chunk 14 as a design-only stream focus/project-link planning slice after hitting the schema gate: `stream_schedule_entries` cannot store a project link or active focus today, and the older `stream_sessions.active_project_id` is not wired into the manual schedule/admin/public flow.
+- Defined the smallest manual workflow for the next approved slice: owner selects an existing public project while editing a scheduled stream, optionally adds short non-monetary focus copy, and public `/schedule` shows a modest "Stream focus" link for public projects only.
+- Proposed the generated-migration scope for coordinator approval: add nullable `project_id`, nullable `focus_label`, and nullable `focus_note` fields to `stream_schedule_entries`, plus an index on `project_id`; no provider sync, announcements, recurrence automation, notifications, AI, moderation, auth changes, secrets, Cloudflare/Docker/deploy changes, or money behavior.
 
 ## Current Task
 
-Choose the next implementation chunk after Chunk 13.
+Choose the next implementation chunk after Chunk 14.
 
 ## Next Tasks
 
-1. Move to Chunk 14 stream focus/project-link planning, or Creator Hub support destination after Michael creates or approves it.
-2. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
-3. Keep manual project updates separate until a schema-approved slice exists if they require new tables.
-4. Keep real Twitch/YouTube chat, moderation, AI, money, and production auth/token architecture gated until explicitly assigned.
+1. Coordinator decision: approve or reject the Chunk 14 generated-migration scope for nullable manual schedule focus fields before implementation.
+2. If approved, assign the manual schedule focus implementation slice using the existing schedule/project surfaces and keep it non-monetary.
+3. Creator Hub support destination remains available after Michael creates or approves it.
+4. If strict installed-window QA is required, rerun Chunk 12 with Computer Use or a real installed PWA window when that tool/session is available.
+5. Keep manual project updates separate until a schema-approved slice exists if they require new tables.
+6. Keep real Twitch/YouTube chat, moderation, AI, money, and production auth/token architecture gated until explicitly assigned.
 
 ## Known State
 
@@ -96,6 +101,7 @@ Choose the next implementation chunk after Chunk 13.
 - Chunk 10 queue review is complete and the proposed larger next chunks are recorded in `reports/next-agent-tasks.md`.
 - Chunk 11 admin token management is implemented, coordinator-reviewed, committed, pushed to `dev`, deployed, and dev-smoked.
 - Chunk 12 visual QA has a completed headless Chrome fallback with screenshots and summaries, but not a true Computer Use / installed-window pass.
+- Chunk 14 stream focus/project-link planning is complete as a design-only stop at the migration gate; no code implementation was made because the current public schedule schema cannot persist the link/focus safely.
 
 ## Blockers And Decisions
 
@@ -111,6 +117,7 @@ Choose the next implementation chunk after Chunk 13.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
 - Project admin now has reviewed/deployed preview-before-publish for project basics plus saved milestones/items; manual project updates still need a separate schema-approved slice if they require new tables.
+- Stream focus/project linking needs an explicitly approved generated migration before implementation. Do not overload `topic_key`, `theme_key`, or disconnected `stream_sessions.active_project_id` to represent a public schedule focus.
 - Do not begin full chat, AI, moderation, money, or backup feature phases until the current partial-area pass is reviewed.
 - Chrome/in-app browser visual QA is blocked in this setup by a Windows sandbox attach failure, and Computer Use was not exposed in the 2026-06-21 thread. Headless Chrome fallback covered rendered layout at the target sizes; true installed-window verification remains manual/tool-dependent.
 
