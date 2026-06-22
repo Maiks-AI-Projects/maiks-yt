@@ -31,6 +31,7 @@ import { z } from "zod";
 
 import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
 import { registerActionPanelRoutes } from "./actions/index.js";
+import { registerEventRoutingAdminRoutes } from "./event-routing/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
@@ -918,6 +919,10 @@ registerStreamScheduleRoutes(server, {
   getDatabasePool
 });
 registerUrlAccessTokenAdminRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
+registerEventRoutingAdminRoutes(server, {
   getAuthSession,
   getDatabasePool
 });

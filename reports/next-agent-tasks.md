@@ -14,7 +14,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation and dev-applied persistence migration `0012_smooth_jack_flag.sql`. Durable routing rules, event history/audit, approval queue, opt-outs, cooldown state, and simulated/test reset boundaries are ready for manual/provider-neutral implementation. Provider credentials, moderation enforcement, and real money remain later gates.
+- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, and a first manual/provider-neutral routing-rule admin foundation. Event history/audit writes, approval queue processing, opt-out enforcement, cooldown evaluation, and simulated/test reset behavior remain future implementation work. Provider credentials, moderation enforcement, and real money remain later gates.
 - Page Creator and Route Admin now has a design-only persistence gate. The first safe implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
@@ -66,16 +66,34 @@ Reviewer gate:
 - Coordinator accepted the generated shape for integration after review and applied it on the dev database through the normal migration path.
 - Do not start runtime routing, dispatch, admin UI/API, provider integrations, real money, moderation enforcement, auth, secrets, Cloudflare/Docker/deploy, or production behavior until separately scoped.
 
-## Chunk 21A: Manual Event Routing Admin / Safe Simulated Dispatch (Proposed)
-
-Assign as the next Event Routing slice if Michael wants to continue on this path.
+## Chunk 21A: Manual Event Routing Admin Foundation (Implemented, Needs Review)
 
 Worker scope:
 
-- Add domain validation and owner-gated admin/API for manually editing routing rules against the existing typed registry.
-- Add stream-visible website opt-out persistence only where the UX is explicitly scoped.
-- Allow `/dev/test-console` to dispatch safe `test/system` or explicitly simulated events through durable routing into preview/internal destinations only.
-- Keep real provider events, real website production events, real money, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, commits, pushes, deployments, and migration application out of worker scope unless a coordinator prompt explicitly opens them.
+- Added typed domain validation for routing rules against the existing event registry.
+- Added owner-gated admin/API behavior to list and update persisted routing rules manually.
+- Added `/admin/event-routing` as the first manual rule editing surface.
+- Kept rules disabled by domain defaults unless the owner explicitly enables them.
+- Kept real dispatch and simulated dispatch out of this first runtime-safe admin foundation.
+- Kept provider integrations, real money, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, commits, pushes, deployments, migration application, and server state out of worker scope.
+
+Reviewer gate:
+
+- Review the domain/API/admin implementation and run the suggested checks before accepting.
+- Verify whether the `event-routing:manage` capability should be seeded later or owner wildcard access is enough for dev.
+- Do not deploy or smoke until coordinator review passes.
+
+## Chunk 21B: Safe Simulated Event Routing Dispatch (Proposed)
+
+Assign only after Chunk 21A review succeeds.
+
+Worker scope:
+
+- Allow `/dev/test-console` to dispatch safe `test/system` or explicitly simulated events through the durable rule reader.
+- Write only safe test/simulated history/routing results; every row must be marked `is_test` and/or `is_simulated`, `test_resettable`, and never `is_real_money`.
+- Apply opt-out and cooldown checks in code before any stream-visible website-style simulated result.
+- Queue approval-required simulated events without public playback.
+- Keep real provider events, real website production events, real money, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, commits, pushes, deployments, and migration application out of worker scope.
 
 ## Chunk 22: Page Creator / Route Admin Schema Gate Design (Completed)
 
