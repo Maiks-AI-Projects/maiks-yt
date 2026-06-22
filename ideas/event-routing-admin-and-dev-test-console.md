@@ -141,7 +141,7 @@ The first slice should not wire live Twitch/YouTube/Discord providers or real we
 - Future Event Routing Admin and Dev Test Console work still needs a schema-gated persistence design before owner-configured routing, history, opt-outs, or simulated-money state can be saved.
 - 2026-06-21: Added the first `/dev/test-console` web foundation as a local preview only. It reads the registry, filters valid source/event combinations, labels safety defaults, marks internal-only events as not overlay-eligible, marks support/money examples as simulated/test only, and generates mock display data without dispatching or persisting events.
 - 2026-06-22: Completed the design-only persistence gate for Event Routing Admin. Real routing/dispatch now explicitly requires an approved generated migration for durable rules, opt-outs, event history, approval queue, cooldown state, and simulated/test reset boundaries before implementation.
-- 2026-06-22: Generated unapplied migration `0012_smooth_jack_flag.sql` for persistence only. The schema uses `event_routing_rules`, `event_user_opt_outs`, `event_history`, `event_approval_queue`, and `event_cooldown_state`; runtime routing, UI/API behavior, provider integrations, real money, moderation enforcement, auth, deploy config, and server state remain disabled.
+- 2026-06-22: Generated migration `0012_smooth_jack_flag.sql` for persistence only and applied it on the dev database after coordinator review. The schema uses `event_routing_rules`, `event_user_opt_outs`, `event_history`, `event_approval_queue`, and `event_cooldown_state`; runtime routing, UI/API behavior, provider integrations, real money, moderation enforcement, auth, and production behavior remain disabled.
 
 ## Open Questions
 

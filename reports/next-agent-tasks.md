@@ -14,7 +14,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation and generated unapplied persistence migration `0012_smooth_jack_flag.sql`. Durable routing rules, event history/audit, approval queue, opt-outs, cooldown state, and simulated/test reset boundaries need normal migration application before implementation. Provider credentials, moderation enforcement, and real money remain later gates.
+- Event routing now has an in-code typed registry/capability matrix foundation and dev-applied persistence migration `0012_smooth_jack_flag.sql`. Durable routing rules, event history/audit, approval queue, opt-outs, cooldown state, and simulated/test reset boundaries are ready for manual/provider-neutral implementation. Provider credentials, moderation enforcement, and real money remain later gates.
 - Page Creator and Route Admin now has a design-only persistence gate. The first safe implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
@@ -32,11 +32,11 @@ Reviewer gate:
 - Review the proposed schema shape in `ideas/event-routing-admin-and-dev-test-console.md`.
 - Decide whether to approve a generated migration slice before assigning any real routing/dispatch implementation.
 
-## Chunk 20: Event Routing Persistence Migration (Generated, Needs Dev Migration Application)
+## Chunk 20: Event Routing Persistence Migration (Completed On Dev)
 
 Worker scope:
 
-- Generated, but did not apply, the minimal database migration for Event Routing Admin persistence.
+- Generated the minimal database migration for Event Routing Admin persistence.
 - Added database schema definitions only where required for the generated migration.
 - Kept implementation behavior disabled: no real dispatch, no admin UI/API, no provider integrations, no real money, no moderation enforcement, no auth changes, no secrets, no Cloudflare/Docker/deploy config, no worker commits, pushes, deployments, or server state changes.
 
@@ -63,13 +63,12 @@ Suggested checks:
 
 Reviewer gate:
 
-- Coordinator accepted the generated shape for integration after review.
-- Apply the migration only through the normal dev migration path before runtime routing work starts.
+- Coordinator accepted the generated shape for integration after review and applied it on the dev database through the normal migration path.
 - Do not start runtime routing, dispatch, admin UI/API, provider integrations, real money, moderation enforcement, auth, secrets, Cloudflare/Docker/deploy, or production behavior until separately scoped.
 
-## Chunk 21A: Manual Event Routing Admin / Safe Simulated Dispatch (Proposed, Requires Migration Application)
+## Chunk 21A: Manual Event Routing Admin / Safe Simulated Dispatch (Proposed)
 
-Assign only after Chunk 20 is committed, pushed, and applied through the normal dev migration path.
+Assign as the next Event Routing slice if Michael wants to continue on this path.
 
 Worker scope:
 
