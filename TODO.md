@@ -117,6 +117,7 @@ Note: Chunk 14 stopped at the migration gate. The existing public schedule table
 Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-console planning only. Durable event routing rules, event history, per-user opt-outs, cooldown state, provider credentials, moderation enforcement, and real/simulated money persistence remain a future schema gate.
   - 2026-06-21 added, deployed, and dev-smoked the first `/dev/test-console` local preview surface that reads the typed registry, filters event kinds by source capability, labels safety/default state, prevents impossible source/event combinations, and generates mock display data without dispatching, persisting, routing, or touching money/provider/auth state.
   - 2026-06-22 completed the Event Routing Admin persistence gate design. Before real routed dispatch is allowed, a coordinator-approved generated migration is needed for durable routing rules, event history/audit, approval queue, user opt-outs, cooldown state, and simulated/test reset boundaries. First implementation should be manual/provider-neutral and limited to safe simulated dispatch after schema approval.
+  - 2026-06-22 Chunk 20 generated migration `0012_smooth_jack_flag.sql` for Event Routing persistence only. It adds durable routing rules, stream-visible website opt-outs, append-only event history/audit with simulated/test reset flags, approval queue state, and cooldown state. The migration has not been applied yet; no dispatch, UI, API, provider integration, real money behavior, auth, secrets, or deploy/server changes were added.
 
 ## 6. Overlay Renderer
 
@@ -199,9 +200,11 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Add database-backed Creator Hub link read-model foundation.
 - [x] Build Creator Hub link admin create/edit/reorder controls.
 - [x] Add preview-before-publish behavior for public content changes.
+- [x] Design first safe page creator and route-admin scope.
+- [ ] Add owner/admin page creator for path-owned normal website pages.
 - [ ] Keep AI assistance draft-only until manual admin workflows exist.
 
-Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation. Chunk 3B added owner/admin Creator Hub link mutations and `/admin/links` manual controls while keeping support unavailable. Chunk 13 added reviewed/deployed project-admin preview-before-publish behavior without schema or migration work. Chunk 16A extends project admin preview-before-publish to manual project updates with drafts hidden from public read models.
+Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation. Chunk 3B added owner/admin Creator Hub link mutations and `/admin/links` manual controls while keeping support unavailable. Chunk 13 added reviewed/deployed project-admin preview-before-publish behavior without schema or migration work. Chunk 16A extends project admin preview-before-publish to manual project updates with drafts hidden from public read models. The 2026-06-22 Page Creator and Route Admin design gate chose a first safe path-only page creator for normal website pages, kept code-owned/admin/tool/API/overlay/dev routes reserved, required unique normalized route ownership with fail-closed ambiguity, and deferred host/subdomain plus Cloudflare automation to a later infrastructure-reviewed phase.
 
 ## 10. Stream Scheduling
 
@@ -288,6 +291,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - Control panel metadata is ready; after deployment, verify installed-window layout at 1920x1080, 1600x900, and 1366x768 stream-monitor sizes, including token-blocked state, overlay visibility controls, scene designer, and fake/local chat sender.
   - 2026-06-19 endpoint/token QA passed for `/tools/actions`, `control-dev`, `overlay-dev`, manifests, token gates, fake/local chat, streamer chat history, chat order, and overlay state. Visual installed-window screenshots at the three target sizes remain open because the Chrome/in-app browser plugin failed to attach in this setup; use Computer Use for the next visual QA pass.
   - 2026-06-21 Computer Use was not exposed in this thread, so a headless Chrome fallback captured screenshots at 1920x1080, 1600x900, and 1366x768 for `/tools/actions`, token-blocked control panel, dev-authenticated control panel, scene designer, and overlay states. No horizontal overflow or normal website navbar was found; fake/local chat order and visibility worked. True installed-window/browser-chrome-free QA remains a manual follow-up if Computer Use becomes available.
+  - 2026-06-22 Browser plugin setup was still blocked and Computer Use was not exposed, so a new local headless Chromium fallback captured `/tools/actions`, token-missing control panel, authenticated control panel, scene designer section, overlay ready state, and `/dev/test-console` at 1920x1080, 1600x900, and 1366x768. No horizontal overflow or obvious overlap was found. `/dev/test-console` is readable and preview-only, but it keeps the normal website navbar because it is not a standalone `/tools/*` surface. True installed-window/browser-chrome-free QA remains open.
 
 ## 14B. Stream-Safe Music, Future Phase
 
@@ -346,9 +350,11 @@ Gate note: backup/export can start before production money, but must be treated 
 ## 18. Phase Gates Before Risky Work
 
 - [x] Record explicit gates for AI, moderation, money, backups, provider integrations, and production auth/owner assignment.
-- [ ] Production auth gate: define explicit owner assignment, fresh production OAuth secrets, account recovery, and no first-login auto-promotion before production release work.
+- [x] Production auth gate: define explicit owner assignment, fresh production OAuth secrets, account recovery, and no first-login auto-promotion before production release work.
 - [ ] Provider integration gate: define provider scopes, failure handling, rate limits, token storage, revocation, and manual override before Twitch/YouTube/Discord/music/payment integrations.
 - [ ] Moderation gate: approve rules, actions, audit log, appeal/review expectations, and streamer override before enforcement.
 - [ ] AI gate: approve private shadow mode, prompt boundaries, mute/off controls, and public-safety review before public AI output.
 - [ ] Money gate: approve provider, ledger, refunds/chargebacks, terms, and audit/export behavior before any real money behavior.
 - [ ] Backup gate: approve retention, encryption, restore testing, and manual export shape before production backup automation.
+
+Note: 2026-06-22 added the design-only production readiness / dev-to-main checklist in `reports/production-readiness-checklist.md`. It defines future release branch policy, explicit release/operations/safety owners, fresh production secrets/OAuth keys, explicit owner assignment with no first-login auto-promotion, migration order, backup/restore basics, smoke surfaces, rollback decision points, dev-only exclusions, and dangerous gates for real money, provider credentials, public AI, moderation enforcement, production auth/secrets, and backup automation. This does not approve deployment, production config edits, secret rotation, migration generation/application, or server changes.

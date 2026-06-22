@@ -1,0 +1,364 @@
+{
+  "generatedAt": "2026-06-21T23:07:51.541Z",
+  "tool": "local Chromium headless via DevTools Protocol",
+  "installedWindowCoverage": false,
+  "browserPluginBlocker": "In-app Browser plugin failed during setup: privileged native pipe bridge is not available; browser-client is not trusted.",
+  "computerUseAvailable": false,
+  "sizes": [
+    "1920x1080",
+    "1600x900",
+    "1366x768"
+  ],
+  "tokenFile": "/home/michael/Documents/Codex/maiks-yt-fresh/reports/usable-urls.md",
+  "tokenValuesRedacted": true,
+  "error": null,
+  "results": [
+    {
+      "label": "control-auth",
+      "size": "1366x768",
+      "file": "control-auth-1366x768.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": 0,
+        "w": 1366,
+        "h": 1754.234375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-auth",
+      "size": "1600x900",
+      "file": "control-auth-1600x900.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": 0,
+        "w": 1600,
+        "h": 1769.859375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-auth",
+      "size": "1920x1080",
+      "file": "control-auth-1920x1080.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1714.609375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-blocked",
+      "size": "1366x768",
+      "file": "control-blocked-1366x768.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": false,
+      "offscreen": [],
+      "bodySample": "Access Required\n\nAccess token required.",
+      "sceneDesignerRect": null,
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-blocked",
+      "size": "1600x900",
+      "file": "control-blocked-1600x900.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": false,
+      "offscreen": [],
+      "bodySample": "Access Required\n\nAccess token required.",
+      "sceneDesignerRect": null,
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-blocked",
+      "size": "1920x1080",
+      "file": "control-blocked-1920x1080.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": false,
+      "offscreen": [],
+      "bodySample": "Access Required\n\nAccess token required.",
+      "sceneDesignerRect": null,
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-scene-designer",
+      "size": "1366x768",
+      "file": "control-scene-designer-1366x768.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": 0,
+        "w": 1366,
+        "h": 1754.234375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-scene-designer",
+      "size": "1600x900",
+      "file": "control-scene-designer-1600x900.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": 0,
+        "w": 1600,
+        "h": 1769.859375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-scene-designer",
+      "size": "1920x1080",
+      "file": "control-scene-designer-1920x1080.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": 0,
+        "w": 1920,
+        "h": 1714.609375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-scene-designer-section",
+      "size": "1366x768",
+      "file": "control-scene-designer-section-1366x768.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": -880,
+        "w": 1366,
+        "h": 1754.234375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-scene-designer-section",
+      "size": "1600x900",
+      "file": "control-scene-designer-section-1600x900.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": -764,
+        "w": 1600,
+        "h": 1769.859375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "control-scene-designer-section",
+      "size": "1920x1080",
+      "file": "control-scene-designer-section-1920x1080.png",
+      "title": "Maiks.yt Control Panel",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt Control Panel\n\nMaiks\n\nCreator\nControl panel\nactive\nOverlay\nactive\n1 connected\nEmergency clean\nTop bar on\nChat on\nNewest bottom\nSponsor on\nAI live\nTest top bar\nTest center + top\nTest redeem\nOverlay target\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nLayout\nStandard\nCamera left\nCamera right\nClean\nTheme\nDefault\nSatisfactory\nFake chat test\nName\nMessage\nSend fake chat\nStreamer chat\nFake/local chat live.\n\nNo fake/local messages yet.\n\nGoal widget\nNotification settings\nScene Designer\nScenes loaded.\nScene\nDefault\nGameplay\nChat Focus\nJust Camera\nTalking\nSatisfactory Gameplay\nSatisfactory Talking\nSlot\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nSave scene\nDuplicate\nReload\nCanvas preview\n1920 x 1080 px\ngame\ncamera\nchat\nsponsor primary\nsponsor secondary\ntop notifications\ncenter notifications\nstream goal\nNo layout warnings\nReset slot\nVisible\nLock ratio\nx\ny\nwidth\nheight\nRealtime Probe\nSimulator",
+      "sceneDesignerRect": {
+        "x": 0,
+        "y": -546,
+        "w": 1920,
+        "h": 1714.609375
+      },
+      "url": "https://control-dev.maiks.yt/"
+    },
+    {
+      "label": "dev-test-console",
+      "size": "1366x768",
+      "file": "dev-test-console-1366x768.png",
+      "title": "Dev Test Console | Maiks.yt",
+      "navCount": 3,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt\nLinks\nUpdates\nPrivacy\nActions\nAction App\nAccount\nLayout Lab\nMaiks\n\nDEV-ONLY TEST CONSOLE\n\nSimulated Event Preview\n\nPreview valid source and event combinations from the typed event registry. This surface creates local mock display data only.\n\nLocal preview only\n\nNo events are dispatched, persisted, routed, approved, moderated, or sent to money systems from this page. Support and money examples are simulated/test only.\n\nSource Capability Selector\n\nEvent kinds are filtered to combinations the selected source can emit.\n\nRandom valid preview\nSource\nTwitch\nYouTube\nDiscord\nWebsite\nTest/System\nEvent kind\nWebsite Signup\nWebsite Username Change\nWebsite Profile Image Update\nProject Update Published\nSchedule Changed\nSchedule Cancelled\nAction Panel Item\nFree Website TTS Request\nAccount Security Change\nProvider Token Change\nSimulated Support Money\nWebsite Signup\nwebsite.signup\nWebsite Username Change\nwebsite.username-change\nWebsite Profile Image Update\nwebsite.profile-image-update\nProject U",
+      "sceneDesignerRect": null,
+      "previewRect": {
+        "x": 0,
+        "y": 71,
+        "w": 1312,
+        "h": 1734.390625
+      },
+      "url": "https://web-dev.maiks.yt/dev/test-console"
+    },
+    {
+      "label": "dev-test-console",
+      "size": "1600x900",
+      "file": "dev-test-console-1600x900.png",
+      "title": "Dev Test Console | Maiks.yt",
+      "navCount": 3,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt\nLinks\nUpdates\nPrivacy\nActions\nAction App\nAccount\nLayout Lab\nMaiks\n\nDEV-ONLY TEST CONSOLE\n\nSimulated Event Preview\n\nPreview valid source and event combinations from the typed event registry. This surface creates local mock display data only.\n\nLocal preview only\n\nNo events are dispatched, persisted, routed, approved, moderated, or sent to money systems from this page. Support and money examples are simulated/test only.\n\nSource Capability Selector\n\nEvent kinds are filtered to combinations the selected source can emit.\n\nRandom valid preview\nSource\nTwitch\nYouTube\nDiscord\nWebsite\nTest/System\nEvent kind\nWebsite Signup\nWebsite Username Change\nWebsite Profile Image Update\nProject Update Published\nSchedule Changed\nSchedule Cancelled\nAction Panel Item\nFree Website TTS Request\nAccount Security Change\nProvider Token Change\nSimulated Support Money\nWebsite Signup\nwebsite.signup\nWebsite Username Change\nwebsite.username-change\nWebsite Profile Image Update\nwebsite.profile-image-update\nProject U",
+      "sceneDesignerRect": null,
+      "previewRect": {
+        "x": 0,
+        "y": 71,
+        "w": 1312,
+        "h": 1734.390625
+      },
+      "url": "https://web-dev.maiks.yt/dev/test-console"
+    },
+    {
+      "label": "dev-test-console",
+      "size": "1920x1080",
+      "file": "dev-test-console-1920x1080.png",
+      "title": "Dev Test Console | Maiks.yt",
+      "navCount": 3,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Maiks.yt\nLinks\nUpdates\nPrivacy\nActions\nAction App\nAccount\nLayout Lab\nMaiks\n\nDEV-ONLY TEST CONSOLE\n\nSimulated Event Preview\n\nPreview valid source and event combinations from the typed event registry. This surface creates local mock display data only.\n\nLocal preview only\n\nNo events are dispatched, persisted, routed, approved, moderated, or sent to money systems from this page. Support and money examples are simulated/test only.\n\nSource Capability Selector\n\nEvent kinds are filtered to combinations the selected source can emit.\n\nRandom valid preview\nSource\nTwitch\nYouTube\nDiscord\nWebsite\nTest/System\nEvent kind\nWebsite Signup\nWebsite Username Change\nWebsite Profile Image Update\nProject Update Published\nSchedule Changed\nSchedule Cancelled\nAction Panel Item\nFree Website TTS Request\nAccount Security Change\nProvider Token Change\nSimulated Support Money\nWebsite Signup\nwebsite.signup\nWebsite Username Change\nwebsite.username-change\nWebsite Profile Image Update\nwebsite.profile-image-update\nProject U",
+      "sceneDesignerRect": null,
+      "previewRect": {
+        "x": 0,
+        "y": 71,
+        "w": 1312,
+        "h": 1734.390625
+      },
+      "url": "https://web-dev.maiks.yt/dev/test-console"
+    },
+    {
+      "label": "overlay-ready",
+      "size": "1366x768",
+      "file": "overlay-ready-1366x768.png",
+      "title": "",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": false,
+      "offscreen": [],
+      "bodySample": "",
+      "sceneDesignerRect": null,
+      "previewRect": null,
+      "url": "https://overlay-dev.maiks.yt/"
+    },
+    {
+      "label": "overlay-ready",
+      "size": "1600x900",
+      "file": "overlay-ready-1600x900.png",
+      "title": "",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": false,
+      "offscreen": [],
+      "bodySample": "",
+      "sceneDesignerRect": null,
+      "previewRect": null,
+      "url": "https://overlay-dev.maiks.yt/"
+    },
+    {
+      "label": "overlay-ready",
+      "size": "1920x1080",
+      "file": "overlay-ready-1920x1080.png",
+      "title": "",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": false,
+      "offscreen": [],
+      "bodySample": "",
+      "sceneDesignerRect": null,
+      "previewRect": null,
+      "url": "https://overlay-dev.maiks.yt/"
+    },
+    {
+      "label": "tools-actions",
+      "size": "1366x768",
+      "file": "tools-actions-1366x768.png",
+      "title": "Action Panel App | Maiks.yt",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Persistent Actions\n\nAction Panel loaded.\n\nLive-safe view off\nRefresh\n3 visible actions\nHIGH\nOVERLAY\nAPPROVE-OR-REJECT\nReview center alert\n\nApprove a high-priority overlay alert before it can appear center screen.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nYes\nLIVE SAFE\nYes\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nNORMAL\nPROJECT\nREVIEW\nReview first core data model\n\nInspect the generated migration before applying it to dev.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nNo\nLIVE SAFE\nNo\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nNORMAL\nSCHEDULE\nAPPROVE-OR-REJECT\nConfirm next build stream\n\nReview the draft stream plan before it is announced.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nYes\nLIVE SAFE\nNo\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nRecent Decision History\nLatest 25\n\nNo decisions have been recorded yet.",
+      "sceneDesignerRect": null,
+      "previewRect": null,
+      "url": "https://web-dev.maiks.yt/tools/actions"
+    },
+    {
+      "label": "tools-actions",
+      "size": "1600x900",
+      "file": "tools-actions-1600x900.png",
+      "title": "Action Panel App | Maiks.yt",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Persistent Actions\n\nAction Panel loaded.\n\nLive-safe view off\nRefresh\n3 visible actions\nHIGH\nOVERLAY\nAPPROVE-OR-REJECT\nReview center alert\n\nApprove a high-priority overlay alert before it can appear center screen.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nYes\nLIVE SAFE\nYes\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nNORMAL\nPROJECT\nREVIEW\nReview first core data model\n\nInspect the generated migration before applying it to dev.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nNo\nLIVE SAFE\nNo\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nNORMAL\nSCHEDULE\nAPPROVE-OR-REJECT\nConfirm next build stream\n\nReview the draft stream plan before it is announced.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nYes\nLIVE SAFE\nNo\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nRecent Decision History\nLatest 25\n\nNo decisions have been recorded yet.",
+      "sceneDesignerRect": null,
+      "previewRect": null,
+      "url": "https://web-dev.maiks.yt/tools/actions"
+    },
+    {
+      "label": "tools-actions",
+      "size": "1920x1080",
+      "file": "tools-actions-1920x1080.png",
+      "title": "Action Panel App | Maiks.yt",
+      "navCount": 0,
+      "overflowX": false,
+      "overflowY": true,
+      "offscreen": [],
+      "bodySample": "Persistent Actions\n\nAction Panel loaded.\n\nLive-safe view off\nRefresh\n3 visible actions\nHIGH\nOVERLAY\nAPPROVE-OR-REJECT\nReview center alert\n\nApprove a high-priority overlay alert before it can appear center screen.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nYes\nLIVE SAFE\nYes\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nNORMAL\nPROJECT\nREVIEW\nReview first core data model\n\nInspect the generated migration before applying it to dev.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nNo\nLIVE SAFE\nNo\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nNORMAL\nSCHEDULE\nAPPROVE-OR-REJECT\nConfirm next build stream\n\nReview the draft stream plan before it is announced.\n\nSTATUS\nOpen\nSTREAM RELEVANT\nYes\nLIVE SAFE\nNo\nUPDATED\nJun 15, 2026, 9:05 PM\nApprove\nDefer\nReject\nRecent Decision History\nLatest 25\n\nNo decisions have been recorded yet.",
+      "sceneDesignerRect": null,
+      "previewRect": null,
+      "url": "https://web-dev.maiks.yt/tools/actions"
+    }
+  ],
+  "authenticatedControlFallback": {
+    "method": "DevTools request interception added redacted dev owner bearer to api-dev.maiks.yt requests only",
+    "apiRequestsWithAuthorizationInjected": 39,
+    "error": null
+  }
+}

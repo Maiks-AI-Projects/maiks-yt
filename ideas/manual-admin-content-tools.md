@@ -45,6 +45,8 @@ Start with simple manual admin pages for non-money project content:
 
 Creator Hub link editing can follow as a second admin slice.
 
+Normal page creation should follow as a separate route-owned content slice. See `ideas/page-creator-and-route-admin.md` for the first safe path-only page creator scope, reserved route rules, and schema gate.
+
 ## AI Boundary
 
 AI assistance should start as draft-only:
@@ -61,4 +63,3 @@ AI assistance should start as draft-only:
 - Should project admin require a URL token plus login, or login plus owner role only?
 - Which edits should create Action Panel review items?
 - Which admin changes should appear in public accountability history?
-

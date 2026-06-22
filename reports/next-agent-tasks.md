@@ -14,7 +14,9 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation and a design-only persistence gate. Durable routing rules, event history/audit, approval queue, opt-outs, cooldown state, and simulated/test reset boundaries need a coordinator-approved generated migration before implementation. Provider credentials, moderation enforcement, and real money remain later gates.
+- Event routing now has an in-code typed registry/capability matrix foundation and generated unapplied persistence migration `0012_smooth_jack_flag.sql`. Durable routing rules, event history/audit, approval queue, opt-outs, cooldown state, and simulated/test reset boundaries need normal migration application before implementation. Provider credentials, moderation enforcement, and real money remain later gates.
+- Page Creator and Route Admin now has a design-only persistence gate. The first safe implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
+- Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
@@ -30,15 +32,22 @@ Reviewer gate:
 - Review the proposed schema shape in `ideas/event-routing-admin-and-dev-test-console.md`.
 - Decide whether to approve a generated migration slice before assigning any real routing/dispatch implementation.
 
-## Chunk 20: Event Routing Persistence Migration (Proposed, Requires Approval)
-
-Assign only after coordinator approval of Chunk 19's schema shape.
+## Chunk 20: Event Routing Persistence Migration (Generated, Needs Dev Migration Application)
 
 Worker scope:
 
-- Generate, but do not apply, the minimal database migration for Event Routing Admin persistence.
-- Add database schema definitions only where required for the generated migration.
-- Keep implementation behavior disabled: no real dispatch, no admin UI/API, no provider integrations, no real money, no moderation enforcement, no auth changes, no secrets, no Cloudflare/Docker/deploy config, no commits, pushes, deployments, or server state changes.
+- Generated, but did not apply, the minimal database migration for Event Routing Admin persistence.
+- Added database schema definitions only where required for the generated migration.
+- Kept implementation behavior disabled: no real dispatch, no admin UI/API, no provider integrations, no real money, no moderation enforcement, no auth changes, no secrets, no Cloudflare/Docker/deploy config, no worker commits, pushes, deployments, or server state changes.
+
+Result:
+
+- Generated migration `packages/database/drizzle/0012_smooth_jack_flag.sql` plus Drizzle snapshot/journal metadata.
+- Added `event_routing_rules` for per-kind/source routing destination, enabled/live/offline/approval flags, cooldown settings, once-per-stream, inert template/theme/sound/priority references, and owner/admin audit columns.
+- Added `event_user_opt_outs` for global or per-kind opt-outs from stream-visible website events.
+- Added append-only `event_history` with source platform, event kind, actor/user/stream/session references, routing outcome/destination, redacted payload, simulated/test/real-money flags, and a test-reset boundary flag.
+- Added `event_approval_queue` for owner-reviewed public display/playback state.
+- Added `event_cooldown_state` for per-rule cooldown windows keyed by global/user/stream/user-stream scopes.
 
 Acceptance criteria:
 
@@ -49,8 +58,76 @@ Acceptance criteria:
 
 Suggested checks:
 
-- `corepack pnpm --filter @maiks-yt/database typecheck`
+- `pnpm --filter @maiks-yt/database typecheck`
 - `node scripts/check-architecture.mjs`
+
+Reviewer gate:
+
+- Coordinator accepted the generated shape for integration after review.
+- Apply the migration only through the normal dev migration path before runtime routing work starts.
+- Do not start runtime routing, dispatch, admin UI/API, provider integrations, real money, moderation enforcement, auth, secrets, Cloudflare/Docker/deploy, or production behavior until separately scoped.
+
+## Chunk 21A: Manual Event Routing Admin / Safe Simulated Dispatch (Proposed, Requires Migration Application)
+
+Assign only after Chunk 20 is committed, pushed, and applied through the normal dev migration path.
+
+Worker scope:
+
+- Add domain validation and owner-gated admin/API for manually editing routing rules against the existing typed registry.
+- Add stream-visible website opt-out persistence only where the UX is explicitly scoped.
+- Allow `/dev/test-console` to dispatch safe `test/system` or explicitly simulated events through durable routing into preview/internal destinations only.
+- Keep real provider events, real website production events, real money, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, commits, pushes, deployments, and migration application out of worker scope unless a coordinator prompt explicitly opens them.
+
+## Chunk 22: Page Creator / Route Admin Schema Gate Design (Completed)
+
+Worker scope:
+
+- Completed a design-only gate for an owner/admin page creator for normal website pages.
+- Chose first safe scope: manual owner-gated draft pages, path-only routing on the current website host, preview-before-publish, simple SEO metadata, and published/visible-only public rendering.
+- Classified page ownership: channel/hobby/campaign/static informational pages can become page-record-owned; account/auth, admin, tools, overlay, API, dev/test, links hub, schedule, project read-model pages, complex live-data pages, and money/legal pages remain code-owned or special-case for now.
+- Captured route ownership rules: reserved/code-owned paths win, route keys must be normalized and unique per host scope plus path, drafts do not publicly claim routes, exact matching only in version one, and ambiguous public routing fails closed.
+- Proposed a future minimal schema shape for coordinator approval: `content_pages` with title, normalized path, draft/published status, visibility, SEO fields, content, timestamps, and optionally an inert/default route scope or host field for later host+path uniqueness.
+- Separated first-version path-only routing from later host/subdomain routing and Cloudflare/DNS/reverse-proxy automation.
+- No code implementation, migration generation/application, auth changes, Cloudflare/DNS/Docker/deploy config, production behavior changes, AI auto-publishing, money/legal final wording, commits, pushes, deployments, or server state changes were made.
+
+Reviewer gate:
+
+- Coordinator accepted the scope as a future path-only manual content feature.
+- A generated migration slice is still needed before any page-admin runtime implementation.
+
+## Chunk 23: Page Creator Persistence Migration (Proposed, Requires Assignment)
+
+Worker scope:
+
+- Generate, but do not apply, the minimal database migration for path-owned manual page records.
+- Add database schema definitions only where required for the generated migration.
+- Keep implementation behavior disabled: no public route catch-all, no admin UI/API, no host/subdomain routing, no Cloudflare/DNS/Docker/deploy changes, no auth changes, no AI, no money/legal workflow, no commits, pushes, deployments, or server state changes.
+
+Acceptance criteria:
+
+- Migration can persist normal manual page records with draft/published state, visibility, normalized path, SEO metadata, body content, and timestamps.
+- Schema leaves a clear path for later host+path uniqueness without enabling host/subdomain routing behavior in this slice.
+- Reserved/code-owned routes are not moved into database ownership by this migration.
+- Draft pages cannot become public by migration/default behavior alone.
+
+Suggested checks:
+
+- `pnpm --filter @maiks-yt/database typecheck`
+- `node scripts/check-architecture.mjs`
+
+## Chunk 24: Production Readiness / Dev-to-Main Plan (Completed)
+
+Worker scope:
+
+- Created a design-only checklist for moving from `dev` toward a future production or `main` release when Michael decides the dev platform is good enough.
+- Defined the future release branch boundary, explicit release/operations/safety ownership, fresh production secrets and OAuth keys, no first-login auto-promotion, migration order, backup/restore basics, smoke surfaces, rollback decision points, and dev-only exclusions.
+- Identified dangerous gates and blockers: real money, provider credentials, public AI output, moderation enforcement, production auth/secrets, and backup automation.
+- Kept Cloudflare/Docker/deployment config edits, production secret rotation, migration generation/application, deployments, and server state changes out of scope.
+
+Reviewer gate:
+
+- Use `reports/production-readiness-checklist.md` before any future `dev` to `main` or production release.
+- Do not start production deployment, production migrations, production secret work, Cloudflare/Docker/deployment config edits, real money, provider credentials, public AI, or moderation enforcement from this chunk.
 
 ## Chunk 17: No-Schema Event Registry Foundation (Completed)
 
