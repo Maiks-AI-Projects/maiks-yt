@@ -14,7 +14,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, and a first manual/provider-neutral routing-rule admin foundation. Event history/audit writes, approval queue processing, opt-out enforcement, cooldown evaluation, and simulated/test reset behavior remain future implementation work. Provider credentials, moderation enforcement, and real money remain later gates.
+- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, and a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation. Event history/audit writes, approval queue processing, opt-out enforcement, cooldown evaluation, and simulated/test reset behavior remain future implementation work. Provider credentials, moderation enforcement, and real money remain later gates.
 - Page Creator and Route Admin now has a design-only persistence gate. The first safe implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
@@ -66,7 +66,7 @@ Reviewer gate:
 - Coordinator accepted the generated shape for integration after review and applied it on the dev database through the normal migration path.
 - Do not start runtime routing, dispatch, admin UI/API, provider integrations, real money, moderation enforcement, auth, secrets, Cloudflare/Docker/deploy, or production behavior until separately scoped.
 
-## Chunk 21A: Manual Event Routing Admin Foundation (Implemented, Needs Review)
+## Chunk 21A: Manual Event Routing Admin Foundation (Completed On Dev)
 
 Worker scope:
 
@@ -79,9 +79,9 @@ Worker scope:
 
 Reviewer gate:
 
-- Review the domain/API/admin implementation and run the suggested checks before accepting.
-- Verify whether the `event-routing:manage` capability should be seeded later or owner wildcard access is enough for dev.
-- Do not deploy or smoke until coordinator review passes.
+- Coordinator review passed with focused domain/API/web checks and architecture validation.
+- Owner wildcard access is enough for dev; `event-routing:manage` remains available for later explicit role seeding if needed.
+- Deployed and dev-smoked on `dev`: unauthenticated API returned `401`, owner-auth list returned 25 rules, `/admin/event-routing` returned `200`, and a disabled internal-audit `website.signup:any` rule saved successfully.
 
 ## Chunk 21B: Safe Simulated Event Routing Dispatch (Proposed)
 

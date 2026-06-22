@@ -79,18 +79,19 @@ Finish the partially completed project areas before starting untouched feature g
 - Ran a fresh Dev Stream Tools visual QA fallback after Browser setup failed and Computer Use was unavailable: captured `/tools/actions`, token-missing control panel, authenticated control panel, scene designer section, overlay ready state, and `/dev/test-console` at 1920x1080, 1600x900, and 1366x768 under `reports/visual-qa/chunk-19-stream-tools/`.
 - Added the design-only production readiness / dev-to-main checklist covering release branch policy, explicit owners, fresh production secrets/OAuth keys, no first-login auto-promotion, migration order, backup/restore basics, smoke surfaces, rollback decision points, dev-only exclusions, and dangerous production gates.
 - Kept Event Routing behavior disabled and kept production release work closed: no runtime routing UI/API, dispatch, provider integrations, real money behavior, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, production deployment, production migration application, or server state changes were made.
-- Added the first runtime-safe Event Routing admin foundation with typed domain routing-rule validation, owner-gated manual list/update API behavior, and `/admin/event-routing` rule editing against the applied persistence schema.
-- Kept Event Routing dispatch disabled in Chunk 21A: no real provider intake, simulated dispatch, event history writes, cooldown evaluation, moderation enforcement, real money behavior, auth changes, migrations, deploy config, production behavior, commits, pushes, deployments, or server state changes were added.
+- Added, committed, pushed, deployed, and dev-smoked the first runtime-safe Event Routing admin foundation with typed domain routing-rule validation, owner-gated manual list/update API behavior, and `/admin/event-routing` rule editing against the applied persistence schema.
+- Kept Event Routing dispatch disabled in Chunk 21A: no real provider intake, simulated dispatch, event history writes, cooldown evaluation, moderation enforcement, real money behavior, auth changes, migrations, deploy config, or production behavior was added.
+- Dev smoke confirmed unauthenticated API access returns `401 not_authenticated`, owner-auth rule listing returns 25 registry-backed rules, `/admin/event-routing` returns `200`, and a disabled internal-audit `website.signup:any` rule can be saved safely.
 
 ## Current Task
 
-Review the first runtime-safe Event Routing admin foundation and decide whether to continue with safe simulated/test dispatch as a separate chunk.
+Decide whether to continue with safe simulated/test dispatch as a separate Chunk 21B, or switch to Page Creator persistence migration.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Event Routing persistence migration `0012_smooth_jack_flag.sql` is applied on dev, and Chunk 21A now covers manual/provider-neutral routing-rule admin. The next safe slice is dev/test-only simulated dispatch into append-only safe history/routing results.
+3. Event Routing persistence migration `0012_smooth_jack_flag.sql` is applied on dev, and Chunk 21A manual/provider-neutral routing-rule admin is deployed and dev-smoked. The next safe slice is dev/test-only simulated dispatch into append-only safe history/routing results.
 4. If approved, assign the generated migration for Page Creator path-owned content before any page-admin runtime implementation.
 5. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 6. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, Cloudflare/subdomain automation, and production auth/token architecture gated until explicitly assigned.
@@ -148,7 +149,7 @@ Review the first runtime-safe Event Routing admin foundation and decide whether 
 - Chunk 20 generated and dev-applied Event Routing persistence migration `0012_smooth_jack_flag.sql`. It uses `event_routing_rules`, `event_user_opt_outs`, `event_history`, `event_approval_queue`, and `event_cooldown_state`; destination values are constrained to ignore/internal audit/control panel/top notification/center notification/streamer feed/streamer chat/approval queue.
 - Page Creator and Route Admin now has a design-only persistence gate. The likely generated migration should add a `content_pages`-style table for normal path-owned website pages with draft/published visibility, preview-before-publish, SEO metadata, normalized path uniqueness, and optionally an inert/default route scope for later host+path routing. Migration is required before implementation.
 - Website signup/name/avatar overlay eligibility must be opt-out-aware and cooldown-aware; privacy/security/account/provider-token events stay internal-only. Free website TTS remains later promotional scope. Simulated money remains dev/test-only and separate from real money.
-- Chunk 21A exposes opt-out/cooldown/approval requirements in the domain/API/admin design but does not add user-facing profile settings UX; stream-visible website signup/name/avatar routing must still check persisted opt-outs before any future dispatch.
+- Chunk 21A is reviewed, committed, pushed, deployed, and dev-smoked. It exposes opt-out/cooldown/approval requirements in the domain/API/admin design but does not add user-facing profile settings UX; stream-visible website signup/name/avatar routing must still check persisted opt-outs before any future dispatch.
 - Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - Production readiness is now documented in `reports/production-readiness-checklist.md`, but it is only a future release gate. Production/main deployment, Cloudflare/Docker/deployment config edits, production secret/OAuth rotation, production migration application, and server changes remain out of scope until Michael opens a release-preparation task.
 - Production owner-account mapping must stay explicit; the first production login must never become owner/admin automatically.
