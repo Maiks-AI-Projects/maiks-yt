@@ -104,5 +104,6 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 
 - [Action panel approval inbox](./action-panel-approval-inbox.md)
 - [Roles, permissions, and moderation model](./roles-permissions-and-moderation-model.md)
+- [Moderator management and trust levels](./moderator-management-and-trust-levels.md)
 - [Abuse, safety, and strike system](./abuse-safety-and-strike-system.md)
 - [Mobile admin experience](./mobile-admin-experience.md)

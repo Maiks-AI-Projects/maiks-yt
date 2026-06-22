@@ -266,6 +266,7 @@ Gate note: AI public output must start in a private draft/shadow mode before any
 ## 14. Safety and Moderation
 
 - [ ] Define roles and permissions.
+- [ ] Design moderator management page with trust levels, scoped permissions, temporary grants, and audit history.
 - [ ] Define community rules.
 - [ ] Build warning/strike model.
 - [ ] Add automatic warning system.
