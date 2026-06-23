@@ -214,6 +214,7 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 - [x] Build public schedule page.
 - [x] Add cancellation flow.
 - [x] Add cancellation reason templates.
+- [ ] Design game library, game suggestions, and play-schedule links.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.
 
