@@ -56,6 +56,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 - [Public personal context section](./public-personal-context-section.md)
 - [Public accountability and history section](./public-accountability-and-history-section.md)
 - [Stream scheduling and cancellations](./stream-scheduling-and-cancellations.md)
+- [Game library and play schedule](./game-library-and-play-schedule.md)
 - [AI-assisted blog and social posting](./ai-assisted-blog-and-social-posting.md)
 - [Creator hub links and feeds](./creator-hub-links-and-feeds.md)
 - [Transparent affiliate pages](./transparent-affiliate-pages.md)

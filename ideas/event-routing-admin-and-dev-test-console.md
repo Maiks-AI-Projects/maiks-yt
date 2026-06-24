@@ -144,10 +144,51 @@ The first slice should not wire live Twitch/YouTube/Discord providers or real we
 - 2026-06-22: Generated migration `0012_smooth_jack_flag.sql` for persistence only and applied it on the dev database after coordinator review. The schema uses `event_routing_rules`, `event_user_opt_outs`, `event_history`, `event_approval_queue`, and `event_cooldown_state`; runtime routing, UI/API behavior, provider integrations, real money, moderation enforcement, auth, and production behavior remain disabled.
 - 2026-06-22: Chunk 21A added typed routing-rule validation and a manual owner-gated admin/API foundation for `event_routing_rules`, plus `/admin/event-routing` controls. It intentionally stops before simulated dispatch, event history writes, approval-queue processing, cooldown evaluation, provider integrations, real money, moderation enforcement, auth changes, deployments, or production behavior.
 
+## User Stream-Visibility Opt-Out UX (Issue #7 Design)
+
+### Signup Flow
+
+- During signup, show a clear checkbox: "Show my signup, username changes, and profile updates on stream."
+- Default: unchecked (opt-out by default is safest for privacy).
+- Copy below checkbox: "When enabled, your website activity may appear as notifications on the stream overlay. You can change this anytime in profile settings."
+- This checkbox maps to `event_user_opt_outs` with `event_kind = 'all_stream_visible_website_events'` and `opted_out = true` by default.
+- Do not block signup if the user declines. The setting is optional and reversible.
+
+### Profile Settings
+
+- Add a "Stream visibility" section in profile/settings.
+- Controls:
+  - Global toggle: "Allow my website activity to appear on stream" (maps to `all_stream_visible_website_events` opt-out).
+  - Per-event-kind toggles (later phase): signup, username change, profile image update, free TTS request.
+  - "Reason" field for opt-out (optional, stored in `event_user_opt_outs.reason`).
+- Default behavior: opt-out (conservative privacy). Users must explicitly opt in.
+- Wording must not expose privacy/security events to viewers. Only website-friendly events (signup, name, avatar, TTS) are stream-visible.
+
+### API/Domain Requirements Before Dispatch
+
+- Before any real website signup/name/avatar dispatch is enabled:
+  - The domain layer must check `event_user_opt_outs` for the actor user before routing to stream-visible destinations.
+  - If `opted_out = true`, the event is routed to `blocked_opt_out` in `event_history` with `destination = null`.
+  - The opt-out check must be evaluated at dispatch time, not cached, to respect user changes immediately.
+  - Cooldown evaluation must also run after opt-out check in the dispatch pipeline.
+
+### Public Wording Guidelines
+
+- Opt-in wording example: "Yes, show my activity on stream (you can change this later)."
+- Opt-out wording example: "No, keep my activity private from stream."
+- Settings page heading: "Stream Visibility"
+- Settings section description: "Control whether your website activity can appear as notifications on the stream overlay."
+- Never expose: privacy events, account security events, provider token changes, internal audit events, or moderation actions as stream-visible.
+
+### Schema Note
+
+- The existing `event_user_opt_outs` table (from migration `0012_smooth_jack_flag.sql`) is sufficient for the first slice.
+- No additional schema changes are required beyond what already exists.
+- The table supports global opt-out per user and per-event-kind opt-out for the four stream-visible website event types.
+
 ## Open Questions
 
 - Should website signup/name/avatar notifications start disabled until Michael tunes them, or enabled only for opted-in users with approval and cooldowns?
-- Where should the user-facing stream-visibility opt-out setting live before any real website signup/name/avatar dispatch is enabled?
 - Should first-time profile image changes always require approval before overlay display?
 - Should free website TTS require manual approval by default?
 - Should routing rules be global first, then per-scene/per-theme later?
