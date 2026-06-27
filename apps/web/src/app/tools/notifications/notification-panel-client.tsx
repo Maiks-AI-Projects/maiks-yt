@@ -250,7 +250,8 @@ const NotificationPanelClient = (): React.ReactNode => {
         headers: createApiHeaders({
           "Content-Type": "application/json"
         }),
-        credentials: "include"
+        credentials: "include",
+        body: JSON.stringify({})
       });
       const data = await parseJsonResponse<NotificationMutationResponse>(response);
 
