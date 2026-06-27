@@ -20,9 +20,11 @@
     "@maiks-yt/themes": "workspace:*",
     "better-auth": "^1.6.15",
     "fastify": "5.8.5",
+    "web-push": "^3.6.7",
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@types/web-push": "^3.6.4",
     "tsx": "4.22.4",
     "typescript": "6.0.3",
     "vitest": "4.1.8"

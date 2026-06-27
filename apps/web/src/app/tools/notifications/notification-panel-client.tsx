@@ -22,6 +22,8 @@ type NotificationFailureReason =
   | "notification_admin_user_unlinked"
   | "notification_admin_forbidden"
   | "notification_not_found"
+  | "notification_push_invalid_input"
+  | "notification_push_unavailable"
   | "notification_unavailable";
 
 type NotificationFailure = {
@@ -34,11 +36,31 @@ type NotificationMutationResponse = {
   ok: true;
   notification: NotificationRecord;
 } | NotificationFailure;
+type PushConfigSuccess = {
+  ok: true;
+  publicKey: string | null;
+  enabled: boolean;
+};
+type PushConfigResponse = PushConfigSuccess | NotificationFailure;
+type PushSubscriptionSuccess = {
+  ok: true;
+};
+type PushSubscriptionResponse = PushSubscriptionSuccess | NotificationFailure;
 
 type LoadState = "loading" | "ready" | "signed-out" | "unlinked" | "forbidden" | "failed";
+type PushState =
+  | "checking"
+  | "unsupported"
+  | "disabled"
+  | "missing-key"
+  | "permission-needed"
+  | "permission-denied"
+  | "subscribed"
+  | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const pollIntervalMs = 30000;
+const notificationServiceWorkerPath = "/notification-service-worker.js";
 
 const severityLabels = {
   critical: "Critical",
@@ -71,6 +93,10 @@ const getFailureMessage = (reason: NotificationFailureReason): string => {
       return "Your account is linked, but it does not have permission to manage notifications.";
     case "notification_not_found":
       return "That notification no longer exists.";
+    case "notification_push_invalid_input":
+      return "The browser push subscription could not be saved.";
+    case "notification_push_unavailable":
+      return "Push delivery is not configured on the API.";
     case "notification_unavailable":
       return "The notification API is temporarily unavailable.";
   }
@@ -118,6 +144,46 @@ const sortNotifications = (notifications: readonly NotificationRecord[]): Notifi
     new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
   );
 
+const hasPushSupport = (): boolean =>
+  "Notification" in window &&
+  "PushManager" in window &&
+  "serviceWorker" in navigator;
+
+const convertBase64UrlToArrayBuffer = (value: string): ArrayBuffer => {
+  const padding = "=".repeat((4 - value.length % 4) % 4);
+  const base64 = `${value}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = window.atob(base64);
+  const buffer = new ArrayBuffer(binary.length);
+  const output = new Uint8Array(buffer);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    output[index] = binary.charCodeAt(index);
+  }
+
+  return buffer;
+};
+
+const getPushStateLabel = (pushState: PushState): string => {
+  switch (pushState) {
+    case "checking":
+      return "Checking browser push support...";
+    case "unsupported":
+      return "This browser or context does not support Web Push.";
+    case "disabled":
+      return "Push delivery is disabled on the API.";
+    case "missing-key":
+      return "Push delivery is missing its public browser key.";
+    case "permission-needed":
+      return "Push notifications are available. Browser permission is needed.";
+    case "permission-denied":
+      return "Browser notification permission is denied.";
+    case "subscribed":
+      return "This browser is subscribed for push notifications.";
+    case "failed":
+      return "Push notification setup failed.";
+  }
+};
+
 const NotificationPanelClient = (): React.ReactNode => {
   const [panel, setPanel] = useState<NotificationListSuccess | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -125,6 +191,10 @@ const NotificationPanelClient = (): React.ReactNode => {
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pushState, setPushState] = useState<PushState>("checking");
+  const [pushMessage, setPushMessage] = useState<string>("Checking browser push support...");
+  const [pushConfig, setPushConfig] = useState<PushConfigSuccess | null>(null);
+  const [pushBusy, setPushBusy] = useState<boolean>(false);
 
   const notifications = useMemo(
     () => sortNotifications(panel?.notifications ?? []),
@@ -201,10 +271,230 @@ const NotificationPanelClient = (): React.ReactNode => {
     }
   };
 
+  const getNotificationRegistration = useCallback(async (): Promise<ServiceWorkerRegistration | null> => {
+    if (!hasPushSupport()) {
+      setPushState("unsupported");
+      setPushMessage(getPushStateLabel("unsupported"));
+      return null;
+    }
+
+    return await navigator.serviceWorker.register(notificationServiceWorkerPath);
+  }, []);
+
+  const loadPushStatus = useCallback(async (): Promise<void> => {
+    if (!hasPushSupport()) {
+      setPushState("unsupported");
+      setPushMessage(getPushStateLabel("unsupported"));
+      return;
+    }
+
+    setPushState("checking");
+    setPushMessage(getPushStateLabel("checking"));
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/notifications/push-config`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const data = await parseJsonResponse<PushConfigResponse>(response);
+
+      if (!response.ok || !data?.ok) {
+        const reason = data?.ok === false ? data.reason : undefined;
+        setPushState("failed");
+        setPushMessage(reason ? getFailureMessage(reason) : `Push config request failed with ${response.status}.`);
+        return;
+      }
+
+      setPushConfig(data);
+
+      if (!data.enabled) {
+        setPushState("disabled");
+        setPushMessage(getPushStateLabel("disabled"));
+        return;
+      }
+
+      if (!data.publicKey) {
+        setPushState("missing-key");
+        setPushMessage(getPushStateLabel("missing-key"));
+        return;
+      }
+
+      if (Notification.permission === "denied") {
+        setPushState("permission-denied");
+        setPushMessage(getPushStateLabel("permission-denied"));
+        return;
+      }
+
+      const registration = await getNotificationRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      const nextState: PushState = subscription ? "subscribed" : "permission-needed";
+      setPushState(nextState);
+      setPushMessage(getPushStateLabel(nextState));
+    } catch (error) {
+      setPushState("failed");
+      setPushMessage(error instanceof Error ? error.message : getPushStateLabel("failed"));
+    }
+  }, [getNotificationRegistration]);
+
+  const subscribeToPush = async (): Promise<void> => {
+    setPushBusy(true);
+    setPushMessage("Subscribing this browser...");
+
+    try {
+      if (!pushConfig?.enabled || !pushConfig.publicKey) {
+        await loadPushStatus();
+        return;
+      }
+
+      const permission = await Notification.requestPermission();
+      if (permission === "denied") {
+        setPushState("permission-denied");
+        setPushMessage(getPushStateLabel("permission-denied"));
+        return;
+      }
+
+      if (permission !== "granted") {
+        setPushState("permission-needed");
+        setPushMessage("Browser notification permission was not granted.");
+        return;
+      }
+
+      const registration = await getNotificationRegistration();
+      if (!registration) {
+        return;
+      }
+
+      const existingSubscription = await registration.pushManager.getSubscription();
+      const subscription = existingSubscription ?? await registration.pushManager.subscribe({
+        applicationServerKey: convertBase64UrlToArrayBuffer(pushConfig.publicKey),
+        userVisibleOnly: true
+      });
+      const subscriptionJson = subscription.toJSON();
+      const endpoint = subscription.endpoint;
+      const p256dh = subscriptionJson.keys?.p256dh;
+      const auth = subscriptionJson.keys?.auth;
+
+      if (!p256dh || !auth) {
+        throw new Error("Browser did not provide push subscription keys.");
+      }
+
+      const response = await fetch(`${apiBaseUrl}/admin/notifications/push-subscriptions`, {
+        method: "POST",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify({
+          endpoint,
+          keys: {
+            p256dh,
+            auth
+          }
+        })
+      });
+      const data = await parseJsonResponse<PushSubscriptionResponse>(response);
+
+      if (response.ok && data?.ok) {
+        setPushState("subscribed");
+        setPushMessage("This browser is subscribed for push notifications.");
+        return;
+      }
+
+      const reason = data?.ok === false ? data.reason : undefined;
+      setPushState("failed");
+      setPushMessage(reason ? getFailureMessage(reason) : `Push subscribe failed with ${response.status}.`);
+    } catch (error) {
+      setPushState("failed");
+      setPushMessage(error instanceof Error ? error.message : "Push subscribe failed.");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const unsubscribeFromPush = async (): Promise<void> => {
+    setPushBusy(true);
+    setPushMessage("Unsubscribing this browser...");
+
+    try {
+      const registration = await getNotificationRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+
+      if (!subscription) {
+        setPushState(Notification.permission === "denied" ? "permission-denied" : "permission-needed");
+        setPushMessage("This browser does not have an active push subscription.");
+        return;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/admin/notifications/push-subscriptions/revoke`, {
+        method: "POST",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify({
+          endpoint: subscription.endpoint
+        })
+      });
+      const data = await parseJsonResponse<PushSubscriptionResponse>(response);
+
+      if (!response.ok || !data?.ok) {
+        const reason = data?.ok === false ? data.reason : undefined;
+        setPushState("failed");
+        setPushMessage(reason ? getFailureMessage(reason) : `Push unsubscribe failed with ${response.status}.`);
+        return;
+      }
+
+      await subscription.unsubscribe();
+      setPushState("permission-needed");
+      setPushMessage("This browser was unsubscribed from push notifications.");
+    } catch (error) {
+      setPushState("failed");
+      setPushMessage(error instanceof Error ? error.message : "Push unsubscribe failed.");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const showTestNotification = async (): Promise<void> => {
+    setPushBusy(true);
+    setPushMessage("Showing a local test notification...");
+
+    try {
+      if (Notification.permission !== "granted") {
+        const permission = await Notification.requestPermission();
+
+        if (permission !== "granted") {
+          setPushState(permission === "denied" ? "permission-denied" : "permission-needed");
+          setPushMessage("Browser notification permission was not granted.");
+          return;
+        }
+      }
+
+      const registration = await getNotificationRegistration();
+      await registration?.showNotification("Maiks.yt notification test", {
+        body: "Local browser notification delivery is working.",
+        icon: "/icons/maiks-tools-icon.svg",
+        badge: "/icons/maiks-tools-maskable.svg",
+        data: {
+          url: "/tools/notifications"
+        },
+        tag: "maiks-yt-notification-test"
+      });
+      setPushMessage("Local test notification sent.");
+      await loadPushStatus();
+    } catch (error) {
+      setPushState("failed");
+      setPushMessage(error instanceof Error ? error.message : "Test notification failed.");
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     void loadNotifications();
-  }, [loadNotifications]);
+    void loadPushStatus();
+  }, [loadNotifications, loadPushStatus]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -254,6 +544,50 @@ const NotificationPanelClient = (): React.ReactNode => {
           Show archived
         </label>
       </div>
+
+      <section className={`notification-push-panel ${pushState}`}>
+        <div>
+          <h2>Push delivery</h2>
+          <p>{pushMessage}</p>
+        </div>
+        <div className="notification-push-actions">
+          <button
+            disabled={
+              pushBusy ||
+              pushState === "unsupported" ||
+              pushState === "disabled" ||
+              pushState === "missing-key" ||
+              pushState === "permission-denied" ||
+              pushState === "subscribed"
+            }
+            onClick={() => void subscribeToPush()}
+            type="button"
+          >
+            Subscribe
+          </button>
+          <button
+            disabled={pushBusy || pushState !== "subscribed"}
+            onClick={() => void unsubscribeFromPush()}
+            type="button"
+          >
+            Unsubscribe
+          </button>
+          <button
+            disabled={pushBusy || pushState === "unsupported" || pushState === "permission-denied"}
+            onClick={() => void showTestNotification()}
+            type="button"
+          >
+            Test
+          </button>
+          <button
+            disabled={pushBusy}
+            onClick={() => void loadPushStatus()}
+            type="button"
+          >
+            Status
+          </button>
+        </div>
+      </section>
 
       {loadState !== "ready" && notifications.length === 0 ? (
         <div className={`notification-empty ${loadState}`}>

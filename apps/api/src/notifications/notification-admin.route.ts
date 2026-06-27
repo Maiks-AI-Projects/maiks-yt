@@ -23,6 +23,9 @@ type NotificationAdminRouteDependencies = {
     | "listNotifications"
     | "createSystemNotification"
     | "updateNotificationStatus"
+    | "getPushConfig"
+    | "registerPushSubscription"
+    | "revokePushSubscription"
   >;
   getNodeEnv?: () => string | undefined;
   getDevNotificationSecret?: () => string | undefined;
@@ -61,6 +64,18 @@ const notificationCreatePayloadSchema = z.object({
   actionUrl: z.string().nullable().optional()
 }).strict();
 
+const pushSubscriptionPayloadSchema = z.object({
+  endpoint: z.string().trim().min(1).max(4096),
+  keys: z.object({
+    p256dh: z.string().trim().min(1).max(191),
+    auth: z.string().trim().min(1).max(191)
+  }).strict()
+}).strict();
+
+const pushRevokePayloadSchema = z.object({
+  endpoint: z.string().trim().min(1).max(4096)
+}).strict();
+
 const sendStatusUpdateResult = (
   result: NotificationStatusUpdateResult,
   reply: FastifyReply
@@ -92,6 +107,9 @@ export const registerNotificationAdminRoutes = (
     | "listNotifications"
     | "createSystemNotification"
     | "updateNotificationStatus"
+    | "getPushConfig"
+    | "registerPushSubscription"
+    | "revokePushSubscription"
   > =>
     dependencies.createService?.()
     ?? new NotificationAdminService(createNotificationAdminRepository(dependencies.getDatabasePool()));
@@ -150,6 +168,129 @@ export const registerNotificationAdminRoutes = (
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Notification admin list failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "notification_unavailable"
+      };
+    }
+  });
+
+  server.get("/admin/notifications/push-config", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "notification_unavailable" : "not_authenticated"
+      };
+    }
+
+    try {
+      const result = await getService().getPushConfig({
+        authUserId: session.user.id
+      });
+
+      if (!result.ok) {
+        reply.code(403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Notification push config failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "notification_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/notifications/push-subscriptions", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "notification_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = pushSubscriptionPayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "notification_push_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().registerPushSubscription({
+        authUserId: session.user.id,
+        subscription: {
+          ...parsedBody.data,
+          userAgent: Array.isArray(request.headers["user-agent"])
+            ? request.headers["user-agent"][0] ?? null
+            : request.headers["user-agent"] ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(
+          result.reason === "notification_push_invalid_input"
+            ? 400
+            : result.reason === "notification_push_unavailable"
+              ? 503
+              : 403
+        );
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Notification push subscribe failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "notification_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/notifications/push-subscriptions/revoke", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "notification_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = pushRevokePayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "notification_push_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().revokePushSubscription({
+        authUserId: session.user.id,
+        endpoint: parsedBody.data.endpoint
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "notification_push_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Notification push revoke failed.");
       reply.code(503);
       return {
         ok: false,

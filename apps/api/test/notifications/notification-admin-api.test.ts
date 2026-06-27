@@ -9,6 +9,8 @@ import type {
   NotificationAdminRepository,
   NotificationCreateRecordInput,
   NotificationListOptions,
+  NotificationPushSubscriptionInput,
+  NotificationPushSubscriptionRecord,
   NotificationStatusUpdateInput
 } from "../../src/notifications/notification-admin.types.js";
 
@@ -43,9 +45,11 @@ class FakeNotificationAdminRepository implements NotificationAdminRepository {
     rolePermissionValues: [["*"]]
   };
   public readonly notifications = new Map<string, NotificationRecord>();
+  public readonly pushSubscriptions = new Map<string, NotificationPushSubscriptionRecord>();
   public lastListOptions: NotificationListOptions | null = null;
   public lastCreate: NotificationCreateRecordInput | null = null;
   public lastStatusUpdate: NotificationStatusUpdateInput | null = null;
+  public lastPushFailure: { endpointHash: string; error: string; revoke: boolean } | null = null;
 
   public constructor() {
     this.notifications.set("notification-1", createNotification());
@@ -127,6 +131,75 @@ class FakeNotificationAdminRepository implements NotificationAdminRepository {
     this.notifications.set(input.id, updated);
 
     return structuredClone(updated);
+  }
+
+  public async upsertPushSubscription(input: NotificationPushSubscriptionInput & {
+    userId: string;
+    endpointHash: string;
+  }): Promise<NotificationPushSubscriptionRecord> {
+    const current = this.pushSubscriptions.get(input.endpointHash);
+    const subscription: NotificationPushSubscriptionRecord = {
+      id: current?.id ?? `push-${this.pushSubscriptions.size + 1}`,
+      userId: input.userId,
+      endpointHash: input.endpointHash,
+      endpoint: input.endpoint,
+      keys: structuredClone(input.keys),
+      userAgent: input.userAgent,
+      lastPushAt: current?.lastPushAt ?? null,
+      lastError: null,
+      revokedAt: null,
+      createdAt: current?.createdAt ?? "2026-06-27T12:00:00.000Z",
+      updatedAt: "2026-06-27T12:00:00.000Z"
+    };
+    this.pushSubscriptions.set(input.endpointHash, subscription);
+
+    return structuredClone(subscription);
+  }
+
+  public async revokePushSubscription(input: {
+    userId: string;
+    endpointHash: string;
+  }): Promise<boolean> {
+    const subscription = this.pushSubscriptions.get(input.endpointHash);
+
+    if (!subscription || subscription.userId !== input.userId || subscription.revokedAt) {
+      return false;
+    }
+
+    this.pushSubscriptions.set(input.endpointHash, {
+      ...subscription,
+      revokedAt: "2026-06-27T12:10:00.000Z",
+      updatedAt: "2026-06-27T12:10:00.000Z"
+    });
+
+    return true;
+  }
+
+  public async listActivePushSubscriptions(): Promise<readonly NotificationPushSubscriptionRecord[]> {
+    return [...this.pushSubscriptions.values()]
+      .filter((subscription) => !subscription.revokedAt)
+      .map((subscription) => structuredClone(subscription));
+  }
+
+  public async recordPushSuccess(input: { endpointHash: string }): Promise<void> {
+    const subscription = this.pushSubscriptions.get(input.endpointHash);
+
+    if (subscription) {
+      this.pushSubscriptions.set(input.endpointHash, {
+        ...subscription,
+        lastPushAt: "2026-06-27T12:20:00.000Z",
+        lastError: null,
+        updatedAt: "2026-06-27T12:20:00.000Z"
+      });
+    }
+  }
+
+  public async recordPushFailure(input: {
+    endpointHash: string;
+    error: string;
+    revoke: boolean;
+  }): Promise<void> {
+    this.lastPushFailure = structuredClone(input);
   }
 }
 
@@ -257,6 +330,73 @@ describe("NotificationAdminService", () => {
       ok: false,
       reason: "notification_not_found"
     });
+  });
+
+  it("returns push config and stores owner push subscriptions", async () => {
+    const repository = new FakeNotificationAdminRepository();
+    const service = new NotificationAdminService(repository, {
+      publicKey: "public-key",
+      privateKey: "private-key",
+      contact: "mailto:test@example.com"
+    });
+
+    await expect(service.getPushConfig({ authUserId: "auth-user" })).resolves.toEqual({
+      ok: true,
+      enabled: true,
+      publicKey: "public-key"
+    });
+
+    await expect(service.registerPushSubscription({
+      authUserId: "auth-user",
+      subscription: {
+        endpoint: "https://push.example.test/subscription/1",
+        keys: {
+          p256dh: "p256dh-key",
+          auth: "auth-key"
+        },
+        userAgent: "test-browser"
+      }
+    })).resolves.toMatchObject({
+      ok: true,
+      subscription: {
+        userId: "domain-user",
+        endpoint: "https://push.example.test/subscription/1",
+        revokedAt: null
+      }
+    });
+
+    const subscription = [...repository.pushSubscriptions.values()][0];
+    expect(subscription?.endpointHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("revokes owner push subscriptions by endpoint", async () => {
+    const repository = new FakeNotificationAdminRepository();
+    const service = new NotificationAdminService(repository, {
+      publicKey: "public-key",
+      privateKey: "private-key",
+      contact: "mailto:test@example.com"
+    });
+    const created = await service.registerPushSubscription({
+      authUserId: "auth-user",
+      subscription: {
+        endpoint: "https://push.example.test/subscription/2",
+        keys: {
+          p256dh: "p256dh-key",
+          auth: "auth-key"
+        },
+        userAgent: null
+      }
+    });
+
+    expect(created.ok).toBe(true);
+    await expect(service.revokePushSubscription({
+      authUserId: "auth-user",
+      endpoint: "https://push.example.test/subscription/2"
+    })).resolves.toEqual({
+      ok: true,
+      revoked: true
+    });
+    expect(await repository.listActivePushSubscriptions()).toHaveLength(0);
   });
 });
 
@@ -438,6 +578,73 @@ describe("notification admin route boundary", () => {
         status: "archived",
         archivedAt: "2026-06-27T11:30:00.000Z"
       }
+    });
+  });
+
+  it("registers and revokes push subscriptions through owner routes", async () => {
+    const repository = new FakeNotificationAdminRepository();
+    const server = Fastify();
+    registerNotificationAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new NotificationAdminService(repository, {
+        publicKey: "public-key",
+        privateKey: "private-key",
+        contact: "mailto:test@example.com"
+      })
+    });
+
+    const configResponse = await server.inject({
+      method: "GET",
+      url: "/admin/notifications/push-config"
+    });
+    expect(configResponse.statusCode).toBe(200);
+    expect(configResponse.json()).toEqual({
+      ok: true,
+      enabled: true,
+      publicKey: "public-key"
+    });
+
+    const subscribeResponse = await server.inject({
+      method: "POST",
+      url: "/admin/notifications/push-subscriptions",
+      headers: {
+        "user-agent": "vitest"
+      },
+      payload: {
+        endpoint: "https://push.example.test/subscription/route",
+        keys: {
+          p256dh: "p256dh-key",
+          auth: "auth-key"
+        }
+      }
+    });
+    expect(subscribeResponse.statusCode).toBe(200);
+    expect(subscribeResponse.json()).toMatchObject({
+      ok: true,
+      subscription: {
+        endpoint: "https://push.example.test/subscription/route",
+        userAgent: "vitest"
+      }
+    });
+
+    const revokeResponse = await server.inject({
+      method: "POST",
+      url: "/admin/notifications/push-subscriptions/revoke",
+      payload: {
+        endpoint: "https://push.example.test/subscription/route"
+      }
+    });
+    expect(revokeResponse.statusCode).toBe(200);
+    expect(revokeResponse.json()).toEqual({
+      ok: true,
+      revoked: true
     });
   });
 });

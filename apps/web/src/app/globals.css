@@ -1735,6 +1735,7 @@ button:disabled {
 
 .notification-panel-header,
 .notification-toolbar,
+.notification-push-panel,
 .notification-card {
   background: #ffffff;
   border: 1px solid #d8e0e8;
@@ -1752,6 +1753,8 @@ button:disabled {
 
 .notification-panel-header h1,
 .notification-panel-header p,
+.notification-push-panel h2,
+.notification-push-panel p,
 .notification-toolbar p,
 .notification-card h2,
 .notification-card p {
@@ -1766,6 +1769,7 @@ button:disabled {
 }
 
 .notification-icon-button,
+.notification-push-actions button,
 .notification-card-actions button,
 .notification-action-link {
   align-items: center;
@@ -1784,6 +1788,7 @@ button:disabled {
 }
 
 .notification-icon-button:disabled,
+.notification-push-actions button:disabled,
 .notification-card-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -1835,6 +1840,39 @@ button:disabled {
   display: inline-flex;
   font-weight: 700;
   gap: 0.45rem;
+}
+
+.notification-push-panel {
+  align-items: center;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 1rem;
+}
+
+.notification-push-panel h2 {
+  font-size: 1rem;
+}
+
+.notification-push-panel p {
+  color: #4b5966;
+  margin-top: 0.25rem;
+}
+
+.notification-push-panel.permission-denied,
+.notification-push-panel.failed {
+  border-color: #c7362e;
+}
+
+.notification-push-panel.subscribed {
+  border-color: #2f7d46;
+}
+
+.notification-push-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 .notification-empty {
@@ -1984,15 +2022,22 @@ button:disabled {
   }
 
   .notification-panel-header,
-  .notification-toolbar {
+  .notification-toolbar,
+  .notification-push-panel {
     align-items: stretch;
     flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .notification-icon-button,
+  .notification-push-actions button,
   .notification-card-actions button,
   .notification-action-link {
     width: 100%;
+  }
+
+  .notification-push-actions {
+    justify-content: stretch;
   }
 
   .project-admin-sidebar {

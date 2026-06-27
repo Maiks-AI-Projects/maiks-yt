@@ -228,6 +228,30 @@ export const systemNotifications = mysqlTable(
   ]
 );
 
+export const notificationPushSubscriptions = mysqlTable(
+  "notification_push_subscriptions",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    endpointHash: varchar("endpoint_hash", { length: 64 }).notNull(),
+    endpoint: text("endpoint").notNull(),
+    p256dh: varchar("p256dh", { length: 191 }).notNull(),
+    auth: varchar("auth", { length: 191 }).notNull(),
+    userAgent: varchar("user_agent", { length: 512 }),
+    lastPushAt: timestamp("last_push_at"),
+    lastError: varchar("last_error", { length: 512 }),
+    revokedAt: timestamp("revoked_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("notification_push_endpoint_hash_uidx").on(table.endpointHash),
+    index("notification_push_user_idx").on(table.userId),
+    index("notification_push_revoked_idx").on(table.revokedAt),
+    index("notification_push_last_push_idx").on(table.lastPushAt)
+  ]
+);
+
 export const projects = mysqlTable(
   "projects",
   {

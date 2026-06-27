@@ -8,6 +8,7 @@ import type {
   NotificationAdminRepository,
   NotificationCreateRecordInput,
   NotificationListOptions,
+  NotificationPushSubscriptionRecord,
   NotificationStatusUpdateInput
 } from "./notification-admin.types.js";
 
@@ -31,6 +32,21 @@ type NotificationRow = {
 type CountRow = {
   unreadCount?: number | string | bigint | null;
   criticalUnreadCount?: number | string | bigint | null;
+};
+
+type PushSubscriptionRow = {
+  id: string;
+  userId: string;
+  endpointHash: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent?: string | null;
+  lastPushAt?: Date | string | null;
+  lastError?: string | null;
+  revokedAt?: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
 };
 
 const toIsoString = (value: Date | string): string =>
@@ -85,6 +101,38 @@ const selectNotificationFields = `
   updated_at AS updatedAt
 `;
 
+const mapPushSubscription = (row: PushSubscriptionRow): NotificationPushSubscriptionRecord => ({
+  id: row.id,
+  userId: row.userId,
+  endpointHash: row.endpointHash,
+  endpoint: row.endpoint,
+  keys: {
+    p256dh: row.p256dh,
+    auth: row.auth
+  },
+  userAgent: row.userAgent ?? null,
+  lastPushAt: toNullableIsoString(row.lastPushAt),
+  lastError: row.lastError ?? null,
+  revokedAt: toNullableIsoString(row.revokedAt),
+  createdAt: toIsoString(row.createdAt),
+  updatedAt: toIsoString(row.updatedAt)
+});
+
+const selectPushSubscriptionFields = `
+  id,
+  user_id AS userId,
+  endpoint_hash AS endpointHash,
+  endpoint,
+  p256dh,
+  auth,
+  user_agent AS userAgent,
+  last_push_at AS lastPushAt,
+  last_error AS lastError,
+  revoked_at AS revokedAt,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
 const readNotification = async (
   executor: QueryExecutor,
   id: string
@@ -101,6 +149,25 @@ const readNotification = async (
 
   return Array.isArray(rows) && rows.length > 0
     ? mapNotification(rows[0] as NotificationRow)
+    : null;
+};
+
+const readPushSubscriptionByHash = async (
+  executor: QueryExecutor,
+  endpointHash: string
+): Promise<NotificationPushSubscriptionRecord | null> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT ${selectPushSubscriptionFields}
+      FROM notification_push_subscriptions
+      WHERE endpoint_hash = ?
+      LIMIT 1
+    `,
+    [endpointHash]
+  );
+
+  return Array.isArray(rows) && rows.length > 0
+    ? mapPushSubscription(rows[0] as PushSubscriptionRow)
     : null;
 };
 
@@ -244,5 +311,100 @@ export const createNotificationAdminRepository = (
     }
 
     return notification;
+  },
+
+  async upsertPushSubscription(input) {
+    const id = randomUUID();
+    await pool.execute(
+      `
+        INSERT INTO notification_push_subscriptions
+          (id, user_id, endpoint_hash, endpoint, p256dh, auth, user_agent, revoked_at, last_error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+        ON DUPLICATE KEY UPDATE
+          user_id = VALUES(user_id),
+          endpoint = VALUES(endpoint),
+          p256dh = VALUES(p256dh),
+          auth = VALUES(auth),
+          user_agent = VALUES(user_agent),
+          revoked_at = NULL,
+          last_error = NULL,
+          updated_at = NOW()
+      `,
+      [
+        id,
+        input.userId,
+        input.endpointHash,
+        input.endpoint,
+        input.keys.p256dh,
+        input.keys.auth,
+        input.userAgent
+      ]
+    );
+
+    const subscription = await readPushSubscriptionByHash(pool, input.endpointHash);
+
+    if (!subscription) {
+      throw new Error("notification_push_subscription_reread_failed");
+    }
+
+    return subscription;
+  },
+
+  async revokePushSubscription(input) {
+    const [result] = await pool.execute(
+      `
+        UPDATE notification_push_subscriptions
+        SET revoked_at = COALESCE(revoked_at, NOW()), updated_at = NOW()
+        WHERE endpoint_hash = ?
+          AND user_id = ?
+          AND revoked_at IS NULL
+      `,
+      [input.endpointHash, input.userId]
+    );
+
+    return typeof result === "object"
+      && result !== null
+      && "affectedRows" in result
+      && Number(result.affectedRows) > 0;
+  },
+
+  async listActivePushSubscriptions() {
+    const [rows] = await pool.execute(
+      `
+        SELECT ${selectPushSubscriptionFields}
+        FROM notification_push_subscriptions
+        WHERE revoked_at IS NULL
+        ORDER BY created_at DESC
+      `
+    );
+
+    return Array.isArray(rows)
+      ? (rows as PushSubscriptionRow[]).map(mapPushSubscription)
+      : [];
+  },
+
+  async recordPushSuccess(input) {
+    await pool.execute(
+      `
+        UPDATE notification_push_subscriptions
+        SET last_push_at = NOW(), last_error = NULL, updated_at = NOW()
+        WHERE endpoint_hash = ?
+      `,
+      [input.endpointHash]
+    );
+  },
+
+  async recordPushFailure(input) {
+    await pool.execute(
+      `
+        UPDATE notification_push_subscriptions
+        SET
+          last_error = ?,
+          revoked_at = CASE WHEN ? = TRUE THEN COALESCE(revoked_at, NOW()) ELSE revoked_at END,
+          updated_at = NOW()
+        WHERE endpoint_hash = ?
+      `,
+      [input.error.slice(0, 512), input.revoke, input.endpointHash]
+    );
   }
 });
