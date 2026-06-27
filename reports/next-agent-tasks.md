@@ -16,8 +16,72 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, and deployed safe simulated dispatch API behavior. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, user-facing opt-out settings UX, and real money remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql`. The first runtime implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
-- Public `web-dev` currently has a Cloudflare-side injection blocker: direct app output is clean, but public HTML includes the suspicious BSC/eval script, and read-only Cloudflare route inspection found `*maiks.yt/* -> worker-winter-bird-f0bf`. Remove/disable only with explicit approval, then rerun public dev smoke.
+- The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
+- The first private notification panel slice is implemented locally pending coordinator deploy/migration: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, and standalone `/tools/notifications` polling UI. Web Push delivery and recurring watchdog wiring are still follow-up chunks.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
+
+## Chunk 25: Private Notification Panel Foundation (In Review)
+
+Coordinator scope:
+
+- Generate and review the first durable `system_notifications` migration.
+- Add typed notification severity/source/status validation in `@maiks-yt/domain/notifications`.
+- Add owner-gated admin notification API behavior for list, read, and archive.
+- Add a dev-only, secret-protected `/dev/notifications` endpoint that the 4-times-a-day smoke/watchdog runner can call.
+- Add standalone `/tools/notifications` with no normal website navbar and polling-based private alert visibility.
+- Keep Web Push delivery, push subscription storage, service-worker notification handling, production alerting, provider alerts, moderation alerts, money alerts, automation scheduling, commits, pushes, deployments, and migration application out until coordinator review passes.
+
+Acceptance criteria:
+
+- API validates input and rejects missing/invalid dev notification secrets.
+- Dev endpoint is disabled under `NODE_ENV=production`.
+- Owner wildcard or `notifications:manage` can list/read/archive; unauthenticated and unauthorized users are denied.
+- `/tools/notifications` is included in the stream tools manifest shortcut list and remains network-only/no private-data cache.
+- Migration is generated but only applied by the coordinator during dev deployment.
+
+Suggested checks:
+
+- `pnpm --filter @maiks-yt/domain test`
+- `pnpm --filter @maiks-yt/domain typecheck`
+- `pnpm --filter @maiks-yt/database typecheck`
+- `pnpm --filter @maiks-yt/api test`
+- `pnpm --filter @maiks-yt/api typecheck`
+- `pnpm --filter @maiks-yt/web typecheck`
+- `pnpm --filter @maiks-yt/web build`
+- `node scripts/check-architecture.mjs`
+- `git diff --check`
+
+Reviewer gate:
+
+- Apply `0014_first_onslaught.sql` on dev only after review.
+- Dev smoke should create a warning/critical row through `/dev/notifications`, verify it appears in `/tools/notifications`, and mark/archive it as owner.
+
+## Chunk 26: Web Push Notifications (Future)
+
+Worker scope:
+
+- Add push subscription persistence and owner-device subscribe/unsubscribe API behavior.
+- Add service worker notification delivery only; do not cache private API/data responses.
+- Use the already-loaded VAPID env vars on dev: `WEB_PUSH_VAPID_PUBLIC_KEY`, `WEB_PUSH_VAPID_PRIVATE_KEY`, and `WEB_PUSH_CONTACT`.
+- Send pushes for new critical/warning notifications after a durable row is created.
+- Keep production alerting, provider alerts, money alerts, moderation alerts, and recurring automation out unless separately assigned.
+
+Reviewer gate:
+
+- Device/browser smoke must prove subscribe, test notification, unsubscribe/revoke, and no private API cache.
+
+## Chunk 27: Recurring Dev Smoke To Notifications (Future)
+
+Worker scope:
+
+- Connect the existing or replacement 4-times-a-day dev smoke runner to `POST /dev/notifications`.
+- Use only `DEV_NOTIFICATION_POST_SECRET`; never print or commit the secret.
+- Report warnings/critical failures for API health, web health, overlay/control reachability, injection-marker scan, and any selected database smoke.
+- Keep automated destructive cleanup, production alerting, and real provider/money checks out until explicitly scoped.
+
+Reviewer gate:
+
+- Confirm a failed synthetic smoke creates one alert, recovery creates a lower-severity note only if useful, and duplicate spam is bounded.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 

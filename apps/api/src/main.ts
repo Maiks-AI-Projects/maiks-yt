@@ -33,6 +33,7 @@ import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/bette
 import { registerActionPanelRoutes } from "./actions/index.js";
 import { registerEventRoutingAdminRoutes, registerEventRoutingDispatchRoutes } from "./event-routing/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
+import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
@@ -923,6 +924,10 @@ registerUrlAccessTokenAdminRoutes(server, {
   getDatabasePool
 });
 registerEventRoutingAdminRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
+registerNotificationAdminRoutes(server, {
   getAuthSession,
   getDatabasePool
 });

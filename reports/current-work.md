@@ -4,7 +4,7 @@ Updated: 2026-06-27
 
 ## Objective
 
-Finish the partially completed project areas before starting untouched feature groups.
+Move from foundation work into active feature lanes on `dev`, starting with a private notification panel for dev/system alerts.
 
 ## Completed In This Pass
 
@@ -86,19 +86,21 @@ Finish the partially completed project areas before starting untouched feature g
 - Reviewed and accepted Chunk 23 worker output locally: generated migration `packages/database/drizzle/0013_lowly_justin_hammer.sql` for `content_pages` persistence with draft/hidden defaults, normalized path uniqueness, primary-only route scope, SEO/body fields, audit timestamps, and checks that prevent public drafts and require `published_at` for published pages.
 - Committed and pushed dev commit `dfc394b`, pulled it on `codex-server-1`, rebuilt shared packages in `maiks-yt-dev`, applied dev migration `0013_lowly_justin_hammer.sql`, and smoke-tested `https://api-dev.maiks.yt/dev/event-routing/dispatch` with a safe `test/system` simulated event. The API wrote a test/simulated/resettable, non-real-money history row and returned `publicPlayback: false`.
 - During public dev smoke, `https://web-dev.maiks.yt/` and `/dev/test-console` again included the suspicious BSC/eval injection script. Direct in-container app output from `http://127.0.0.1:3000/` did not include the script, and a read-only Cloudflare check found Worker route `*maiks.yt/*` pointing to `worker-winter-bird-f0bf`, matching the previous Cloudflare-side injection pattern. Cloudflare config has not been changed yet in this pass.
+- Added the first private notification panel slice for dev/system alerts: generated migration `packages/database/drizzle/0014_first_onslaught.sql`, added typed notification validation, owner-gated `/admin/notifications` API list/read/archive behavior, dev-secret `/dev/notifications` creation for watchdog/smoke alerts, and standalone `/tools/notifications` polling UI with manifest shortcut metadata.
+- Kept Web Push delivery, service-worker notification handling, push subscription persistence, 4-times-a-day automation wiring, production alerting, provider alerts, moderation alerts, money alerts, commits, pushes, deployments, and migration application out of this local implementation step until coordinator review/deploy.
 
 ## Current Task
 
-Remove or disable the suspicious Cloudflare Worker route after explicit approval, then rerun public dev smoke for `web-dev` and `/dev/test-console`.
+Review, deploy, migrate, and dev-smoke the first private notification panel slice on `dev`.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Remove or disable the suspicious Cloudflare Worker route `*maiks.yt/* -> worker-winter-bird-f0bf` after explicit approval, then confirm public dev pages no longer include the BSC/eval injection.
-4. After the Cloudflare route is clean, rerun the `/dev/test-console` browser/API smoke and then choose the next manual/non-provider slice.
-5. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
-6. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, Cloudflare/subdomain automation, and production auth/token architecture gated until explicitly assigned.
+3. Apply migration `0014_first_onslaught.sql` on dev, deploy the notification slice, create a dev notification through `/dev/notifications`, verify `/tools/notifications` loads without normal navbar, and mark/archive the smoke alert as owner.
+4. Add push delivery as the next notification slice: push subscription persistence, subscribe/unsubscribe UI, service worker limited to notification delivery/static assets, and owner-device smoke.
+5. Wire the 4-times-a-day systematic dev smoke job to post warning/critical rows through `DEV_NOTIFICATION_POST_SECRET`.
+6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 
 ## Known State
 
@@ -132,14 +134,14 @@ Remove or disable the suspicious Cloudflare Worker route after explicit approval
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
-- Public `web-dev` currently has a Cloudflare-side injection blocker: direct app output is clean, but public HTML includes the suspicious BSC/eval script, and the zone has Worker route `*maiks.yt/* -> worker-winter-bird-f0bf`. Remove/disable it only with explicit coordinator approval, then rotate/review Cloudflare credentials as already noted in the technical foundation follow-up.
+- The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Public smoke after removal returned clean 200s for `web-dev`, `/dev/test-console`, and `api-dev/health`.
 - Lost OBS/control tokens now have a dev-first admin-token management implementation, and fresh usable dev URLs are available in ignored `reports/usable-urls.md`.
 - Chat overlay behavior has fake/local test input, streamer-only fake/local viewing, and a chat order toggle now; browser/OBS verification still needs a valid control/overlay token pair. Real Twitch/YouTube chat remains open.
 - Reject and defer notes default to optional with a 1,000-character limit.
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, and the existing control panel now has same-origin install metadata. Separate streamer chat installability, notifications, service-worker strategy, and visual installed-window QA remain open.
+- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, the existing control panel has same-origin install metadata, and `/tools/notifications` now has a first private polling panel. Separate streamer chat installability, Web Push delivery/service-worker strategy, and visual installed-window QA remain open.
 - Streamer chat has a fake/local-only control-panel viewing surface and order toggle; real Twitch/YouTube chat, moderation, ranks, profiles, bot commands, AI reading, and separate installability remain deferred.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.

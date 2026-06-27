@@ -64,6 +64,13 @@ const streamToolsManifest = {
       description: "Open the standalone stream approval inbox.",
       url: "/tools/actions",
       icons: [streamToolsIcon]
+    },
+    {
+      name: "Notifications",
+      short_name: "Alerts",
+      description: "Open the private Maiks.yt notification panel.",
+      url: "/tools/notifications",
+      icons: [streamToolsIcon]
     }
   ]
 } satisfies StreamToolsManifest;

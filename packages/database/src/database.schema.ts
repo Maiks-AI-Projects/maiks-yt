@@ -202,6 +202,32 @@ export const devAuthTokens = mysqlTable(
   ]
 );
 
+export const systemNotifications = mysqlTable(
+  "system_notifications",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    title: varchar("title", { length: 191 }).notNull(),
+    body: text("body").notNull(),
+    severity: mysqlEnum("severity", ["info", "warning", "critical"]).notNull().default("info"),
+    source: mysqlEnum("source", ["dev_smoke", "system", "security", "provider", "moderation", "money"]).notNull().default("system"),
+    status: mysqlEnum("status", ["unread", "read", "archived"]).notNull().default("unread"),
+    actionUrl: varchar("action_url", { length: 1024 }),
+    createdByUserId: varchar("created_by_user_id", { length: 36 }),
+    readAt: timestamp("read_at"),
+    archivedAt: timestamp("archived_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("system_notifications_status_created_idx").on(table.status, table.createdAt),
+    index("system_notifications_severity_created_idx").on(table.severity, table.createdAt),
+    index("system_notifications_source_created_idx").on(table.source, table.createdAt),
+    index("system_notifications_created_by_user_idx").on(table.createdByUserId),
+    check("system_notifications_read_state_check", sql`${table.status} <> 'read' or ${table.readAt} is not null`),
+    check("system_notifications_archived_state_check", sql`${table.status} <> 'archived' or ${table.archivedAt} is not null`)
+  ]
+);
+
 export const projects = mysqlTable(
   "projects",
   {

@@ -288,7 +288,8 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [x] Add PWA manifest and first shared stream-tools icon set.
 - [x] Make control panel installable.
 - [ ] Make streamer chat installable.
-- [ ] Make private notifications panel installable.
+- [x] Make private notifications panel installable.
+  - 2026-06-27 added the first private `/tools/notifications` panel with standalone tool metadata, owner-gated notification API, and a dev-secret `/dev/notifications` endpoint for watchdog/smoke alerts. Push delivery is not wired yet; the first panel polls the API and keeps private data network-only.
 - [x] Define initial safe cache rule: no private data caching; static assets only until an explicit encrypted/offline design exists.
 - [x] Keep local tokenized URL reference files ignored by git.
 - [ ] Test installed windows without browser chrome on stream-monitor sizes.
