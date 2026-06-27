@@ -90,17 +90,18 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added `DEV_NOTIFICATION_POST_SECRET`, `WEB_PUSH_CONTACT`, `WEB_PUSH_VAPID_PRIVATE_KEY`, and `WEB_PUSH_VAPID_PUBLIC_KEY` to the Turborepo dev-task env allowlist after smoke showed the app process could not see the container-level secret.
 - Dev smoke created a warning notification through `/dev/notifications`, verified unauthenticated admin access returns `401`, verified owner listing sees the smoke row, marked it read, archived it, and confirmed public `/tools/notifications` returns `200` without the normal website navbar or known injection markers.
 - Kept Web Push delivery, service-worker notification handling, push subscription persistence, 4-times-a-day automation wiring, production alerting, provider alerts, moderation alerts, and money alerts out of this slice.
-- Added the Web Push notification delivery slice locally: push subscription persistence migration `0015_next_raza.sql`, owner-gated push config/subscribe/revoke endpoints, `web-push` delivery for warning/critical notifications, a notification-only service worker with no fetch/cache handler, and `/tools/notifications` subscribe/unsubscribe/status/test controls.
+- Added, committed, pushed, migrated, deployed, and dev-smoked the Web Push notification delivery slice on commit `d295840`: push subscription persistence migration `0015_next_raza.sql`, owner-gated push config/subscribe/revoke endpoints, `web-push` delivery for warning/critical notifications, a notification-only service worker with no fetch/cache handler, and `/tools/notifications` subscribe/unsubscribe/status/test controls.
+- Dev smoke confirmed push config is enabled with a public key, `notification-service-worker.js` returns `200`, `/tools/notifications` returns `200` with no normal navbar or known injection markers, a warning notification can still be created through `/dev/notifications`, owner API listing sees the row, and a dummy HTTPS push subscription can be created and immediately revoked. Real browser/phone notification permission and delivery still need manual owner-device smoke.
 
 ## Current Task
 
-Deploy and smoke the Web Push notification delivery slice on `dev`.
+Choose the next notification follow-up: owner-device push smoke/fixups or recurring 4-times-a-day dev smoke posting into the notification panel.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Deploy Web Push delivery, apply migration `0015_next_raza.sql`, verify push config and service worker over public dev, then do owner-device subscribe/unsubscribe smoke from a browser/phone.
+3. Run owner-device push smoke from a real browser/phone: subscribe in `/tools/notifications`, send a warning through `/dev/notifications`, confirm OS/browser notification delivery, then unsubscribe/re-subscribe as needed.
 4. Wire the 4-times-a-day systematic dev smoke job to post warning/critical rows through `DEV_NOTIFICATION_POST_SECRET`.
 5. After either notification follow-up, rerun public smoke for `api-dev`, `web-dev/tools/notifications`, and known injection markers.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
