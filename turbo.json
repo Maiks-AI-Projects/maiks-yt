@@ -12,6 +12,7 @@
         "BETTER_AUTH_SECRET",
         "BETTER_AUTH_URL",
         "DATABASE_URL",
+        "DEV_NOTIFICATION_POST_SECRET",
         "DISCORD_CLIENT_ID",
         "DISCORD_CLIENT_SECRET",
         "GITHUB_CLIENT_ID",
@@ -20,7 +21,10 @@
         "GOOGLE_CLIENT_SECRET",
         "NEXT_PUBLIC_API_BASE_URL",
         "TWITCH_CLIENT_ID",
-        "TWITCH_CLIENT_SECRET"
+        "TWITCH_CLIENT_SECRET",
+        "WEB_PUSH_CONTACT",
+        "WEB_PUSH_VAPID_PRIVATE_KEY",
+        "WEB_PUSH_VAPID_PUBLIC_KEY"
       ],
       "persistent": true
     },
