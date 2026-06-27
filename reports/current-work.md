@@ -84,17 +84,19 @@ Finish the partially completed project areas before starting untouched feature g
 - Dev smoke confirmed unauthenticated API access returns `401 not_authenticated`, owner-auth rule listing returns 25 registry-backed rules, `/admin/event-routing` returns `200`, and a disabled internal-audit `website.signup:any` rule can be saved safely.
 - Reviewed and accepted Chunk 21B worker output locally: `/dev/test-console` can call a dev-only `/dev/event-routing/dispatch` endpoint that rejects real provider dispatch, real website production dispatch, and real money; writes only test/simulated/resettable event history; queues approval-required simulated events without public playback; and records cooldown state only for safe simulated outcomes.
 - Reviewed and accepted Chunk 23 worker output locally: generated migration `packages/database/drizzle/0013_lowly_justin_hammer.sql` for `content_pages` persistence with draft/hidden defaults, normalized path uniqueness, primary-only route scope, SEO/body fields, audit timestamps, and checks that prevent public drafts and require `published_at` for published pages.
+- Committed and pushed dev commit `dfc394b`, pulled it on `codex-server-1`, rebuilt shared packages in `maiks-yt-dev`, applied dev migration `0013_lowly_justin_hammer.sql`, and smoke-tested `https://api-dev.maiks.yt/dev/event-routing/dispatch` with a safe `test/system` simulated event. The API wrote a test/simulated/resettable, non-real-money history row and returned `publicPlayback: false`.
+- During public dev smoke, `https://web-dev.maiks.yt/` and `/dev/test-console` again included the suspicious BSC/eval injection script. Direct in-container app output from `http://127.0.0.1:3000/` did not include the script, and a read-only Cloudflare check found Worker route `*maiks.yt/*` pointing to `worker-winter-bird-f0bf`, matching the previous Cloudflare-side injection pattern. Cloudflare config has not been changed yet in this pass.
 
 ## Current Task
 
-Commit, push, deploy, and dev-smoke the reviewed Chunk 21B safe simulated dispatch plus Chunk 23 Page Creator persistence foundation, then decide the next manual/non-provider slice.
+Remove or disable the suspicious Cloudflare Worker route after explicit approval, then rerun public dev smoke for `web-dev` and `/dev/test-console`.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Deploy and smoke Chunk 21B on dev: `/dev/test-console` should dispatch a safe simulated event, append test/simulated/resettable history, and report no public playback.
-4. Decide whether to apply generated Page Creator migration `0013_lowly_justin_hammer.sql` on dev before the future page-admin runtime slice; no public route serving depends on it yet.
+3. Remove or disable the suspicious Cloudflare Worker route `*maiks.yt/* -> worker-winter-bird-f0bf` after explicit approval, then confirm public dev pages no longer include the BSC/eval injection.
+4. After the Cloudflare route is clean, rerun the `/dev/test-console` browser/API smoke and then choose the next manual/non-provider slice.
 5. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 6. Keep real Twitch/YouTube chat, moderation, AI, money, backup automation, provider integrations, Cloudflare/subdomain automation, and production auth/token architecture gated until explicitly assigned.
 
@@ -130,6 +132,7 @@ Commit, push, deploy, and dev-smoke the reviewed Chunk 21B safe simulated dispat
 ## Blockers And Decisions
 
 - Creator Hub support destination still needs to be created or approved.
+- Public `web-dev` currently has a Cloudflare-side injection blocker: direct app output is clean, but public HTML includes the suspicious BSC/eval script, and the zone has Worker route `*maiks.yt/* -> worker-winter-bird-f0bf`. Remove/disable it only with explicit coordinator approval, then rotate/review Cloudflare credentials as already noted in the technical foundation follow-up.
 - Lost OBS/control tokens now have a dev-first admin-token management implementation, and fresh usable dev URLs are available in ignored `reports/usable-urls.md`.
 - Chat overlay behavior has fake/local test input, streamer-only fake/local viewing, and a chat order toggle now; browser/OBS verification still needs a valid control/overlay token pair. Real Twitch/YouTube chat remains open.
 - Reject and defer notes default to optional with a 1,000-character limit.
