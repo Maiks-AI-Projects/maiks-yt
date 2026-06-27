@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-06-22
+Updated: 2026-06-27
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -14,8 +14,8 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, and a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation. Event history/audit writes, approval queue processing, opt-out enforcement, cooldown evaluation, and simulated/test reset behavior remain future implementation work. Provider credentials, moderation enforcement, and real money remain later gates.
-- Page Creator and Route Admin now has a design-only persistence gate. The first safe implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
+- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, and a coordinator-reviewed safe simulated dispatch patch. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, user-facing opt-out settings UX, and real money remain later gates.
+- Page Creator and Route Admin now has a generated `content_pages` persistence migration ready for coordinator migration/deploy decision. The first runtime implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
@@ -83,9 +83,7 @@ Reviewer gate:
 - Owner wildcard access is enough for dev; `event-routing:manage` remains available for later explicit role seeding if needed.
 - Deployed and dev-smoked on `dev`: unauthenticated API returned `401`, owner-auth list returned 25 rules, `/admin/event-routing` returned `200`, and a disabled internal-audit `website.signup:any` rule saved successfully.
 
-## Chunk 21B: Safe Simulated Event Routing Dispatch (Proposed)
-
-Assign only after Chunk 21A review succeeds.
+## Chunk 21B: Safe Simulated Event Routing Dispatch (Reviewed Locally)
 
 Worker scope:
 
@@ -94,6 +92,12 @@ Worker scope:
 - Apply opt-out and cooldown checks in code before any stream-visible website-style simulated result.
 - Queue approval-required simulated events without public playback.
 - Keep real provider events, real website production events, real money, moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, commits, pushes, deployments, and migration application out of worker scope.
+
+Reviewer gate:
+
+- Coordinator review passed locally with focused domain/API tests, domain/API/database/web typechecks, architecture validation, and `git diff --check`.
+- Dev deploy and smoke still need to confirm `/dev/test-console` can append a safe simulated/test history row and report `publicPlayback: false`.
+- User-facing stream-visibility opt-out settings UX is still not implemented; stream-visible website-style simulated events remain fail-closed when user identity cannot be checked.
 
 ## Chunk 22: Page Creator / Route Admin Schema Gate Design (Completed)
 
@@ -112,7 +116,7 @@ Reviewer gate:
 - Coordinator accepted the scope as a future path-only manual content feature.
 - A generated migration slice is still needed before any page-admin runtime implementation.
 
-## Chunk 23: Page Creator Persistence Migration (Proposed, Requires Assignment)
+## Chunk 23: Page Creator Persistence Migration (Reviewed Locally)
 
 Worker scope:
 
@@ -131,6 +135,13 @@ Suggested checks:
 
 - `pnpm --filter @maiks-yt/database typecheck`
 - `node scripts/check-architecture.mjs`
+
+Reviewer gate:
+
+- Coordinator review passed locally with database typecheck, architecture validation, `git diff --check`, and the broader Chunk 21B integration checks.
+- Generated migration: `packages/database/drizzle/0013_lowly_justin_hammer.sql`.
+- Migration application is still a coordinator decision; no runtime page admin or public catch-all routing depends on it yet.
+- Reserved/code-owned route enforcement remains a future runtime/admin validation requirement.
 
 ## Chunk 24: Production Readiness / Dev-to-Main Plan (Completed)
 

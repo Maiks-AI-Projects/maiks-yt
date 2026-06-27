@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildDefaultEventRoutingRule,
   canManageEventRouting,
+  resolveSafeSimulatedEventRoutingDecision,
+  validateSafeSimulatedEventRoutingDispatch,
   validateEventRoutingRule,
   type EventRoutingRuleInput
 } from "../src/events/index.js";
@@ -102,6 +104,60 @@ describe("event routing rule validation", () => {
       requiresUserOptOutCheck: true,
       requiresCooldownCheck: true,
       requiresApprovalByDefault: true
+    });
+  });
+
+  it("rejects real provider, real website, and real money dispatch inputs", () => {
+    expect(validateSafeSimulatedEventRoutingDispatch({
+      sourcePlatform: "twitch",
+      eventKind: "twitch.follow",
+      explicitSimulation: false,
+      isRealMoney: false
+    })).toMatchObject({
+      ok: false,
+      issues: ["event_routing_dispatch_real_provider_rejected"]
+    });
+
+    expect(validateSafeSimulatedEventRoutingDispatch({
+      sourcePlatform: "website",
+      eventKind: "website.signup",
+      explicitSimulation: false,
+      isRealMoney: false
+    })).toMatchObject({
+      ok: false,
+      issues: ["event_routing_dispatch_real_website_rejected"]
+    });
+
+    expect(validateSafeSimulatedEventRoutingDispatch({
+      sourcePlatform: "test/system",
+      eventKind: "simulated.support-money",
+      explicitSimulation: false,
+      isRealMoney: true
+    })).toMatchObject({
+      ok: false,
+      issues: ["event_routing_dispatch_real_money_rejected"]
+    });
+  });
+
+  it("resolves approval-required simulated events to queued state", () => {
+    expect(resolveSafeSimulatedEventRoutingDecision({
+      dispatch: {
+        sourcePlatform: "website",
+        eventKind: "website.signup",
+        explicitSimulation: true,
+        isRealMoney: false
+      },
+      rule: validRule({
+        destination: "top_notification",
+        enabled: true,
+        approvalRequired: true
+      })
+    })).toMatchObject({
+      ok: true,
+      routingOutcome: "queued_for_approval",
+      destination: "top_notification",
+      requiresApprovalQueue: true,
+      requiresUserOptOutCheck: true
     });
   });
 });

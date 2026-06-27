@@ -396,6 +396,55 @@ export const creatorLinks = mysqlTable(
   ]
 );
 
+export const contentPages = mysqlTable(
+  "content_pages",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    title: varchar("title", { length: 191 }).notNull(),
+    routeScope: mysqlEnum("route_scope", ["primary"]).notNull().default("primary"),
+    normalizedPath: varchar("normalized_path", { length: 191 }).notNull(),
+    status: mysqlEnum("status", ["draft", "published"]).notNull().default("draft"),
+    visibility: mysqlEnum("visibility", ["hidden", "public"]).notNull().default("hidden"),
+    seoTitle: varchar("seo_title", { length: 191 }),
+    seoDescription: varchar("seo_description", { length: 320 }),
+    body: text("body").notNull(),
+    createdByUserId: varchar("created_by_user_id", { length: 36 }),
+    updatedByUserId: varchar("updated_by_user_id", { length: 36 }),
+    publishedAt: timestamp("published_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("content_pages_route_key_uidx").on(table.routeScope, table.normalizedPath),
+    index("content_pages_public_lookup_idx").on(table.routeScope, table.normalizedPath, table.status, table.visibility),
+    index("content_pages_admin_listing_idx").on(table.status, table.visibility, table.updatedAt),
+    index("content_pages_created_by_user_idx").on(table.createdByUserId),
+    check("content_pages_route_scope_check", sql`${table.routeScope} = 'primary'`),
+    check(
+      "content_pages_normalized_path_check",
+      sql`(
+        trim(${table.normalizedPath}) = ${table.normalizedPath}
+        and ${table.normalizedPath} <> ''
+        and left(${table.normalizedPath}, 1) = '/'
+        and ${table.normalizedPath} not like '%?%'
+        and ${table.normalizedPath} not like '%#%'
+      )`
+    ),
+    check(
+      "content_pages_draft_visibility_check",
+      sql`${table.status} <> 'draft' or ${table.visibility} = 'hidden'`
+    ),
+    check(
+      "content_pages_published_at_check",
+      sql`(
+        (${table.status} = 'draft' and ${table.publishedAt} is null)
+        or
+        (${table.status} = 'published' and ${table.publishedAt} is not null)
+      )`
+    )
+  ]
+);
+
 export const valueSources = mysqlTable(
   "value_sources",
   {

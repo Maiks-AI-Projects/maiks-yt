@@ -12,6 +12,8 @@ import {
   type EventSourcePlatform
 } from "@maiks-yt/domain/events";
 
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+
 type PreviewPayload = {
   id: string;
   generatedAt: string;
@@ -27,6 +29,35 @@ type PreviewPayload = {
   internalOnly: boolean;
   testOnly: boolean;
 };
+
+type DispatchResponse =
+  | {
+    ok: true;
+    status: string;
+    destination: string | null;
+    history: {
+      id: string;
+      routingOutcome: string;
+      destination: string | null;
+      isTest: true;
+      isSimulated: true;
+      isRealMoney: false;
+      testResettable: true;
+    };
+    approvalQueue: {
+      id: string;
+      status: "pending";
+      destination: string;
+    } | null;
+    cooldownsRecorded: number;
+    publicPlayback: false;
+  }
+  | {
+    ok: false;
+    reason: string;
+    issues?: readonly string[];
+    ruleIssues?: readonly string[];
+  };
 
 const sourceLabels: Record<EventSourcePlatform, string> = {
   twitch: "Twitch",
@@ -262,6 +293,9 @@ const DevTestConsoleClient = (): React.ReactNode => {
   const [selectedSource, setSelectedSource] = useState<EventSourcePlatform>("website");
   const [selectedKind, setSelectedKind] = useState<EventKind>("website.signup");
   const [preview, setPreview] = useState<PreviewPayload>(() => buildPreview("website", "website.signup"));
+  const [dispatchResult, setDispatchResult] = useState<DispatchResponse | null>(null);
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
+  const [dispatchPending, setDispatchPending] = useState(false);
 
   const sourceEventKinds = useMemo(() => listEventKindsForSource(selectedSource), [selectedSource]);
   const selectedEntry = useMemo(() => getEventRegistryEntry(selectedKind), [selectedKind]);
@@ -286,6 +320,8 @@ const DevTestConsoleClient = (): React.ReactNode => {
     }
 
     setPreview(buildPreview(selectedSource, selectedKind));
+    setDispatchResult(null);
+    setDispatchError(null);
   };
 
   const generateRandomPreview = (): void => {
@@ -293,6 +329,43 @@ const DevTestConsoleClient = (): React.ReactNode => {
     setSelectedSource(randomSelection.sourcePlatform);
     setSelectedKind(randomSelection.kind);
     setPreview(buildPreview(randomSelection.sourcePlatform, randomSelection.kind));
+    setDispatchResult(null);
+    setDispatchError(null);
+  };
+
+  const dispatchCurrentPreview = async (): Promise<void> => {
+    setDispatchPending(true);
+    setDispatchError(null);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/dev/event-routing/dispatch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          sourcePlatform: preview.sourcePlatform,
+          eventKind: preview.kind,
+          explicitSimulation: true,
+          isRealMoney: false,
+          sourceEventId: preview.id,
+          actorDisplayName: preview.actor,
+          redactedPayload: preview,
+          occurredAt: preview.generatedAt
+        })
+      });
+      const body = await response.json() as DispatchResponse;
+      setDispatchResult(body);
+
+      if (!response.ok || !body.ok) {
+        setDispatchError(body.ok ? "Dispatch rejected by API." : body.reason);
+      }
+    } catch (error) {
+      setDispatchError(error instanceof Error ? error.message : "Dispatch request failed.");
+      setDispatchResult(null);
+    } finally {
+      setDispatchPending(false);
+    }
   };
 
   return (
@@ -301,16 +374,16 @@ const DevTestConsoleClient = (): React.ReactNode => {
         <p className="eyebrow">Dev-only test console</p>
         <h1>Simulated Event Preview</h1>
         <p>
-          Preview valid source and event combinations from the typed event registry.
-          This surface creates local mock display data only.
+          Preview valid source and event combinations from the typed event registry, then send safe simulated
+          test events through the dev-only router.
         </p>
       </header>
 
       <section className="project-admin-state dev-test-console-warning">
-        <h2>Local preview only</h2>
+        <h2>Safe simulation only</h2>
         <p>
-          No events are dispatched, persisted, routed, approved, moderated, or sent to money systems from this page.
-          Support and money examples are simulated/test only.
+          Dispatches from this page are marked test/simulated/resettable and never real money. The API rejects
+          real provider intake, real website production events, and public playback wiring.
         </p>
       </section>
 
@@ -433,6 +506,65 @@ const DevTestConsoleClient = (): React.ReactNode => {
         </div>
 
         <pre>{JSON.stringify(preview, null, 2)}</pre>
+      </section>
+
+      <section className="project-admin-panel dev-test-console-preview">
+        <div className="project-admin-panel-heading">
+          <div>
+            <h2>Safe Dispatch Result</h2>
+            <p>Persists safe test history and queued state only; no overlay or control playback is emitted.</p>
+          </div>
+          <button disabled={dispatchPending} onClick={dispatchCurrentPreview} type="button">
+            {dispatchPending ? "Dispatching..." : "Dispatch safe simulation"}
+          </button>
+        </div>
+
+        {dispatchError ? (
+          <div className="project-admin-state dev-test-console-warning">
+            <h3>Dispatch rejected</h3>
+            <p>{dispatchError}</p>
+          </div>
+        ) : null}
+
+        {dispatchResult?.ok ? (
+          <div className="dev-test-console-preview-card">
+            <div>
+              <span>{dispatchResult.publicPlayback ? "Playback emitted" : "No public playback"}</span>
+              <h3>{dispatchResult.status}</h3>
+              <p>
+                History {dispatchResult.history.id}
+                {dispatchResult.approvalQueue ? ` queued for ${dispatchResult.approvalQueue.destination}` : ""}
+              </p>
+            </div>
+            <dl>
+              <div>
+                <dt>Destination</dt>
+                <dd>{dispatchResult.destination ?? "None"}</dd>
+              </div>
+              <div>
+                <dt>Flags</dt>
+                <dd>
+                  {dispatchResult.history.isTest && dispatchResult.history.isSimulated
+                    && !dispatchResult.history.isRealMoney && dispatchResult.history.testResettable
+                    ? "test simulated resettable no-real-money"
+                    : "unexpected flags"}
+                </dd>
+              </div>
+              <div>
+                <dt>Approval</dt>
+                <dd>{dispatchResult.approvalQueue?.status ?? "Not queued"}</dd>
+              </div>
+              <div>
+                <dt>Cooldowns</dt>
+                <dd>{dispatchResult.cooldownsRecorded}</dd>
+              </div>
+            </dl>
+          </div>
+        ) : null}
+
+        {dispatchResult ? (
+          <pre>{JSON.stringify(dispatchResult, null, 2)}</pre>
+        ) : null}
       </section>
     </>
   );
