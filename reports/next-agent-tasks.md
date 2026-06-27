@@ -17,10 +17,10 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, and deployed safe simulated dispatch API behavior. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, user-facing opt-out settings UX, and real money remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql`. The first runtime implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
-- The first private notification panel slice is implemented locally pending coordinator deploy/migration: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, and standalone `/tools/notifications` polling UI. Web Push delivery and recurring watchdog wiring are still follow-up chunks.
+- The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, and standalone `/tools/notifications` polling UI. Web Push delivery and recurring watchdog wiring are still follow-up chunks.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
-## Chunk 25: Private Notification Panel Foundation (In Review)
+## Chunk 25: Private Notification Panel Foundation (Completed On Dev)
 
 Coordinator scope:
 
@@ -53,8 +53,10 @@ Suggested checks:
 
 Reviewer gate:
 
-- Apply `0014_first_onslaught.sql` on dev only after review.
-- Dev smoke should create a warning/critical row through `/dev/notifications`, verify it appears in `/tools/notifications`, and mark/archive it as owner.
+- Completed on dev. Migration `0014_first_onslaught.sql` was applied on the dev database.
+- Public smoke confirmed `api-dev` health, `/tools/notifications` 200, no normal navbar marker, and no known injection markers.
+- Dev API smoke created a warning row through `/dev/notifications`, confirmed unauthenticated admin access returns `401`, confirmed owner list sees the row, then marked it read and archived it.
+- Turborepo dev-task env allowlist now includes `DEV_NOTIFICATION_POST_SECRET` and the Web Push env names so app package processes can receive them.
 
 ## Chunk 26: Web Push Notifications (Future)
 

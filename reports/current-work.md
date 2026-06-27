@@ -86,20 +86,22 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Reviewed and accepted Chunk 23 worker output locally: generated migration `packages/database/drizzle/0013_lowly_justin_hammer.sql` for `content_pages` persistence with draft/hidden defaults, normalized path uniqueness, primary-only route scope, SEO/body fields, audit timestamps, and checks that prevent public drafts and require `published_at` for published pages.
 - Committed and pushed dev commit `dfc394b`, pulled it on `codex-server-1`, rebuilt shared packages in `maiks-yt-dev`, applied dev migration `0013_lowly_justin_hammer.sql`, and smoke-tested `https://api-dev.maiks.yt/dev/event-routing/dispatch` with a safe `test/system` simulated event. The API wrote a test/simulated/resettable, non-real-money history row and returned `publicPlayback: false`.
 - During public dev smoke, `https://web-dev.maiks.yt/` and `/dev/test-console` again included the suspicious BSC/eval injection script. Direct in-container app output from `http://127.0.0.1:3000/` did not include the script, and a read-only Cloudflare check found Worker route `*maiks.yt/*` pointing to `worker-winter-bird-f0bf`, matching the previous Cloudflare-side injection pattern. Cloudflare config has not been changed yet in this pass.
-- Added the first private notification panel slice for dev/system alerts: generated migration `packages/database/drizzle/0014_first_onslaught.sql`, added typed notification validation, owner-gated `/admin/notifications` API list/read/archive behavior, dev-secret `/dev/notifications` creation for watchdog/smoke alerts, and standalone `/tools/notifications` polling UI with manifest shortcut metadata.
-- Kept Web Push delivery, service-worker notification handling, push subscription persistence, 4-times-a-day automation wiring, production alerting, provider alerts, moderation alerts, money alerts, commits, pushes, deployments, and migration application out of this local implementation step until coordinator review/deploy.
+- Added, committed, pushed, migrated, deployed, and dev-smoked the first private notification panel slice for dev/system alerts on commits `85ba272` and `6a074de`: generated migration `packages/database/drizzle/0014_first_onslaught.sql`, added typed notification validation, owner-gated `/admin/notifications` API list/read/archive behavior, dev-secret `/dev/notifications` creation for watchdog/smoke alerts, and standalone `/tools/notifications` polling UI with manifest shortcut metadata.
+- Added `DEV_NOTIFICATION_POST_SECRET`, `WEB_PUSH_CONTACT`, `WEB_PUSH_VAPID_PRIVATE_KEY`, and `WEB_PUSH_VAPID_PUBLIC_KEY` to the Turborepo dev-task env allowlist after smoke showed the app process could not see the container-level secret.
+- Dev smoke created a warning notification through `/dev/notifications`, verified unauthenticated admin access returns `401`, verified owner listing sees the smoke row, marked it read, archived it, and confirmed public `/tools/notifications` returns `200` without the normal website navbar or known injection markers.
+- Kept Web Push delivery, service-worker notification handling, push subscription persistence, 4-times-a-day automation wiring, production alerting, provider alerts, moderation alerts, and money alerts out of this slice.
 
 ## Current Task
 
-Review, deploy, migrate, and dev-smoke the first private notification panel slice on `dev`.
+Choose the next notification slice: Web Push device delivery or recurring 4-times-a-day dev smoke posting into the notification panel.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Apply migration `0014_first_onslaught.sql` on dev, deploy the notification slice, create a dev notification through `/dev/notifications`, verify `/tools/notifications` loads without normal navbar, and mark/archive the smoke alert as owner.
-4. Add push delivery as the next notification slice: push subscription persistence, subscribe/unsubscribe UI, service worker limited to notification delivery/static assets, and owner-device smoke.
-5. Wire the 4-times-a-day systematic dev smoke job to post warning/critical rows through `DEV_NOTIFICATION_POST_SECRET`.
+3. Add push delivery as the next notification slice: push subscription persistence, subscribe/unsubscribe UI, service worker limited to notification delivery/static assets, and owner-device smoke.
+4. Wire the 4-times-a-day systematic dev smoke job to post warning/critical rows through `DEV_NOTIFICATION_POST_SECRET`.
+5. After either notification follow-up, rerun public smoke for `api-dev`, `web-dev/tools/notifications`, and known injection markers.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 
 ## Known State
