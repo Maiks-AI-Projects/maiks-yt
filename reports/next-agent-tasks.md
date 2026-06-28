@@ -15,7 +15,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, and deployed safe simulated dispatch API behavior. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, user-facing opt-out settings UX, and real money remain later gates.
-- Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql`. The first runtime implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
+- Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql` and a deployed first runtime implementation: path-only manual pages on the primary website host, owner-gated `/admin/pages`, saved preview-before-publish, reserved-route blocking, and public exact-path rendering for published visible records. Host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
@@ -216,8 +216,30 @@ Reviewer gate:
 - Coordinator review passed locally with database typecheck, architecture validation, `git diff --check`, and the broader Chunk 21B integration checks.
 - Generated migration: `packages/database/drizzle/0013_lowly_justin_hammer.sql`.
 - Migration was applied on the dev database after commit `dfc394b` was pulled to `codex-server-1`.
-- No runtime page admin or public catch-all routing depends on it yet.
-- Reserved/code-owned route enforcement remains a future runtime/admin validation requirement.
+- Runtime page admin and public catch-all routing are now implemented and deployed in Phase 2 on commit `690eb93`.
+- Reserved/code-owned route enforcement is implemented in the domain/API rules and was dev-smoked against `/admin/...`; selected existing code-owned routes still returned `200` after deployment.
+
+## Phase 2: Page Creator Runtime (Completed On Dev)
+
+Scope:
+
+- Added owner-gated `/admin/pages` for manual page creation/editing over existing `content_pages`.
+- Added Markdown body editing, simple SEO fields, saved preview loading, preview-before-publish publish gate, and publish/unpublish controls.
+- Added domain/API rules for path normalization, body/SEO limits, `page-creator:manage`, and reserved/code-owned route blocking.
+- Added owner/admin API behavior for list/create/edit/preview/publish/unpublish and public exact-path lookup at `/pages/public?path=...`.
+- Added public catch-all rendering for published visible non-reserved page records while keeping existing code-owned routes reserved.
+
+Reviewer gate:
+
+- Coordinator review passed with domain/API/web tests, API/web typechecks, web build, architecture validation, and `git diff --check`.
+- Deployed to dev on commit `690eb93`.
+- Dev smoke created a draft, confirmed draft public reads return `404`, loaded owner preview, published, confirmed public API and `web-dev` render, rejected reserved `/admin/...` path creation, unpublished, and confirmed public reads return `404` again.
+- Existing code-owned routes `/privacy/analytics`, `/projects`, and `/tools/notifications` returned `200` after deployment.
+
+Remaining gates:
+
+- No host/subdomain routing, Cloudflare/DNS automation, redirects, aliases, wildcards, AI publishing, money/legal final wording, reusable block marketplace, provider integration, moderation, auth changes, migration work, or production behavior was added.
+- Future page work may add delete/archive, richer structured blocks, route migration of selected hardcoded pages, or host/subdomain routing only as separate scoped phases.
 
 ## Chunk 24: Production Readiness / Dev-to-Main Plan (Completed)
 

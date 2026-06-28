@@ -96,17 +96,19 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added, committed, pushed, deployed, and smoke-tested Chunk 27 on commits `d9f805c` and `41b1859`: `pnpm dev:smoke:notify` now checks API health, database health, web home/injection markers, `/tools/notifications`, the notification service worker, `overlay-dev`, and `control-dev`, then posts warning/critical notifications through `DEV_NOTIFICATION_POST_SECRET`.
 - Verified the recurring runner inside the dev container with a healthy dry run, a synthetic failed control-panel check that created one warning alert, duplicate suppression for the same failure signature, and a recovery note after the synthetic failure cleared.
 - Installed the recurring schedule through Michael's user crontab on `codex-server-1` for `07:00`, `12:00`, `17:00`, and `22:00` Europe/Amsterdam time so each run lines up with a fresh five-hour work window. A user systemd timer was tested and then disabled because `loginctl enable-linger michael` requires sudo/password on the server; cron is active and does not depend on user-systemd lingering.
+- Added, committed, pushed, deployed, and dev-smoked the Phase 2 Page Creator runtime slice on commit `690eb93`: owner-gated `/admin/pages`, domain/API reserved-route validation, Markdown draft editing, owner preview endpoint, preview-before-publish UI gate, publish/unpublish controls, and public exact-path rendering through the new catch-all route for published visible non-reserved page records.
+- Dev smoke created a temporary Page Creator draft, confirmed draft public reads return `404`, loaded owner preview, published it, confirmed public API and `web-dev` render the page, confirmed `/admin/...` path creation is blocked, then unpublished it and confirmed public reads return `404` again. Existing code-owned routes `/privacy/analytics`, `/projects`, and `/tools/notifications` still returned `200`.
 
 ## Current Task
 
-Choose the next follow-up: runtime Page Creator admin, user-facing stream-visibility opt-out UX, or another bounded feature lane.
+Choose the next follow-up: user-facing stream-visibility opt-out UX, Event Routing playback, or another bounded feature lane.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Runtime Page Creator admin can start over the dev-applied `content_pages` persistence model, keeping v1 path-only and reserved-route guarded.
-4. User-facing stream-visibility opt-out UX is needed before website signup/name/avatar events can ever become stream-visible outside safe simulated/test behavior.
+3. User-facing stream-visibility opt-out UX is needed before website signup/name/avatar events can ever become stream-visible outside safe simulated/test behavior.
+4. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 5. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 
 ## Known State
@@ -152,7 +154,7 @@ Choose the next follow-up: runtime Page Creator admin, user-facing stream-visibi
 - Streamer chat has a fake/local-only control-panel viewing surface and order toggle; real Twitch/YouTube chat, moderation, ranks, profiles, bot commands, AI reading, and separate installability remain deferred.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.
-- Page Creator and Route Admin has a reviewed generated persistence migration for `content_pages`, but no runtime admin/public routing yet. First runtime implementation should be path-only on the primary website host, with host/subdomain plus Cloudflare automation deferred to a later infrastructure/security-reviewed phase.
+- Page Creator and Route Admin has a deployed first runtime implementation over `content_pages`: path-only on the primary website host, manual owner admin, Markdown body editing, preview-before-publish, reserved-route blocking, and public rendering for published visible exact-path records. Host/subdomain plus Cloudflare automation remains deferred to a later infrastructure/security-reviewed phase.
 - Project admin now has reviewed/deployed preview-before-publish for project basics plus saved milestones/items; manual project updates still need a separate schema-approved slice if they require new tables.
 - Stream focus/project linking needs an explicitly approved generated migration before implementation. Do not overload `topic_key`, `theme_key`, or disconnected `stream_sessions.active_project_id` to represent a public schedule focus.
 - Chunk 14A generated and applied the approved nullable schedule focus migration on dev. Production/main still needs the normal migration/deploy decision later.
@@ -161,14 +163,14 @@ Choose the next follow-up: runtime Page Creator admin, user-facing stream-visibi
 - The first dev test console foundation is reviewed, committed, pushed, deployed to dev, and dev-smoked. It is guarded to 404 under `NODE_ENV=production`, uses the typed event registry directly, and remains local-preview only. Future real dispatch/routing/history/opt-out/cooldown/simulated-money behavior remains schema-gated.
 - Event Routing Admin now has a design-only persistence gate. The likely generated migration should add routing rules per event kind/source, destination settings, enabled/live-only/offline-only flags, approval-required and cooldown fields, user opt-outs for stream-visible website events, event history/audit, approval queue, cooldown state, and a dev-only simulated/test reset boundary. Migration is required before implementation.
 - Chunk 20 generated and dev-applied Event Routing persistence migration `0012_smooth_jack_flag.sql`. It uses `event_routing_rules`, `event_user_opt_outs`, `event_history`, `event_approval_queue`, and `event_cooldown_state`; destination values are constrained to ignore/internal audit/control panel/top notification/center notification/streamer feed/streamer chat/approval queue.
-- Page Creator and Route Admin now has generated migration `0013_lowly_justin_hammer.sql` for a `content_pages` table with draft/published visibility, preview-before-publish-ready fields, SEO metadata, normalized path uniqueness, and an inert/default route scope for later host+path routing. Runtime admin/public routing remains gated.
+- Page Creator and Route Admin uses generated migration `0013_lowly_justin_hammer.sql` for `content_pages` plus deployed runtime admin/public routing. The dev smoke left a temporary Phase 2 smoke page as an unpublished draft record so the admin list visibly exercises draft state.
 - Website signup/name/avatar overlay eligibility must be opt-out-aware and cooldown-aware; privacy/security/account/provider-token events stay internal-only. Free website TTS remains later promotional scope. Simulated money remains dev/test-only and separate from real money.
 - Chunk 21A is reviewed, committed, pushed, deployed, and dev-smoked. It exposes opt-out/cooldown/approval requirements in the domain/API/admin design but does not add user-facing profile settings UX; stream-visible website signup/name/avatar routing must still check persisted opt-outs before any future dispatch.
 - Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - Production readiness is now documented in `reports/production-readiness-checklist.md`, but it is only a future release gate. Production/main deployment, Cloudflare/Docker/deployment config edits, production secret/OAuth rotation, production migration application, and server changes remain out of scope until Michael opens a release-preparation task.
 - Production owner-account mapping must stay explicit; the first production login must never become owner/admin automatically.
 - Fresh production OAuth credentials, URL-token gates, backup/restore verification, and rollback signoff are blockers before production/main release work can proceed.
-- First safe slices after this point should be manual/non-provider work: Page Creator runtime admin over the generated persistence model, support-link wording decision, backup/restore runbook design, user-facing stream-visibility opt-out UX, or read-only/provider-neutral planning.
+- First safe slices after this point should be manual/non-provider work: support-link wording decision, backup/restore runbook design, user-facing stream-visibility opt-out UX, Event Routing playback review, or read-only/provider-neutral planning.
 - Chunk 16A generated and applied `0011_mean_doctor_strange.sql` on dev. Production/main still needs the normal migration/deploy decision later.
 - Chrome/in-app browser visual QA remains blocked in this setup, most recently by `privileged native pipe bridge is not available; browser-client is not trusted`, and Computer Use was not exposed in the 2026-06-22 worker thread. Headless Chromium fallback covered rendered layout at the target sizes; true installed-window verification remains manual/tool-dependent.
 
