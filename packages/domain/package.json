@@ -8,6 +8,7 @@
     "./actions": "./dist/actions/index.js",
     "./events": "./dist/events/index.js",
     "./identity": "./dist/identity/index.js",
+    "./pages": "./dist/pages/index.js",
     "./projects": "./dist/projects/index.js",
     "./notifications": "./dist/notifications/index.js",
     "./schedule": "./dist/schedule/index.js",

@@ -1354,6 +1354,113 @@ button:disabled {
   background: #eef2f5;
 }
 
+.page-creator-preview-panel .project-admin-panel-heading span {
+  color: #4b5966;
+  font-size: 0.9rem;
+}
+
+.page-creator-form textarea {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  line-height: 1.5;
+}
+
+.content-page {
+  max-width: 54rem;
+  padding-block: 2.5rem;
+}
+
+.content-page-article {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.content-page-article.preview {
+  background: #f8fafc;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.content-page-header {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.content-page-header h1,
+.content-page-header p {
+  margin: 0;
+}
+
+.content-page-header h1 {
+  font-size: 2.25rem;
+}
+
+.content-page-header p:not(.eyebrow) {
+  color: #4b5966;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.content-page-markdown {
+  display: grid;
+  gap: 1rem;
+  line-height: 1.7;
+}
+
+.content-page-markdown h1,
+.content-page-markdown h2,
+.content-page-markdown h3,
+.content-page-markdown p,
+.content-page-markdown blockquote,
+.content-page-markdown ul,
+.content-page-markdown ol,
+.content-page-markdown pre {
+  margin: 0;
+}
+
+.content-page-markdown h1 {
+  font-size: 2rem;
+}
+
+.content-page-markdown h2 {
+  font-size: 1.45rem;
+}
+
+.content-page-markdown h3 {
+  font-size: 1.15rem;
+}
+
+.content-page-markdown p,
+.content-page-markdown li,
+.content-page-markdown blockquote {
+  color: #2c3640;
+}
+
+.content-page-markdown a {
+  color: #0c6b4e;
+  font-weight: 700;
+}
+
+.content-page-markdown blockquote {
+  border-left: 4px solid #238a55;
+  padding-left: 1rem;
+}
+
+.content-page-markdown ul,
+.content-page-markdown ol {
+  display: grid;
+  gap: 0.35rem;
+  padding-left: 1.3rem;
+}
+
+.content-page-markdown pre {
+  background: #141920;
+  border-radius: 8px;
+  color: #ffffff;
+  overflow-x: auto;
+  padding: 1rem;
+}
+
 .dev-test-console-page {
   max-width: 82rem;
 }
