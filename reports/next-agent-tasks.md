@@ -157,7 +157,7 @@ Result:
 - No migration/schema, auth/provider login, provider role sync, automatic promotion/scoring, real moderation enforcement, money/support authority, secrets, or production behavior was added.
 - Note: this worker did not create or seed helper/moderator roles. The admin surface lists all existing roles and only allows grants for roles that already exist and pass the grantable-role safety rules.
 
-## Phase 5C: Read-Only Live Helper Dashboard (Worker Output Ready For Review)
+## Phase 5C: Read-Only Live Helper Dashboard (Completed On Dev)
 
 Worker scope:
 
@@ -181,16 +181,17 @@ Reviewer gate:
 - Verify owner access can view the dashboard.
 - Verify the page is read-only and does not expose secret/token/raw sensitive payload data.
 
-Worker result:
+Result:
 
 - Added `apps/api/src/live-helper` read-only dashboard API behavior at `GET /admin/live-helper`, gated to owner wildcard or `moderators:manage`.
 - The API returns compact summaries for pending safe simulated/test Event Routing approvals, recent warning/critical notifications, active non-owner helper/moderator grants, and recent safe simulated/test Event Routing history.
 - Sensitive fields stay out of the response: no raw event payloads, push subscription material, URL tokens, provider credentials, deleted-user rows, notification bodies, grant mutation/audit mutation behavior, or private provider data.
 - Added focused API tests under `apps/api/test/live-helper` for unauthenticated denial, non-manager denial, owner wildcard access, `moderators:manage` access, and grant summary sanitization.
 - Added `/admin/live-helper` web UI with read-only monitoring panels and no grant/revoke/approve/reject/moderation mutation controls.
-- Updated handoff notes in `TODO.md`, `reports/current-work.md`, and this file.
+- Committed, pushed, deployed, and dev-smoked on commit `5d1158a`.
+- Dev smoke confirmed unauthenticated API access returns `401`, owner API access returns `readOnly: true`, `/admin/live-helper` returns `200`, no known injection marker appears, active grant summaries omit role permissions, and recent history summaries omit raw payload markers.
 
-Worker checks:
+Checks:
 
 - `pnpm --filter @maiks-yt/domain build` passed first to restore fresh-worktree package exports for tests.
 - `pnpm --filter @maiks-yt/api test` passed.
@@ -202,8 +203,35 @@ Worker checks:
 
 Remaining gates:
 
-- Coordinator review, commit, push, deploy, and live dev smoke remain outstanding.
-- No schema/migration, provider moderation enforcement, real chat provider actions, role grant mutations, money/support authority, AI decisions, auth/provider login changes, secrets, Cloudflare/Docker/deploy config, or server state changes were made.
+- No schema/migration, provider moderation enforcement, real chat provider actions, role grant mutations, money/support authority, AI decisions, auth/provider login changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
+
+## Phase 5D: Fake/Local Moderation Commands And Audit (Next Option)
+
+Worker scope:
+
+- Add the first fake/local-only moderation command vocabulary and audit trail for the existing fake/local chat harness.
+- Keep commands limited to safe local/test chat behavior: warning, temporary mute/hide from fake/local stream surfaces, note/status changes, and clear audit-friendly no-op actions are acceptable.
+- Gate command use to owner wildcard or a narrowly grantable moderation/helper capability; do not give helpers owner/admin/auth/money/secrets/provider authority.
+- Record an audit entry for every command attempt, including denied or no-op outcomes when useful for live review.
+- Surface recent fake/local moderation audit in the live helper dashboard or a small linked admin panel only if it stays read-only for helpers.
+- Keep real Twitch/YouTube/Discord provider enforcement, provider credentials, destructive user actions, ban propagation, AI decisions, money/support authority, schema changes, auth changes, Cloudflare/Docker/deploy config, production behavior, commits, pushes, deployments, and server state changes out unless explicitly assigned.
+
+Suggested checks:
+
+- `pnpm --filter @maiks-yt/domain test`
+- `pnpm --filter @maiks-yt/api test`
+- `pnpm --filter @maiks-yt/api typecheck`
+- `pnpm --filter @maiks-yt/web typecheck`
+- `pnpm --filter @maiks-yt/web build`
+- `node scripts/check-architecture.mjs`
+- `git diff --check`
+
+Reviewer gate:
+
+- Verify command execution is fake/local-only and cannot call provider APIs.
+- Verify unauthorized users are denied and audited appropriately.
+- Verify helper-visible surfaces do not expose raw secrets, provider credentials, tokens, or deleted-user data.
+- Verify the live helper dashboard remains monitoring-first and any new controls are clearly scoped to fake/local test behavior.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
