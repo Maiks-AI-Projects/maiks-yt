@@ -92,18 +92,21 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Kept Web Push delivery, service-worker notification handling, push subscription persistence, 4-times-a-day automation wiring, production alerting, provider alerts, moderation alerts, and money alerts out of this slice.
 - Added, committed, pushed, migrated, deployed, and dev-smoked the Web Push notification delivery slice on commit `d295840`: push subscription persistence migration `0015_next_raza.sql`, owner-gated push config/subscribe/revoke endpoints, `web-push` delivery for warning/critical notifications, a notification-only service worker with no fetch/cache handler, and `/tools/notifications` subscribe/unsubscribe/status/test controls.
 - Dev smoke confirmed push config is enabled with a public key, `notification-service-worker.js` returns `200`, `/tools/notifications` returns `200` with no normal navbar or known injection markers, a warning notification can still be created through `/dev/notifications`, owner API listing sees the row, and a dummy HTTPS push subscription can be created and immediately revoked. Real browser/phone notification permission and delivery still need manual owner-device smoke.
+- Added, committed, pushed, deployed, and smoke-tested Chunk 27 on commits `d9f805c` and `41b1859`: `pnpm dev:smoke:notify` now checks API health, database health, web home/injection markers, `/tools/notifications`, the notification service worker, `overlay-dev`, and `control-dev`, then posts warning/critical notifications through `DEV_NOTIFICATION_POST_SECRET`.
+- Verified the recurring runner inside the dev container with a healthy dry run, a synthetic failed control-panel check that created one warning alert, duplicate suppression for the same failure signature, and a recovery note after the synthetic failure cleared.
+- Installed the recurring schedule through Michael's user crontab on `codex-server-1` for `08:00`, `12:00`, `16:00`, and `20:00` Europe/Amsterdam time. A user systemd timer was tested and then disabled because `loginctl enable-linger michael` requires sudo/password on the server; cron is active and does not depend on user-systemd lingering.
 
 ## Current Task
 
-Choose the next notification follow-up: owner-device push smoke/fixups or recurring 4-times-a-day dev smoke posting into the notification panel.
+Choose the next follow-up: owner-device push smoke/fixups, runtime Page Creator admin, user-facing stream-visibility opt-out UX, or another bounded feature lane.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
 3. Run owner-device push smoke from a real browser/phone: subscribe in `/tools/notifications`, send a warning through `/dev/notifications`, confirm OS/browser notification delivery, then unsubscribe/re-subscribe as needed.
-4. Wire the 4-times-a-day systematic dev smoke job to post warning/critical rows through `DEV_NOTIFICATION_POST_SECRET`.
-5. After either notification follow-up, rerun public smoke for `api-dev`, `web-dev/tools/notifications`, and known injection markers.
+4. Runtime Page Creator admin can start over the dev-applied `content_pages` persistence model, keeping v1 path-only and reserved-route guarded.
+5. User-facing stream-visibility opt-out UX is needed before website signup/name/avatar events can ever become stream-visible outside safe simulated/test behavior.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 
 ## Known State

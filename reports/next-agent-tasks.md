@@ -17,7 +17,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, and deployed safe simulated dispatch API behavior. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, user-facing opt-out settings UX, and real money remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql`. The first runtime implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
-- The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, and standalone `/tools/notifications` polling UI. Web Push delivery is also implemented/deployed/dev-smoked at API/static-file level; real phone/browser permission smoke remains manual. Recurring watchdog wiring is still a follow-up chunk.
+- The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`. Real phone/browser permission smoke remains manual.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
 ## Chunk 25: Private Notification Panel Foundation (Completed On Dev)
@@ -75,18 +75,22 @@ Reviewer gate:
 - API smoke confirmed a warning notification can be created through `/dev/notifications`, owner listing sees the row, and a dummy HTTPS push subscription can be created and revoked.
 - Manual device/browser smoke remains open: subscribe from `/tools/notifications`, send a warning, confirm OS/browser notification delivery, and verify unsubscribe/re-subscribe behavior.
 
-## Chunk 27: Recurring Dev Smoke To Notifications (Future)
+## Chunk 27: Recurring Dev Smoke To Notifications (Completed On Dev)
 
 Worker scope:
 
-- Connect the existing or replacement 4-times-a-day dev smoke runner to `POST /dev/notifications`.
-- Use only `DEV_NOTIFICATION_POST_SECRET`; never print or commit the secret.
-- Report warnings/critical failures for API health, web health, overlay/control reachability, injection-marker scan, and any selected database smoke.
-- Keep automated destructive cleanup, production alerting, and real provider/money checks out until explicitly scoped.
+- Connected a replacement 4-times-a-day dev smoke runner to `POST /dev/notifications`.
+- Uses only `DEV_NOTIFICATION_POST_SECRET`; the secret is read from the dev container environment and is not printed or committed.
+- Reports warnings/critical failures for API health, database health, web health, overlay/control reachability, notification service worker reachability, and injection-marker scans.
+- Keeps automated destructive cleanup, production alerting, real provider checks, and real money checks out until explicitly scoped.
 
 Reviewer gate:
 
-- Confirm a failed synthetic smoke creates one alert, recovery creates a lower-severity note only if useful, and duplicate spam is bounded.
+- Completed on dev commits `d9f805c` and `41b1859`.
+- `pnpm dev:smoke:notify -- --dry-run` passed locally and inside `maiks-yt-dev`.
+- A synthetic failed `control-dev` smoke created one warning alert, the duplicate guard suppressed the same failure signature during cooldown, and a healthy follow-up run created one lower-severity recovery note.
+- The recurring schedule is installed in Michael's user crontab on `codex-server-1` at `08:00`, `12:00`, `16:00`, and `20:00` Europe/Amsterdam time, logging to `/tmp/maiks-yt-dev-smoke-cron.log`.
+- A user systemd timer was tested and then disabled because `loginctl enable-linger michael` requires sudo/password; cron is active and avoids that lingering dependency.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
