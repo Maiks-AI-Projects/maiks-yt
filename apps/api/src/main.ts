@@ -38,6 +38,7 @@ import {
   type EventRoutingPlaybackPublisher
 } from "./event-routing/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
+import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
@@ -960,6 +961,10 @@ registerStreamScheduleRoutes(server, {
   getDatabasePool
 });
 registerUrlAccessTokenAdminRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
+registerLiveHelperDashboardRoutes(server, {
   getAuthSession,
   getDatabasePool
 });

@@ -157,7 +157,7 @@ Result:
 - No migration/schema, auth/provider login, provider role sync, automatic promotion/scoring, real moderation enforcement, money/support authority, secrets, or production behavior was added.
 - Note: this worker did not create or seed helper/moderator roles. The admin surface lists all existing roles and only allows grants for roles that already exist and pass the grantable-role safety rules.
 
-## Phase 5C: Read-Only Live Helper Dashboard (Next Option)
+## Phase 5C: Read-Only Live Helper Dashboard (Worker Output Ready For Review)
 
 Worker scope:
 
@@ -180,6 +180,30 @@ Reviewer gate:
 - Verify unauthenticated access is denied.
 - Verify owner access can view the dashboard.
 - Verify the page is read-only and does not expose secret/token/raw sensitive payload data.
+
+Worker result:
+
+- Added `apps/api/src/live-helper` read-only dashboard API behavior at `GET /admin/live-helper`, gated to owner wildcard or `moderators:manage`.
+- The API returns compact summaries for pending safe simulated/test Event Routing approvals, recent warning/critical notifications, active non-owner helper/moderator grants, and recent safe simulated/test Event Routing history.
+- Sensitive fields stay out of the response: no raw event payloads, push subscription material, URL tokens, provider credentials, deleted-user rows, notification bodies, grant mutation/audit mutation behavior, or private provider data.
+- Added focused API tests under `apps/api/test/live-helper` for unauthenticated denial, non-manager denial, owner wildcard access, `moderators:manage` access, and grant summary sanitization.
+- Added `/admin/live-helper` web UI with read-only monitoring panels and no grant/revoke/approve/reject/moderation mutation controls.
+- Updated handoff notes in `TODO.md`, `reports/current-work.md`, and this file.
+
+Worker checks:
+
+- `pnpm --filter @maiks-yt/domain build` passed first to restore fresh-worktree package exports for tests.
+- `pnpm --filter @maiks-yt/api test` passed.
+- `pnpm --filter @maiks-yt/api typecheck` passed.
+- `pnpm --filter @maiks-yt/web typecheck` passed.
+- `pnpm --filter @maiks-yt/web build` passed.
+- `node scripts/check-architecture.mjs` passed.
+- `git diff --check` passed.
+
+Remaining gates:
+
+- Coordinator review, commit, push, deploy, and live dev smoke remain outstanding.
+- No schema/migration, provider moderation enforcement, real chat provider actions, role grant mutations, money/support authority, AI decisions, auth/provider login changes, secrets, Cloudflare/Docker/deploy config, or server state changes were made.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 

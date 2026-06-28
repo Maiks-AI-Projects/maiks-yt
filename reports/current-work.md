@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-27
+Updated: 2026-06-28
 
 ## Objective
 
@@ -109,16 +109,18 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added, committed, pushed, deployed, and dev-smoked Phase 5B for the first manual owner-gated moderator/helper admin: `@maiks-yt/domain/community` grant rules, `/admin/moderators` API list/grant/update/revoke behavior, role-grant audit writes, focused API coverage, and `/admin/moderators` web UI for users, roles, trust level, scope, availability, expiration/revocation state, and recent audit entries.
 - Dev smoke confirmed unauthenticated API access returns `401`, owner API listing returns users/roles/grants, `/admin/moderators` returns `200` without known injection markers, and a temporary harmless role could be granted, updated, revoked, and audited through the public API. The temporary smoke role, grant, and audit rows were deleted afterward.
 - Kept Phase 5B manual and bounded: no migrations/schema changes, provider role sync, automatic trust scoring, real moderation enforcement, money/support permissions, production owner assignment, auth/provider login behavior, secrets, or production behavior were added.
+- Added Phase 5C worker output for a read-only live helper dashboard: `GET /admin/live-helper` and `/admin/live-helper` summarize pending safe simulated/test Event Routing approvals, warning/critical notification summaries, active non-owner helper/moderator grants, and recent safe simulated/test Event Routing history for owner wildcard or `moderators:manage`.
+- Kept Phase 5C monitoring-only: no grant/revoke/approve/reject/moderation mutation controls, raw event payloads, notification bodies, secrets, tokens, provider credentials, deleted-user data, migrations/schema work, provider enforcement, money/support authority, AI decisions, auth/provider login changes, deploy config, or server state changes were added.
 
 ## Current Task
 
-Choose the next follow-up: read-only live helper dashboard, fake/local moderation commands and audit, creator/content utilities, or another bounded feature lane.
+Coordinator review for Phase 5C read-only live helper dashboard, then choose the next follow-up such as fake/local moderation commands and audit, creator/content utilities, or another bounded feature lane.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 5B manual moderator management is live on dev; future community-operations work can add a read-only live helper dashboard or fake/local moderation commands before real provider enforcement.
+3. Phase 5C read-only live helper dashboard worker output is ready for review; future community-operations work can add fake/local moderation commands before real provider enforcement.
 4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
 5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
