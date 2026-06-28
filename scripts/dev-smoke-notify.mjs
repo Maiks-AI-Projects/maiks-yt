@@ -11,7 +11,7 @@ const defaultConfig = {
   notificationPath: "/dev/notifications",
   stateFile: "/tmp/maiks-yt-dev-smoke-state.json",
   duplicateCooldownMs: 12 * 60 * 60 * 1000,
-  timeoutMs: 15_000,
+  timeoutMs: 30_000,
   dryRun: false,
   forceNotify: false,
   notifyRecovery: true,
@@ -388,13 +388,15 @@ const main = async () => {
       }
     }
 
-    await writeState({
-      hadActiveFailure: true,
-      lastFailureNotifiedAt: duplicateIsCoolingDown && !config.forceNotify
-        ? state.lastFailureNotifiedAt
-        : new Date(now).toISOString(),
-      lastFailureSignature: signature
-    });
+    if (!config.dryRun) {
+      await writeState({
+        hadActiveFailure: true,
+        lastFailureNotifiedAt: duplicateIsCoolingDown && !config.forceNotify
+          ? state.lastFailureNotifiedAt
+          : new Date(now).toISOString(),
+        lastFailureSignature: signature
+      });
+    }
 
     if (config.failOnSmokeFailure) {
       process.exitCode = 1;
@@ -421,10 +423,12 @@ const main = async () => {
     }
   }
 
-  await writeState({
-    hadActiveFailure: false,
-    lastSuccessAt: new Date(now).toISOString()
-  });
+  if (!config.dryRun) {
+    await writeState({
+      hadActiveFailure: false,
+      lastSuccessAt: new Date(now).toISOString()
+    });
+  }
 };
 
 main().catch((error) => {
