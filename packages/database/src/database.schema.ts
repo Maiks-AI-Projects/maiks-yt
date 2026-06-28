@@ -152,11 +152,84 @@ export const userRoles = mysqlTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     userId: varchar("user_id", { length: 36 }).notNull(),
     roleId: varchar("role_id", { length: 36 }).notNull(),
+    trustLevel: mysqlEnum("trust_level", [
+      "observer",
+      "helper",
+      "moderator",
+      "senior_moderator",
+      "trusted_operator",
+      "owner"
+    ]).notNull().default("helper"),
+    scopeKind: mysqlEnum("scope_kind", [
+      "global",
+      "chat",
+      "event_routing",
+      "content",
+      "project",
+      "stream_operations"
+    ]).notNull().default("global"),
+    scopeId: varchar("scope_id", { length: 191 }),
+    availability: mysqlEnum("availability", ["always", "live_only", "offline_only"]).notNull().default("always"),
+    assignedByUserId: varchar("assigned_by_user_id", { length: 36 }),
+    expiresAt: timestamp("expires_at"),
+    revokedAt: timestamp("revoked_at"),
+    revokedByUserId: varchar("revoked_by_user_id", { length: 36 }),
+    revocationReason: varchar("revocation_reason", { length: 280 }),
     assignedAt: timestamp("assigned_at").notNull().defaultNow()
   },
   (table) => [
     index("user_roles_user_id_idx").on(table.userId),
-    uniqueIndex("user_roles_user_role_uidx").on(table.userId, table.roleId)
+    index("user_roles_scope_idx").on(table.scopeKind, table.scopeId),
+    index("user_roles_expires_at_idx").on(table.expiresAt),
+    index("user_roles_revoked_at_idx").on(table.revokedAt),
+    index("user_roles_assigned_by_user_idx").on(table.assignedByUserId),
+    uniqueIndex("user_roles_user_role_uidx").on(table.userId, table.roleId),
+    check(
+      "user_roles_scope_id_check",
+      sql`(
+        (${table.scopeKind} = 'global' and ${table.scopeId} is null)
+        or
+        (${table.scopeKind} <> 'global' and ${table.scopeId} is not null and trim(${table.scopeId}) <> '')
+      )`
+    ),
+    check(
+      "user_roles_revocation_check",
+      sql`(
+        (${table.revokedAt} is null and ${table.revokedByUserId} is null and ${table.revocationReason} is null)
+        or
+        (${table.revokedAt} is not null and ${table.revokedByUserId} is not null)
+      )`
+    )
+  ]
+);
+
+export const roleGrantAuditLogs = mysqlTable(
+  "role_grant_audit_logs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    targetUserId: varchar("target_user_id", { length: 36 }).notNull(),
+    roleId: varchar("role_id", { length: 36 }).notNull(),
+    actorUserId: varchar("actor_user_id", { length: 36 }),
+    action: mysqlEnum("action", ["grant", "update", "revoke", "expire"]).notNull(),
+    previousValue: json("previous_value").$type<Record<string, unknown> | null>(),
+    nextValue: json("next_value").$type<Record<string, unknown> | null>(),
+    reason: varchar("reason", { length: 280 }),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (table) => [
+    index("role_grant_audit_target_created_idx").on(table.targetUserId, table.createdAt),
+    index("role_grant_audit_actor_created_idx").on(table.actorUserId, table.createdAt),
+    index("role_grant_audit_role_created_idx").on(table.roleId, table.createdAt),
+    check(
+      "role_grant_audit_value_check",
+      sql`(
+        (${table.action} = 'grant' and ${table.previousValue} is null and ${table.nextValue} is not null)
+        or
+        (${table.action} = 'update' and ${table.previousValue} is not null and ${table.nextValue} is not null)
+        or
+        (${table.action} in ('revoke', 'expire') and ${table.previousValue} is not null)
+      )`
+    )
   ]
 );
 

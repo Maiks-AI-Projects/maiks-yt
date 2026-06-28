@@ -61,6 +61,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Draft user/account model.
 - [x] Draft linked account/provider model.
 - [x] Draft roles and permissions model.
+  - 2026-06-28 Phase 5A generated migration `0016_jittery_nebula.sql` for moderator/helper trust metadata and role-grant audit history. It enriches `user_roles` with trust level, scope, live/offline availability, expiration, revocation metadata, and adds `role_grant_audit_logs`. No admin UI, runtime permission changes, automatic promotions, provider role sync, real moderation enforcement, auth changes, secret changes, deployment, or migration application was added.
 - [x] Draft project/item/milestone model.
 - [x] Draft project category model.
 - [x] Draft overlay event model.

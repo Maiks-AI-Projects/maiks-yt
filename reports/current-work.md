@@ -103,18 +103,21 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added, committed, pushed, deployed, and dev-smoked Phase 4A Event Routing playback on commit `5c8a7f2`: safe simulated playback projection, owner-gated pending approval list/review endpoints, direct safe simulated top/center overlay playback, and `/admin/event-routing` pending-review controls.
 - Dev smoke opened a live overlay WebSocket with the dev overlay token, temporarily enabled safe `website.signup:any` routing, confirmed direct simulated playback reached the overlay socket with one active overlay connection, confirmed approval-required dispatch appeared in the pending queue and published after owner approval, confirmed `website.provider-token-change` stayed ignored/non-public, and restored the previous signup rule plus stream-visibility preferences.
 - Public/admin smoke confirmed `/admin/event-routing` returns `200` without the known injection marker, pending approvals returned zero after smoke cleanup, and the signup routing rule was restored to disabled internal audit. Real provider intake, real website production dispatch, real money, moderation enforcement, provider integrations, secrets, migrations, and production behavior remain gated.
+- Generated Phase 5A moderator/helper persistence migration `packages/database/drizzle/0016_jittery_nebula.sql`: role grants now have trust level, scope, live/offline availability, expiration, revocation metadata, and an owner-trust backfill for existing owner grants; `role_grant_audit_logs` records future grant/update/revoke/expire decisions.
+- Kept Phase 5A persistence-only: no admin UI/API, runtime permission behavior change, automatic promotions, Discord/Twitch/YouTube role sync, real moderation enforcement, auth changes, secrets, deployment, server state, or migration application was made.
 
 ## Current Task
 
-Choose the next follow-up: community operations, creator/content utilities, or another bounded feature lane.
+Review/apply the Phase 5A moderator/helper persistence migration, then build the first owner-gated moderator management admin surface.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
-4. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
-5. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
+3. Phase 5A generated moderator/helper persistence migration `0016_jittery_nebula.sql`; coordinator still needs to review/apply it on dev before runtime moderator management relies on the new fields.
+4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
+5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
+6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 
 ## Known State
 
@@ -171,7 +174,8 @@ Choose the next follow-up: community operations, creator/content utilities, or a
 - Page Creator and Route Admin uses generated migration `0013_lowly_justin_hammer.sql` for `content_pages` plus deployed runtime admin/public routing. The dev smoke left a temporary Phase 2 smoke page as an unpublished draft record so the admin list visibly exercises draft state.
 - Website signup/name/avatar overlay eligibility now has a user-facing opt-out foundation and safe simulated dispatch enforcement. Phase 4A adds safe simulated approval/direct top/center overlay playback. Real website dispatch, provider intake, richer templates, moderation enforcement, and real-money behavior remain future gates. Privacy/security/account/provider-token events stay internal-only. Free website TTS remains later promotional scope. Simulated money remains dev/test-only and separate from real money.
 - Chunk 21A is reviewed, committed, pushed, deployed, and dev-smoked. Phase 3 now adds user-facing stream visibility preferences and safe simulated dispatch opt-out enforcement; future real routing still needs production-safe intake, event templates, approval/cooldown processing, and overlay/control playback.
-- Do not begin full chat, AI, moderation, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
+- Phase 5A opened the community-operations foundation with a generated moderator/helper persistence migration only. Runtime role management, live moderation tools, provider enforcement, provider role sync, and production auth remain separate gated slices.
+- Do not begin full chat, AI, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - Production readiness is now documented in `reports/production-readiness-checklist.md`, but it is only a future release gate. Production/main deployment, Cloudflare/Docker/deployment config edits, production secret/OAuth rotation, production migration application, and server changes remain out of scope until Michael opens a release-preparation task.
 - Production owner-account mapping must stay explicit; the first production login must never become owner/admin automatically.
 - Fresh production OAuth credentials, URL-token gates, backup/restore verification, and rollback signoff are blockers before production/main release work can proceed.
