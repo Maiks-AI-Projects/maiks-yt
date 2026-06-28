@@ -14,7 +14,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, and deployed safe simulated dispatch API behavior. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, user-facing opt-out settings UX, and real money remain later gates.
+- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, deployed safe simulated dispatch API behavior, and deployed user-facing stream visibility opt-outs for website/community events. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, and real money remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql` and a deployed first runtime implementation: path-only manual pages on the primary website host, owner-gated `/admin/pages`, saved preview-before-publish, reserved-route blocking, and public exact-path rendering for published visible records. Host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
@@ -240,6 +240,28 @@ Remaining gates:
 
 - No host/subdomain routing, Cloudflare/DNS automation, redirects, aliases, wildcards, AI publishing, money/legal final wording, reusable block marketplace, provider integration, moderation, auth changes, migration work, or production behavior was added.
 - Future page work may add delete/archive, richer structured blocks, route migration of selected hardcoded pages, or host/subdomain routing only as separate scoped phases.
+
+## Phase 3: Stream Visibility Consent (Completed On Dev)
+
+Scope:
+
+- Added `@maiks-yt/domain/events` stream visibility preference definitions for a global website/community opt-out plus website signup, public username, profile image, and future free TTS scopes.
+- Added current-user `GET/PUT /account/stream-visibility-preferences` over existing `event_user_opt_outs`; no schema change or migration was needed.
+- Added `/account` UI controls for global and per-event stream visibility preferences.
+- Updated `/dev/test-console` to attach the signed-in domain user when available so safe simulated website events can enforce persisted opt-outs.
+- Kept missing identity fail-closed for opt-out-aware stream-visible simulated website events.
+
+Reviewer gate:
+
+- Coordinator review passed with domain/API tests, API/web typechecks, web build, architecture validation, and `git diff --check`.
+- Deployed to dev on commit `9545b19`.
+- Dev smoke confirmed the preference API returns five scopes, unauthenticated access returns `401`, `/account` and `/dev/test-console` return `200`, allowed simulated `website.signup` can route when the smoke rule is enabled, global opt-out changes it to `blocked_opt_out`, and missing identity changes it to `blocked_safety`.
+- Smoke restored the prior preference snapshot and prior `website.signup:any` routing rule after verification.
+
+Remaining gates:
+
+- No real website production dispatch, real provider intake, real money, moderation enforcement, approval review processing, overlay/control playback, auth-provider redesign, schema/migration work, Cloudflare/Docker/deploy config changes, or production behavior was added.
+- Signup/onboarding consent placement is currently represented by account settings; a richer signup-time prompt can be added when signup/onboarding UI becomes a dedicated product surface.
 
 ## Chunk 24: Production Readiness / Dev-to-Main Plan (Completed)
 

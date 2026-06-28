@@ -130,6 +130,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Create typed notification events.
 - [x] Add provider/source capability defaults for future routed notifications.
 - [x] Build notification queue before display rendering.
+- [x] Add user-facing stream visibility opt-outs for website/community events.
+  - 2026-06-28 added current-user stream visibility preferences on `/account` backed by `event_user_opt_outs`, with a global opt-out plus website signup, public name, profile image, and future free TTS scopes. Safe simulated website dispatch now attaches the signed-in domain user where available, blocks opted-out stream-visible events, and fails closed when identity is missing.
 - [x] Add top notification zone.
 - [x] Resolve top notification avatar from website profile image, then platform avatar, then safe default.
 - [x] Add center notification zone.
