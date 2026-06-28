@@ -118,7 +118,7 @@ Remaining gates:
 
 - No admin UI/API, runtime permission behavior change, automatic promotion, provider role sync, real moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
-## Phase 5B: Owner-Gated Moderator Management Admin (Next)
+## Phase 5B: Owner-Gated Moderator Management Admin (Completed On Dev)
 
 Worker scope:
 
@@ -145,14 +145,41 @@ Reviewer gate:
 - Verify grant/update/revoke writes an audit row and does not allow owner/admin or money/auth/secrets capabilities.
 - Verify temporary and scoped grants render clearly in `/admin/moderators`.
 
-Worker output pending coordinator review:
+Result:
 
 - Added `@maiks-yt/domain/community` moderator grant rules/types and exported the new domain subpath.
 - Added `apps/api/src/moderators` list/grant/update/revoke API behavior with owner wildcard or `moderators:manage` authorization.
 - Added focused API tests under `apps/api/test/moderators`.
 - Added `/admin/moderators` manual web UI.
-- No migration/schema, auth/provider login, provider role sync, automatic promotion/scoring, real moderation enforcement, money/support authority, secrets, deploy config, commits, pushes, deployments, or server state changes were made.
+- Committed, pushed, deployed, and dev-smoked on commit `2f537fe`.
+- Dev smoke confirmed unauthenticated API returns `401`, owner listing returns users/roles/grants, `/admin/moderators` returns `200` without known injection markers, and a temporary harmless role can be granted, updated, revoked, and audited through the public API.
+- Smoke cleanup deleted the temporary role, grant, and audit rows.
+- No migration/schema, auth/provider login, provider role sync, automatic promotion/scoring, real moderation enforcement, money/support authority, secrets, or production behavior was added.
 - Note: this worker did not create or seed helper/moderator roles. The admin surface lists all existing roles and only allows grants for roles that already exist and pass the grantable-role safety rules.
+
+## Phase 5C: Read-Only Live Helper Dashboard (Next Option)
+
+Worker scope:
+
+- Add a read-only live helper dashboard that shows queues/helpers can safely monitor while Michael is live.
+- Include safe existing sources only: pending Event Routing approvals, recent simulated event-routing history summary, notification panel warnings/critical alerts, and current helper/moderator grants.
+- Owner or `moderators:manage` can view the first version; do not add broad moderation permissions yet unless explicitly scoped.
+- Keep this read-only: no provider moderation enforcement, no real chat provider actions, no role grant mutations, no money/support authority, no AI decisions, no auth changes, no schema/migration unless a blocker is found and documented.
+
+Suggested checks:
+
+- `pnpm --filter @maiks-yt/api test`
+- `pnpm --filter @maiks-yt/api typecheck`
+- `pnpm --filter @maiks-yt/web typecheck`
+- `pnpm --filter @maiks-yt/web build`
+- `node scripts/check-architecture.mjs`
+- `git diff --check`
+
+Reviewer gate:
+
+- Verify unauthenticated access is denied.
+- Verify owner access can view the dashboard.
+- Verify the page is read-only and does not expose secret/token/raw sensitive payload data.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 

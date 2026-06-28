@@ -275,7 +275,7 @@ Gate note: AI public output must start in a private draft/shadow mode before any
 
 - [ ] Define roles and permissions.
 - [x] Design moderator management page with trust levels, scoped permissions, temporary grants, and audit history.
-  - 2026-06-28 Phase 5B worker output added a manual owner-gated `/admin/moderators` surface plus API/domain rules for listing users/roles/grants/audit context and granting, updating, or revoking non-owner helper/moderator role grants over the Phase 5A persistence shape. Grant/update/revoke writes role-grant audit rows. Owner/admin roles, wildcard/role-management, production auth/secrets, provider credentials, real money, irreversible user deletion, and audit-log-disabling permissions are rejected. Pending coordinator review/deploy; no migrations, provider sync, automatic promotion, real moderation enforcement, auth changes, secrets, commits, pushes, or server changes were made by the worker.
+  - 2026-06-28 Phase 5B added, deployed, and dev-smoked a manual owner-gated `/admin/moderators` surface plus API/domain rules for listing users/roles/grants/audit context and granting, updating, or revoking non-owner helper/moderator role grants over the Phase 5A persistence shape. Grant/update/revoke writes role-grant audit rows. Owner/admin roles, wildcard/role-management, production auth/secrets, provider credentials, real money, irreversible user deletion, and audit-log-disabling permissions are rejected. No migrations, provider sync, automatic promotion, real moderation enforcement, auth changes, secrets, or production behavior were added.
 - [ ] Define community rules.
 - [ ] Build warning/strike model.
 - [ ] Add automatic warning system.
