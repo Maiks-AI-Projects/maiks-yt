@@ -89,7 +89,7 @@ Reviewer gate:
 - Completed on dev commits `d9f805c` and `41b1859`.
 - `pnpm dev:smoke:notify -- --dry-run` passed locally and inside `maiks-yt-dev`.
 - A synthetic failed `control-dev` smoke created one warning alert, the duplicate guard suppressed the same failure signature during cooldown, and a healthy follow-up run created one lower-severity recovery note.
-- The recurring schedule is installed in Michael's user crontab on `codex-server-1` at `08:00`, `12:00`, `16:00`, and `20:00` Europe/Amsterdam time, logging to `/tmp/maiks-yt-dev-smoke-cron.log`.
+- The recurring schedule is installed in Michael's user crontab on `codex-server-1` at `07:00`, `12:00`, `17:00`, and `22:00` Europe/Amsterdam time, matching the preferred five-hour work windows and logging to `/tmp/maiks-yt-dev-smoke-cron.log`.
 - A user systemd timer was tested and then disabled because `loginctl enable-linger michael` requires sudo/password; cron is active and avoids that lingering dependency.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
