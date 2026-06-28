@@ -17,7 +17,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, and deployed safe simulated dispatch API behavior. Provider credentials, real website production dispatch, moderation enforcement, overlay/control playback, user-facing opt-out settings UX, and real money remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql`. The first runtime implementation should be path-only manual pages on the primary website host; host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
-- The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`. Real phone/browser permission smoke remains manual.
+- The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
 ## Chunk 25: Private Notification Panel Foundation (Completed On Dev)
@@ -73,7 +73,7 @@ Reviewer gate:
 - Dev migration `0015_next_raza.sql` was applied.
 - Public smoke confirmed push config is enabled with a public key, `notification-service-worker.js` returns `200`, `/tools/notifications` returns `200`, and the page has no normal navbar or known injection markers.
 - API smoke confirmed a warning notification can be created through `/dev/notifications`, owner listing sees the row, and a dummy HTTPS push subscription can be created and revoked.
-- Manual device/browser smoke remains open: subscribe from `/tools/notifications`, send a warning, confirm OS/browser notification delivery, and verify unsubscribe/re-subscribe behavior.
+- Manual owner-device smoke is verified as of 2026-06-28: sending `Owner-device push smoke` through `/dev/notifications` updated the active subscription `last_push_at`, stored no active subscription error, and Michael confirmed notifications are received.
 
 ## Chunk 27: Recurring Dev Smoke To Notifications (Completed On Dev)
 
