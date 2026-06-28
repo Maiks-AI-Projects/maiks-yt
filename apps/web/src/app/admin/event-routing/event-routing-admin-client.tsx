@@ -11,7 +11,8 @@ import {
   type EventRoutingRuleInput,
   type EventRoutingRuleSourcePlatform,
   type EventRoutingRuleValidationResult,
-  type EventRoutingSafety
+  type EventRoutingSafety,
+  type EventSourcePlatform
 } from "@maiks-yt/domain/events";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
@@ -46,6 +47,69 @@ type AdminEventRoutingMutationResponse =
     ok: false;
     reason: string;
     issues?: readonly string[];
+  };
+
+type EventRoutingAdminApprovalRecord = {
+  id: string;
+  eventHistoryId: string;
+  destination: EventRoutingDestination;
+  status: "pending" | "approved" | "rejected" | "expired" | "cancelled";
+  reviewerUserId: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  event: {
+    sourcePlatform: EventSourcePlatform;
+    eventKind: EventKind;
+    actorDisplayName: string | null;
+    redactedPayload: Record<string, unknown>;
+    isTest: boolean;
+    isSimulated: boolean;
+    isRealMoney: boolean;
+    testResettable: boolean;
+    occurredAt: string;
+    createdAt: string;
+  };
+  rule: {
+    notificationPriority: EventRoutingNotificationPriority;
+    sourcePlatform: EventRoutingRuleSourcePlatform | null;
+  };
+  label: string;
+  description: string;
+  safety: EventRoutingSafety;
+  playback: {
+    projected: {
+      ok: boolean;
+      reason?: string;
+    };
+    published: {
+      emitted: boolean;
+      reason?: string;
+      activeOverlayConnections?: number;
+    } | null;
+  } | null;
+};
+
+type AdminEventRoutingApprovalListResponse =
+  | {
+    ok: true;
+    approvals: readonly EventRoutingAdminApprovalRecord[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type AdminEventRoutingApprovalReviewResponse =
+  | {
+    ok: true;
+    approval: EventRoutingAdminApprovalRecord;
+  }
+  | {
+    ok: false;
+    reason: string;
+    playback?: EventRoutingAdminApprovalRecord["playback"];
   };
 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
@@ -91,6 +155,14 @@ const formatBoolean = (value: boolean): string => value ? "Yes" : "No";
 
 const getRuleKey = (rule: Pick<EventRoutingRuleInput, "eventKind" | "sourcePlatform">): string =>
   `${rule.eventKind}:${rule.sourcePlatform}`;
+
+const getApprovalDisplayText = (approval: EventRoutingAdminApprovalRecord): string => {
+  const displayText = approval.event.redactedPayload.displayText;
+
+  return typeof displayText === "string" && displayText.trim().length > 0
+    ? displayText
+    : approval.label;
+};
 
 const getFailureMessage = (response: Response, reason?: string, issues?: readonly string[]): string => {
   if (response.status === 401 || reason === "not_authenticated") {
@@ -157,9 +229,11 @@ const EventRoutingAdminClient = (): React.ReactNode => {
   const [rules, setRules] = useState<readonly EventRoutingAdminRuleListItem[]>([]);
   const [selectedRuleKey, setSelectedRuleKey] = useState<string>("");
   const [formRule, setFormRule] = useState<EventRoutingRuleInput | null>(null);
+  const [approvals, setApprovals] = useState<readonly EventRoutingAdminApprovalRecord[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading event routing rules...");
   const [busy, setBusy] = useState<boolean>(false);
+  const [reviewingApprovalId, setReviewingApprovalId] = useState<string | null>(null);
 
   const selectedRule = useMemo(
     () => rules.find((rule) => getRuleKey(rule) === selectedRuleKey) ?? null,
@@ -191,16 +265,24 @@ const EventRoutingAdminClient = (): React.ReactNode => {
       const payload = await parseJson<AdminEventRoutingResponse>(response);
 
       if (response.ok && payload?.ok) {
+        const approvalsResponse = await fetch(`${apiBaseUrl}/admin/event-routing/approvals/pending`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        });
+        const approvalsPayload = await parseJson<AdminEventRoutingApprovalListResponse>(approvalsResponse);
         const orderedRules = sortRules(payload.rules);
         const firstKey = getRuleKey(orderedRules[0] ?? {
           eventKind: "chat" as EventKind,
           sourcePlatform: "any"
         });
         setRules(orderedRules);
+        setApprovals(approvalsResponse.ok && approvalsPayload?.ok ? approvalsPayload.approvals : []);
         setSelectedRuleKey((current) => current || firstKey);
         setFormRule(orderedRules[0] ?? null);
         setLoadState("ready");
-        setMessage("Event routing rules loaded.");
+        setMessage(approvalsResponse.ok && approvalsPayload?.ok
+          ? "Event routing rules loaded."
+          : "Event routing rules loaded. Approval queue could not be loaded.");
         return;
       }
 
@@ -289,6 +371,47 @@ const EventRoutingAdminClient = (): React.ReactNode => {
     }
   };
 
+  const reviewApproval = async (
+    approvalId: string,
+    action: "approve" | "reject"
+  ): Promise<void> => {
+    setReviewingApprovalId(approvalId);
+    setMessage(action === "approve" ? "Approving queued event..." : "Rejecting queued event...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/event-routing/approvals/${encodeURIComponent(approvalId)}/review`, {
+        method: "POST",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify({
+          action
+        })
+      });
+      const payload = await parseJson<AdminEventRoutingApprovalReviewResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setApprovals((current) => current.filter((approval) => approval.id !== approvalId));
+        const playback = payload.approval.playback?.published;
+        setMessage(playback?.emitted
+          ? `Queued ${destinationLabels[payload.approval.destination]} playback.`
+          : `Marked event ${payload.approval.status}.`);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(reason === "event_routing_admin_approval_playback_blocked"
+        ? "Queued event was rejected by playback safety checks."
+        : getFailureMessage(response, reason));
+      setApprovals((current) => current.filter((approval) => approval.id !== approvalId));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Reviewing queued event failed.");
+    } finally {
+      setReviewingApprovalId(null);
+    }
+  };
+
   return (
     <>
       <header className="project-admin-header">
@@ -326,6 +449,47 @@ const EventRoutingAdminClient = (): React.ReactNode => {
           </aside>
 
           <section className="project-admin-workspace" aria-label="Event routing rule editor">
+            <section className="project-admin-panel">
+              <div className="project-admin-panel-heading">
+                <div>
+                  <h2>Pending Review</h2>
+                  <p>{approvals.length} queued item{approvals.length === 1 ? "" : "s"}.</p>
+                </div>
+                <button type="button" onClick={() => void loadRules()} disabled={busy || reviewingApprovalId !== null}>Refresh</button>
+              </div>
+              {approvals.length > 0 ? (
+                <ul className="project-admin-record-list">
+                  {approvals.map((approval) => (
+                    <li key={approval.id}>
+                      <div>
+                        <strong>{approval.label}</strong>
+                        <span>{sourceLabels[approval.event.sourcePlatform]} · {destinationLabels[approval.destination]} · {formatDate(approval.createdAt)}</span>
+                        <span>{getApprovalDisplayText(approval)}</span>
+                      </div>
+                      <div className="project-admin-actions">
+                        <button
+                          type="button"
+                          onClick={() => void reviewApproval(approval.id, "approve")}
+                          disabled={reviewingApprovalId !== null}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void reviewApproval(approval.id, "reject")}
+                          disabled={reviewingApprovalId !== null}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="project-admin-note">No pending simulated events.</p>
+              )}
+            </section>
+
             <form className="project-admin-panel project-admin-form" onSubmit={(event) => void saveRule(event)}>
               <div className="project-admin-panel-heading">
                 <div>

@@ -9,12 +9,17 @@ import {
 
 import type {
   EventRoutingAdminActor,
+  EventRoutingAdminApprovalListResult,
+  EventRoutingAdminApprovalRecord,
+  EventRoutingAdminApprovalReviewResult,
+  EventRoutingAdminPlaybackPublisher,
   EventRoutingAdminListResult,
   EventRoutingAdminRepository,
   EventRoutingAdminRuleListItem,
   EventRoutingAdminRuleRecord,
   EventRoutingAdminUpdateResult
 } from "./event-routing-admin.types.js";
+import { buildSafeEventRoutingPlaybackProjection } from "./event-routing-playback.service.js";
 
 const parsePermissionArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -71,7 +76,10 @@ const ruleKey = (rule: Pick<EventRoutingRuleInput, "eventKind" | "sourcePlatform
   `${rule.eventKind}:${rule.sourcePlatform}`;
 
 export class EventRoutingAdminService {
-  public constructor(private readonly repository: EventRoutingAdminRepository) {}
+  public constructor(
+    private readonly repository: EventRoutingAdminRepository,
+    private readonly publishPlayback?: EventRoutingAdminPlaybackPublisher
+  ) {}
 
   public async listRules(input: { authUserId: string }): Promise<EventRoutingAdminListResult> {
     const actor = await this.requireActor(input.authUserId);
@@ -132,6 +140,122 @@ export class EventRoutingAdminService {
     };
   }
 
+  public async listPendingApprovals(input: {
+    authUserId: string;
+    limit?: number;
+  }): Promise<EventRoutingAdminApprovalListResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const limit = Math.max(1, Math.min(input.limit ?? 25, 100));
+    const approvals = await this.repository.listPendingApprovals(limit);
+
+    return {
+      ok: true,
+      approvals: approvals.map((approval) => this.toApprovalRecord(approval, null))
+    };
+  }
+
+  public async reviewApproval(input: {
+    authUserId: string;
+    approvalId: string;
+    action: "approve" | "reject";
+    reviewNote: string | null;
+  }): Promise<EventRoutingAdminApprovalReviewResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const approval = await this.repository.getPendingApproval(input.approvalId);
+
+    if (!approval) {
+      return {
+        ok: false,
+        reason: "event_routing_admin_approval_not_found"
+      };
+    }
+
+    if (input.action === "reject") {
+      const reviewed = await this.repository.reviewApproval({
+        id: input.approvalId,
+        status: "rejected",
+        reviewerUserId: actor.domainUserId,
+        reviewNote: input.reviewNote,
+        playback: null
+      });
+
+      return reviewed
+        ? {
+          ok: true,
+          approval: this.toApprovalRecord(reviewed, null)
+        }
+        : {
+          ok: false,
+          reason: "event_routing_admin_approval_not_found"
+        };
+    }
+
+    const projected = buildSafeEventRoutingPlaybackProjection({
+      history: approval.event,
+      destination: approval.destination,
+      notificationPriority: approval.rule.notificationPriority
+    });
+    const shouldBlockApproval = !projected.ok
+      && projected.reason !== "event_routing_playback_inert_destination";
+
+    if (shouldBlockApproval) {
+      const playback = {
+        projected,
+        published: null
+      };
+      await this.repository.reviewApproval({
+        id: input.approvalId,
+        status: "rejected",
+        reviewerUserId: actor.domainUserId,
+        reviewNote: input.reviewNote ?? `Blocked playback: ${projected.reason}`,
+        playback
+      });
+
+      return {
+        ok: false,
+        reason: "event_routing_admin_approval_playback_blocked",
+        playback
+      };
+    }
+
+    const published = projected.ok
+      ? await this.publishPlayback?.(projected.projection) ?? {
+        emitted: false
+      }
+      : null;
+    const playback = {
+      projected,
+      published
+    };
+    const reviewed = await this.repository.reviewApproval({
+      id: input.approvalId,
+      status: "approved",
+      reviewerUserId: actor.domainUserId,
+      reviewNote: input.reviewNote,
+      playback
+    });
+
+    return reviewed
+      ? {
+        ok: true,
+        approval: this.toApprovalRecord(reviewed, playback)
+      }
+      : {
+        ok: false,
+        reason: "event_routing_admin_approval_not_found"
+      };
+  }
+
   private async requireActor(authUserId: string): Promise<{
     ok: true;
     domainUserId: string;
@@ -158,6 +282,21 @@ export class EventRoutingAdminService {
     return {
       ok: true,
       domainUserId: actor.domainUserId
+    };
+  }
+
+  private toApprovalRecord(
+    approval: EventRoutingAdminApprovalRecord,
+    playback: EventRoutingAdminApprovalRecord["playback"]
+  ): EventRoutingAdminApprovalRecord {
+    const entry = getEventRegistryEntry(approval.event.eventKind);
+
+    return {
+      ...approval,
+      label: entry.label,
+      description: entry.description,
+      safety: entry.safety,
+      playback
     };
   }
 }

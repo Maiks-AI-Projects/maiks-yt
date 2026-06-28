@@ -32,7 +32,11 @@ import { z } from "zod";
 import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
 import { registerStreamVisibilityPreferencesRoutes } from "./account/index.js";
 import { registerActionPanelRoutes } from "./actions/index.js";
-import { registerEventRoutingAdminRoutes, registerEventRoutingDispatchRoutes } from "./event-routing/index.js";
+import {
+  registerEventRoutingAdminRoutes,
+  registerEventRoutingDispatchRoutes,
+  type EventRoutingPlaybackPublisher
+} from "./event-routing/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
@@ -791,6 +795,31 @@ const getDatabasePool = (): DatabasePool => {
   return databasePool;
 };
 
+const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) => {
+  if (projection.destination === "top_notification" && !overlayTopBarEnabled) {
+    return {
+      emitted: false,
+      reason: "top_notifications_disabled",
+      activeOverlayConnections: activeOverlayConnections.size
+    };
+  }
+
+  if (projection.destination === "center_notification" && !overlayCenterEnabled) {
+    return {
+      emitted: false,
+      reason: "center_notifications_disabled",
+      activeOverlayConnections: activeOverlayConnections.size
+    };
+  }
+
+  broadcastOverlayMessage(projection.overlayEvent);
+
+  return {
+    emitted: true,
+    activeOverlayConnections: activeOverlayConnections.size
+  };
+};
+
 const getDomainUserForAuthUser = async (
   pool: DatabasePool,
   authUser: NonNullable<AuthSessionSnapshot>["user"],
@@ -935,14 +964,16 @@ registerUrlAccessTokenAdminRoutes(server, {
 });
 registerEventRoutingAdminRoutes(server, {
   getAuthSession,
-  getDatabasePool
+  getDatabasePool,
+  publishPlayback: publishEventRoutingPlayback
 });
 registerNotificationAdminRoutes(server, {
   getAuthSession,
   getDatabasePool
 });
 registerEventRoutingDispatchRoutes(server, {
-  getDatabasePool
+  getDatabasePool,
+  publishPlayback: publishEventRoutingPlayback
 });
 
 server.get("/health", async () => ({

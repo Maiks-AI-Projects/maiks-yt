@@ -5,10 +5,14 @@ import { z } from "zod";
 
 import { EventRoutingDispatchService } from "./event-routing-dispatch.service.js";
 import { createEventRoutingDispatchRepository } from "./event-routing-dispatch-store.service.js";
-import type { EventRoutingDispatchResult } from "./event-routing-dispatch.types.js";
+import type {
+  EventRoutingDispatchResult,
+  EventRoutingPlaybackPublisher
+} from "./event-routing-dispatch.types.js";
 
 type EventRoutingDispatchRouteDependencies = {
   getDatabasePool: () => DatabasePool;
+  publishPlayback?: EventRoutingPlaybackPublisher;
   createService?: () => Pick<EventRoutingDispatchService, "dispatch">;
 };
 
@@ -49,7 +53,10 @@ export const registerEventRoutingDispatchRoutes = (
 ): void => {
   const getService = (): Pick<EventRoutingDispatchService, "dispatch"> =>
     dependencies.createService?.()
-    ?? new EventRoutingDispatchService(createEventRoutingDispatchRepository(dependencies.getDatabasePool()));
+    ?? new EventRoutingDispatchService(
+      createEventRoutingDispatchRepository(dependencies.getDatabasePool()),
+      dependencies.publishPlayback
+    );
 
   server.post("/dev/event-routing/dispatch", async (request, reply) => {
     if (process.env.NODE_ENV === "production") {

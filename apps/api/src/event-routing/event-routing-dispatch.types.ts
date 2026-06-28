@@ -7,6 +7,8 @@ import type {
   SafeSimulatedEventRoutingDispatchIssue
 } from "@maiks-yt/domain/events";
 
+import type { EventRoutingPlaybackProjection } from "./event-routing-playback.service.js";
+
 export type EventRoutingDispatchRuleRecord = EventRoutingRuleInput & {
   id: string;
 };
@@ -55,6 +57,16 @@ export type EventRoutingHistoryRecord = EventRoutingHistoryInsert & {
   createdAt: string;
 };
 
+export type EventRoutingPlaybackPublishResult = {
+  emitted: boolean;
+  reason?: "top_notifications_disabled" | "center_notifications_disabled" | "event_routing_playback_inert_destination";
+  activeOverlayConnections?: number;
+};
+
+export type EventRoutingPlaybackPublisher = (
+  projection: EventRoutingPlaybackProjection
+) => Promise<EventRoutingPlaybackPublishResult> | EventRoutingPlaybackPublishResult;
+
 export type EventRoutingApprovalQueueRecord = {
   id: string;
   eventHistoryId: string;
@@ -99,7 +111,8 @@ export type EventRoutingDispatchResult =
     history: EventRoutingHistoryRecord;
     approvalQueue: EventRoutingApprovalQueueRecord | null;
     cooldownsRecorded: number;
-    publicPlayback: false;
+    publicPlayback: boolean;
+    playback: EventRoutingPlaybackPublishResult | null;
   }
   | {
     ok: false;

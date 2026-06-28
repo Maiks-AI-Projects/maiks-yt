@@ -230,6 +230,51 @@ describe("EventRoutingDispatchService", () => {
     });
   });
 
+  it("publishes safe directly routed simulated top notifications", async () => {
+    const repository = new FakeEventRoutingDispatchRepository();
+    repository.rules.set("website.signup:any", baseRule({
+      destination: "top_notification",
+      enabled: true,
+      approvalRequired: false
+    }));
+    const published: unknown[] = [];
+    const service = new EventRoutingDispatchService(repository, (projection) => {
+      published.push(projection);
+
+      return {
+        emitted: true,
+        activeOverlayConnections: 1
+      };
+    });
+
+    const result = await service.dispatch(baseRequest());
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: "routed",
+      destination: "top_notification",
+      approvalQueue: null,
+      publicPlayback: true,
+      playback: {
+        emitted: true,
+        activeOverlayConnections: 1
+      }
+    });
+    expect(published).toHaveLength(1);
+    expect(published[0]).toMatchObject({
+      destination: "top_notification",
+      overlayEvent: {
+        type: "overlay.top-bar-notification.queued",
+        payload: {
+          actorName: "Preview User",
+          actionLabel: "Preview User joined Maiks.yt.",
+          platform: "site",
+          kind: "website"
+        }
+      }
+    });
+  });
+
   it("fails closed for opt-out-aware stream-visible events when user identity is missing", async () => {
     const repository = new FakeEventRoutingDispatchRepository();
     repository.rules.set("website.signup:any", baseRule({

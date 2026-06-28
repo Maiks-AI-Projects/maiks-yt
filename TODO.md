@@ -120,6 +120,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - 2026-06-22 Chunk 20 generated migration `0012_smooth_jack_flag.sql` for Event Routing persistence only and applied it on the dev database after coordinator review. It adds durable routing rules, stream-visible website opt-outs, append-only event history/audit with simulated/test reset flags, approval queue state, and cooldown state. No dispatch, UI, API, provider integration, real money behavior, auth, secrets, or production changes were added.
   - 2026-06-22 Chunk 21A added, deployed, and dev-smoked the first runtime-safe manual Event Routing admin foundation: typed domain routing-rule validation, owner-gated list/update API, and `/admin/event-routing` manual controls for persisted rules. It still does not dispatch real or simulated events, write event history, evaluate cooldown state, enforce moderation, integrate providers, touch real money, change auth, or add user-facing opt-out settings UX.
   - 2026-06-27 Chunk 21B added coordinator-reviewed and dev-smoked safe simulated dispatch from `/dev/test-console` to `/dev/event-routing/dispatch`. It writes only test/simulated/resettable history, queues approval-required events without playback, rejects real providers/real website dispatch/real money, and keeps opt-out/cooldown-aware stream-visible website events fail-closed when user identity cannot be checked.
+  - 2026-06-28 Phase 4A added coordinator-reviewed safe simulated playback from Event Routing into existing overlay top/center notification WebSocket events. Pending approvals can now be listed/reviewed from owner admin, direct safe simulated routes can publish immediately, internal-only/unsafe events fail closed, and real providers, real website production dispatch, real money, moderation enforcement, and provider intake remain gated.
 
 ## 6. Overlay Renderer
 
@@ -130,6 +131,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Create typed notification events.
 - [x] Add provider/source capability defaults for future routed notifications.
 - [x] Build notification queue before display rendering.
+- [x] Route safe simulated Event Routing approvals/direct outcomes into overlay top/center notification playback.
 - [x] Add user-facing stream visibility opt-outs for website/community events.
   - 2026-06-28 added current-user stream visibility preferences on `/account` backed by `event_user_opt_outs`, with a global opt-out plus website signup, public name, profile image, and future free TTS scopes. Safe simulated website dispatch now attaches the signed-in domain user where available, blocks opted-out stream-visible events, and fails closed when identity is missing.
 - [x] Add top notification zone.

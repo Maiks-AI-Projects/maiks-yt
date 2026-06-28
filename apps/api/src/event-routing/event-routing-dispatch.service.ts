@@ -4,14 +4,21 @@ import {
 } from "@maiks-yt/domain/events";
 
 import type {
+  EventRoutingDestination
+} from "@maiks-yt/domain/events";
+import type {
   EventRoutingCooldownInsert,
   EventRoutingCooldownScope,
   EventRoutingDispatchRepository,
   EventRoutingDispatchRequest,
   EventRoutingDispatchResult,
   EventRoutingDispatchRuleRecord,
-  EventRoutingHistoryInsert
+  EventRoutingHistoryInsert,
+  EventRoutingHistoryRecord,
+  EventRoutingPlaybackPublishResult,
+  EventRoutingPlaybackPublisher
 } from "./event-routing-dispatch.types.js";
+import { buildSafeEventRoutingPlaybackProjection } from "./event-routing-playback.service.js";
 
 const addSeconds = (date: Date, seconds: number): Date =>
   new Date(date.getTime() + seconds * 1_000);
@@ -120,7 +127,10 @@ const buildCooldownPlans = (input: {
 };
 
 export class EventRoutingDispatchService {
-  public constructor(private readonly repository: EventRoutingDispatchRepository) {}
+  public constructor(
+    private readonly repository: EventRoutingDispatchRepository,
+    private readonly publishPlayback?: EventRoutingPlaybackPublisher
+  ) {}
 
   public async dispatch(input: EventRoutingDispatchRequest): Promise<EventRoutingDispatchResult> {
     const rule = await this.resolveRule(input);
@@ -207,6 +217,14 @@ export class EventRoutingDispatchService {
       });
     }
 
+    const playback = !approvalQueue && history.routingOutcome === "routed" && decision.destination
+      ? await this.publishDirectPlayback({
+        history,
+        destination: decision.destination,
+        notificationPriority: rule.notificationPriority
+      })
+      : null;
+
     return {
       ok: true,
       status: history.routingOutcome,
@@ -214,7 +232,8 @@ export class EventRoutingDispatchService {
       history,
       approvalQueue,
       cooldownsRecorded: cooldownPlans.plans.length,
-      publicPlayback: false
+      publicPlayback: Boolean(playback?.emitted),
+      playback
     };
   }
 
@@ -264,7 +283,35 @@ export class EventRoutingDispatchService {
       history,
       approvalQueue: null,
       cooldownsRecorded: 0,
-      publicPlayback: false
+      publicPlayback: false,
+      playback: null
+    };
+  }
+
+  private async publishDirectPlayback(input: {
+    history: EventRoutingHistoryRecord;
+    destination: EventRoutingDestination;
+    notificationPriority: EventRoutingDispatchRuleRecord["notificationPriority"];
+  }): Promise<EventRoutingPlaybackPublishResult | null> {
+    const projection = buildSafeEventRoutingPlaybackProjection({
+      history: input.history,
+      destination: input.destination,
+      notificationPriority: input.notificationPriority
+    });
+
+    if (!projection.ok) {
+      return projection.reason === "event_routing_playback_inert_destination"
+        ? {
+          emitted: false,
+          reason: "event_routing_playback_inert_destination"
+        }
+        : {
+          emitted: false
+        };
+    }
+
+    return await this.publishPlayback?.(projection.projection) ?? {
+      emitted: false
     };
   }
 }

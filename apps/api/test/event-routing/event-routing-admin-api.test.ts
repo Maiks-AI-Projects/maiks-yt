@@ -6,6 +6,9 @@ import { registerEventRoutingAdminRoutes } from "../../src/event-routing/event-r
 import { EventRoutingAdminService } from "../../src/event-routing/event-routing-admin.service.js";
 import type {
   EventRoutingAdminActor,
+  EventRoutingAdminApprovalRecord,
+  EventRoutingApprovalReviewPlayback,
+  EventRoutingApprovalQueueStatus,
   EventRoutingAdminRepository,
   EventRoutingAdminRuleRecord,
   EventRoutingAdminUpsertInput
@@ -42,13 +45,77 @@ const toRecord = (
   ...overrides
 });
 
+const toApproval = (
+  overrides: Partial<EventRoutingAdminApprovalRecord> = {}
+): EventRoutingAdminApprovalRecord => ({
+  id: "approval-1",
+  eventHistoryId: "history-1",
+  routingRuleId: "rule-1",
+  destination: "top_notification",
+  status: "pending",
+  reviewerUserId: null,
+  reviewedAt: null,
+  reviewNote: null,
+  createdAt: "2026-06-22T10:00:00.000Z",
+  updatedAt: "2026-06-22T10:00:00.000Z",
+  event: {
+    id: "history-1",
+    sourcePlatform: "website",
+    eventKind: "website.signup",
+    sourceEventId: "preview-1",
+    routingOutcome: "queued_for_approval",
+    actorUserId: null,
+    actorExternalId: "actor-1",
+    actorDisplayName: "Preview User",
+    userId: "user-1",
+    streamSessionId: null,
+    streamScheduleEntryId: null,
+    sessionId: null,
+    isTest: true,
+    isSimulated: true,
+    isRealMoney: false,
+    testResettable: true,
+    redactedPayload: {
+      displayText: "Preview User joined Maiks.yt."
+    },
+    occurredAt: "2026-06-22T10:00:00.000Z",
+    createdAt: "2026-06-22T10:00:00.000Z"
+  },
+  rule: {
+    notificationPriority: "normal",
+    sourcePlatform: "any"
+  },
+  label: "Website Signup",
+  description: "A website account signup event for future promotional routing.",
+  safety: {
+    overlayEligible: true,
+    internalOnly: false,
+    moneyGated: false,
+    providerGated: false,
+    approvalRecommended: true,
+    optOutSupported: true,
+    cooldownRecommended: true,
+    simulatedOnly: false
+  },
+  playback: null,
+  ...overrides
+});
+
 class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
   public actor: EventRoutingAdminActor | null = {
     domainUserId: "domain-user",
     rolePermissionValues: [["*"]]
   };
   public readonly rules = new Map<string, EventRoutingAdminRuleRecord>();
+  public readonly approvals = new Map<string, EventRoutingAdminApprovalRecord>();
   public lastUpsert: EventRoutingAdminUpsertInput | null = null;
+  public lastReview: {
+    id: string;
+    status: Extract<EventRoutingApprovalQueueStatus, "approved" | "rejected">;
+    reviewerUserId: string;
+    reviewNote: string | null;
+    playback: EventRoutingApprovalReviewPlayback | null;
+  } | null = null;
 
   public async resolveActor(): Promise<EventRoutingAdminActor | null> {
     return this.actor ? structuredClone(this.actor) : null;
@@ -81,6 +148,47 @@ class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
     const rule = this.rules.get(`${eventKind}:${sourcePlatform}`);
 
     return rule ? structuredClone(rule) : null;
+  }
+
+  public async listPendingApprovals(limit: number): Promise<readonly EventRoutingAdminApprovalRecord[]> {
+    return [...this.approvals.values()]
+      .filter((approval) => approval.status === "pending")
+      .slice(0, limit)
+      .map((approval) => structuredClone(approval));
+  }
+
+  public async getPendingApproval(id: string): Promise<EventRoutingAdminApprovalRecord | null> {
+    const approval = this.approvals.get(id);
+
+    return approval?.status === "pending" ? structuredClone(approval) : null;
+  }
+
+  public async reviewApproval(input: {
+    id: string;
+    status: Extract<EventRoutingApprovalQueueStatus, "approved" | "rejected">;
+    reviewerUserId: string;
+    reviewNote: string | null;
+    playback: EventRoutingApprovalReviewPlayback | null;
+  }): Promise<EventRoutingAdminApprovalRecord | null> {
+    this.lastReview = structuredClone(input);
+    const approval = this.approvals.get(input.id);
+
+    if (!approval || approval.status !== "pending") {
+      return null;
+    }
+
+    const reviewed: EventRoutingAdminApprovalRecord = {
+      ...approval,
+      status: input.status,
+      reviewerUserId: input.reviewerUserId,
+      reviewedAt: "2026-06-22T11:00:00.000Z",
+      reviewNote: input.reviewNote,
+      updatedAt: "2026-06-22T11:00:00.000Z",
+      playback: input.playback
+    };
+    this.approvals.set(input.id, reviewed);
+
+    return structuredClone(reviewed);
   }
 }
 
@@ -202,6 +310,150 @@ describe("EventRoutingAdminService", () => {
       reason: "event_routing_admin_forbidden"
     });
   });
+
+  it("lists pending safe simulated approval queue items", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval());
+    const service = new EventRoutingAdminService(repository);
+
+    const result = await service.listPendingApprovals({ authUserId: "auth-user" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      approvals: [
+        {
+          id: "approval-1",
+          destination: "top_notification",
+          label: "Website Signup",
+          event: {
+            isTest: true,
+            isSimulated: true,
+            isRealMoney: false,
+            testResettable: true
+          }
+        }
+      ]
+    });
+  });
+
+  it("approves safe simulated top notification playback", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval());
+    const published: unknown[] = [];
+    const service = new EventRoutingAdminService(repository, (projection) => {
+      published.push(projection);
+
+      return {
+        emitted: true,
+        activeOverlayConnections: 1
+      };
+    });
+
+    const result = await service.reviewApproval({
+      authUserId: "auth-user",
+      approvalId: "approval-1",
+      action: "approve",
+      reviewNote: "Looks safe."
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved",
+        reviewerUserId: "domain-user",
+        playback: {
+          published: {
+            emitted: true,
+            activeOverlayConnections: 1
+          }
+        }
+      }
+    });
+    expect(repository.lastReview).toMatchObject({
+      status: "approved",
+      reviewerUserId: "domain-user"
+    });
+    expect(published).toHaveLength(1);
+    expect(published[0]).toMatchObject({
+      destination: "top_notification",
+      overlayEvent: {
+        type: "overlay.top-bar-notification.queued",
+        payload: {
+          actorName: "Preview User",
+          actionLabel: "Preview User joined Maiks.yt.",
+          platform: "site",
+          kind: "website"
+        }
+      }
+    });
+  });
+
+  it("rejects unsafe internal-only playback even when queued data asks for a public destination", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval({
+      event: {
+        ...toApproval().event,
+        eventKind: "website.provider-token-change"
+      }
+    }));
+    const published: unknown[] = [];
+    const service = new EventRoutingAdminService(repository, (projection) => {
+      published.push(projection);
+
+      return {
+        emitted: true
+      };
+    });
+
+    const result = await service.reviewApproval({
+      authUserId: "auth-user",
+      approvalId: "approval-1",
+      action: "approve",
+      reviewNote: null
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      reason: "event_routing_admin_approval_playback_blocked",
+      playback: {
+        projected: {
+          ok: false,
+          reason: "event_routing_playback_internal_only"
+        }
+      }
+    });
+    expect(repository.lastReview).toMatchObject({
+      status: "rejected",
+      reviewerUserId: "domain-user"
+    });
+    expect(published).toHaveLength(0);
+  });
+
+  it("rejects pending approval items without public playback", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval());
+    const service = new EventRoutingAdminService(repository);
+
+    const result = await service.reviewApproval({
+      authUserId: "auth-user",
+      approvalId: "approval-1",
+      action: "reject",
+      reviewNote: "Not this one."
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      approval: {
+        status: "rejected",
+        playback: null
+      }
+    });
+    expect(repository.lastReview).toMatchObject({
+      status: "rejected",
+      reviewNote: "Not this one.",
+      playback: null
+    });
+  });
 });
 
 describe("event routing admin route boundary", () => {
@@ -257,5 +509,41 @@ describe("event routing admin route boundary", () => {
       issues: ["event_routing_live_offline_conflict"]
     });
     expect(repository.lastUpsert).toBeNull();
+  });
+
+  it("reviews pending approval queue items through the admin route", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval());
+    const server = Fastify();
+    registerEventRoutingAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new EventRoutingAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/event-routing/approvals/approval-1/review",
+      payload: {
+        action: "reject",
+        reviewNote: "Skip playback."
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      approval: {
+        id: "approval-1",
+        status: "rejected",
+        reviewNote: "Skip playback."
+      }
+    });
   });
 });

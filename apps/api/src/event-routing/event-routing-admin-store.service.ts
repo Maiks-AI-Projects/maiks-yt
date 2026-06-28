@@ -4,6 +4,8 @@ import type { DatabasePool } from "@maiks-yt/database";
 
 import type {
   EventRoutingAdminActor,
+  EventRoutingAdminApprovalRecord,
+  EventRoutingApprovalQueueStatus,
   EventRoutingAdminRepository,
   EventRoutingAdminRuleRecord,
   EventRoutingAdminUpsertInput
@@ -33,6 +35,39 @@ type EventRoutingRuleRow = {
   updatedAt: Date | string;
 };
 
+type EventRoutingApprovalRow = {
+  id: string;
+  eventHistoryId: string;
+  routingRuleId?: string | null;
+  destination: EventRoutingAdminApprovalRecord["destination"];
+  status: EventRoutingApprovalQueueStatus;
+  reviewerUserId?: string | null;
+  reviewedAt?: Date | string | null;
+  reviewNote?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  sourcePlatform: EventRoutingAdminApprovalRecord["event"]["sourcePlatform"];
+  eventKind: EventRoutingAdminApprovalRecord["event"]["eventKind"];
+  sourceEventId?: string | null;
+  routingOutcome: "queued_for_approval";
+  actorUserId?: string | null;
+  actorExternalId?: string | null;
+  actorDisplayName?: string | null;
+  userId?: string | null;
+  streamSessionId?: string | null;
+  streamScheduleEntryId?: string | null;
+  sessionId?: string | null;
+  isTest: number | boolean;
+  isSimulated: number | boolean;
+  isRealMoney: number | boolean;
+  testResettable: number | boolean;
+  redactedPayload: unknown;
+  occurredAt: Date | string;
+  historyCreatedAt: Date | string;
+  notificationPriority?: EventRoutingAdminApprovalRecord["rule"]["notificationPriority"] | null;
+  ruleSourcePlatform?: EventRoutingAdminApprovalRecord["rule"]["sourcePlatform"] | null;
+};
+
 const toIsoString = (value: Date | string): string =>
   value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 
@@ -58,6 +93,26 @@ const mapRule = (row: EventRoutingRuleRow): EventRoutingAdminRuleRecord => ({
   updatedAt: toIsoString(row.updatedAt)
 });
 
+const parseRedactedPayload = (value: unknown): Record<string, unknown> => {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  if (typeof value !== "string") {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+};
+
 const selectRuleFields = `
   id,
   event_kind AS eventKind,
@@ -79,6 +134,120 @@ const selectRuleFields = `
   created_at AS createdAt,
   updated_at AS updatedAt
 `;
+
+const selectApprovalFields = `
+  q.id,
+  q.event_history_id AS eventHistoryId,
+  q.routing_rule_id AS routingRuleId,
+  q.destination,
+  q.status,
+  q.reviewer_user_id AS reviewerUserId,
+  q.reviewed_at AS reviewedAt,
+  q.review_note AS reviewNote,
+  q.created_at AS createdAt,
+  q.updated_at AS updatedAt,
+  h.source_platform AS sourcePlatform,
+  h.event_kind AS eventKind,
+  h.source_event_id AS sourceEventId,
+  h.routing_outcome AS routingOutcome,
+  h.actor_user_id AS actorUserId,
+  h.actor_external_id AS actorExternalId,
+  h.actor_display_name AS actorDisplayName,
+  h.user_id AS userId,
+  h.stream_session_id AS streamSessionId,
+  h.stream_schedule_entry_id AS streamScheduleEntryId,
+  h.session_id AS sessionId,
+  h.is_test AS isTest,
+  h.is_simulated AS isSimulated,
+  h.is_real_money AS isRealMoney,
+  h.test_resettable AS testResettable,
+  h.redacted_payload AS redactedPayload,
+  h.occurred_at AS occurredAt,
+  h.created_at AS historyCreatedAt,
+  r.notification_priority AS notificationPriority,
+  r.source_platform AS ruleSourcePlatform
+`;
+
+const mapApproval = (row: EventRoutingApprovalRow): EventRoutingAdminApprovalRecord => {
+  const createdAt = toIsoString(row.createdAt);
+
+  return {
+    id: row.id,
+    eventHistoryId: row.eventHistoryId,
+    routingRuleId: row.routingRuleId ?? null,
+    destination: row.destination,
+    status: row.status,
+    reviewerUserId: row.reviewerUserId ?? null,
+    reviewedAt: row.reviewedAt ? toIsoString(row.reviewedAt) : null,
+    reviewNote: row.reviewNote ?? null,
+    createdAt,
+    updatedAt: toIsoString(row.updatedAt),
+    event: {
+      id: row.eventHistoryId,
+      sourcePlatform: row.sourcePlatform,
+      eventKind: row.eventKind,
+      sourceEventId: row.sourceEventId ?? null,
+      routingOutcome: "queued_for_approval",
+      actorUserId: row.actorUserId ?? null,
+      actorExternalId: row.actorExternalId ?? null,
+      actorDisplayName: row.actorDisplayName ?? null,
+      userId: row.userId ?? null,
+      streamSessionId: row.streamSessionId ?? null,
+      streamScheduleEntryId: row.streamScheduleEntryId ?? null,
+      sessionId: row.sessionId ?? null,
+      isTest: Boolean(row.isTest),
+      isSimulated: Boolean(row.isSimulated),
+      isRealMoney: Boolean(row.isRealMoney),
+      testResettable: Boolean(row.testResettable),
+      redactedPayload: parseRedactedPayload(row.redactedPayload),
+      occurredAt: toIsoString(row.occurredAt),
+      createdAt: toIsoString(row.historyCreatedAt)
+    },
+    rule: {
+      notificationPriority: row.notificationPriority ?? "normal",
+      sourcePlatform: row.ruleSourcePlatform ?? null
+    },
+    label: "",
+    description: "",
+    safety: {
+      overlayEligible: false,
+      internalOnly: false,
+      moneyGated: false,
+      providerGated: false,
+      approvalRecommended: false,
+      optOutSupported: false,
+      cooldownRecommended: false,
+      simulatedOnly: false
+    },
+    playback: null
+  };
+};
+
+const readApproval = async (
+  executor: QueryExecutor,
+  id: string,
+  status?: EventRoutingApprovalQueueStatus
+): Promise<EventRoutingAdminApprovalRecord | null> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT ${selectApprovalFields}
+      FROM event_approval_queue q
+      INNER JOIN event_history h ON h.id = q.event_history_id
+      LEFT JOIN event_routing_rules r ON r.id = q.routing_rule_id
+      WHERE q.id = ?
+        ${status ? "AND q.status = ?" : ""}
+        AND h.is_real_money = false
+        AND (h.is_test = true OR h.is_simulated = true)
+        AND h.test_resettable = true
+      LIMIT 1
+    `,
+    status ? [id, status] : [id]
+  );
+
+  return Array.isArray(rows) && rows.length > 0
+    ? mapApproval(rows[0] as EventRoutingApprovalRow)
+    : null;
+};
 
 const readRule = async (
   executor: QueryExecutor,
@@ -162,6 +331,33 @@ export const createEventRoutingAdminRepository = (
       : [];
   },
 
+  async listPendingApprovals(limit) {
+    const [rows] = await pool.execute(
+      `
+        SELECT ${selectApprovalFields}
+        FROM event_approval_queue q
+        INNER JOIN event_history h ON h.id = q.event_history_id
+        LEFT JOIN event_routing_rules r ON r.id = q.routing_rule_id
+        WHERE q.status = 'pending'
+          AND h.routing_outcome = 'queued_for_approval'
+          AND h.is_real_money = false
+          AND (h.is_test = true OR h.is_simulated = true)
+          AND h.test_resettable = true
+        ORDER BY q.created_at ASC
+        LIMIT ?
+      `,
+      [limit]
+    );
+
+    return Array.isArray(rows)
+      ? (rows as EventRoutingApprovalRow[]).map(mapApproval)
+      : [];
+  },
+
+  async getPendingApproval(id) {
+    return await readApproval(pool, id, "pending");
+  },
+
   async getRule(eventKind, sourcePlatform) {
     return await readRule(pool, eventKind, sourcePlatform);
   },
@@ -235,5 +431,36 @@ export const createEventRoutingAdminRepository = (
     }
 
     return rule;
+  },
+
+  async reviewApproval(input) {
+    await pool.execute(
+      `
+        UPDATE event_approval_queue
+        SET
+          status = ?,
+          reviewer_user_id = ?,
+          reviewed_at = NOW(),
+          review_note = ?,
+          updated_at = NOW()
+        WHERE id = ?
+          AND status = 'pending'
+      `,
+      [
+        input.status,
+        input.reviewerUserId,
+        input.reviewNote,
+        input.id
+      ]
+    );
+
+    const approval = await readApproval(pool, input.id);
+
+    return approval
+      ? {
+        ...approval,
+        playback: input.playback
+      }
+      : null;
   }
 });
