@@ -106,10 +106,12 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Generated, pushed, dev-applied, and schema-smoked Phase 5A moderator/helper persistence migration `packages/database/drizzle/0016_jittery_nebula.sql`: role grants now have trust level, scope, live/offline availability, expiration, revocation metadata, and an owner-trust backfill for existing owner grants; `role_grant_audit_logs` records future grant/update/revoke/expire decisions.
 - Dev schema smoke confirmed seven new `user_roles` metadata columns, `role_grant_audit_logs`, and two existing owner grants backfilled to `trust_level = 'owner'`.
 - Kept Phase 5A persistence-only: no admin UI/API, runtime permission behavior change, automatic promotions, Discord/Twitch/YouTube role sync, real moderation enforcement, auth changes, secrets, or production behavior was added.
+- Added Phase 5B worker output for the first manual owner-gated moderator/helper admin: `@maiks-yt/domain/community` grant rules, `/admin/moderators` API list/grant/update/revoke behavior, role-grant audit writes, focused API coverage, and `/admin/moderators` web UI for users, roles, trust level, scope, availability, expiration/revocation state, and recent audit entries.
+- Kept Phase 5B worker output manual and bounded: no migrations/schema changes, provider role sync, automatic trust scoring, real moderation enforcement, money/support permissions, production owner assignment, auth/provider login behavior, secrets, deploy config, commits, pushes, deployments, or server changes.
 
 ## Current Task
 
-Build the first owner-gated moderator management admin surface over the dev-applied Phase 5A persistence shape.
+Coordinator review of the Phase 5B owner-gated moderator management admin worker output.
 
 ## Next Tasks
 
@@ -176,6 +178,7 @@ Build the first owner-gated moderator management admin surface over the dev-appl
 - Website signup/name/avatar overlay eligibility now has a user-facing opt-out foundation and safe simulated dispatch enforcement. Phase 4A adds safe simulated approval/direct top/center overlay playback. Real website dispatch, provider intake, richer templates, moderation enforcement, and real-money behavior remain future gates. Privacy/security/account/provider-token events stay internal-only. Free website TTS remains later promotional scope. Simulated money remains dev/test-only and separate from real money.
 - Chunk 21A is reviewed, committed, pushed, deployed, and dev-smoked. Phase 3 now adds user-facing stream visibility preferences and safe simulated dispatch opt-out enforcement; future real routing still needs production-safe intake, event templates, approval/cooldown processing, and overlay/control playback.
 - Phase 5A opened the community-operations foundation with a generated moderator/helper persistence migration only. Runtime role management, live moderation tools, provider enforcement, provider role sync, and production auth remain separate gated slices.
+- Phase 5B worker output is ready for coordinator review. It adds manual helper/moderator grant management over the Phase 5A schema, but it does not create/seed helper roles; `/admin/moderators` can only grant roles already present in `roles` and marked grantable by the domain safety rules.
 - Do not begin full chat, AI, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
 - Production readiness is now documented in `reports/production-readiness-checklist.md`, but it is only a future release gate. Production/main deployment, Cloudflare/Docker/deployment config edits, production secret/OAuth rotation, production migration application, and server changes remain out of scope until Michael opens a release-preparation task.
 - Production owner-account mapping must stay explicit; the first production login must never become owner/admin automatically.

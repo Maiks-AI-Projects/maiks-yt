@@ -145,6 +145,15 @@ Reviewer gate:
 - Verify grant/update/revoke writes an audit row and does not allow owner/admin or money/auth/secrets capabilities.
 - Verify temporary and scoped grants render clearly in `/admin/moderators`.
 
+Worker output pending coordinator review:
+
+- Added `@maiks-yt/domain/community` moderator grant rules/types and exported the new domain subpath.
+- Added `apps/api/src/moderators` list/grant/update/revoke API behavior with owner wildcard or `moderators:manage` authorization.
+- Added focused API tests under `apps/api/test/moderators`.
+- Added `/admin/moderators` manual web UI.
+- No migration/schema, auth/provider login, provider role sync, automatic promotion/scoring, real moderation enforcement, money/support authority, secrets, deploy config, commits, pushes, deployments, or server state changes were made.
+- Note: this worker did not create or seed helper/moderator roles. The admin surface lists all existing roles and only allows grants for roles that already exist and pass the grantable-role safety rules.
+
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
 Worker scope:

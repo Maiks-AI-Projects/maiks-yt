@@ -6,6 +6,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./actions": "./dist/actions/index.js",
+    "./community": "./dist/community/index.js",
     "./events": "./dist/events/index.js",
     "./identity": "./dist/identity/index.js",
     "./pages": "./dist/pages/index.js",
