@@ -103,18 +103,19 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added, committed, pushed, deployed, and dev-smoked Phase 4A Event Routing playback on commit `5c8a7f2`: safe simulated playback projection, owner-gated pending approval list/review endpoints, direct safe simulated top/center overlay playback, and `/admin/event-routing` pending-review controls.
 - Dev smoke opened a live overlay WebSocket with the dev overlay token, temporarily enabled safe `website.signup:any` routing, confirmed direct simulated playback reached the overlay socket with one active overlay connection, confirmed approval-required dispatch appeared in the pending queue and published after owner approval, confirmed `website.provider-token-change` stayed ignored/non-public, and restored the previous signup rule plus stream-visibility preferences.
 - Public/admin smoke confirmed `/admin/event-routing` returns `200` without the known injection marker, pending approvals returned zero after smoke cleanup, and the signup routing rule was restored to disabled internal audit. Real provider intake, real website production dispatch, real money, moderation enforcement, provider integrations, secrets, migrations, and production behavior remain gated.
-- Generated Phase 5A moderator/helper persistence migration `packages/database/drizzle/0016_jittery_nebula.sql`: role grants now have trust level, scope, live/offline availability, expiration, revocation metadata, and an owner-trust backfill for existing owner grants; `role_grant_audit_logs` records future grant/update/revoke/expire decisions.
-- Kept Phase 5A persistence-only: no admin UI/API, runtime permission behavior change, automatic promotions, Discord/Twitch/YouTube role sync, real moderation enforcement, auth changes, secrets, deployment, server state, or migration application was made.
+- Generated, pushed, dev-applied, and schema-smoked Phase 5A moderator/helper persistence migration `packages/database/drizzle/0016_jittery_nebula.sql`: role grants now have trust level, scope, live/offline availability, expiration, revocation metadata, and an owner-trust backfill for existing owner grants; `role_grant_audit_logs` records future grant/update/revoke/expire decisions.
+- Dev schema smoke confirmed seven new `user_roles` metadata columns, `role_grant_audit_logs`, and two existing owner grants backfilled to `trust_level = 'owner'`.
+- Kept Phase 5A persistence-only: no admin UI/API, runtime permission behavior change, automatic promotions, Discord/Twitch/YouTube role sync, real moderation enforcement, auth changes, secrets, or production behavior was added.
 
 ## Current Task
 
-Review/apply the Phase 5A moderator/helper persistence migration, then build the first owner-gated moderator management admin surface.
+Build the first owner-gated moderator management admin surface over the dev-applied Phase 5A persistence shape.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 5A generated moderator/helper persistence migration `0016_jittery_nebula.sql`; coordinator still needs to review/apply it on dev before runtime moderator management relies on the new fields.
+3. Phase 5A moderator/helper persistence migration `0016_jittery_nebula.sql` is applied on dev; Phase 5B can build owner-gated manual moderator management over it.
 4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
 5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.

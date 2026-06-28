@@ -16,7 +16,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, deployed safe simulated dispatch API behavior, deployed user-facing stream visibility opt-outs for website/community events, and deployed/dev-smoked Phase 4A safe simulated top/center overlay playback. Provider credentials, real website production dispatch, moderation enforcement, real money, and production event intake remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql` and a deployed first runtime implementation: path-only manual pages on the primary website host, owner-gated `/admin/pages`, saved preview-before-publish, reserved-route blocking, and public exact-path rendering for published visible records. Host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
-- Phase 5A generated moderator/helper persistence migration `0016_jittery_nebula.sql` for trust levels, scoped role grants, temporary/revoked access metadata, and role-grant audit logs. It has not been applied on dev yet.
+- Phase 5A generated and dev-applied moderator/helper persistence migration `0016_jittery_nebula.sql` for trust levels, scoped role grants, temporary/revoked access metadata, and role-grant audit logs.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
@@ -93,13 +93,13 @@ Reviewer gate:
 - The recurring schedule is installed in Michael's user crontab on `codex-server-1` at `07:00`, `12:00`, `17:00`, and `22:00` Europe/Amsterdam time, matching the preferred five-hour work windows and logging to `/tmp/maiks-yt-dev-smoke-cron.log`.
 - A user systemd timer was tested and then disabled because `loginctl enable-linger michael` requires sudo/password; cron is active and avoids that lingering dependency.
 
-## Phase 5A: Moderator Trust Persistence Migration (Generated, Apply Pending)
+## Phase 5A: Moderator Trust Persistence Migration (Completed On Dev)
 
 Coordinator scope:
 
-- Review generated migration `packages/database/drizzle/0016_jittery_nebula.sql`.
-- Apply it on the dev database only after review.
-- Keep this as persistence-only; no admin UI/API or runtime role behavior is enabled by this slice.
+- Reviewed generated migration `packages/database/drizzle/0016_jittery_nebula.sql`.
+- Applied it on the dev database.
+- Kept this as persistence-only; no admin UI/API or runtime role behavior is enabled by this slice.
 
 Result:
 
@@ -112,10 +112,10 @@ Checks:
 - `pnpm --filter @maiks-yt/database typecheck` passed.
 - `node scripts/check-architecture.mjs` passed.
 - `git diff --check` passed.
+- Dev schema smoke confirmed seven new `user_roles` metadata columns, the `role_grant_audit_logs` table, and two existing owner grants backfilled to `trust_level = 'owner'`.
 
 Remaining gates:
 
-- Migration application is pending.
 - No admin UI/API, runtime permission behavior change, automatic promotion, provider role sync, real moderation enforcement, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
 ## Phase 5B: Owner-Gated Moderator Management Admin (Next)
