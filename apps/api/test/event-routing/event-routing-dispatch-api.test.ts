@@ -202,6 +202,62 @@ describe("EventRoutingDispatchService", () => {
       testResettable: true
     });
   });
+
+  it("blocks stream-visible website events when the current user opted out", async () => {
+    const repository = new FakeEventRoutingDispatchRepository();
+    repository.optedOut = true;
+    repository.rules.set("website.signup:any", baseRule({
+      destination: "top_notification",
+      enabled: true,
+      approvalRequired: false
+    }));
+    const service = new EventRoutingDispatchService(repository);
+
+    const result = await service.dispatch(baseRequest());
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: "blocked_opt_out",
+      destination: null,
+      approvalQueue: null,
+      cooldownsRecorded: 0,
+      publicPlayback: false
+    });
+    expect(repository.histories[0]).toMatchObject({
+      routingOutcome: "blocked_opt_out",
+      destination: null,
+      userId: "user-1"
+    });
+  });
+
+  it("fails closed for opt-out-aware stream-visible events when user identity is missing", async () => {
+    const repository = new FakeEventRoutingDispatchRepository();
+    repository.rules.set("website.signup:any", baseRule({
+      destination: "top_notification",
+      enabled: true,
+      approvalRequired: false
+    }));
+    const service = new EventRoutingDispatchService(repository);
+
+    const result = await service.dispatch(baseRequest({
+      actorUserId: null,
+      userId: null
+    }));
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: "blocked_safety",
+      destination: null,
+      approvalQueue: null,
+      cooldownsRecorded: 0,
+      publicPlayback: false
+    });
+    expect(repository.histories[0]).toMatchObject({
+      routingOutcome: "blocked_safety",
+      destination: null,
+      userId: null
+    });
+  });
 });
 
 describe("event routing dispatch route boundary", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   canSourceEmitEventKind,
   eventSourcePlatforms,
@@ -11,6 +11,8 @@ import {
   type EventRoutingSafety,
   type EventSourcePlatform
 } from "@maiks-yt/domain/events";
+
+import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
@@ -58,6 +60,19 @@ type DispatchResponse =
     issues?: readonly string[];
     ruleIssues?: readonly string[];
   };
+
+type CurrentDomainUser = {
+  id: string;
+  displayName: string;
+};
+
+type DomainAccountSnapshot = {
+  ok: true;
+  domainUser: CurrentDomainUser | null;
+} | {
+  ok: false;
+  reason: string;
+};
 
 const sourceLabels: Record<EventSourcePlatform, string> = {
   twitch: "Twitch",
@@ -296,6 +311,7 @@ const DevTestConsoleClient = (): React.ReactNode => {
   const [dispatchResult, setDispatchResult] = useState<DispatchResponse | null>(null);
   const [dispatchError, setDispatchError] = useState<string | null>(null);
   const [dispatchPending, setDispatchPending] = useState(false);
+  const [currentDomainUser, setCurrentDomainUser] = useState<CurrentDomainUser | null>(null);
 
   const sourceEventKinds = useMemo(() => listEventKindsForSource(selectedSource), [selectedSource]);
   const selectedEntry = useMemo(() => getEventRegistryEntry(selectedKind), [selectedKind]);
@@ -304,6 +320,30 @@ const DevTestConsoleClient = (): React.ReactNode => {
     () => sourceEventKinds.map((kind) => getEventRegistryEntry(kind)),
     [sourceEventKinds]
   );
+
+  useEffect(() => {
+    captureDevAuthTokenFromUrl();
+
+    const loadCurrentDomainUser = async (): Promise<void> => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/account/domain`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const snapshot = await response.json() as DomainAccountSnapshot;
+        setCurrentDomainUser(snapshot.ok ? snapshot.domainUser : null);
+      } catch {
+        setCurrentDomainUser(null);
+      }
+    };
+
+    void loadCurrentDomainUser();
+  }, []);
 
   const selectSource = (sourcePlatform: EventSourcePlatform): void => {
     const nextKinds = listEventKindsForSource(sourcePlatform);
@@ -349,7 +389,9 @@ const DevTestConsoleClient = (): React.ReactNode => {
           explicitSimulation: true,
           isRealMoney: false,
           sourceEventId: preview.id,
+          actorUserId: currentDomainUser?.id ?? null,
           actorDisplayName: preview.actor,
+          userId: currentDomainUser?.id ?? null,
           redactedPayload: preview,
           occurredAt: preview.generatedAt
         })
@@ -512,7 +554,10 @@ const DevTestConsoleClient = (): React.ReactNode => {
         <div className="project-admin-panel-heading">
           <div>
             <h2>Safe Dispatch Result</h2>
-            <p>Persists safe test history and queued state only; no overlay or control playback is emitted.</p>
+            <p>
+              Persists safe test history and queued state only; no overlay or control playback is emitted.
+              {currentDomainUser ? ` Testing as ${currentDomainUser.displayName}.` : " No signed-in website identity is attached."}
+            </p>
           </div>
           <button disabled={dispatchPending} onClick={dispatchCurrentPreview} type="button">
             {dispatchPending ? "Dispatching..." : "Dispatch safe simulation"}

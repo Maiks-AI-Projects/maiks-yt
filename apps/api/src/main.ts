@@ -30,6 +30,7 @@ import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
+import { registerStreamVisibilityPreferencesRoutes } from "./account/index.js";
 import { registerActionPanelRoutes } from "./actions/index.js";
 import { registerEventRoutingAdminRoutes, registerEventRoutingDispatchRoutes } from "./event-routing/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
@@ -899,6 +900,10 @@ const isDevOwnerClaimAllowed = (session: NonNullable<AuthSessionSnapshot>): bool
 };
 
 registerActionPanelRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
+registerStreamVisibilityPreferencesRoutes(server, {
   getAuthSession,
   getDatabasePool
 });

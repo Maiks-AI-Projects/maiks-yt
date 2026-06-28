@@ -614,6 +614,39 @@ button:disabled {
   justify-content: space-between;
 }
 
+.stream-visibility-settings,
+.stream-visibility-event-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.stream-visibility-row {
+  align-items: center;
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.9rem 1rem;
+}
+
+.stream-visibility-row.primary {
+  background: #edf7f2;
+  border-color: #bfd9cb;
+}
+
+.stream-visibility-row strong,
+.stream-visibility-row span {
+  display: block;
+}
+
+.stream-visibility-row span {
+  color: #4b5966;
+  margin-top: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
 .account-card-grid {
   display: grid;
   gap: 1rem;
@@ -2110,6 +2143,7 @@ button:disabled {
 
   .account-page-header,
   .account-section-heading-row,
+  .stream-visibility-row,
   .project-admin-layout,
   .visibility-panel,
   .project-admin-record-list li,

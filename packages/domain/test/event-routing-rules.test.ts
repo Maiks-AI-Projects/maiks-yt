@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildDefaultEventRoutingRule,
+  buildStreamVisibilityPreferenceValues,
   canManageEventRouting,
   resolveSafeSimulatedEventRoutingDecision,
+  streamVisibilityPreferenceScopes,
   validateSafeSimulatedEventRoutingDispatch,
   validateEventRoutingRule,
   type EventRoutingRuleInput
@@ -105,6 +107,48 @@ describe("event routing rule validation", () => {
       requiresCooldownCheck: true,
       requiresApprovalByDefault: true
     });
+  });
+
+  it("builds user stream visibility preference values with safe missing-row defaults", () => {
+    expect(streamVisibilityPreferenceScopes).toEqual([
+      "all_stream_visible_website_events",
+      "website.signup",
+      "website.username-change",
+      "website.profile-image-update",
+      "website.free-tts-request"
+    ]);
+
+    expect(buildStreamVisibilityPreferenceValues([
+      {
+        scope: "all_stream_visible_website_events",
+        optedOut: true
+      },
+      {
+        scope: "website.profile-image-update",
+        optedOut: true
+      }
+    ])).toEqual([
+      expect.objectContaining({
+        scope: "all_stream_visible_website_events",
+        optedOut: true
+      }),
+      expect.objectContaining({
+        scope: "website.signup",
+        optedOut: false
+      }),
+      expect.objectContaining({
+        scope: "website.username-change",
+        optedOut: false
+      }),
+      expect.objectContaining({
+        scope: "website.profile-image-update",
+        optedOut: true
+      }),
+      expect.objectContaining({
+        scope: "website.free-tts-request",
+        optedOut: false
+      })
+    ]);
   });
 
   it("rejects real provider, real website, and real money dispatch inputs", () => {

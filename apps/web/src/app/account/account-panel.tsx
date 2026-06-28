@@ -5,6 +5,7 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { useEffect, useState } from "react";
 import type { IconType } from "react-icons";
 import { SiDiscord, SiGithub, SiGoogle, SiTwitch } from "react-icons/si";
+import type { StreamVisibilityPreferenceScope } from "@maiks-yt/domain/events";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../dev-auth-token";
 
@@ -66,6 +67,26 @@ type DomainAccountSnapshot = {
   reason: string;
 };
 
+type StreamVisibilityPreference = {
+  scope: StreamVisibilityPreferenceScope;
+  label: string;
+  description: string;
+  optedOut: boolean;
+};
+
+type StreamVisibilityPreferencesSnapshot = {
+  ok: true;
+  domainUser: {
+    id: string;
+    displayName: string;
+    profileVisibility: ProfileVisibility;
+  };
+  preferences: readonly StreamVisibilityPreference[];
+} | {
+  ok: false;
+  reason: string;
+};
+
 type LinkSocialResponse = {
   url?: string;
   redirect?: boolean;
@@ -115,6 +136,8 @@ const profileVisibilityOptions: Array<{
   }
 ];
 
+const streamVisibilityGlobalScope = "all_stream_visible_website_events" satisfies StreamVisibilityPreferenceScope;
+
 const ControlTooltip = ({ children, text }: ControlTooltipProps): React.ReactNode => (
   <Tooltip.Root delayDuration={250}>
     <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
@@ -131,12 +154,14 @@ const AccountPanel = (): React.ReactNode => {
   const [session, setSession] = useState<AuthSession>(null);
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
   const [domainSnapshot, setDomainSnapshot] = useState<DomainAccountSnapshot | null>(null);
+  const [streamVisibilitySnapshot, setStreamVisibilitySnapshot] = useState<StreamVisibilityPreferencesSnapshot | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [syncingDomain, setSyncingDomain] = useState<boolean>(false);
   const [claimingDevOwner, setClaimingDevOwner] = useState<boolean>(false);
   const [busyLinkedAccountId, setBusyLinkedAccountId] = useState<string | null>(null);
   const [busyProvider, setBusyProvider] = useState<OAuthProviderId | null>(null);
   const [savingProfileVisibility, setSavingProfileVisibility] = useState<boolean>(false);
+  const [savingStreamVisibilityScope, setSavingStreamVisibilityScope] = useState<StreamVisibilityPreferenceScope | null>(null);
   const [message, setMessage] = useState<string>("Loading account...");
 
   const loadAccount = async (): Promise<void> => {
@@ -158,6 +183,7 @@ const AccountPanel = (): React.ReactNode => {
       if (!nextSession) {
         setAccounts([]);
         setDomainSnapshot(null);
+        setStreamVisibilitySnapshot(null);
         setMessage("Sign in to manage linked accounts.");
         return;
       }
@@ -172,6 +198,19 @@ const AccountPanel = (): React.ReactNode => {
       }
 
       setAccounts(await accountsResponse.json() as AuthAccount[]);
+      const streamVisibilityResponse = await fetch(`${apiBaseUrl}/account/stream-visibility-preferences`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+
+      if (streamVisibilityResponse.ok) {
+        setStreamVisibilitySnapshot(await streamVisibilityResponse.json() as StreamVisibilityPreferencesSnapshot);
+      } else if (streamVisibilityResponse.status === 401) {
+        setStreamVisibilitySnapshot(null);
+      } else {
+        throw new Error(`Stream visibility preferences failed with ${streamVisibilityResponse.status}`);
+      }
+
       const domainResponse = await fetch(`${apiBaseUrl}/account/domain`, {
         headers: createApiHeaders(),
         credentials: "include"
@@ -351,12 +390,56 @@ const AccountPanel = (): React.ReactNode => {
     }
   };
 
+  const updateStreamVisibilityPreference = async (
+    scope: StreamVisibilityPreferenceScope,
+    optedOut: boolean
+  ): Promise<void> => {
+    setSavingStreamVisibilityScope(scope);
+    setMessage("Saving stream visibility preference...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/account/stream-visibility-preferences`, {
+        method: "PUT",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify({
+          preferences: [
+            {
+              scope,
+              optedOut
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Stream visibility update failed with ${response.status}`);
+      }
+
+      setStreamVisibilitySnapshot(await response.json() as StreamVisibilityPreferencesSnapshot);
+      setMessage("Stream visibility preference updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Stream visibility update failed.");
+    } finally {
+      setSavingStreamVisibilityScope(null);
+    }
+  };
+
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     void loadAccount();
   }, []);
 
   const domainLinkedAccounts = domainSnapshot?.ok ? domainSnapshot.linkedAccounts : [];
+  const streamVisibilityPreferences = streamVisibilitySnapshot?.ok ? streamVisibilitySnapshot.preferences : [];
+  const globalStreamVisibilityPreference = streamVisibilityPreferences.find(
+    (preference) => preference.scope === streamVisibilityGlobalScope
+  );
+  const perEventStreamVisibilityPreferences = streamVisibilityPreferences.filter(
+    (preference) => preference.scope !== streamVisibilityGlobalScope
+  );
 
   const getAuthAccountsForProvider = (providerId: OAuthProviderId): AuthAccount[] =>
     accounts.filter((account) => account.providerId === providerId);
@@ -642,6 +725,101 @@ const AccountPanel = (): React.ReactNode => {
                   disabled={syncingDomain}
                 >
                   {syncingDomain ? "Syncing..." : "Sync domain accounts"}
+                </button>
+              </div>
+            )}
+          </section>
+
+          <section className="account-section" aria-labelledby="stream-visibility-title">
+            <div className="account-section-heading-row">
+              <div>
+                <h2 id="stream-visibility-title">Stream Visibility</h2>
+                <p className="account-section-note">
+                  Choose whether website and community moments may use your public name or profile image on stream.
+                </p>
+              </div>
+            </div>
+            {streamVisibilitySnapshot?.ok ? (
+              <div className="stream-visibility-settings">
+                {globalStreamVisibilityPreference ? (
+                  <article className="stream-visibility-row primary">
+                    <div>
+                      <strong>{globalStreamVisibilityPreference.label}</strong>
+                      <span>{globalStreamVisibilityPreference.description}</span>
+                    </div>
+                    <div className="switch-control-row">
+                      <ControlTooltip text="Turn this on to hide your website/community activity from stream-visible moments.">
+                        <span className="tooltip-trigger-wrap">
+                          <Switch.Root
+                            className="account-switch"
+                            checked={globalStreamVisibilityPreference.optedOut}
+                            disabled={savingStreamVisibilityScope !== null}
+                            onCheckedChange={(checked) => {
+                              void updateStreamVisibilityPreference(globalStreamVisibilityPreference.scope, checked);
+                            }}
+                            aria-label="Hide all website and community moments on stream"
+                          >
+                            <Switch.Thumb className="account-switch-thumb" />
+                          </Switch.Root>
+                        </span>
+                      </ControlTooltip>
+                      <span className="switch-state">
+                        {savingStreamVisibilityScope === globalStreamVisibilityPreference.scope
+                          ? "Saving"
+                          : globalStreamVisibilityPreference.optedOut
+                            ? "Hidden"
+                            : "Allowed"}
+                      </span>
+                    </div>
+                  </article>
+                ) : null}
+                <div className="stream-visibility-event-list" aria-label="Per-event stream visibility preferences">
+                  {perEventStreamVisibilityPreferences.map((preference) => (
+                    <article className="stream-visibility-row" key={preference.scope}>
+                      <div>
+                        <strong>{preference.label}</strong>
+                        <span>{preference.description}</span>
+                      </div>
+                      <div className="switch-control-row">
+                        <ControlTooltip text={`Turn this on to hide ${preference.label.toLowerCase()} from stream-visible moments.`}>
+                          <span className="tooltip-trigger-wrap">
+                            <Switch.Root
+                              className="account-switch"
+                              checked={preference.optedOut}
+                              disabled={savingStreamVisibilityScope !== null}
+                              onCheckedChange={(checked) => {
+                                void updateStreamVisibilityPreference(preference.scope, checked);
+                              }}
+                              aria-label={`Hide ${preference.label} on stream`}
+                            >
+                              <Switch.Thumb className="account-switch-thumb" />
+                            </Switch.Root>
+                          </span>
+                        </ControlTooltip>
+                        <span className="switch-state">
+                          {savingStreamVisibilityScope === preference.scope
+                            ? "Saving"
+                            : preference.optedOut
+                              ? "Hidden"
+                              : "Allowed"}
+                        </span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="empty-state-actions">
+                <p className="account-section-note">
+                  Sign in or sync your domain account before choosing stream visibility preferences.
+                </p>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => void loadAccount()}
+                  disabled={loading}
+                >
+                  Refresh
                 </button>
               </div>
             )}
