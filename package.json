@@ -14,6 +14,7 @@
     "db:generate": "pnpm --filter @maiks-yt/database db:generate",
     "db:migrate": "pnpm --filter @maiks-yt/database db:migrate",
     "db:seed": "pnpm --filter @maiks-yt/database db:seed",
+    "dev:smoke:notify": "node scripts/dev-smoke-notify.mjs",
     "dev": "turbo run dev --parallel",
     "review:start": "node scripts/start-session-review.mjs",
     "test": "turbo run test",
