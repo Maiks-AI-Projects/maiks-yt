@@ -14,7 +14,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Chat overlay behavior has fake/local test input and a streamer-only fake/local viewer, but visual installed-window/browser verification is still manual.
 - Chrome/in-app browser plugin visual QA is blocked in this setup; use Computer Use for the remaining visual installed-window pass.
 - Full AI-assisted content generation is deferred until manual admin workflows exist.
-- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, deployed safe simulated dispatch API behavior, deployed user-facing stream visibility opt-outs for website/community events, and coordinator-reviewed Phase 4A safe simulated top/center overlay playback pending dev deployment/smoke. Provider credentials, real website production dispatch, moderation enforcement, real money, and production event intake remain later gates.
+- Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, deployed safe simulated dispatch API behavior, deployed user-facing stream visibility opt-outs for website/community events, and deployed/dev-smoked Phase 4A safe simulated top/center overlay playback. Provider credentials, real website production dispatch, moderation enforcement, real money, and production event intake remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql` and a deployed first runtime implementation: path-only manual pages on the primary website host, owner-gated `/admin/pages`, saved preview-before-publish, reserved-route blocking, and public exact-path rendering for published visible records. Host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
@@ -258,7 +258,7 @@ Reviewer gate:
 - Dev smoke confirmed the preference API returns five scopes, unauthenticated access returns `401`, `/account` and `/dev/test-console` return `200`, allowed simulated `website.signup` can route when the smoke rule is enabled, global opt-out changes it to `blocked_opt_out`, and missing identity changes it to `blocked_safety`.
 - Smoke restored the prior preference snapshot and prior `website.signup:any` routing rule after verification.
 
-## Phase 4A: Event Routing Approval And Overlay Playback (Coordinator Review Passed, Deploy Pending)
+## Phase 4A: Event Routing Approval And Overlay Playback (Completed On Dev)
 
 Scope:
 
@@ -271,8 +271,9 @@ Scope:
 Reviewer gate:
 
 - Coordinator review passed locally with focused domain/API tests, API/web typechecks, web build, architecture validation, and `git diff --check`.
-- Deploy/dev smoke is still pending from the coordinator checkout.
-- Suggested smoke: use a live overlay token connection, enable a safe simulated website rule, dispatch direct playback, verify the overlay WebSocket receives the top/center event, then verify approval queue list/review publishes or rejects safely.
+- Deployed to dev on commit `5c8a7f2`.
+- Dev smoke opened a live overlay WebSocket, confirmed direct safe simulated `website.signup` playback reached the overlay top notification queue, confirmed approval-required dispatch appeared in pending review and published after approval, confirmed internal-only provider-token events stayed ignored/non-public, and restored the prior rule/preferences afterward.
+- Follow-up admin/public smoke confirmed `/admin/event-routing` returned `200` without known injection markers, pending approvals were empty after cleanup, and `website.signup:any` was restored to disabled internal audit.
 
 Remaining gates:
 
