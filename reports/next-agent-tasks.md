@@ -18,6 +18,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql` and a deployed first runtime implementation: path-only manual pages on the primary website host, owner-gated `/admin/pages`, saved preview-before-publish, reserved-route blocking, and public exact-path rendering for published visible records. Host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - Phase 5A generated and dev-applied moderator/helper persistence migration `0016_jittery_nebula.sql` for trust levels, scoped role grants, temporary/revoked access metadata, and role-grant audit logs.
 - Phase 5H generated durable active moderation-state migration `0018_slimy_stellaris.sql` for `moderation_active_states`, and Phase 5I applied it on dev with fake/local hide/mute active-state writes and read-only live-helper summaries.
+- Phase 5J completed the docs/design gate for community rules, manual warning/strike escalation, and restriction boundaries. Automatic warnings, real bans, provider enforcement, destructive actions, AI moderation, auth/secrets, money/support authority, production behavior, and new policy/strike schema remain gated.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
@@ -443,6 +444,40 @@ Reviewer/dev smoke:
 Remaining gates:
 
 - No real provider enforcement, destructive moderation actions, durable provider state, auth changes, secrets, AI moderation, money/support authority, Cloudflare/Docker/deploy config, or production behavior was added.
+
+## Phase 5J: Community Rules And Warning/Strike Design (Completed)
+
+Scope:
+
+- Design the next moderation foundation stage after fake/local active moderation state is live on dev.
+- Keep this as docs/design/schema-gate work only: no runtime implementation, no migration generation/application, no provider enforcement, no automatic warning system, no AI decisions, no destructive actions, no real bans, no auth/secrets, no money/support authority, and no production behavior.
+- Separate human-readable community policy/rules content from database enforcement state.
+- Preserve fake/local test separation from real provider/user moderation.
+
+Result:
+
+- Added the Phase 5J plan to `ideas/abuse-safety-and-strike-system.md`.
+- Drafted the first community rules categories: respect/harassment, stream disruption, identity abuse, support or money-adjacent abuse, privacy, and serious platform/legal escalation.
+- Chose a manual-first ladder: internal note, human-reviewed warning, human-reviewed strike, active restriction, and owner-reviewed ban.
+- Set the default strike escalation rule as owner review at three active strikes, not an automatic ban or removal.
+- Kept community policy content separate from enforcement state. `moderation_audit_logs` remains append-only action history; `moderation_active_states` remains current-effect state for hides/mutes/restrictions/bans; role tables remain helper authority, not punishment.
+- Proposed a minimal future schema shape only if approved later: `community_policy_versions`, `community_rule_definitions`, and `moderation_strikes`. No migration was generated.
+- Clarified fake/local separation: fake/local warning/strike drills must stay `source = 'fake-local'`, test/simulated/resettable, `provider_action = false`, and must never count toward real account punishment or provider enforcement.
+- Clarified helper/live-helper boundaries: helpers may monitor, add notes, draft proposed warnings, view sanitized summaries, and run fake/local drills only through narrow grants. Owner-only work includes role grants, permanent bans or long restrictions, provider enforcement, public policy publication, serious appeals, support/money decisions, auth/secrets, and raw provider/admin payload access.
+
+Suggested checks:
+
+- `git status --short --branch`
+- `node scripts/check-architecture.mjs`
+- `git diff --check`
+
+Remaining gates:
+
+- No runtime code, schema file, migration, provider enforcement, automatic warning system, AI decision path, destructive action, real ban, auth/secret behavior, money/support authority, server state, deployment, or production behavior was changed.
+- A future public abuse-policy page still needs Michael-approved wording before publication.
+- A future policy/rule/strike schema needs explicit coordinator approval before migration generation.
+- Future helper warning-draft behavior must stay separate from sending warnings or applying restrictions unless explicitly scoped.
+- `/admin/live-helper` should remain read-only for real moderation state; real moderation controls require a separate implementation gate.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 

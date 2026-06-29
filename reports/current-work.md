@@ -129,16 +129,20 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Dev smoke confirmed an owner fake/local hide command wrote an active `message_hidden` row, a temporary local mute wrote an active `author_muted` row, the hidden message disappeared from streamer chat snapshots, the muted fake/local author was suppressed with `queued: 0` and `fake_local_author_muted`, `/admin/live-helper` returned both active rows, and `/admin/live-helper` rendered on `web-dev` without the known injection marker.
 - Direct dev DB smoke confirmed `moderation_active_states` has 32 columns and the two active fake/local smoke rows are fake-local/test/simulated/resettable with `providerAction: false` and zero provider-action rows.
 - Kept Phase 5I fake/local-only: live suppression still uses the existing in-memory runtime cache for immediate behavior. No provider enforcement, destructive moderation actions, durable provider state, auth changes, secrets, AI moderation, money/support authority, server state, or production behavior was added.
+- Completed Phase 5J as docs/design/schema-gate work only: drafted the safest manual-first community rules and warning/strike/restriction plan before any automatic warnings, real bans, provider enforcement, AI moderation, destructive actions, or production behavior.
+- Phase 5J separates policy content from enforcement state: rules/policy wording should live in reviewed policy content, `moderation_audit_logs` remains append-only action history, `moderation_active_states` remains current-effect state, and a future approved schema could add separate `community_policy_versions`, `community_rule_definitions`, and `moderation_strikes`.
+- Phase 5J chose a human-reviewed escalation ladder: internal note, warning, strike, active restriction, and owner-reviewed ban. Three active strikes should trigger owner review rather than automatic removal. Helpers can monitor, add notes, draft proposed warnings, and run fake/local drills only through narrow grants; owner/admin/auth/money/secrets/provider authority remains gated.
+- Kept Phase 5J docs-only: no migration was generated or applied, no runtime code was implemented, fake/local test rows remain separate from real provider/user moderation, and provider enforcement, automatic warning systems, AI decisions, destructive actions, real bans, auth/secrets, money/support authority, server state, and production behavior remain gated.
 
 ## Current Task
 
-Choose the next bounded foundation/feature slice after Phase 5I.
+Choose the next bounded foundation/feature slice after Phase 5J.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 5I fake/local active-state writes are live on dev. Real provider moderation enforcement, destructive moderation actions, AI moderation, and durable provider state remain gated.
+3. Phase 5J community rules and manual warning/strike/restriction design is documented. Next moderation work should either turn the reviewed wording into a public abuse-policy page or seek explicit schema approval for policy/rule/strike records; real provider moderation enforcement, automatic warnings, destructive actions, AI moderation, real bans, and durable provider state remain gated.
 4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
 5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
