@@ -48,6 +48,7 @@ import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
+import { registerProviderIntegrationStatusRoutes } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
@@ -1069,6 +1070,10 @@ registerEventRoutingAdminRoutes(server, {
   publishPlayback: publishEventRoutingPlayback
 });
 registerNotificationAdminRoutes(server, {
+  getAuthSession,
+  getDatabasePool
+});
+registerProviderIntegrationStatusRoutes(server, {
   getAuthSession,
   getDatabasePool
 });

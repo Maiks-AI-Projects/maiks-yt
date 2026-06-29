@@ -14,5 +14,11 @@
   "devDependencies": {
     "typescript": "6.0.3",
     "vitest": "4.1.8"
+  },
+  "dependencies": {
+    "@discordjs/rest": "^2.6.1",
+    "@twurple/api": "^8.1.4",
+    "@twurple/auth": "^8.1.4",
+    "googleapis": "^173.0.0"
   }
 }

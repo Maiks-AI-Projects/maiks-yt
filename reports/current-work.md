@@ -133,19 +133,22 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Phase 5J separates policy content from enforcement state: rules/policy wording should live in reviewed policy content, `moderation_audit_logs` remains append-only action history, `moderation_active_states` remains current-effect state, and a future approved schema could add separate `community_policy_versions`, `community_rule_definitions`, and `moderation_strikes`.
 - Phase 5J chose a human-reviewed escalation ladder: internal note, warning, strike, active restriction, and owner-reviewed ban. Three active strikes should trigger owner review rather than automatic removal. Helpers can monitor, add notes, draft proposed warnings, and run fake/local drills only through narrow grants; owner/admin/auth/money/secrets/provider authority remains gated.
 - Kept Phase 5J docs-only: no migration was generated or applied, no runtime code was implemented, fake/local test rows remain separate from real provider/user moderation, and provider enforcement, automatic warning systems, AI decisions, destructive actions, real bans, auth/secrets, money/support authority, server state, and production behavior remain gated.
+- Implemented Phase 6A provider integration foundation in this worker tree: added real SDK dependencies to `@maiks-yt/integrations` (`@twurple/auth`, `@twurple/api`, `googleapis`, and `@discordjs/rest`), added sanitized provider configuration status helpers, registered owner-gated `GET /admin/provider-integrations/status`, added focused API/integration tests, and added a compact `/admin/provider-integrations` web page.
+- Kept Phase 6A read-only and secret-safe: status responses include env var names, configured booleans, SDK labels, states, and sanitized issues only. No OAuth flow, provider token storage/rotation, webhook/EventSub receiver, live chat ingestion, provider moderation/write action, real money behavior, auth login change, migration, Cloudflare/Docker/deploy config, server state, or production behavior was added.
 
 ## Current Task
 
-Choose the next bounded foundation/feature slice after Phase 5J.
+Review Phase 6A Provider Integration Foundation worker output.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 5J community rules and manual warning/strike/restriction design is documented. Next moderation work should either turn the reviewed wording into a public abuse-policy page or seek explicit schema approval for policy/rule/strike records; real provider moderation enforcement, automatic warnings, destructive actions, AI moderation, real bans, and durable provider state remain gated.
-4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
-5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
-6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
+3. Phase 6A needs coordinator review/checks before commit/deploy. After acceptance, the next provider chunk should stay read-only unless explicitly approved: provider scopes/rate-limit/failure handling design, then optional safe credential presence smoke that still avoids OAuth, token storage, webhooks, live chat ingestion, provider writes, moderation enforcement, money, and production behavior.
+4. Phase 5J community rules and manual warning/strike/restriction design is documented. Next moderation work should either turn the reviewed wording into a public abuse-policy page or seek explicit schema approval for policy/rule/strike records; real provider moderation enforcement, automatic warnings, destructive actions, AI moderation, real bans, and durable provider state remain gated.
+5. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
+6. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
+7. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 
 ## Known State
 
@@ -204,7 +207,7 @@ Choose the next bounded foundation/feature slice after Phase 5J.
 - Chunk 21A is reviewed, committed, pushed, deployed, and dev-smoked. Phase 3 now adds user-facing stream visibility preferences and safe simulated dispatch opt-out enforcement; future real routing still needs production-safe intake, event templates, approval/cooldown processing, and overlay/control playback.
 - Phase 5A opened the community-operations foundation with a generated moderator/helper persistence migration only. Runtime role management, live moderation tools, provider enforcement, provider role sync, and production auth remain separate gated slices.
 - Phase 5B is reviewed, committed, pushed, deployed, and dev-smoked. It adds manual helper/moderator grant management over the Phase 5A schema, but it does not create/seed helper roles; `/admin/moderators` can only grant roles already present in `roles` and marked grantable by the domain safety rules.
-- Do not begin full chat, AI, money, provider integration, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped.
+- Do not begin full chat, AI, money, provider intake/actions, backup automation, or production auth phases until the relevant phase gate is explicitly opened and scoped. Phase 6A only opens read-only provider SDK/config-status plumbing.
 - Production readiness is now documented in `reports/production-readiness-checklist.md`, but it is only a future release gate. Production/main deployment, Cloudflare/Docker/deployment config edits, production secret/OAuth rotation, production migration application, and server changes remain out of scope until Michael opens a release-preparation task.
 - Production owner-account mapping must stay explicit; the first production login must never become owner/admin automatically.
 - Fresh production OAuth credentials, URL-token gates, backup/restore verification, and rollback signoff are blockers before production/main release work can proceed.

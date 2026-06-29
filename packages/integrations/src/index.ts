@@ -1,5 +1,1 @@
-export type IntegrationProvider = {
-  id: string;
-  label: string;
-  supports: readonly string[];
-};
+export * from "./provider-status.rules.js";
