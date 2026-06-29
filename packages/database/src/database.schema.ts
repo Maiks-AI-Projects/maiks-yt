@@ -233,6 +233,102 @@ export const roleGrantAuditLogs = mysqlTable(
   ]
 );
 
+export const moderationAuditLogs = mysqlTable(
+  "moderation_audit_logs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    source: mysqlEnum("source", ["fake-local", "website", "twitch", "youtube", "discord", "system"]).notNull(),
+    action: mysqlEnum("action", [
+      "warn_author",
+      "hide_message",
+      "temporary_mute_author",
+      "note_author",
+      "noop",
+      "ban_author",
+      "unban_author",
+      "delete_message",
+      "restrict_user",
+      "rank_status_change"
+    ]).notNull(),
+    outcome: mysqlEnum("outcome", [
+      "applied",
+      "denied",
+      "invalid",
+      "not_found",
+      "no_op",
+      "provider_queued",
+      "provider_failed",
+      "reverted"
+    ]).notNull(),
+    actorUserId: varchar("actor_user_id", { length: 36 }),
+    actorDisplayName: varchar("actor_display_name", { length: 191 }),
+    targetUserId: varchar("target_user_id", { length: 36 }),
+    targetAuthorName: varchar("target_author_name", { length: 191 }),
+    targetMessageId: varchar("target_message_id", { length: 191 }),
+    targetExternalId: varchar("target_external_id", { length: 191 }),
+    eventHistoryId: varchar("event_history_id", { length: 36 }),
+    streamSessionId: varchar("stream_session_id", { length: 36 }),
+    durationSeconds: int("duration_seconds"),
+    activeUntil: timestamp("active_until"),
+    reason: varchar("reason", { length: 280 }),
+    note: varchar("note", { length: 280 }),
+    providerAction: boolean("provider_action").notNull().default(false),
+    providerActionId: varchar("provider_action_id", { length: 191 }),
+    isTest: boolean("is_test").notNull().default(false),
+    isSimulated: boolean("is_simulated").notNull().default(false),
+    testResettable: boolean("test_resettable").notNull().default(false),
+    redactedContext: json("redacted_context").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (table) => [
+    index("moderation_audit_source_created_idx").on(table.source, table.createdAt),
+    index("moderation_audit_actor_created_idx").on(table.actorUserId, table.createdAt),
+    index("moderation_audit_target_user_created_idx").on(table.targetUserId, table.createdAt),
+    index("moderation_audit_target_author_created_idx").on(table.targetAuthorName, table.createdAt),
+    index("moderation_audit_message_idx").on(table.targetMessageId),
+    index("moderation_audit_event_history_idx").on(table.eventHistoryId),
+    index("moderation_audit_stream_session_idx").on(table.streamSessionId),
+    index("moderation_audit_test_resettable_idx").on(table.testResettable, table.createdAt),
+    check(
+      "moderation_audit_duration_check",
+      sql`${table.durationSeconds} is null or ${table.durationSeconds} >= 0`
+    ),
+    check(
+      "moderation_audit_temporary_mute_check",
+      sql`(
+        ${table.action} <> 'temporary_mute_author'
+        or (${table.durationSeconds} is not null and ${table.activeUntil} is not null)
+      )`
+    ),
+    check(
+      "moderation_audit_provider_outcome_check",
+      sql`${table.outcome} not in ('provider_queued', 'provider_failed') or ${table.providerAction} = true`
+    ),
+    check(
+      "moderation_audit_provider_action_check",
+      sql`(
+        (${table.providerAction} = true and ${table.providerActionId} is not null and ${table.source} in ('twitch', 'youtube', 'discord', 'website'))
+        or
+        (${table.providerAction} = false and ${table.providerActionId} is null)
+      )`
+    ),
+    check(
+      "moderation_audit_fake_local_boundary_check",
+      sql`${table.source} <> 'fake-local' or (${table.providerAction} = false and ${table.isTest} = true and ${table.isSimulated} = true)`
+    ),
+    check(
+      "moderation_audit_test_reset_boundary_check",
+      sql`(
+        ${table.testResettable} = false
+        or (
+          (${table.isTest} = true or ${table.isSimulated} = true)
+          and ${table.providerAction} = false
+        )
+      )`
+    )
+  ]
+);
+
 export const urlAccessTokens = mysqlTable(
   "url_access_tokens",
   {

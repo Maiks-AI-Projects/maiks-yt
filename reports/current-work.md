@@ -115,16 +115,18 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Reviewed, committed, pushed, deployed, and dev-smoked Phase 5D on commit `b93b941`: added fake/local-only moderation command rules, `POST /fake-local-chat/moderation/commands`, in-memory audit entries, local hide/mute effects for fake/local chat surfaces, a fake/local hidden-message overlay event, and read-only recent fake/local moderation audit summaries in `/admin/live-helper`.
 - Dev smoke confirmed unauthenticated command attempts return `401`, owner hide and temporary mute commands return applied audit entries with `providerAction: false`, hidden fake/local messages disappear from streamer chat snapshots, locally muted fake/local authors are suppressed with `queued: 0`, `/admin/live-helper` shows fake/local moderation audit items without provider actions, and `/admin/live-helper` renders on `web-dev` without the known injection marker.
 - Kept Phase 5D provider-safe and temporary by design: command execution requires owner wildcard or `fake-local-chat:moderate`, `moderators:manage` alone cannot execute commands, every result is marked `providerAction: false`, and audit/mute/hide state is in-memory and resets on API restart. No Twitch/YouTube/Discord/provider enforcement, schema/migration, durable moderation audit, destructive user actions, money/support authority, AI decisions, auth changes, secrets, or production behavior was added.
+- Generated Phase 5E durable moderation audit persistence migration `packages/database/drizzle/0017_busy_harpoon.sql`: `moderation_audit_logs` stores provider-neutral action/outcome/source, actor/target/message/event/session references, duration/active-until, provider-action metadata, test/simulated/reset flags, redacted context, and timestamps with indexes for source, actor, target, message, event history, stream session, and test reset cleanup.
+- Kept Phase 5E schema-only: migration application, runtime writes, live-helper durable reads, provider moderation enforcement, destructive user actions, money/support authority, AI decisions, auth changes, secrets, deployments, and production behavior remain follow-up work.
 
 ## Current Task
 
-Choose the next follow-up such as creator/content utilities, durable moderation audit design, real provider moderation planning, or another bounded feature lane.
+Coordinator review/commit for Phase 5E durable moderation audit migration generation, then choose whether to apply on dev and wire Phase 5D fake/local moderation audit writes to the durable table.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 5D fake/local moderation commands are live on dev; durable moderation audit and real provider enforcement remain separate future gates.
+3. Phase 5E durable moderation audit migration is generated but unapplied; next moderation follow-up can review/apply the migration on dev and wire fake/local audit writes to the durable table.
 4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
 5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.

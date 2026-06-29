@@ -266,6 +266,53 @@ Remaining gates:
 - Audit/mute/hide state is intentionally in-memory and resets on API restart. Durable moderation audit requires a separately approved schema slice.
 - No Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive user actions, ban propagation, AI decisions, money/support authority, schema/migration, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
+## Phase 5E: Durable Moderation Audit Persistence Migration (Generated, Unapplied)
+
+Scope:
+
+- Add the durable schema foundation needed before fake/local moderation audit moves out of memory and before any real provider moderation enforcement is considered.
+- Keep this schema-first: no runtime writes, no provider API actions, no real bans/mutes, no UI behavior change, no migration application, no deploy, and no production behavior in this slice.
+
+Result:
+
+- Added `moderation_audit_logs` to `packages/database/src/database.schema.ts`.
+- Generated migration `packages/database/drizzle/0017_busy_harpoon.sql` plus Drizzle snapshot/journal metadata.
+- Table fields cover source, action, outcome, actor user/display name, target user/author/message/external id, optional event history and stream session references, duration and active-until, reason/note, provider-action metadata, test/simulated/reset flags, redacted context, and created timestamp.
+- Indexes support source-created, actor-created, target-user-created, target-author-created, message lookup, event-history lookup, stream-session lookup, and test-reset cleanup.
+- Safety checks require nonnegative durations, require temporary mute rows to have duration plus active-until, require provider queued/failed outcomes to have provider action, restrict provider action IDs to provider/website sources, require fake/local rows to be test/simulated with no provider action, and keep resettable rows test/simulated with no provider action.
+
+Checks:
+
+- `pnpm --filter @maiks-yt/database db:generate` passed.
+- `pnpm --filter @maiks-yt/database typecheck` passed.
+- `node scripts/check-architecture.mjs` passed.
+- `git diff --check` passed.
+
+Remaining gates:
+
+- Migration is generated but not applied.
+- Runtime writes from `POST /fake-local-chat/moderation/commands` are not wired to this table yet.
+- Live helper still reads in-memory fake/local moderation audit until the runtime follow-up lands.
+- Real Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive user actions, ban propagation, AI decisions, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, and production behavior remain separate gated work.
+
+## Phase 5F: Persist Fake/Local Moderation Audit (Next Option)
+
+Worker scope:
+
+- After coordinator applies `0017_busy_harpoon.sql` on dev, wire Phase 5D fake/local moderation command attempts into `moderation_audit_logs`.
+- Keep fake/local rows marked `source = 'fake-local'`, `is_test = true`, `is_simulated = true`, `test_resettable = true`, and `provider_action = false`.
+- Keep in-memory hide/mute state for live behavior unless a separate durable active moderation-state table is approved; this slice is durable audit, not durable enforcement state.
+- Update `/admin/live-helper` to read recent durable fake/local moderation audit rows, optionally falling back to in-memory rows only when the table is unavailable in tests.
+- Keep real provider enforcement, real bans/mutes, destructive user actions, provider credentials, auth changes, secrets, money/support authority, AI decisions, Cloudflare/Docker/deploy config, production behavior, and schema changes out unless explicitly assigned.
+
+Suggested checks:
+
+- `pnpm --filter @maiks-yt/api test`
+- `pnpm --filter @maiks-yt/api typecheck`
+- `pnpm --filter @maiks-yt/web typecheck`
+- `node scripts/check-architecture.mjs`
+- `git diff --check`
+
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
 Worker scope:
