@@ -127,6 +127,13 @@
       "when": 1782719063946,
       "tag": "0017_busy_harpoon",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1782720898676,
+      "tag": "0018_slimy_stellaris",
+      "breakpoints": true
     }
   ]
 }

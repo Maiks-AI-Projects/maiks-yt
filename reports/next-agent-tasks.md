@@ -17,6 +17,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, deployed safe simulated dispatch API behavior, deployed user-facing stream visibility opt-outs for website/community events, and deployed/dev-smoked Phase 4A safe simulated top/center overlay playback. Provider credentials, real website production dispatch, moderation enforcement, real money, and production event intake remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql` and a deployed first runtime implementation: path-only manual pages on the primary website host, owner-gated `/admin/pages`, saved preview-before-publish, reserved-route blocking, and public exact-path rendering for published visible records. Host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - Phase 5A generated and dev-applied moderator/helper persistence migration `0016_jittery_nebula.sql` for trust levels, scoped role grants, temporary/revoked access metadata, and role-grant audit logs.
+- Phase 5H generated durable active moderation-state migration `0018_slimy_stellaris.sql` for `moderation_active_states`. It is generated only and has not been applied; runtime fake/local active-state writes and live-helper durable active reads remain separate gates.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
@@ -369,9 +370,38 @@ Next implementation slice after approval:
 
 Remaining gates:
 
-- Migration generation/application is not approved by this completed design.
+- Phase 5H generated the migration after this completed design; migration application remains separate.
 - Runtime writes from fake/local commands to active state remain separate.
 - Real Twitch/YouTube/Discord/provider enforcement, provider credentials, destructive moderation actions, ban propagation, user deletion, raw provider payload storage, AI moderation, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, server state, and production behavior remain separate gated work.
+
+## Phase 5H: Durable Active Moderation State Migration (Generated, Unapplied)
+
+Scope:
+
+- Generate only the `moderation_active_states` database schema/migration and Drizzle metadata from the Phase 5G design.
+- Keep this schema-first: no migration application, runtime fake/local writes, live-helper durable active-state reads, provider enforcement, destructive moderation actions, auth changes, secrets, AI moderation, money/support authority, Cloudflare/Docker/deploy config, server state, or production behavior.
+
+Result:
+
+- Added `moderation_active_states` to `packages/database/src/database.schema.ts`.
+- Generated migration `packages/database/drizzle/0018_slimy_stellaris.sql` plus Drizzle snapshot/journal metadata.
+- Table fields cover source, state kind, status, target user/author/message/external references, optional stream session, active-from/until, duration, reason/note, created/last/revoked audit-log ids, revocation metadata, appeal/review metadata, provider-action placeholders, fake-local/test/simulated/resettable flags, and created/updated timestamps.
+- Indexes support current-active source/status/until reads, target user/source/status, target author/source/status, target message lookup, target external id lookup, stream session/status, test-reset cleanup, and audit-row link lookups.
+- Safety checks require nonnegative durations, require mutes/restrictions to have duration plus active-until, keep fake-local rows test/simulated/resettable with no provider action, keep resettable rows test/simulated with no provider action, restrict provider placeholders to website/provider sources, require revocation metadata when revoked, require active/revoked status consistency, and keep appeal/review metadata internally paired.
+
+Checks:
+
+- `pnpm --filter @maiks-yt/database db:generate` passed.
+- `pnpm --filter @maiks-yt/database typecheck` passed.
+- `node scripts/check-architecture.mjs` passed.
+- `git diff --check` passed.
+
+Remaining gates:
+
+- Migration is generated but not applied.
+- Runtime fake/local hide/mute writes still do not update `moderation_active_states`.
+- `/admin/live-helper` still does not read durable active-state summaries.
+- Real Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive actions, ban propagation, raw provider payload storage, AI moderation, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, server state, and production behavior remain separate gated work.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
