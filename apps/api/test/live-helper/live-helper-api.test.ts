@@ -7,6 +7,7 @@ import type {
   LiveHelperDashboardActor,
   LiveHelperDashboardRepository,
   LiveHelperEventHistorySummary,
+  LiveHelperFakeLocalActiveModerationSummary,
   LiveHelperFakeLocalModerationAuditSummary,
   LiveHelperGrantRecord,
   LiveHelperNotificationSummary,
@@ -131,6 +132,32 @@ class FakeLiveHelperDashboardRepository implements LiveHelperDashboardRepository
       providerAction: false
     }
   ];
+  public fakeLocalActiveModeration: LiveHelperFakeLocalActiveModerationSummary[] = [
+    {
+      id: "fake-active-1",
+      stateKind: "message_hidden",
+      status: "active",
+      targetMessageId: "fake-message-1",
+      targetAuthorName: null,
+      durationSeconds: null,
+      activeUntil: null,
+      note: "Local test cleanup",
+      providerAction: false,
+      updatedAt: now
+    },
+    {
+      id: "fake-active-2",
+      stateKind: "author_muted",
+      status: "active",
+      targetMessageId: null,
+      targetAuthorName: "Test chatter",
+      durationSeconds: 60,
+      activeUntil: "2026-06-28T10:01:00.000Z",
+      note: "Local mute drill",
+      providerAction: false,
+      updatedAt: now
+    }
+  ];
 
   public async resolveActor(): Promise<LiveHelperDashboardActor | null> {
     return this.actor ? structuredClone(this.actor) : null;
@@ -168,6 +195,10 @@ class FakeLiveHelperDashboardRepository implements LiveHelperDashboardRepository
 
   public async listRecentFakeLocalModerationAudit(limit: number): Promise<readonly LiveHelperFakeLocalModerationAuditSummary[]> {
     return this.fakeLocalModerationAudit.slice(0, limit).map((entry) => structuredClone(entry));
+  }
+
+  public async listFakeLocalActiveModeration(limit: number): Promise<readonly LiveHelperFakeLocalActiveModerationSummary[]> {
+    return this.fakeLocalActiveModeration.slice(0, limit).map((entry) => structuredClone(entry));
   }
 }
 
@@ -228,6 +259,25 @@ describe("LiveHelperDashboardService", () => {
             source: "fake-local",
             providerAction: false,
             note: "Local test cleanup"
+          }
+        ]
+      },
+      fakeLocalActiveModeration: {
+        count: 2,
+        items: [
+          {
+            stateKind: "message_hidden",
+            status: "active",
+            targetMessageId: "fake-message-1",
+            providerAction: false
+          },
+          {
+            stateKind: "author_muted",
+            status: "active",
+            targetAuthorName: "Test chatter",
+            durationSeconds: 60,
+            activeUntil: "2026-06-28T10:01:00.000Z",
+            providerAction: false
           }
         ]
       }

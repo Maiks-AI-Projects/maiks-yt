@@ -403,6 +403,38 @@ Remaining gates:
 - `/admin/live-helper` still does not read durable active-state summaries.
 - Real Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive actions, ban propagation, raw provider payload storage, AI moderation, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, server state, and production behavior remain separate gated work.
 
+## Phase 5I: Wire Fake/Local Active Moderation State (Implemented Locally, Dev Smoke Pending)
+
+Scope:
+
+- Wire fake/local hide/mute runtime into the generated `moderation_active_states` table after migration `0018_slimy_stellaris.sql` is applied by the coordinator.
+- Keep live suppression local and bounded; no provider calls or provider enforcement.
+
+Result:
+
+- `hide_message` creates or updates an active `message_hidden` row linked to the moderation audit row.
+- Repeated hide attempts can update an existing current row without inserting a bogus duplicate when the fake/local message is already removed from the runtime list.
+- `temporary_mute_author` creates or updates an active `author_muted` row with duration and `active_until`.
+- `warn_author`, `note_author`, and `noop` remain audit-only and do not create active-state rows.
+- All active-state rows are forced fake-local/test/simulated/resettable with `provider_action = false`.
+- `/admin/live-helper` now includes a compact read-only active fake/local moderation count and list.
+- Live suppression still uses the existing in-memory runtime cache for immediate fake/local behavior; durable state is for persistence/readback and future restart recovery work.
+
+Checks:
+
+- `pnpm --filter @maiks-yt/api test -- fake-local-moderation live-helper` passed.
+- `pnpm --filter @maiks-yt/api typecheck` passed.
+- `pnpm --filter @maiks-yt/web typecheck` passed.
+- `pnpm --filter @maiks-yt/web build` passed.
+- `node scripts/check-architecture.mjs` passed.
+- `git diff --check` passed.
+
+Remaining gates:
+
+- Coordinator must apply migration `0018_slimy_stellaris.sql` on dev before runtime smoke.
+- Coordinator commit, push, deploy, and dev smoke are pending.
+- No real provider enforcement, destructive moderation actions, durable provider state, auth changes, secrets, AI moderation, money/support authority, Cloudflare/Docker/deploy config, server state, or production behavior was added.
+
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
 Worker scope:

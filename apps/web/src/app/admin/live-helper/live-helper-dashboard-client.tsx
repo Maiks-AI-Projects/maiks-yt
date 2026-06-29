@@ -70,6 +70,19 @@ type LiveHelperFakeLocalModerationAuditSummary = {
   providerAction: boolean;
 };
 
+type LiveHelperFakeLocalActiveModerationSummary = {
+  id: string;
+  stateKind: "message_hidden" | "author_muted";
+  status: "active";
+  targetMessageId: string | null;
+  targetAuthorName: string | null;
+  durationSeconds: number | null;
+  activeUntil: string | null;
+  note: string | null;
+  providerAction: boolean;
+  updatedAt: string;
+};
+
 type LiveHelperDashboardResponse =
   | {
     ok: true;
@@ -93,6 +106,10 @@ type LiveHelperDashboardResponse =
     };
     fakeLocalModerationAudit: {
       items: readonly LiveHelperFakeLocalModerationAuditSummary[];
+    };
+    fakeLocalActiveModeration: {
+      count: number;
+      items: readonly LiveHelperFakeLocalActiveModerationSummary[];
     };
     boundaries: readonly string[];
   }
@@ -235,6 +252,10 @@ const LiveHelperDashboardClient = (): React.ReactNode => {
               <span>Active helpers</span>
               <strong>{snapshot.activeHelperGrants.count}</strong>
             </div>
+            <div className="live-helper-kpi">
+              <span>Active local states</span>
+              <strong>{snapshot.fakeLocalActiveModeration.count}</strong>
+            </div>
           </section>
 
           <div className="project-admin-layout live-helper-layout">
@@ -337,6 +358,36 @@ const LiveHelperDashboardClient = (): React.ReactNode => {
                           </p>
                           <p>{entry.note ?? entry.reason ?? "No note"}</p>
                           <p>{formatCompactDate(entry.attemptedAt)}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="project-admin-panel">
+                <div className="project-admin-panel-heading">
+                  <div>
+                    <h2>Active Fake/Local Moderation</h2>
+                    <p>Current local hide/mute effects only; no provider actions are shown or available.</p>
+                  </div>
+                  <span className="live-helper-pill">Read-only</span>
+                </div>
+                {snapshot.fakeLocalActiveModeration.items.length === 0 ? (
+                  <p className="project-admin-note">No active fake/local hide or mute state.</p>
+                ) : (
+                  <ul className="project-admin-record-list">
+                    {snapshot.fakeLocalActiveModeration.items.map((entry) => (
+                      <li key={entry.id}>
+                        <div>
+                          <strong>{formatKey(entry.stateKind)} · {formatKey(entry.status)}</strong>
+                          <p>{entry.targetAuthorName ? `Author: ${entry.targetAuthorName}` : entry.targetMessageId ? `Message: ${entry.targetMessageId}` : "No target"} · provider action: {entry.providerAction ? "yes" : "no"}</p>
+                          <p>
+                            {entry.durationSeconds ? `${entry.durationSeconds}s` : "No duration"}
+                            {entry.activeUntil ? ` · until ${formatCompactDate(entry.activeUntil)}` : ""}
+                          </p>
+                          <p>{entry.note ?? "No note"}</p>
+                          <p>Updated {formatCompactDate(entry.updatedAt)}</p>
                         </div>
                       </li>
                     ))}

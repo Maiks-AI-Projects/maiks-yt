@@ -57,7 +57,8 @@ export class LiveHelperDashboardService {
       notifications,
       activeHelperGrants,
       recentSimulatedHistory,
-      fakeLocalModerationAudit
+      fakeLocalModerationAudit,
+      fakeLocalActiveModeration
     ] = await Promise.all([
       this.repository.countPendingApprovals(),
       this.repository.listPendingApprovals(10),
@@ -65,7 +66,8 @@ export class LiveHelperDashboardService {
       this.repository.listRecentWarningCriticalNotifications(8),
       this.repository.listActiveHelperGrants(25),
       this.repository.listRecentSimulatedEventHistory(10),
-      this.repository.listRecentFakeLocalModerationAudit(10)
+      this.repository.listRecentFakeLocalModerationAudit(10),
+      this.repository.listFakeLocalActiveModeration(10)
     ]);
 
     const safeHelperGrants = activeHelperGrants
@@ -118,10 +120,25 @@ export class LiveHelperDashboardService {
           providerAction: false
         }))
       },
+      fakeLocalActiveModeration: {
+        count: fakeLocalActiveModeration.length,
+        items: fakeLocalActiveModeration.map((entry) => ({
+          id: entry.id,
+          stateKind: entry.stateKind,
+          status: "active",
+          targetMessageId: entry.targetMessageId,
+          targetAuthorName: entry.targetAuthorName,
+          durationSeconds: entry.durationSeconds,
+          activeUntil: entry.activeUntil,
+          note: entry.note,
+          providerAction: false,
+          updatedAt: entry.updatedAt
+        }))
+      },
       boundaries: [
         "Read-only dashboard snapshot.",
         "No grant, revoke, approve, reject, or moderation actions are available here.",
-        "Fake/local moderation audit is local test history only and cannot call provider APIs.",
+        "Fake/local moderation audit and active state are local test data only and cannot call provider APIs.",
         "Only safe simulated/test event routing history is summarized.",
         "Raw payloads, secrets, provider credentials, tokens, and deleted-user data are not returned."
       ]

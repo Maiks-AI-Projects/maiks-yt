@@ -84,6 +84,19 @@ export type LiveHelperFakeLocalModerationAuditSummary = Pick<
   | "providerAction"
 >;
 
+export type LiveHelperFakeLocalActiveModerationSummary = {
+  id: string;
+  stateKind: "message_hidden" | "author_muted";
+  status: "active";
+  targetMessageId: string | null;
+  targetAuthorName: string | null;
+  durationSeconds: number | null;
+  activeUntil: string | null;
+  note: string | null;
+  providerAction: false;
+  updatedAt: string;
+};
+
 export type LiveHelperDashboardSnapshot = {
   ok: true;
   generatedAt: string;
@@ -107,6 +120,10 @@ export type LiveHelperDashboardSnapshot = {
   fakeLocalModerationAudit: {
     items: readonly LiveHelperFakeLocalModerationAuditSummary[];
   };
+  fakeLocalActiveModeration: {
+    count: number;
+    items: readonly LiveHelperFakeLocalActiveModerationSummary[];
+  };
   boundaries: readonly string[];
 };
 
@@ -129,4 +146,5 @@ export interface LiveHelperDashboardRepository {
   listActiveHelperGrants(limit: number): Promise<readonly LiveHelperGrantRecord[]>;
   listRecentSimulatedEventHistory(limit: number): Promise<readonly Omit<LiveHelperEventHistorySummary, "label">[]>;
   listRecentFakeLocalModerationAudit(limit: number): Promise<readonly LiveHelperFakeLocalModerationAuditSummary[]>;
+  listFakeLocalActiveModeration(limit: number): Promise<readonly LiveHelperFakeLocalActiveModerationSummary[]>;
 }

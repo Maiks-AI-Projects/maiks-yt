@@ -5,6 +5,7 @@ import { registerFakeLocalModerationRoutes } from "../../src/fake-local-moderati
 import { FakeLocalModerationService } from "../../src/fake-local-moderation/fake-local-moderation.service.js";
 import type {
   FakeLocalModerationActor,
+  FakeLocalModerationActiveStateInput,
   FakeLocalModerationAuditEntry,
   FakeLocalModerationRepository,
   FakeLocalModerationRuntime,
@@ -21,6 +22,7 @@ class FakeModerationRepository implements FakeLocalModerationRepository {
     rolePermissionValues: [["*"]]
   };
   public readonly auditEntries: FakeLocalModerationAuditEntry[] = [];
+  public readonly activeStates: FakeLocalModerationActiveStateInput[] = [];
 
   public async resolveActor(): Promise<FakeLocalModerationActor | null> {
     return this.actor ? structuredClone(this.actor) : null;
@@ -28,6 +30,10 @@ class FakeModerationRepository implements FakeLocalModerationRepository {
 
   public async appendAudit(entry: FakeLocalModerationAuditEntry): Promise<void> {
     this.auditEntries.unshift(structuredClone(entry));
+  }
+
+  public async upsertActiveState(input: FakeLocalModerationActiveStateInput): Promise<void> {
+    this.activeStates.unshift(structuredClone(input));
   }
 }
 
@@ -229,6 +235,17 @@ describe("fake/local moderation commands", () => {
       source: "fake-local",
       providerAction: false
     });
+    expect(repository.activeStates).toHaveLength(1);
+    expect(repository.activeStates[0]).toMatchObject({
+      stateKind: "message_hidden",
+      allowInsert: true,
+      auditEntry: {
+        action: "hide_message",
+        outcome: "applied",
+        targetMessageId: "message-1",
+        providerAction: false
+      }
+    });
   });
 
   it("records temporary mute commands as fake/local-only audit entries", async () => {
@@ -277,5 +294,62 @@ describe("fake/local moderation commands", () => {
       durationSeconds: 60
     });
     expect(repository.auditEntries[0]?.mutedUntil).toEqual(expect.any(String));
+    expect(repository.activeStates).toHaveLength(1);
+    expect(repository.activeStates[0]).toMatchObject({
+      stateKind: "author_muted",
+      allowInsert: true,
+      auditEntry: {
+        action: "temporary_mute_author",
+        outcome: "applied",
+        targetAuthorName: "Test chatter",
+        durationSeconds: 60,
+        providerAction: false
+      }
+    });
+    expect(repository.activeStates[0]?.auditEntry.mutedUntil).toEqual(expect.any(String));
+  });
+
+  it.each([
+    {
+      action: "warn_author",
+      targetAuthorName: "Test chatter",
+      note: "Local warning"
+    },
+    {
+      action: "note_author",
+      targetAuthorName: "Test chatter",
+      note: "Local note"
+    },
+    {
+      action: "noop",
+      note: "Local drill"
+    }
+  ] as const)("keeps $action audit-only without active-state rows", async (payload) => {
+    const repository = new FakeModerationRepository();
+    const runtime = new FakeModerationRuntime();
+    const server = createServer({
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      repository,
+      runtime
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/fake-local-chat/moderation/commands",
+      payload
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      source: "fake-local",
+      providerAction: false,
+      auditEntry: {
+        action: payload.action,
+        providerAction: false
+      }
+    });
+    expect(repository.auditEntries).toHaveLength(1);
+    expect(repository.activeStates).toHaveLength(0);
   });
 });

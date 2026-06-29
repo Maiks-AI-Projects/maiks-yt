@@ -4,6 +4,7 @@ import type {
   LiveHelperDashboardActor,
   LiveHelperDashboardRepository,
   LiveHelperEventHistorySummary,
+  LiveHelperFakeLocalActiveModerationSummary,
   LiveHelperFakeLocalModerationAuditSummary,
   LiveHelperGrantRecord,
   LiveHelperNotificationSummary,
@@ -79,6 +80,17 @@ type FakeLocalModerationAuditRow = {
   durationSeconds?: number | null;
   mutedUntil?: Date | string | null;
   note?: string | null;
+};
+
+type FakeLocalActiveModerationRow = {
+  id: string;
+  stateKind: LiveHelperFakeLocalActiveModerationSummary["stateKind"];
+  targetMessageId?: string | null;
+  targetAuthorName?: string | null;
+  durationSeconds?: number | null;
+  activeUntil?: Date | string | null;
+  note?: string | null;
+  updatedAt: Date | string;
 };
 
 const toIsoString = (value: Date | string): string =>
@@ -226,6 +238,21 @@ const mapFakeLocalModerationAudit = (
   mutedUntil: toNullableIsoString(row.mutedUntil),
   note: row.note ?? null,
   providerAction: false
+});
+
+const mapFakeLocalActiveModeration = (
+  row: FakeLocalActiveModerationRow
+): LiveHelperFakeLocalActiveModerationSummary => ({
+  id: row.id,
+  stateKind: row.stateKind,
+  status: "active",
+  targetMessageId: row.targetMessageId ?? null,
+  targetAuthorName: row.targetAuthorName ?? null,
+  durationSeconds: row.durationSeconds ?? null,
+  activeUntil: toNullableIsoString(row.activeUntil),
+  note: row.note ?? null,
+  providerAction: false,
+  updatedAt: toIsoString(row.updatedAt)
 });
 
 export const createLiveHelperDashboardRepository = (
@@ -421,6 +448,39 @@ export const createLiveHelperDashboardRepository = (
 
     return Array.isArray(rows)
       ? (rows as FakeLocalModerationAuditRow[]).map(mapFakeLocalModerationAudit)
+      : [];
+  },
+
+  async listFakeLocalActiveModeration(limit) {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          id,
+          state_kind AS stateKind,
+          target_message_id AS targetMessageId,
+          target_author_name AS targetAuthorName,
+          duration_seconds AS durationSeconds,
+          active_until AS activeUntil,
+          note,
+          updated_at AS updatedAt
+        FROM moderation_active_states
+        WHERE source = 'fake-local'
+          AND state_kind IN ('message_hidden', 'author_muted')
+          AND status = 'active'
+          AND revoked_at IS NULL
+          AND (active_until IS NULL OR active_until > NOW())
+          AND provider_action = false
+          AND is_test = true
+          AND is_simulated = true
+          AND test_resettable = true
+        ORDER BY updated_at DESC
+        LIMIT ?
+      `,
+      [limit]
+    );
+
+    return Array.isArray(rows)
+      ? (rows as FakeLocalActiveModerationRow[]).map(mapFakeLocalActiveModeration)
       : [];
   }
 });

@@ -54,9 +54,16 @@ export type FakeLocalMutedAuthor = {
   mutedUntil: string;
 };
 
+export type FakeLocalModerationActiveStateInput = {
+  auditEntry: FakeLocalModerationAuditEntry;
+  stateKind: "message_hidden" | "author_muted";
+  allowInsert: boolean;
+};
+
 export interface FakeLocalModerationRepository {
   resolveActor(authUserId: string): Promise<FakeLocalModerationActor | null>;
   appendAudit(entry: FakeLocalModerationAuditEntry): Promise<void>;
+  upsertActiveState(input: FakeLocalModerationActiveStateInput): Promise<void>;
 }
 
 export interface FakeLocalModerationRuntime {

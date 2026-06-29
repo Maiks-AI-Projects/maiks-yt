@@ -11,6 +11,7 @@ import type {
   FakeLocalModerationActor,
   FakeLocalModerationAuditEntry,
   FakeLocalModerationCommandResult,
+  FakeLocalModerationRepository,
   FakeLocalModerationRuntime
 } from "./fake-local-moderation.types.js";
 
@@ -86,10 +87,7 @@ const createAuditEntry = ({
 
 export class FakeLocalModerationService {
   public constructor(
-    private readonly repository: {
-      resolveActor(authUserId: string): Promise<FakeLocalModerationActor | null>;
-      appendAudit(entry: FakeLocalModerationAuditEntry): Promise<void>;
-    },
+    private readonly repository: FakeLocalModerationRepository,
     private readonly runtime: FakeLocalModerationRuntime
   ) {}
 
@@ -172,6 +170,11 @@ export class FakeLocalModerationService {
         reason: affectedMessage ? null : "fake_local_moderation_message_not_found"
       });
       await this.appendAudit(auditEntry);
+      await this.repository.upsertActiveState({
+        auditEntry,
+        stateKind: "message_hidden",
+        allowInsert: affectedMessage !== null
+      });
 
       return {
         ok: true,
@@ -194,6 +197,11 @@ export class FakeLocalModerationService {
         reason: null
       });
       await this.appendAudit(auditEntry);
+      await this.repository.upsertActiveState({
+        auditEntry,
+        stateKind: "author_muted",
+        allowInsert: true
+      });
 
       return {
         ok: true,
