@@ -45,6 +45,15 @@ export type OverlayFakeChatMessageReceivedEvent = {
   payload: OverlayFakeChatMessage;
 };
 
+export type OverlayFakeChatMessageHiddenEvent = {
+  type: "overlay.fake-chat.message.hidden";
+  payload: {
+    id: string;
+    source: "fake-local";
+    hiddenAt: string;
+  };
+};
+
 export type OverlayTopBarNotificationQueuedEvent = {
   type: "overlay.top-bar-notification.queued";
   payload: OverlayNotificationDisplay;
@@ -94,6 +103,7 @@ export type ProjectFocusChangedEvent = {
 
 export type OverlayEvent =
   | OverlayFakeChatMessageReceivedEvent
+  | OverlayFakeChatMessageHiddenEvent
   | OverlayNotificationQueuedEvent
   | OverlayRoutedNotificationQueuedEvent
   | OverlayTopBarNotificationQueuedEvent

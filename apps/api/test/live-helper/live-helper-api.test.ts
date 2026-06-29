@@ -7,6 +7,7 @@ import type {
   LiveHelperDashboardActor,
   LiveHelperDashboardRepository,
   LiveHelperEventHistorySummary,
+  LiveHelperFakeLocalModerationAuditSummary,
   LiveHelperGrantRecord,
   LiveHelperNotificationSummary,
   LiveHelperPendingApprovalSummary
@@ -152,7 +153,24 @@ class FakeLiveHelperDashboardRepository implements LiveHelperDashboardRepository
 describe("LiveHelperDashboardService", () => {
   it("allows owner wildcard and moderators:manage to view a sanitized read-only dashboard", async () => {
     const repository = new FakeLiveHelperDashboardRepository();
-    const service = new LiveHelperDashboardService(repository);
+    const fakeLocalModerationAudit: LiveHelperFakeLocalModerationAuditSummary[] = [
+      {
+        id: "fake-mod-audit-1",
+        attemptedAt: now,
+        source: "fake-local",
+        actorDisplayName: "Live Helper",
+        action: "hide_message",
+        outcome: "applied",
+        reason: null,
+        targetMessageId: "fake-message-1",
+        targetAuthorName: null,
+        durationSeconds: null,
+        mutedUntil: null,
+        note: "Local test cleanup",
+        providerAction: false
+      }
+    ];
+    const service = new LiveHelperDashboardService(repository, () => fakeLocalModerationAudit);
 
     const ownerResult = await service.getDashboard({ authUserId: "auth-owner" });
 
@@ -197,6 +215,17 @@ describe("LiveHelperDashboardService", () => {
             routingOutcome: "queued_for_approval"
           }
         ]
+      },
+      fakeLocalModerationAudit: {
+        items: [
+          {
+            action: "hide_message",
+            outcome: "applied",
+            source: "fake-local",
+            providerAction: false,
+            note: "Local test cleanup"
+          }
+        ]
       }
     });
     expect(ownerResult.ok && ownerResult.activeHelperGrants.items[0]).not.toHaveProperty("rolePermissions");
@@ -207,6 +236,16 @@ describe("LiveHelperDashboardService", () => {
     };
 
     await expect(service.getDashboard({ authUserId: "auth-manager" })).resolves.toMatchObject({
+      ok: true,
+      readOnly: true
+    });
+
+    repository.actor = {
+      domainUserId: "fake-local-helper",
+      rolePermissionValues: [JSON.stringify(["fake-local-chat:moderate"])]
+    };
+
+    await expect(service.getDashboard({ authUserId: "auth-helper" })).resolves.toMatchObject({
       ok: true,
       readOnly: true
     });

@@ -205,7 +205,7 @@ Remaining gates:
 
 - No schema/migration, provider moderation enforcement, real chat provider actions, role grant mutations, money/support authority, AI decisions, auth/provider login changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
-## Phase 5D: Fake/Local Moderation Commands And Audit (Next Option)
+## Phase 5D: Fake/Local Moderation Commands And Audit (Coordinator Review Accepted, Dev Smoke Pending)
 
 Worker scope:
 
@@ -232,6 +232,38 @@ Reviewer gate:
 - Verify unauthorized users are denied and audited appropriately.
 - Verify helper-visible surfaces do not expose raw secrets, provider credentials, tokens, or deleted-user data.
 - Verify the live helper dashboard remains monitoring-first and any new controls are clearly scoped to fake/local test behavior.
+
+Result:
+
+- Added `@maiks-yt/domain/community` fake/local moderation rules and `fake-local-chat:moderate`.
+- Added authenticated `POST /fake-local-chat/moderation/commands` with safe local actions: `warn_author`, `hide_message`, `temporary_mute_author`, `note_author`, and `noop`.
+- Command execution requires owner wildcard or `fake-local-chat:moderate`; `moderators:manage` alone can view live-helper context but cannot execute fake/local moderation commands.
+- Added in-memory audit entries for command attempts and outcomes, including denied, invalid, not-found, no-op, and applied results.
+- Added local fake-message hiding and temporary fake-author mutes for existing fake/local chat surfaces; hidden fake/local messages are removed from streamer chat snapshots and overlay chat through `overlay.fake-chat.message.hidden`.
+- Added recent fake/local moderation audit summaries to `/admin/live-helper` as read-only context.
+
+Coordinator checks:
+
+- `pnpm --filter @maiks-yt/domain test` passed.
+- `pnpm --filter @maiks-yt/events test` passed.
+- `pnpm --filter @maiks-yt/events typecheck` passed.
+- Initial `pnpm --filter @maiks-yt/api test` hit the known stale workspace export issue before `@maiks-yt/domain` was rebuilt.
+- `pnpm --filter @maiks-yt/domain build` passed.
+- Retried `pnpm --filter @maiks-yt/api test` passed.
+- `pnpm --filter @maiks-yt/api typecheck` passed.
+- `pnpm --filter @maiks-yt/web typecheck` passed.
+- `pnpm --filter @maiks-yt/web build` passed.
+- `pnpm --filter @maiks-yt/overlay typecheck` passed.
+- `pnpm --filter @maiks-yt/control-panel typecheck` passed.
+- `pnpm --filter @maiks-yt/testing typecheck` passed.
+- `node scripts/check-architecture.mjs` passed.
+- `git diff --check` passed.
+
+Remaining gates:
+
+- Coordinator commit, push, deploy, and dev smoke are still pending.
+- Audit/mute/hide state is intentionally in-memory and resets on API restart. Durable moderation audit requires a separately approved schema slice.
+- No Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive user actions, ban propagation, AI decisions, money/support authority, schema/migration, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 

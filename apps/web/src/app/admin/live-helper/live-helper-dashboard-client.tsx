@@ -54,6 +54,22 @@ type LiveHelperEventHistorySummary = {
   occurredAt: string;
 };
 
+type LiveHelperFakeLocalModerationAuditSummary = {
+  id: string;
+  attemptedAt: string;
+  source: "fake-local";
+  actorDisplayName: string | null;
+  action: string;
+  outcome: string;
+  reason: string | null;
+  targetMessageId: string | null;
+  targetAuthorName: string | null;
+  durationSeconds: number | null;
+  mutedUntil: string | null;
+  note: string | null;
+  providerAction: boolean;
+};
+
 type LiveHelperDashboardResponse =
   | {
     ok: true;
@@ -74,6 +90,9 @@ type LiveHelperDashboardResponse =
     };
     recentSimulatedHistory: {
       items: readonly LiveHelperEventHistorySummary[];
+    };
+    fakeLocalModerationAudit: {
+      items: readonly LiveHelperFakeLocalModerationAuditSummary[];
     };
     boundaries: readonly string[];
   }
@@ -287,6 +306,37 @@ const LiveHelperDashboardClient = (): React.ReactNode => {
                           <strong>{event.label}</strong>
                           <p>{event.sourcePlatform} · {formatKey(event.routingOutcome)}{event.destination ? ` · ${formatKey(event.destination)}` : ""}</p>
                           <p>{event.actorDisplayName ?? "No public actor name"} · {formatCompactDate(event.occurredAt)}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="project-admin-panel">
+                <div className="project-admin-panel-heading">
+                  <div>
+                    <h2>Fake/Local Moderation Audit</h2>
+                    <p>Local test command attempts only; no provider actions are shown or available.</p>
+                  </div>
+                  <span className="live-helper-pill">Read-only</span>
+                </div>
+                {snapshot.fakeLocalModerationAudit.items.length === 0 ? (
+                  <p className="project-admin-note">No fake/local moderation command attempts yet.</p>
+                ) : (
+                  <ul className="project-admin-record-list">
+                    {snapshot.fakeLocalModerationAudit.items.map((entry) => (
+                      <li key={entry.id}>
+                        <div>
+                          <strong>{formatKey(entry.action)} · {formatKey(entry.outcome)}</strong>
+                          <p>{entry.actorDisplayName ?? "Unknown actor"} · {entry.source} · provider action: {entry.providerAction ? "yes" : "no"}</p>
+                          <p>
+                            {entry.targetAuthorName ? `Author: ${entry.targetAuthorName}` : entry.targetMessageId ? `Message: ${entry.targetMessageId}` : "No target"}
+                            {entry.durationSeconds ? ` · ${entry.durationSeconds}s` : ""}
+                            {entry.mutedUntil ? ` · until ${formatCompactDate(entry.mutedUntil)}` : ""}
+                          </p>
+                          <p>{entry.note ?? entry.reason ?? "No note"}</p>
+                          <p>{formatCompactDate(entry.attemptedAt)}</p>
                         </div>
                       </li>
                     ))}

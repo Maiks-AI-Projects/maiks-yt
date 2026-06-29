@@ -622,6 +622,11 @@ const App = (): React.ReactNode => {
             return;
           }
 
+          if (message.type === "overlay.fake-chat.message.hidden") {
+            setFakeChatMessages((messages) => messages.filter((chatMessage) => chatMessage.id !== message.payload.id));
+            return;
+          }
+
           if (message.type === "overlay.connection.heartbeat") {
             setRuntimeState((currentState) => currentState.status === "ready"
               ? {

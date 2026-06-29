@@ -135,8 +135,10 @@ type OverlayRedeemTestResponse = {
 type OverlayFakeChatTestResponse = {
   ok: true;
   queued: number;
+  reason?: string;
+  mutedUntil?: string;
   chatVisible: boolean;
-  streamerChatMessage: StreamerChatMessage;
+  streamerChatMessage: StreamerChatMessage | null;
   activeOverlayConnections: number;
 } | {
   ok: false;
@@ -910,6 +912,13 @@ const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode
 
     if (!result.ok) {
       setTopBarActionStatus(`Fake chat failed: ${result.reason}.`);
+      return;
+    }
+
+    if (result.reason === "fake_local_author_muted") {
+      setTopBarActionStatus(result.mutedUntil
+        ? `Fake chat suppressed by local mute until ${formatChatTime(result.mutedUntil)}.`
+        : "Fake chat suppressed by local mute.");
       return;
     }
 

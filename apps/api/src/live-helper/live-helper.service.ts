@@ -1,9 +1,10 @@
-import { canManageModerators, isModeratorRoleGrantable } from "@maiks-yt/domain/community";
+import { canManageModerators, canModerateFakeLocalChat, isModeratorRoleGrantable } from "@maiks-yt/domain/community";
 import { getEventRegistryEntry } from "@maiks-yt/domain/events";
 
 import type {
   LiveHelperDashboardActor,
   LiveHelperDashboardRepository,
+  LiveHelperFakeLocalModerationAuditSummary,
   LiveHelperDashboardResult
 } from "./live-helper.types.js";
 
@@ -41,7 +42,10 @@ export const normalizeLiveHelperPermissions = (
 };
 
 export class LiveHelperDashboardService {
-  public constructor(private readonly repository: LiveHelperDashboardRepository) {}
+  public constructor(
+    private readonly repository: LiveHelperDashboardRepository,
+    private readonly listFakeLocalModerationAudit: (limit: number) => readonly LiveHelperFakeLocalModerationAuditSummary[] = () => []
+  ) {}
 
   public async getDashboard(input: { authUserId: string }): Promise<LiveHelperDashboardResult> {
     const actor = await this.requireActor(input.authUserId);
@@ -56,14 +60,16 @@ export class LiveHelperDashboardService {
       notificationCounts,
       notifications,
       activeHelperGrants,
-      recentSimulatedHistory
+      recentSimulatedHistory,
+      fakeLocalModerationAudit
     ] = await Promise.all([
       this.repository.countPendingApprovals(),
       this.repository.listPendingApprovals(10),
       this.repository.countOpenWarningCriticalNotifications(),
       this.repository.listRecentWarningCriticalNotifications(8),
       this.repository.listActiveHelperGrants(25),
-      this.repository.listRecentSimulatedEventHistory(10)
+      this.repository.listRecentSimulatedEventHistory(10),
+      Promise.resolve(this.listFakeLocalModerationAudit(10))
     ]);
 
     const safeHelperGrants = activeHelperGrants
@@ -99,9 +105,27 @@ export class LiveHelperDashboardService {
           label: getEventRegistryEntry(event.eventKind).label
         }))
       },
+      fakeLocalModerationAudit: {
+        items: fakeLocalModerationAudit.map((entry) => ({
+          id: entry.id,
+          attemptedAt: entry.attemptedAt,
+          source: "fake-local",
+          actorDisplayName: entry.actorDisplayName,
+          action: entry.action,
+          outcome: entry.outcome,
+          reason: entry.reason,
+          targetMessageId: entry.targetMessageId,
+          targetAuthorName: entry.targetAuthorName,
+          durationSeconds: entry.durationSeconds,
+          mutedUntil: entry.mutedUntil,
+          note: entry.note,
+          providerAction: false
+        }))
+      },
       boundaries: [
         "Read-only dashboard snapshot.",
         "No grant, revoke, approve, reject, or moderation actions are available here.",
+        "Fake/local moderation audit is local test history only and cannot call provider APIs.",
         "Only safe simulated/test event routing history is summarized.",
         "Raw payloads, secrets, provider credentials, tokens, and deleted-user data are not returned."
       ]
@@ -124,7 +148,9 @@ export class LiveHelperDashboardService {
       };
     }
 
-    if (!canManageModerators(normalizeLiveHelperPermissions(actor.rolePermissionValues))) {
+    const permissions = normalizeLiveHelperPermissions(actor.rolePermissionValues);
+
+    if (!canManageModerators(permissions) && !canModerateFakeLocalChat(permissions)) {
       return {
         ok: false,
         reason: "live_helper_forbidden"

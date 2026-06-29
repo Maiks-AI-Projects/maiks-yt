@@ -8,6 +8,7 @@ import type {
   OverlayPresentationState,
   OverlayLayoutKey,
   OverlayLiveMessage,
+  OverlayFakeChatMessageHiddenEvent,
   OverlayFakeChatMessageReceivedEvent,
   OverlayNotificationDisplay,
   OverlaySceneDefinition,
@@ -37,6 +38,11 @@ import {
   registerEventRoutingDispatchRoutes,
   type EventRoutingPlaybackPublisher
 } from "./event-routing/index.js";
+import {
+  registerFakeLocalModerationRoutes,
+  type FakeLocalModerationAuditEntry,
+  type FakeLocalMutedAuthor
+} from "./fake-local-moderation/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
@@ -652,7 +658,9 @@ const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
 const createStreamerChatSnapshot = (): StreamerChatLiveMessage => ({
   type: "streamer-chat.snapshot",
   payload: {
-    messages: streamerChatMessages.map((message) => ({ ...message })),
+    messages: streamerChatMessages
+      .filter((message) => fakeLocalModerationRuntime.isMessageVisible(message))
+      .map((message) => ({ ...message })),
     sentAt: new Date().toISOString()
   }
 });
@@ -667,6 +675,88 @@ const broadcastStreamerChatMessage = (message: StreamerChatMessage): void => {
     client.send(serializedMessage);
   }
 };
+
+const broadcastStreamerChatSnapshot = (): void => {
+  const serializedMessage = JSON.stringify(createStreamerChatSnapshot());
+
+  for (const client of streamerChatLiveClients.values()) {
+    client.send(serializedMessage);
+  }
+};
+
+class InMemoryFakeLocalModerationRuntime {
+  private readonly auditEntries: FakeLocalModerationAuditEntry[] = [];
+  private readonly hiddenMessageIds = new Set<string>();
+  private readonly mutedAuthors = new Map<string, FakeLocalMutedAuthor>();
+
+  public appendAudit(entry: FakeLocalModerationAuditEntry): void {
+    this.auditEntries.unshift(structuredClone(entry));
+    this.auditEntries.splice(100);
+  }
+
+  public hideMessage(messageId: string, hiddenAt: string): StreamerChatMessage | null {
+    const messageIndex = streamerChatMessages.findIndex((message) => message.id === messageId);
+    const message = messageIndex >= 0 ? streamerChatMessages[messageIndex] : null;
+
+    if (!message) {
+      return null;
+    }
+
+    this.hiddenMessageIds.add(messageId);
+    streamerChatMessages.splice(messageIndex, 1);
+    broadcastStreamerChatSnapshot();
+    broadcastOverlayMessage({
+      type: "overlay.fake-chat.message.hidden",
+      payload: {
+        id: messageId,
+        source: "fake-local",
+        hiddenAt
+      }
+    } satisfies OverlayFakeChatMessageHiddenEvent);
+
+    return { ...message };
+  }
+
+  public listAudit(limit: number): readonly FakeLocalModerationAuditEntry[] {
+    return this.auditEntries.slice(0, limit).map((entry) => structuredClone(entry));
+  }
+
+  public muteAuthor(authorName: string, mutedUntil: string): FakeLocalMutedAuthor {
+    const mutedAuthor = {
+      authorName,
+      mutedUntil
+    };
+    this.mutedAuthors.set(this.normalizeAuthorName(authorName), mutedAuthor);
+
+    return { ...mutedAuthor };
+  }
+
+  public isAuthorMuted(authorName: string, now = new Date()): FakeLocalMutedAuthor | null {
+    const key = this.normalizeAuthorName(authorName);
+    const mutedAuthor = this.mutedAuthors.get(key);
+
+    if (!mutedAuthor) {
+      return null;
+    }
+
+    if (new Date(mutedAuthor.mutedUntil).getTime() <= now.getTime()) {
+      this.mutedAuthors.delete(key);
+      return null;
+    }
+
+    return { ...mutedAuthor };
+  }
+
+  public isMessageVisible(message: StreamerChatMessage): boolean {
+    return !this.hiddenMessageIds.has(message.id);
+  }
+
+  private normalizeAuthorName(authorName: string): string {
+    return authorName.trim().toLowerCase();
+  }
+}
+
+const fakeLocalModerationRuntime = new InMemoryFakeLocalModerationRuntime();
 
 const recordFakeLocalStreamerChatMessage = (
   event: OverlayFakeChatMessageReceivedEvent
@@ -964,9 +1054,15 @@ registerUrlAccessTokenAdminRoutes(server, {
   getAuthSession,
   getDatabasePool
 });
+registerFakeLocalModerationRoutes(server, {
+  getAuthSession,
+  getDatabasePool,
+  runtime: fakeLocalModerationRuntime
+});
 registerLiveHelperDashboardRoutes(server, {
   getAuthSession,
-  getDatabasePool
+  getDatabasePool,
+  listFakeLocalModerationAudit: (limit) => fakeLocalModerationRuntime.listAudit(limit)
 });
 registerModeratorAdminRoutes(server, {
   getAuthSession,
@@ -1649,7 +1745,9 @@ server.get("/streamer-chat/messages", async (request, reply) => {
   return {
     ok: true,
     source: "fake-local",
-    messages: streamerChatMessages.map((message) => ({ ...message })),
+    messages: streamerChatMessages
+      .filter((message) => fakeLocalModerationRuntime.isMessageVisible(message))
+      .map((message) => ({ ...message })),
     checkedAt: new Date().toISOString()
   };
 });
@@ -2071,6 +2169,21 @@ server.post("/overlay/chat/test", async (request, reply) => {
   }
 
   const event = createFakeChatMessageEvent(parsedRequest.data);
+  const mutedAuthor = fakeLocalModerationRuntime.isAuthorMuted(event.payload.authorName);
+
+  if (mutedAuthor) {
+    return {
+      ok: true,
+      queued: 0,
+      reason: "fake_local_author_muted",
+      mutedUntil: mutedAuthor.mutedUntil,
+      chatVisible: overlayChatVisible,
+      streamerChatMessage: null,
+      event: null,
+      activeOverlayConnections: activeOverlayConnections.size
+    };
+  }
+
   const streamerChatMessage = recordFakeLocalStreamerChatMessage(event);
 
   broadcastOverlayMessage(event);

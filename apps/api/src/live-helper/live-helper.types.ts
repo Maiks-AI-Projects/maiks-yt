@@ -7,6 +7,8 @@ import type {
 import type { ModeratorGrantAvailability, ModeratorGrantScopeKind, ModeratorTrustLevel } from "@maiks-yt/domain/community";
 import type { NotificationSeverity, NotificationSource, NotificationStatus } from "@maiks-yt/domain/notifications";
 
+import type { FakeLocalModerationAuditEntry } from "../fake-local-moderation/index.js";
+
 export type LiveHelperDashboardActor = {
   domainUserId: string;
   rolePermissionValues: readonly unknown[];
@@ -65,6 +67,23 @@ export type LiveHelperEventHistorySummary = {
   occurredAt: string;
 };
 
+export type LiveHelperFakeLocalModerationAuditSummary = Pick<
+  FakeLocalModerationAuditEntry,
+  | "id"
+  | "attemptedAt"
+  | "source"
+  | "actorDisplayName"
+  | "action"
+  | "outcome"
+  | "reason"
+  | "targetMessageId"
+  | "targetAuthorName"
+  | "durationSeconds"
+  | "mutedUntil"
+  | "note"
+  | "providerAction"
+>;
+
 export type LiveHelperDashboardSnapshot = {
   ok: true;
   generatedAt: string;
@@ -84,6 +103,9 @@ export type LiveHelperDashboardSnapshot = {
   };
   recentSimulatedHistory: {
     items: readonly LiveHelperEventHistorySummary[];
+  };
+  fakeLocalModerationAudit: {
+    items: readonly LiveHelperFakeLocalModerationAuditSummary[];
   };
   boundaries: readonly string[];
 };
