@@ -93,7 +93,7 @@ Reviewer/dev smoke:
 - Smoke verified the Twitch chat control responses did not include the dev auth token.
 - `/admin/provider-integrations?devAuthToken=...` returned `200` and did not contain the known `bsc-dataseed.binance.org` injection marker; the Twitch panel is client-rendered and should still get a browser/manual interaction pass.
 - Manual Twitch chat message verification remains open because sending a Twitch message from this agent would be a provider-side write. Michael can start intake from `/admin/provider-integrations`, send a harmless chat message from Twitch, then confirm it appears in the private streamer chat/control-panel feed and not the OBS overlay.
-- Standalone streamer chat PWA follow-up added `/chat` on `control-dev` with separate `chat-manifest.webmanifest`, `id`/`scope`/`start_url` of `/chat`, focused chat-only layout, and the same `control:open` token gate. The ignored usable URL report has the tokenized `/chat` URL for local testing.
+- Standalone streamer chat PWA follow-up added `/chat` on `control-dev` with separate `chat-manifest.webmanifest`, `id`/`scope`/`start_url` of `/chat`, focused chat-only layout, and the same `control:open` token gate. The normal control-panel manifest is narrowed to `id`/`scope`/`start_url` of `/control` so new installs do not claim `/chat`; old Ubuntu/Android installs created with the previous `/` scope may need to be removed once. The ignored usable URL report has the tokenized `/chat` URL for local testing.
 
 Next provider chunks:
 

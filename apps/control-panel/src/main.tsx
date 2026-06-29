@@ -2261,7 +2261,7 @@ const App = (): React.ReactNode => {
             <h1>Maiks.yt Streamer Chat</h1>
             <p>{authState.displayName}</p>
           </div>
-          <a className="chat-control-link" href="/">Control panel</a>
+          <a className="chat-control-link" href="/control">Control panel</a>
         </div>
         <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />
       </main>
