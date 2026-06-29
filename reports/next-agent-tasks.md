@@ -17,7 +17,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Event routing now has an in-code typed registry/capability matrix foundation, dev-applied persistence migration `0012_smooth_jack_flag.sql`, a deployed/dev-smoked first manual/provider-neutral routing-rule admin foundation, deployed safe simulated dispatch API behavior, deployed user-facing stream visibility opt-outs for website/community events, and deployed/dev-smoked Phase 4A safe simulated top/center overlay playback. Provider credentials, real website production dispatch, moderation enforcement, real money, and production event intake remain later gates.
 - Page Creator and Route Admin now has dev-applied `content_pages` persistence migration `0013_lowly_justin_hammer.sql` and a deployed first runtime implementation: path-only manual pages on the primary website host, owner-gated `/admin/pages`, saved preview-before-publish, reserved-route blocking, and public exact-path rendering for published visible records. Host/subdomain plus Cloudflare automation, production route behavior changes, AI auto-publishing, and money/legal final wording remain later gates.
 - Phase 5A generated and dev-applied moderator/helper persistence migration `0016_jittery_nebula.sql` for trust levels, scoped role grants, temporary/revoked access metadata, and role-grant audit logs.
-- Phase 5H generated durable active moderation-state migration `0018_slimy_stellaris.sql` for `moderation_active_states`. It is generated only and has not been applied; runtime fake/local active-state writes and live-helper durable active reads remain separate gates.
+- Phase 5H generated durable active moderation-state migration `0018_slimy_stellaris.sql` for `moderation_active_states`, and Phase 5I applied it on dev with fake/local hide/mute active-state writes and read-only live-helper summaries.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
@@ -374,7 +374,7 @@ Remaining gates:
 - Runtime writes from fake/local commands to active state remain separate.
 - Real Twitch/YouTube/Discord/provider enforcement, provider credentials, destructive moderation actions, ban propagation, user deletion, raw provider payload storage, AI moderation, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, server state, and production behavior remain separate gated work.
 
-## Phase 5H: Durable Active Moderation State Migration (Generated, Unapplied)
+## Phase 5H: Durable Active Moderation State Migration (Completed On Dev)
 
 Scope:
 
@@ -398,12 +398,12 @@ Checks:
 
 Remaining gates:
 
-- Migration is generated but not applied.
-- Runtime fake/local hide/mute writes still do not update `moderation_active_states`.
-- `/admin/live-helper` still does not read durable active-state summaries.
+- Migration `0018_slimy_stellaris.sql` was applied on dev during Phase 5I.
+- Runtime fake/local hide/mute writes now update `moderation_active_states` on dev through Phase 5I.
+- `/admin/live-helper` now reads durable fake/local active-state summaries on dev through Phase 5I.
 - Real Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive actions, ban propagation, raw provider payload storage, AI moderation, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, server state, and production behavior remain separate gated work.
 
-## Phase 5I: Wire Fake/Local Active Moderation State (Implemented Locally, Dev Smoke Pending)
+## Phase 5I: Wire Fake/Local Active Moderation State (Completed On Dev)
 
 Scope:
 
@@ -429,11 +429,20 @@ Checks:
 - `node scripts/check-architecture.mjs` passed.
 - `git diff --check` passed.
 
+Reviewer/dev smoke:
+
+- Committed and pushed implementation on commit `471c733`.
+- Pulled `origin/dev`, rebuilt/deployed the dev stack, and applied migration `0018_slimy_stellaris.sql` on `codex-server-1`.
+- Public API smoke confirmed `https://api-dev.maiks.yt/health` returns `{"ok":true,"surface":"api"}`.
+- Owner smoke created a fake/local message, hid it through `POST /fake-local-chat/moderation/commands`, and verified it disappeared from `GET /streamer-chat/messages`.
+- Owner smoke created a temporary fake/local mute, attempted another fake/local chat message from the muted author, and verified `queued: 0` with `reason: "fake_local_author_muted"`.
+- Owner smoke confirmed `GET /admin/live-helper` returns read-only active fake/local moderation summaries with both `message_hidden` and `author_muted` rows and `providerAction: false`.
+- Public web smoke confirmed `/admin/live-helper?devAuthToken=...` returns `200`, contains `Live Helper Dashboard`, and does not contain the known `bsc-dataseed.binance.org` injection marker.
+- Direct dev DB smoke confirmed `moderation_active_states` has 32 columns and the smoke rows are fake-local/test/simulated/resettable with zero provider-action rows.
+
 Remaining gates:
 
-- Coordinator must apply migration `0018_slimy_stellaris.sql` on dev before runtime smoke.
-- Coordinator commit, push, deploy, and dev smoke are pending.
-- No real provider enforcement, destructive moderation actions, durable provider state, auth changes, secrets, AI moderation, money/support authority, Cloudflare/Docker/deploy config, server state, or production behavior was added.
+- No real provider enforcement, destructive moderation actions, durable provider state, auth changes, secrets, AI moderation, money/support authority, Cloudflare/Docker/deploy config, or production behavior was added.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
