@@ -22,7 +22,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Phase 6A Provider Integration Foundation is deployed and dev-smoked. It adds real provider SDK dependencies and sanitized read-only status plumbing for Twitch, YouTube, and Discord behind owner-gated `GET /admin/provider-integrations/status` plus `/admin/provider-integrations`. It does not add OAuth, token storage/rotation, webhook/EventSub receivers, live chat ingestion, provider moderation/write actions, money behavior, migrations, Cloudflare/Docker config, auth flow changes, or production behavior.
 - Phase 6A provider status now recognizes the saved dev env shape: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` for the YouTube OAuth foundation and `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET` as Discord OAuth app credentials, while `DISCORD_BOT_TOKEN`/`DISCORD_APPLICATION_ID`/`DISCORD_GUILD_ID` are passed through Turbo to app processes. Safe live checks confirmed the Discord bot token is valid, matches the application id, and can read the configured dev guild after the bot invite/code-grant setting was fixed.
 - Phase 6A provider library capability mapping is deployed and dev-smoked. It now includes `@twurple/chat` and typed capability states in provider status. Twitch chat library availability is reported separately from runtime state, Twitch EventSub remains gated, YouTube OAuth consent/token storage remains not enabled, and Discord Gateway/`discord.js` remains gated.
-- Phase 6B Twitch Read-Only Chat Intake is implemented for review: owner-gated status/start/stop controls, anonymous read-only Twurple chat connection to the configured/default Maiks channel, Twitch messages projected into the private streamer-chat/control-panel feed, and provider status runtime state. Twitch messages are not sent to the OBS overlay in this slice.
+- Phase 6B Twitch Read-Only Chat Intake is deployed and endpoint-smoked on dev: owner-gated status/start/stop controls, anonymous read-only Twurple chat connection to channel `maiksmc`, Twitch messages projected into the private streamer-chat/control-panel feed, and provider status runtime state. Twitch messages are not sent to the OBS overlay in this slice.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
@@ -62,7 +62,7 @@ Reviewer/dev smoke:
 - `@twurple/chat` was added, pushed, deployed, and dev-smoked after a library capability review.
 - Follow-up capability smoke confirmed the provider status API reports Twitch `twitch-chat-library: available`, Twitch `twitch-eventsub: gated`, YouTube `youtube-oauth-consent: not_enabled`, and Discord `discord-gateway-library: gated`; the API response did not include the dev auth token.
 
-## Phase 6B: Twitch Read-Only Chat Intake (Implemented For Review)
+## Phase 6B: Twitch Read-Only Chat Intake (Completed On Dev)
 
 Worker scope:
 
@@ -86,14 +86,17 @@ Suggested checks:
 
 Reviewer/dev smoke:
 
-- Deploy to dev after checks pass.
-- Verify owner can read `GET /admin/provider-integrations/twitch-chat`.
-- Start intake from `/admin/provider-integrations`, send a harmless Twitch chat message, and confirm it appears in the private streamer chat/control-panel feed.
-- Confirm Twitch messages do not appear on the OBS overlay in this slice.
+- Committed and pushed implementation on commit `65d0f5f`.
+- Deployed to the dev server with no migration application.
+- API health returned `{"ok":true,"surface":"api"}`.
+- Owner-authenticated Twitch chat control endpoint returned `stopped` on channel `maiksmc`, `start` moved through `connecting` to `connected`, provider status reported `twitch-chat-runtime: configured`, and `stop` returned `stopped`.
+- Smoke verified the Twitch chat control responses did not include the dev auth token.
+- `/admin/provider-integrations?devAuthToken=...` returned `200` and did not contain the known `bsc-dataseed.binance.org` injection marker; the Twitch panel is client-rendered and should still get a browser/manual interaction pass.
+- Manual Twitch chat message verification remains open because sending a Twitch message from this agent would be a provider-side write. Michael can start intake from `/admin/provider-integrations`, send a harmless chat message from Twitch, then confirm it appears in the private streamer chat/control-panel feed and not the OBS overlay.
 
 Next provider chunks:
 
-- After Phase 6B review, either harden Twitch intake status/reconnect behavior or design YouTube OAuth/live-chat token storage.
+- After Phase 6B manual message smoke, either harden Twitch intake status/reconnect behavior or design YouTube OAuth/live-chat token storage.
 - Define provider scopes, rate-limit/failure handling, token storage/revocation shape, and manual override before broader provider intake.
 - Keep Discord Gateway/`discord.js`, YouTube OAuth token storage, Twitch EventSub, provider writes, moderation enforcement, money, and production behavior in separate explicit chunks.
 
