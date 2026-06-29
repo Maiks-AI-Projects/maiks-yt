@@ -19,12 +19,12 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Phase 5A generated and dev-applied moderator/helper persistence migration `0016_jittery_nebula.sql` for trust levels, scoped role grants, temporary/revoked access metadata, and role-grant audit logs.
 - Phase 5H generated durable active moderation-state migration `0018_slimy_stellaris.sql` for `moderation_active_states`, and Phase 5I applied it on dev with fake/local hide/mute active-state writes and read-only live-helper summaries.
 - Phase 5J completed the docs/design gate for community rules, manual warning/strike escalation, and restriction boundaries. Automatic warnings, real bans, provider enforcement, destructive actions, AI moderation, auth/secrets, money/support authority, production behavior, and new policy/strike schema remain gated.
-- Phase 6A Provider Integration Foundation is implemented in the worker tree and needs coordinator review. It adds real provider SDK dependencies and sanitized read-only status plumbing for Twitch, YouTube, and Discord behind owner-gated `GET /admin/provider-integrations/status` plus `/admin/provider-integrations`. It does not add OAuth, token storage/rotation, webhook/EventSub receivers, live chat ingestion, provider moderation/write actions, money behavior, migrations, deployments, Cloudflare/Docker config, auth flow changes, server state, or production behavior.
+- Phase 6A Provider Integration Foundation is deployed and dev-smoked. It adds real provider SDK dependencies and sanitized read-only status plumbing for Twitch, YouTube, and Discord behind owner-gated `GET /admin/provider-integrations/status` plus `/admin/provider-integrations`. It does not add OAuth, token storage/rotation, webhook/EventSub receivers, live chat ingestion, provider moderation/write actions, money behavior, migrations, Cloudflare/Docker config, auth flow changes, or production behavior.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 
-## Phase 6A: Provider Integration Foundation (Worker Output, Review Needed)
+## Phase 6A: Provider Integration Foundation (Completed On Dev)
 
 Worker scope:
 
@@ -44,6 +44,16 @@ Suggested reviewer checks:
 - `pnpm --filter @maiks-yt/web build`
 - `node scripts/check-architecture.mjs`
 - `git diff --check`
+
+Reviewer/dev smoke:
+
+- Committed and pushed implementation on commit `938865a`.
+- Deployed to the dev server with no migration application.
+- Initial public smoke hit a startup-timing `502` while the dev container was still installing/building; container logs showed normal startup and a follow-up health check returned `{"ok":true,"surface":"api"}`.
+- Unauthenticated `GET /admin/provider-integrations/status` returned `401`.
+- Owner-authenticated `GET /admin/provider-integrations/status` returned read-only provider states for Twitch, YouTube, and Discord; current dev env shows Twitch `configured`, YouTube `missing`, and Discord `missing`.
+- Smoke verified secret variable names are present for operator visibility but the owner token and secret values are not returned.
+- `/admin/provider-integrations?devAuthToken=...` returned `200`, rendered `Provider Integrations`, and did not contain the known `bsc-dataseed.binance.org` injection marker.
 
 Next provider chunks:
 
