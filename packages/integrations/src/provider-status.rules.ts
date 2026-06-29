@@ -178,17 +178,25 @@ const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
   const variables = [
     createEnvStatus(env, "YOUTUBE_API_KEY", "secret", false),
     createEnvStatus(env, "YOUTUBE_CLIENT_ID", "identifier", false),
-    createEnvStatus(env, "YOUTUBE_CLIENT_SECRET", "secret", false)
+    createEnvStatus(env, "YOUTUBE_CLIENT_SECRET", "secret", false),
+    createEnvStatus(env, "GOOGLE_CLIENT_ID", "identifier", false),
+    createEnvStatus(env, "GOOGLE_CLIENT_SECRET", "secret", false)
   ] as const;
   const apiKeyConfigured = variables[0].configured;
-  const oauthIdConfigured = variables[1].configured;
-  const oauthSecretConfigured = variables[2].configured;
+  const youtubeOauthIdConfigured = variables[1].configured;
+  const youtubeOauthSecretConfigured = variables[2].configured;
+  const googleOauthIdConfigured = variables[3].configured;
+  const googleOauthSecretConfigured = variables[4].configured;
   const issues = variables
     .map((variable) => issueForEnv(env, variable))
     .filter((issue): issue is string => issue !== null);
 
-  if (oauthIdConfigured !== oauthSecretConfigured) {
+  if (youtubeOauthIdConfigured !== youtubeOauthSecretConfigured) {
     issues.push("YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET must be configured together.");
+  }
+
+  if (googleOauthIdConfigured !== googleOauthSecretConfigured) {
+    issues.push("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together.");
   }
 
   const disabled = hasDisabledFlag(env, "youtube");
@@ -198,7 +206,9 @@ const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
     label: "YouTube",
     state: stateFrom({
       disabled,
-      configured: apiKeyConfigured || (oauthIdConfigured && oauthSecretConfigured),
+      configured: apiKeyConfigured
+        || (youtubeOauthIdConfigured && youtubeOauthSecretConfigured)
+        || (googleOauthIdConfigured && googleOauthSecretConfigured),
       issues
     }),
     sdk: "googleapis",
@@ -207,7 +217,7 @@ const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
     issues: disabled ? [] : issues,
     capabilities: [
       "YouTube Data API status foundation",
-      "API key or OAuth client configuration detection",
+      "API key, YouTube OAuth client, or legacy Google OAuth client configuration detection",
       "No OAuth consent flow or token storage yet"
     ]
   };
@@ -217,7 +227,9 @@ const buildDiscordStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
   const variables = [
     createEnvStatus(env, "DISCORD_BOT_TOKEN", "secret", true),
     createEnvStatus(env, "DISCORD_APPLICATION_ID", "identifier", false),
-    createEnvStatus(env, "DISCORD_GUILD_ID", "identifier", false)
+    createEnvStatus(env, "DISCORD_GUILD_ID", "identifier", false),
+    createEnvStatus(env, "DISCORD_CLIENT_ID", "identifier", false),
+    createEnvStatus(env, "DISCORD_CLIENT_SECRET", "secret", false)
   ] as const;
   const issues = variables
     .map((variable) => issueForEnv(env, variable))

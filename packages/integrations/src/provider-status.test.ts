@@ -70,6 +70,59 @@ describe("provider integration status", () => {
     expect(serialized).not.toContain("replace-me");
   });
 
+  it("recognizes legacy Google OAuth names for YouTube configuration", () => {
+    const youtube = getProvider({
+      GOOGLE_CLIENT_ID: "google-client.apps.googleusercontent.com",
+      GOOGLE_CLIENT_SECRET: "super-secret-google"
+    }, "youtube");
+    const serialized = JSON.stringify(youtube);
+
+    expect(youtube?.state).toBe("configured");
+    expect(youtube?.env).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "GOOGLE_CLIENT_ID",
+        configured: true
+      }),
+      expect.objectContaining({
+        name: "GOOGLE_CLIENT_SECRET",
+        configured: true
+      })
+    ]));
+    expect(serialized).not.toContain("super-secret-google");
+  });
+
+  it("reports partial legacy Google OAuth names as invalid without leaking values", () => {
+    const youtube = getProvider({
+      GOOGLE_CLIENT_ID: "google-client.apps.googleusercontent.com"
+    }, "youtube");
+    const serialized = JSON.stringify(youtube);
+
+    expect(youtube?.state).toBe("invalid");
+    expect(youtube?.issues).toContain("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured together.");
+    expect(serialized).not.toContain("google-client.apps.googleusercontent.com");
+  });
+
+  it("surfaces Discord OAuth app aliases separately from bot token readiness", () => {
+    const discord = getProvider({
+      DISCORD_CLIENT_ID: "discord-client",
+      DISCORD_CLIENT_SECRET: "super-secret-discord-oauth"
+    }, "discord");
+    const serialized = JSON.stringify(discord);
+
+    expect(discord?.state).toBe("missing");
+    expect(discord?.env).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "DISCORD_CLIENT_ID",
+        configured: true
+      }),
+      expect.objectContaining({
+        name: "DISCORD_CLIENT_SECRET",
+        configured: true
+      })
+    ]));
+    expect(serialized).not.toContain("super-secret-discord-oauth");
+  });
+
   it("supports explicit disabled provider state", () => {
     const twitch = getProvider({
       TWITCH_INTEGRATION_DISABLED: "true",
