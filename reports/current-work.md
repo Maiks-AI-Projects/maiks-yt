@@ -117,18 +117,19 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Kept Phase 5D provider-safe and temporary by design: command execution requires owner wildcard or `fake-local-chat:moderate`, `moderators:manage` alone cannot execute commands, every result is marked `providerAction: false`, and audit/mute/hide state is in-memory and resets on API restart. No Twitch/YouTube/Discord/provider enforcement, schema/migration, durable moderation audit, destructive user actions, money/support authority, AI decisions, auth changes, secrets, or production behavior was added.
 - Generated Phase 5E durable moderation audit persistence migration `packages/database/drizzle/0017_busy_harpoon.sql`: `moderation_audit_logs` stores provider-neutral action/outcome/source, actor/target/message/event/session references, duration/active-until, provider-action metadata, test/simulated/reset flags, redacted context, and timestamps with indexes for source, actor, target, message, event history, stream session, and test reset cleanup.
 - Kept Phase 5E schema-only: migration application, runtime writes, live-helper durable reads, provider moderation enforcement, destructive user actions, money/support authority, AI decisions, auth changes, secrets, deployments, and production behavior remain follow-up work.
-- Implemented Phase 5F locally: fake/local moderation command attempts now write durable fake-local/test/simulated/resettable rows to `moderation_audit_logs`, and `/admin/live-helper` reads recent fake/local moderation audit summaries from the database instead of the runtime array.
+- Implemented, committed, pushed, migrated, deployed, and dev-smoked Phase 5F: fake/local moderation command attempts now write durable fake-local/test/simulated/resettable rows to `moderation_audit_logs`, and `/admin/live-helper` reads recent fake/local moderation audit summaries from the database instead of the runtime array.
+- Dev smoke confirmed API health, migration-applied table shape, an owner fake/local hide command writing a durable `providerAction: false` audit row, hidden fake/local messages absent from streamer chat snapshots, `/admin/live-helper` returning the durable audit row, and `/admin/live-helper` rendering on `web-dev` without the known injection marker. Direct dev DB check confirmed `moderation_audit_logs` has 23 columns and the smoke row is safe fake-local/test/simulated/resettable.
 - Kept Phase 5F bounded: live hide/mute state is still in-memory, so active fake/local suppressions reset on API restart. No real provider enforcement, destructive user actions, durable active moderation state, money/support authority, AI decisions, auth changes, secrets, or production behavior was added.
 
 ## Current Task
 
-Coordinator commit/deploy for Phase 5F, apply `0017_busy_harpoon.sql` on dev before the new API code is exercised, then dev-smoke fake/local durable audit writes and live-helper durable reads.
+Choose the next follow-up such as durable active moderation-state design, community rules/warning-strike model, real provider moderation planning, creator/content utilities, or another bounded feature lane.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 5F durable fake/local moderation audit writes are implemented locally; apply `0017_busy_harpoon.sql` on dev before runtime smoke.
+3. Phase 5F durable fake/local moderation audit writes are live on dev; active hide/mute state is still in-memory and durable active moderation state remains a separate design/schema gate.
 4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
 5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.

@@ -295,7 +295,7 @@ Remaining gates:
 - Live helper still reads in-memory fake/local moderation audit until the runtime follow-up lands.
 - Real Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive user actions, ban propagation, AI decisions, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, and production behavior remain separate gated work.
 
-## Phase 5F: Persist Fake/Local Moderation Audit (Implemented Locally, Dev Smoke Pending)
+## Phase 5F: Persist Fake/Local Moderation Audit (Completed On Dev)
 
 Worker scope:
 
@@ -319,6 +319,10 @@ Result:
 - Rows are forced to `source = 'fake-local'`, `is_test = true`, `is_simulated = true`, `test_resettable = true`, and `provider_action = false`.
 - `/admin/live-helper` now reads recent fake/local moderation audit summaries from `moderation_audit_logs` instead of the in-memory runtime audit list.
 - In-memory hide/mute state remains the live behavior source for now; this slice does not add durable active moderation state.
+- Committed, pushed, deployed, and dev-smoked on commit `13d4bfd`.
+- Migration `0017_busy_harpoon.sql` was applied on the dev database.
+- Dev smoke confirmed API health, an owner fake/local hide command writing a durable `providerAction: false` audit row, hidden fake/local messages absent from streamer chat snapshots, `/admin/live-helper` returning the durable audit row, and `/admin/live-helper` rendering on `web-dev` without the known injection marker.
+- Direct dev DB check confirmed `moderation_audit_logs` has 23 columns and the smoke row is safe fake-local/test/simulated/resettable.
 
 Checks:
 
@@ -332,9 +336,21 @@ Checks:
 
 Remaining gates:
 
-- Coordinator must apply migration `0017_busy_harpoon.sql` on dev before exercising the deployed API route.
-- Coordinator commit, push, deploy, and dev smoke are pending.
 - No real provider enforcement, destructive user actions, durable active moderation state, money/support authority, AI decisions, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
+
+## Phase 5G: Durable Active Moderation State Design (Next Option)
+
+Worker scope:
+
+- Design the smallest durable active moderation-state shape for local and future provider moderation state: active mutes/restrictions/bans, expiration, revocation/appeal metadata, provider linkage, and reset boundaries.
+- Keep this design-only unless explicitly assigned to generate a migration.
+- Separate durable audit history from active enforcement state. `moderation_audit_logs` records what happened; active state should answer what is currently in effect.
+- Keep real provider enforcement, provider credentials, destructive user actions, automatic warning systems, money/support authority, AI decisions, auth changes, secrets, Cloudflare/Docker/deploy config, migration application, and production behavior out.
+
+Suggested checks:
+
+- `git status --short --branch`
+- `node scripts/check-architecture.mjs`
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
