@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-06-28
+Updated: 2026-06-29
 
 ## Objective
 
@@ -120,16 +120,19 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Implemented, committed, pushed, migrated, deployed, and dev-smoked Phase 5F: fake/local moderation command attempts now write durable fake-local/test/simulated/resettable rows to `moderation_audit_logs`, and `/admin/live-helper` reads recent fake/local moderation audit summaries from the database instead of the runtime array.
 - Dev smoke confirmed API health, migration-applied table shape, an owner fake/local hide command writing a durable `providerAction: false` audit row, hidden fake/local messages absent from streamer chat snapshots, `/admin/live-helper` returning the durable audit row, and `/admin/live-helper` rendering on `web-dev` without the known injection marker. Direct dev DB check confirmed `moderation_audit_logs` has 23 columns and the smoke row is safe fake-local/test/simulated/resettable.
 - Kept Phase 5F bounded: live hide/mute state is still in-memory, so active fake/local suppressions reset on API restart. No real provider enforcement, destructive user actions, durable active moderation state, money/support authority, AI decisions, auth changes, secrets, or production behavior was added.
+- Completed Phase 5G as design/schema-gate work only: the smallest durable active-state shape is a separate `moderation_active_states` read model for currently effective message hides, mutes, restrictions, and bans, linked to `moderation_audit_logs` for create/update/revoke history.
+- Phase 5G determined that a future migration is needed before hide/mute state becomes durable. Minimal table shape should include source, state kind, status, target user/author/message/external references, optional stream session, active-from/until, revocation, appeal/review fields, reason/note metadata, provider linkage without credentials/raw payloads, audit-row links, and fake-local/test/simulated/resettable safety checks and indexes for current-active queries.
+- Kept Phase 5G docs-only: no migration was generated, no schema files were edited, no runtime writes were added, and no real provider enforcement, destructive user actions, auth changes, secrets, AI moderation, money/support authority, Cloudflare/Docker/deploy config, server state, or production behavior was touched.
 
 ## Current Task
 
-Choose the next follow-up such as durable active moderation-state design, community rules/warning-strike model, real provider moderation planning, creator/content utilities, or another bounded feature lane.
+Choose the next follow-up such as the approved durable active moderation-state migration, community rules/warning-strike model, real provider moderation planning, creator/content utilities, or another bounded feature lane.
 
 ## Next Tasks
 
 1. Creator Hub support destination remains available after Michael creates or approves it.
 2. If strict installed-window QA is required, rerun the stream-tool visual pass with Computer Use or a real installed PWA window when that tool/session is available.
-3. Phase 5F durable fake/local moderation audit writes are live on dev; active hide/mute state is still in-memory and durable active moderation state remains a separate design/schema gate.
+3. Phase 5F durable fake/local moderation audit writes are live on dev; active hide/mute state is still in-memory. Phase 5G defines the future `moderation_active_states` migration shape, but migration generation/application and runtime writes remain separate approval gates.
 4. Phase 3 stream-visibility consent is live on dev; Phase 4A safe simulated approval/direct overlay playback is live on dev. Future real website dispatch still needs production-safe intake, event templates, provider intake, moderation boundaries, and real-money gates before any production stream output.
 5. Phase 2 Page Creator runtime is live on dev; future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 6. Before any future `dev` to `main` or production release, use `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.

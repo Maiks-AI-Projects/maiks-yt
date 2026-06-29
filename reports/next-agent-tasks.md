@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-06-27
+Updated: 2026-06-29
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -338,7 +338,7 @@ Remaining gates:
 
 - No real provider enforcement, destructive user actions, durable active moderation state, money/support authority, AI decisions, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
-## Phase 5G: Durable Active Moderation State Design (Next Option)
+## Phase 5G: Durable Active Moderation State Design (Completed)
 
 Worker scope:
 
@@ -351,6 +351,27 @@ Suggested checks:
 
 - `git status --short --branch`
 - `node scripts/check-architecture.mjs`
+- `git diff --check`
+
+Result:
+
+- Completed design/schema-gate documentation only; no migration was generated and no schema/runtime files were edited.
+- Chose a separate `moderation_active_states` read model because `moderation_audit_logs` is append/history-oriented and cannot answer current-effect questions without replaying audit rows.
+- Minimal future table shape should cover `id`, `source`, `state_kind`, `status`, target user/author/message/external references, optional stream session, active-from/active-until, duration, reason/note, revocation actor/time/reason, appeal/review status and reviewer metadata, provider linkage fields, created/last/revoked audit row ids, test/simulated/resettable flags, and timestamps.
+- Current-active reads should filter `status = 'active'`, `revoked_at IS NULL`, and `(active_until IS NULL OR active_until > NOW())`, with indexes by source/status/active-until plus target user, target author, target message, target external id, stream session, and resettable cleanup.
+- Safety checks should keep fake-local rows test/simulated/resettable with `provider_action = false`, keep resettable rows test/simulated with no provider action, require provider action ids only for future provider/website sources, require temporary mutes/restrictions to have expiration, and require revocation metadata to be internally consistent.
+- Create/update/revoke flows should write `moderation_audit_logs` in the same transaction and link the active-state row to the relevant audit row; active state is the read model, not the audit source of truth.
+- `/admin/live-helper` should eventually show read-only active-state summaries such as active fake/local mutes, hidden messages, expiring restrictions, revoked/reviewed items, and provider-linked placeholders, without controls, raw payloads, provider credentials, tokens, deleted-user data, or destructive actions.
+
+Next implementation slice after approval:
+
+- Phase 5H should generate only the `moderation_active_states` database schema/migration and Drizzle metadata, then stop for coordinator review. Runtime fake/local writes, migration application, live-helper durable active-state reads, provider enforcement, destructive actions, auth changes, secrets, AI moderation, money/support authority, Cloudflare/Docker/deploy config, server state, and production behavior should remain out of that migration slice.
+
+Remaining gates:
+
+- Migration generation/application is not approved by this completed design.
+- Runtime writes from fake/local commands to active state remain separate.
+- Real Twitch/YouTube/Discord/provider enforcement, provider credentials, destructive moderation actions, ban propagation, user deletion, raw provider payload storage, AI moderation, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, server state, and production behavior remain separate gated work.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 
