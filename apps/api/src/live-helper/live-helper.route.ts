@@ -3,7 +3,6 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { LiveHelperDashboardService } from "./live-helper.service.js";
 import { createLiveHelperDashboardRepository } from "./live-helper-store.service.js";
-import type { LiveHelperFakeLocalModerationAuditSummary } from "./live-helper.types.js";
 
 type LiveHelperAuthSession = {
   user: {
@@ -14,7 +13,6 @@ type LiveHelperAuthSession = {
 type LiveHelperRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<LiveHelperAuthSession>;
   getDatabasePool: () => DatabasePool;
-  listFakeLocalModerationAudit?: (limit: number) => readonly LiveHelperFakeLocalModerationAuditSummary[];
   createService?: () => Pick<LiveHelperDashboardService, "getDashboard">;
 };
 
@@ -24,10 +22,7 @@ export const registerLiveHelperDashboardRoutes = (
 ): void => {
   const getService = (): Pick<LiveHelperDashboardService, "getDashboard"> =>
     dependencies.createService?.()
-    ?? new LiveHelperDashboardService(
-      createLiveHelperDashboardRepository(dependencies.getDatabasePool()),
-      dependencies.listFakeLocalModerationAudit
-    );
+    ?? new LiveHelperDashboardService(createLiveHelperDashboardRepository(dependencies.getDatabasePool()));
 
   const getSession = async (
     request: FastifyRequest,

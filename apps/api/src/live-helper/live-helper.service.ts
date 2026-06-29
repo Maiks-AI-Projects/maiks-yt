@@ -4,7 +4,6 @@ import { getEventRegistryEntry } from "@maiks-yt/domain/events";
 import type {
   LiveHelperDashboardActor,
   LiveHelperDashboardRepository,
-  LiveHelperFakeLocalModerationAuditSummary,
   LiveHelperDashboardResult
 } from "./live-helper.types.js";
 
@@ -42,10 +41,7 @@ export const normalizeLiveHelperPermissions = (
 };
 
 export class LiveHelperDashboardService {
-  public constructor(
-    private readonly repository: LiveHelperDashboardRepository,
-    private readonly listFakeLocalModerationAudit: (limit: number) => readonly LiveHelperFakeLocalModerationAuditSummary[] = () => []
-  ) {}
+  public constructor(private readonly repository: LiveHelperDashboardRepository) {}
 
   public async getDashboard(input: { authUserId: string }): Promise<LiveHelperDashboardResult> {
     const actor = await this.requireActor(input.authUserId);
@@ -69,7 +65,7 @@ export class LiveHelperDashboardService {
       this.repository.listRecentWarningCriticalNotifications(8),
       this.repository.listActiveHelperGrants(25),
       this.repository.listRecentSimulatedEventHistory(10),
-      Promise.resolve(this.listFakeLocalModerationAudit(10))
+      this.repository.listRecentFakeLocalModerationAudit(10)
     ]);
 
     const safeHelperGrants = activeHelperGrants

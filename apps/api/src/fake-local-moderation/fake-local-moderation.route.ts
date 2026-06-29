@@ -95,15 +95,27 @@ export const registerFakeLocalModerationRoutes = (
 
     if (!session) {
       const validation = validateFakeLocalModerationCommand(command);
-      const auditEntry = service.recordUnauthenticatedAttempt(validation.command);
 
-      return {
-        ok: false,
-        reason: reply.statusCode === 503 ? "fake_local_moderation_unavailable" : "not_authenticated",
-        auditEntry,
-        source: "fake-local",
-        providerAction: false
-      };
+      try {
+        const auditEntry = await service.recordUnauthenticatedAttempt(validation.command);
+
+        return {
+          ok: false,
+          reason: reply.statusCode === 503 ? "fake_local_moderation_unavailable" : "not_authenticated",
+          auditEntry,
+          source: "fake-local",
+          providerAction: false
+        };
+      } catch (error) {
+        server.log.warn({ err: error }, "Fake/local moderation unauthenticated audit failed.");
+        reply.code(503);
+        return {
+          ok: false,
+          reason: "fake_local_moderation_unavailable",
+          source: "fake-local",
+          providerAction: false
+        };
+      }
     }
 
     try {

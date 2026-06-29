@@ -128,4 +128,5 @@ export interface LiveHelperDashboardRepository {
   listRecentWarningCriticalNotifications(limit: number): Promise<readonly LiveHelperNotificationSummary[]>;
   listActiveHelperGrants(limit: number): Promise<readonly LiveHelperGrantRecord[]>;
   listRecentSimulatedEventHistory(limit: number): Promise<readonly Omit<LiveHelperEventHistorySummary, "label">[]>;
+  listRecentFakeLocalModerationAudit(limit: number): Promise<readonly LiveHelperFakeLocalModerationAuditSummary[]>;
 }

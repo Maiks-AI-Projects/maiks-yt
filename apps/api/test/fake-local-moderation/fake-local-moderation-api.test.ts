@@ -20,9 +20,14 @@ class FakeModerationRepository implements FakeLocalModerationRepository {
     displayName: "Owner",
     rolePermissionValues: [["*"]]
   };
+  public readonly auditEntries: FakeLocalModerationAuditEntry[] = [];
 
   public async resolveActor(): Promise<FakeLocalModerationActor | null> {
     return this.actor ? structuredClone(this.actor) : null;
+  }
+
+  public async appendAudit(entry: FakeLocalModerationAuditEntry): Promise<void> {
+    this.auditEntries.unshift(structuredClone(entry));
   }
 }
 
@@ -126,6 +131,12 @@ describe("fake/local moderation commands", () => {
       }
     });
     expect(runtime.auditEntries).toHaveLength(1);
+    expect(repository.auditEntries).toHaveLength(1);
+    expect(repository.auditEntries[0]).toMatchObject({
+      source: "fake-local",
+      outcome: "denied",
+      providerAction: false
+    });
     expect(runtime.messages.has("message-1")).toBe(true);
   });
 
@@ -165,6 +176,7 @@ describe("fake/local moderation commands", () => {
     });
     expect(runtime.messages.has("message-1")).toBe(true);
     expect(runtime.auditEntries).toHaveLength(1);
+    expect(repository.auditEntries).toHaveLength(1);
   });
 
   it("applies an authorized fake/local hide command without provider behavior", async () => {
@@ -210,6 +222,13 @@ describe("fake/local moderation commands", () => {
     });
     expect(runtime.messages.has("message-1")).toBe(false);
     expect(runtime.auditEntries).toHaveLength(1);
+    expect(repository.auditEntries).toHaveLength(1);
+    expect(repository.auditEntries[0]).toMatchObject({
+      action: "hide_message",
+      outcome: "applied",
+      source: "fake-local",
+      providerAction: false
+    });
   });
 
   it("records temporary mute commands as fake/local-only audit entries", async () => {
@@ -250,5 +269,13 @@ describe("fake/local moderation commands", () => {
       authorName: "Test chatter"
     });
     expect(runtime.auditEntries[0]?.mutedUntil).toEqual(expect.any(String));
+    expect(repository.auditEntries[0]).toMatchObject({
+      action: "temporary_mute_author",
+      outcome: "applied",
+      source: "fake-local",
+      providerAction: false,
+      durationSeconds: 60
+    });
+    expect(repository.auditEntries[0]?.mutedUntil).toEqual(expect.any(String));
   });
 });

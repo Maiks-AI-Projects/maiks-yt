@@ -717,10 +717,6 @@ class InMemoryFakeLocalModerationRuntime {
     return { ...message };
   }
 
-  public listAudit(limit: number): readonly FakeLocalModerationAuditEntry[] {
-    return this.auditEntries.slice(0, limit).map((entry) => structuredClone(entry));
-  }
-
   public muteAuthor(authorName: string, mutedUntil: string): FakeLocalMutedAuthor {
     const mutedAuthor = {
       authorName,
@@ -1061,8 +1057,7 @@ registerFakeLocalModerationRoutes(server, {
 });
 registerLiveHelperDashboardRoutes(server, {
   getAuthSession,
-  getDatabasePool,
-  listFakeLocalModerationAudit: (limit) => fakeLocalModerationRuntime.listAudit(limit)
+  getDatabasePool
 });
 registerModeratorAdminRoutes(server, {
   getAuthSession,

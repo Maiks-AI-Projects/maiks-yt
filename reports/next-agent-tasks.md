@@ -295,7 +295,7 @@ Remaining gates:
 - Live helper still reads in-memory fake/local moderation audit until the runtime follow-up lands.
 - Real Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive user actions, ban propagation, AI decisions, money/support authority, auth changes, secrets, Cloudflare/Docker/deploy config, and production behavior remain separate gated work.
 
-## Phase 5F: Persist Fake/Local Moderation Audit (Next Option)
+## Phase 5F: Persist Fake/Local Moderation Audit (Implemented Locally, Dev Smoke Pending)
 
 Worker scope:
 
@@ -312,6 +312,29 @@ Suggested checks:
 - `pnpm --filter @maiks-yt/web typecheck`
 - `node scripts/check-architecture.mjs`
 - `git diff --check`
+
+Result:
+
+- Fake/local moderation command attempts now write durable audit rows through the API repository.
+- Rows are forced to `source = 'fake-local'`, `is_test = true`, `is_simulated = true`, `test_resettable = true`, and `provider_action = false`.
+- `/admin/live-helper` now reads recent fake/local moderation audit summaries from `moderation_audit_logs` instead of the in-memory runtime audit list.
+- In-memory hide/mute state remains the live behavior source for now; this slice does not add durable active moderation state.
+
+Checks:
+
+- `pnpm --filter @maiks-yt/api test -- fake-local-moderation live-helper` passed.
+- `pnpm --filter @maiks-yt/api typecheck` passed.
+- `pnpm --filter @maiks-yt/web typecheck` passed.
+- `pnpm --filter @maiks-yt/web build` passed.
+- `pnpm --filter @maiks-yt/database typecheck` passed.
+- `node scripts/check-architecture.mjs` passed.
+- `git diff --check` passed.
+
+Remaining gates:
+
+- Coordinator must apply migration `0017_busy_harpoon.sql` on dev before exercising the deployed API route.
+- Coordinator commit, push, deploy, and dev smoke are pending.
+- No real provider enforcement, destructive user actions, durable active moderation state, money/support authority, AI decisions, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
 ## Chunk 19: Event Routing Persistence / Schema Gate Design (Completed)
 

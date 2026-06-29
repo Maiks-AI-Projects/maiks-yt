@@ -2,6 +2,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 
 import type {
   FakeLocalModerationActor,
+  FakeLocalModerationAuditEntry,
   FakeLocalModerationRepository
 } from "./fake-local-moderation.types.js";
 
@@ -52,10 +53,64 @@ const resolveActor = async (
   };
 };
 
+const appendAudit = async (
+  executor: QueryExecutor,
+  entry: FakeLocalModerationAuditEntry
+): Promise<void> => {
+  await executor.execute(
+    `
+      INSERT INTO moderation_audit_logs
+        (
+          id,
+          source,
+          action,
+          outcome,
+          actor_user_id,
+          actor_display_name,
+          target_author_name,
+          target_message_id,
+          duration_seconds,
+          active_until,
+          reason,
+          note,
+          provider_action,
+          is_test,
+          is_simulated,
+          test_resettable,
+          redacted_context,
+          created_at
+        )
+      VALUES (?, 'fake-local', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, true, true, true, ?, ?)
+    `,
+    [
+      entry.id,
+      entry.action,
+      entry.outcome,
+      entry.actorUserId,
+      entry.actorDisplayName,
+      entry.targetAuthorName,
+      entry.targetMessageId,
+      entry.durationSeconds,
+      entry.mutedUntil ? new Date(entry.mutedUntil) : null,
+      entry.reason,
+      entry.note,
+      JSON.stringify({
+        source: "fake-local",
+        providerAction: false
+      }),
+      new Date(entry.attemptedAt)
+    ]
+  );
+};
+
 export const createFakeLocalModerationRepository = (
   pool: DatabasePool
 ): FakeLocalModerationRepository => ({
   async resolveActor(authUserId) {
     return await resolveActor(pool, authUserId);
+  },
+
+  async appendAudit(entry) {
+    await appendAudit(pool, entry);
   }
 });

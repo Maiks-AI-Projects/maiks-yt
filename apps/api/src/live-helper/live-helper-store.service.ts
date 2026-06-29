@@ -4,6 +4,7 @@ import type {
   LiveHelperDashboardActor,
   LiveHelperDashboardRepository,
   LiveHelperEventHistorySummary,
+  LiveHelperFakeLocalModerationAuditSummary,
   LiveHelperGrantRecord,
   LiveHelperNotificationSummary,
   LiveHelperPendingApprovalSummary
@@ -64,6 +65,20 @@ type EventHistoryRow = {
   isTest: number | boolean;
   isSimulated: number | boolean;
   occurredAt: Date | string;
+};
+
+type FakeLocalModerationAuditRow = {
+  id: string;
+  attemptedAt: Date | string;
+  actorDisplayName?: string | null;
+  action: LiveHelperFakeLocalModerationAuditSummary["action"];
+  outcome: LiveHelperFakeLocalModerationAuditSummary["outcome"];
+  reason?: string | null;
+  targetMessageId?: string | null;
+  targetAuthorName?: string | null;
+  durationSeconds?: number | null;
+  mutedUntil?: Date | string | null;
+  note?: string | null;
 };
 
 const toIsoString = (value: Date | string): string =>
@@ -193,6 +208,24 @@ const mapEventHistory = (row: EventHistoryRow): Omit<LiveHelperEventHistorySumma
   isTest: Boolean(row.isTest),
   isSimulated: Boolean(row.isSimulated),
   occurredAt: toIsoString(row.occurredAt)
+});
+
+const mapFakeLocalModerationAudit = (
+  row: FakeLocalModerationAuditRow
+): LiveHelperFakeLocalModerationAuditSummary => ({
+  id: row.id,
+  attemptedAt: toIsoString(row.attemptedAt),
+  source: "fake-local",
+  actorDisplayName: row.actorDisplayName ?? null,
+  action: row.action,
+  outcome: row.outcome,
+  reason: row.reason ?? null,
+  targetMessageId: row.targetMessageId ?? null,
+  targetAuthorName: row.targetAuthorName ?? null,
+  durationSeconds: row.durationSeconds ?? null,
+  mutedUntil: toNullableIsoString(row.mutedUntil),
+  note: row.note ?? null,
+  providerAction: false
 });
 
 export const createLiveHelperDashboardRepository = (
@@ -356,6 +389,38 @@ export const createLiveHelperDashboardRepository = (
 
     return Array.isArray(rows)
       ? (rows as EventHistoryRow[]).map(mapEventHistory)
+      : [];
+  },
+
+  async listRecentFakeLocalModerationAudit(limit) {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          id,
+          created_at AS attemptedAt,
+          actor_display_name AS actorDisplayName,
+          action,
+          outcome,
+          reason,
+          target_message_id AS targetMessageId,
+          target_author_name AS targetAuthorName,
+          duration_seconds AS durationSeconds,
+          active_until AS mutedUntil,
+          note
+        FROM moderation_audit_logs
+        WHERE source = 'fake-local'
+          AND provider_action = false
+          AND is_test = true
+          AND is_simulated = true
+          AND test_resettable = true
+        ORDER BY created_at DESC
+        LIMIT ?
+      `,
+      [limit]
+    );
+
+    return Array.isArray(rows)
+      ? (rows as FakeLocalModerationAuditRow[]).map(mapFakeLocalModerationAudit)
       : [];
   }
 });

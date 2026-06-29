@@ -56,11 +56,11 @@ export type FakeLocalMutedAuthor = {
 
 export interface FakeLocalModerationRepository {
   resolveActor(authUserId: string): Promise<FakeLocalModerationActor | null>;
+  appendAudit(entry: FakeLocalModerationAuditEntry): Promise<void>;
 }
 
 export interface FakeLocalModerationRuntime {
   appendAudit(entry: FakeLocalModerationAuditEntry): void;
   hideMessage(messageId: string, hiddenAt: string): StreamerChatMessage | null;
-  listAudit(limit: number): readonly FakeLocalModerationAuditEntry[];
   muteAuthor(authorName: string, mutedUntil: string): FakeLocalMutedAuthor;
 }

@@ -88,9 +88,15 @@ export class FakeLocalModerationService {
   public constructor(
     private readonly repository: {
       resolveActor(authUserId: string): Promise<FakeLocalModerationActor | null>;
+      appendAudit(entry: FakeLocalModerationAuditEntry): Promise<void>;
     },
     private readonly runtime: FakeLocalModerationRuntime
   ) {}
+
+  private async appendAudit(entry: FakeLocalModerationAuditEntry): Promise<void> {
+    this.runtime.appendAudit(entry);
+    await this.repository.appendAudit(entry);
+  }
 
   public async executeCommand(input: {
     authUserId: string;
@@ -107,7 +113,7 @@ export class FakeLocalModerationService {
         outcome: "invalid",
         reason: "fake_local_moderation_invalid_input"
       });
-      this.runtime.appendAudit(auditEntry);
+      await this.appendAudit(auditEntry);
 
       return {
         ok: false,
@@ -126,7 +132,7 @@ export class FakeLocalModerationService {
         outcome: "denied",
         reason: "fake_local_moderation_user_unlinked"
       });
-      this.runtime.appendAudit(auditEntry);
+      await this.appendAudit(auditEntry);
 
       return {
         ok: false,
@@ -144,7 +150,7 @@ export class FakeLocalModerationService {
         outcome: "denied",
         reason: "fake_local_moderation_forbidden"
       });
-      this.runtime.appendAudit(auditEntry);
+      await this.appendAudit(auditEntry);
 
       return {
         ok: false,
@@ -165,7 +171,7 @@ export class FakeLocalModerationService {
         outcome: affectedMessage ? "applied" : "not_found",
         reason: affectedMessage ? null : "fake_local_moderation_message_not_found"
       });
-      this.runtime.appendAudit(auditEntry);
+      await this.appendAudit(auditEntry);
 
       return {
         ok: true,
@@ -187,7 +193,7 @@ export class FakeLocalModerationService {
         outcome: "applied",
         reason: null
       });
-      this.runtime.appendAudit(auditEntry);
+      await this.appendAudit(auditEntry);
 
       return {
         ok: true,
@@ -205,7 +211,7 @@ export class FakeLocalModerationService {
       outcome: command.action === "noop" ? "no_op" : "applied",
       reason: command.action === "noop" ? "fake_local_moderation_explicit_noop" : null
     });
-    this.runtime.appendAudit(auditEntry);
+    await this.appendAudit(auditEntry);
 
     return {
       ok: true,
@@ -217,14 +223,14 @@ export class FakeLocalModerationService {
     };
   }
 
-  public recordUnauthenticatedAttempt(command?: NormalizedFakeLocalModerationCommand): FakeLocalModerationAuditEntry {
+  public async recordUnauthenticatedAttempt(command?: NormalizedFakeLocalModerationCommand): Promise<FakeLocalModerationAuditEntry> {
     const auditEntry = createAuditEntry({
       actor: null,
       command: command ?? fallbackCommand,
       outcome: "denied",
       reason: "not_authenticated"
     });
-    this.runtime.appendAudit(auditEntry);
+    await this.appendAudit(auditEntry);
 
     return auditEntry;
   }

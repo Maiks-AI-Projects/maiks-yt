@@ -114,6 +114,23 @@ class FakeLiveHelperDashboardRepository implements LiveHelperDashboardRepository
       occurredAt: now
     }
   ];
+  public fakeLocalModerationAudit: LiveHelperFakeLocalModerationAuditSummary[] = [
+    {
+      id: "fake-mod-audit-1",
+      attemptedAt: now,
+      source: "fake-local",
+      actorDisplayName: "Live Helper",
+      action: "hide_message",
+      outcome: "applied",
+      reason: null,
+      targetMessageId: "fake-message-1",
+      targetAuthorName: null,
+      durationSeconds: null,
+      mutedUntil: null,
+      note: "Local test cleanup",
+      providerAction: false
+    }
+  ];
 
   public async resolveActor(): Promise<LiveHelperDashboardActor | null> {
     return this.actor ? structuredClone(this.actor) : null;
@@ -148,29 +165,16 @@ class FakeLiveHelperDashboardRepository implements LiveHelperDashboardRepository
   public async listRecentSimulatedEventHistory(limit: number): Promise<readonly Omit<LiveHelperEventHistorySummary, "label">[]> {
     return this.history.slice(0, limit).map((event) => structuredClone(event));
   }
+
+  public async listRecentFakeLocalModerationAudit(limit: number): Promise<readonly LiveHelperFakeLocalModerationAuditSummary[]> {
+    return this.fakeLocalModerationAudit.slice(0, limit).map((entry) => structuredClone(entry));
+  }
 }
 
 describe("LiveHelperDashboardService", () => {
   it("allows owner wildcard and moderators:manage to view a sanitized read-only dashboard", async () => {
     const repository = new FakeLiveHelperDashboardRepository();
-    const fakeLocalModerationAudit: LiveHelperFakeLocalModerationAuditSummary[] = [
-      {
-        id: "fake-mod-audit-1",
-        attemptedAt: now,
-        source: "fake-local",
-        actorDisplayName: "Live Helper",
-        action: "hide_message",
-        outcome: "applied",
-        reason: null,
-        targetMessageId: "fake-message-1",
-        targetAuthorName: null,
-        durationSeconds: null,
-        mutedUntil: null,
-        note: "Local test cleanup",
-        providerAction: false
-      }
-    ];
-    const service = new LiveHelperDashboardService(repository, () => fakeLocalModerationAudit);
+    const service = new LiveHelperDashboardService(repository);
 
     const ownerResult = await service.getDashboard({ authUserId: "auth-owner" });
 
