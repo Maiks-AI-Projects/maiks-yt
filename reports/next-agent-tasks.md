@@ -94,10 +94,11 @@ Reviewer/dev smoke:
 - `/admin/provider-integrations?devAuthToken=...` returned `200` and did not contain the known `bsc-dataseed.binance.org` injection marker; the Twitch panel is client-rendered and should still get a browser/manual interaction pass.
 - Manual Twitch chat message verification remains open because sending a Twitch message from this agent would be a provider-side write. Michael can start intake from `/admin/provider-integrations`, send a harmless chat message from Twitch, then confirm it appears in the private streamer chat/control-panel feed and not the OBS overlay.
 - Standalone streamer chat PWA follow-up added `/chat` on `control-dev` with separate `chat-manifest.webmanifest`, `id`/`scope`/`start_url` of `/chat`, focused chat-only layout, and the same `control:open` token gate. The normal control-panel manifest is narrowed to `id`/`scope`/`start_url` of `/control` so new installs do not claim `/chat`; old Ubuntu/Android installs created with the previous `/` scope may need to be removed once. The ignored usable URL report has the tokenized `/chat` URL for local testing.
+- Phase 6C first hardening slice adds a read-only Twitch intake status card to the standalone `/chat` PWA through a `control:open` token-gated status endpoint. It shows runtime state, channel, last message time, and safe error copy without adding start/stop controls, provider writes, moderation enforcement, EventSub, auth changes, migrations, or production behavior.
 
 Next provider chunks:
 
-- After Phase 6B manual message smoke, either harden Twitch intake status/reconnect behavior or design YouTube OAuth/live-chat token storage.
+- After Phase 6B manual message smoke and the Phase 6C chat status card, either add reconnect/offline-warning behavior for Twitch intake or design YouTube OAuth/live-chat token storage.
 - Define provider scopes, rate-limit/failure handling, token storage/revocation shape, and manual override before broader provider intake.
 - Keep Discord Gateway/`discord.js`, YouTube OAuth token storage, Twitch EventSub, provider writes, moderation enforcement, money, and production behavior in separate explicit chunks.
 

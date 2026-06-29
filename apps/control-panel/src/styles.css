@@ -73,6 +73,58 @@ a {
   text-decoration: none;
 }
 
+.twitch-intake-status {
+  align-items: stretch;
+  background: #151d25;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 0.75rem;
+}
+
+.twitch-intake-status.connected {
+  border-color: #2f855a;
+}
+
+.twitch-intake-status.connecting {
+  border-color: #f2c94c;
+}
+
+.twitch-intake-status.stopped,
+.twitch-intake-status.unconfigured,
+.twitch-intake-status.loading {
+  border-color: #8a96a3;
+}
+
+.twitch-intake-status div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.twitch-intake-status span,
+.twitch-intake-status small {
+  color: #9fb0bd;
+  font-size: 0.8rem;
+}
+
+.twitch-intake-status strong {
+  overflow-wrap: anywhere;
+}
+
+.twitch-intake-status p {
+  color: #d9e2eb;
+  grid-column: 1 / -1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.twitch-intake-status small {
+  grid-column: 1 / -1;
+}
+
 .panel-mode-toggle {
   align-self: start;
   background: #25313d;
@@ -791,6 +843,10 @@ a {
   .status-action-group .status-action {
     min-width: 0;
     width: 100%;
+  }
+
+  .twitch-intake-status {
+    grid-template-columns: 1fr;
   }
 
   .critical-controls {

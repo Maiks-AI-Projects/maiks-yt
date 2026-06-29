@@ -165,6 +165,30 @@ type StreamerChatMessagesResponse = {
   reason: string;
 };
 
+type TwitchChatIntakeStatus = {
+  channelName: string | null;
+  connectedAt: string | null;
+  lastError: string | null;
+  lastMessageAt: string | null;
+  recentMessages: Array<{
+    id: string;
+    authorName: string;
+    createdAt: string;
+    message: string;
+  }>;
+  state: "stopped" | "connecting" | "connected" | "unconfigured";
+};
+
+type TwitchChatStatusResponse = {
+  ok: true;
+  readOnly: true;
+  status: TwitchChatIntakeStatus;
+  checkedAt: string;
+} | {
+  ok: false;
+  reason: string;
+};
+
 type OverlayScenesResponse = {
   ok: true;
   scenes: OverlaySceneDefinition[];
@@ -331,6 +355,109 @@ const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(un
 const chatSourceLabels: Record<StreamerChatMessage["source"], string> = {
   "fake-local": "Local",
   twitch: "Twitch"
+};
+
+const twitchIntakeStateLabels: Record<TwitchChatIntakeStatus["state"], string> = {
+  connected: "Connected",
+  connecting: "Connecting",
+  stopped: "Stopped",
+  unconfigured: "Not configured"
+};
+
+const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null): string => {
+  if (!status) {
+    return "Loading Twitch intake state.";
+  }
+
+  if (status.lastError) {
+    return status.lastError;
+  }
+
+  switch (status.state) {
+    case "connected":
+      return status.lastMessageAt
+        ? `Last message ${formatChatTime(status.lastMessageAt)}.`
+        : "Waiting for the next Twitch message.";
+    case "connecting":
+      return "Connecting to Twitch chat.";
+    case "stopped":
+      return "Twitch chat intake is stopped.";
+    case "unconfigured":
+      return "Twitch channel is not configured.";
+  }
+};
+
+const TwitchIntakeStatusCard = (): React.ReactNode => {
+  const [status, setStatus] = useState<TwitchChatIntakeStatus | null>(null);
+  const [checkedAt, setCheckedAt] = useState<string | null>(null);
+  const [message, setMessage] = useState("Loading Twitch intake state.");
+
+  useEffect(() => {
+    let disposed = false;
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    const loadStatus = async (): Promise<void> => {
+      if (!token) {
+        setMessage("Control token missing.");
+        return;
+      }
+
+      try {
+        const url = new URL("/streamer-chat/twitch-status", apiBaseUrl);
+        url.searchParams.set("accessToken", token);
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`Twitch intake status failed with ${response.status}.`);
+        }
+
+        const result = await response.json() as TwitchChatStatusResponse;
+
+        if (!result.ok) {
+          throw new Error(result.reason);
+        }
+
+        if (!disposed) {
+          setStatus(result.status);
+          setCheckedAt(result.checkedAt);
+          setMessage(getTwitchIntakeStatusCopy(result.status));
+        }
+      } catch (error) {
+        if (!disposed) {
+          setMessage(error instanceof Error ? error.message : "Twitch intake status unavailable.");
+        }
+      }
+    };
+
+    void loadStatus();
+    const intervalId = window.setInterval(() => {
+      void loadStatus();
+    }, 10000);
+
+    return () => {
+      disposed = true;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  return (
+    <section className={`twitch-intake-status ${status?.state ?? "loading"}`} aria-label="Twitch chat intake status">
+      <div>
+        <span>Twitch intake</span>
+        <strong>{status ? twitchIntakeStateLabels[status.state] : "Loading"}</strong>
+      </div>
+      <div>
+        <span>Channel</span>
+        <strong>{status?.channelName ?? "Unknown"}</strong>
+      </div>
+      <div>
+        <span>Last message</span>
+        <strong>{status?.lastMessageAt ? formatChatTime(status.lastMessageAt) : "None yet"}</strong>
+      </div>
+      <p>{message}</p>
+      {checkedAt ? <small>Checked {formatChatTime(checkedAt)}</small> : null}
+    </section>
+  );
 };
 
 const StreamerChatViewer = ({
@@ -2263,6 +2390,7 @@ const App = (): React.ReactNode => {
           </div>
           <a className="chat-control-link" href="/control">Control panel</a>
         </div>
+        <TwitchIntakeStatusCard />
         <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />
       </main>
     );
