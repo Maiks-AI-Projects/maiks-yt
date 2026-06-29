@@ -205,7 +205,7 @@ Remaining gates:
 
 - No schema/migration, provider moderation enforcement, real chat provider actions, role grant mutations, money/support authority, AI decisions, auth/provider login changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
-## Phase 5D: Fake/Local Moderation Commands And Audit (Coordinator Review Accepted, Dev Smoke Pending)
+## Phase 5D: Fake/Local Moderation Commands And Audit (Completed On Dev)
 
 Worker scope:
 
@@ -241,6 +241,8 @@ Result:
 - Added in-memory audit entries for command attempts and outcomes, including denied, invalid, not-found, no-op, and applied results.
 - Added local fake-message hiding and temporary fake-author mutes for existing fake/local chat surfaces; hidden fake/local messages are removed from streamer chat snapshots and overlay chat through `overlay.fake-chat.message.hidden`.
 - Added recent fake/local moderation audit summaries to `/admin/live-helper` as read-only context.
+- Committed, pushed, deployed, and dev-smoked on commit `b93b941`.
+- Dev smoke confirmed unauthenticated command attempts return `401`, owner hide and temporary mute commands return applied audit entries with `providerAction: false`, hidden fake/local messages disappear from streamer chat snapshots, locally muted fake/local authors are suppressed with `queued: 0`, `/admin/live-helper` shows fake/local moderation audit items without provider actions, and `/admin/live-helper` renders on `web-dev` without the known injection marker.
 
 Coordinator checks:
 
@@ -261,7 +263,6 @@ Coordinator checks:
 
 Remaining gates:
 
-- Coordinator commit, push, deploy, and dev smoke are still pending.
 - Audit/mute/hide state is intentionally in-memory and resets on API restart. Durable moderation audit requires a separately approved schema slice.
 - No Twitch/YouTube/Discord/provider moderation enforcement, provider credentials, destructive user actions, ban propagation, AI decisions, money/support authority, schema/migration, auth changes, secrets, Cloudflare/Docker/deploy config, or production behavior was added.
 
