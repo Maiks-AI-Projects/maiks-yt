@@ -1552,6 +1552,57 @@ button:disabled {
   padding-left: 1.2rem;
 }
 
+.provider-capability-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.provider-capability-card {
+  border: 1px solid #d8e0e8;
+  border-radius: 6px;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.75rem;
+}
+
+.provider-capability-card.available,
+.provider-capability-card.configured {
+  background: #f0fbf4;
+  border-color: #a5d4b7;
+}
+
+.provider-capability-card.missing,
+.provider-capability-card.not_enabled,
+.provider-capability-card.gated {
+  background: #fffaf0;
+  border-color: #e4c76f;
+}
+
+.provider-capability-card > div {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+  justify-content: space-between;
+}
+
+.provider-capability-card strong,
+.provider-capability-card p {
+  margin: 0;
+}
+
+.provider-capability-card span {
+  color: #4b5966;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.provider-capability-card p {
+  color: #4b5966;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .page-creator-form textarea {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   line-height: 1.5;

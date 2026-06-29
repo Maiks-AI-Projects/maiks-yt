@@ -21,6 +21,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Phase 5J completed the docs/design gate for community rules, manual warning/strike escalation, and restriction boundaries. Automatic warnings, real bans, provider enforcement, destructive actions, AI moderation, auth/secrets, money/support authority, production behavior, and new policy/strike schema remain gated.
 - Phase 6A Provider Integration Foundation is deployed and dev-smoked. It adds real provider SDK dependencies and sanitized read-only status plumbing for Twitch, YouTube, and Discord behind owner-gated `GET /admin/provider-integrations/status` plus `/admin/provider-integrations`. It does not add OAuth, token storage/rotation, webhook/EventSub receivers, live chat ingestion, provider moderation/write actions, money behavior, migrations, Cloudflare/Docker config, auth flow changes, or production behavior.
 - Phase 6A provider status now recognizes the saved dev env shape: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` for the YouTube OAuth foundation and `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET` as Discord OAuth app credentials, while `DISCORD_BOT_TOKEN`/`DISCORD_APPLICATION_ID`/`DISCORD_GUILD_ID` are passed through Turbo to app processes. Safe live checks confirmed the Discord bot token is valid and matches the application id; the configured guild id currently returns Discord `Unknown Guild`.
+- Phase 6A provider library capability mapping now includes `@twurple/chat` for the next Twitch chat-intake slice and typed capability states in provider status. Twitch chat is library-ready but disconnected, Twitch EventSub remains gated, YouTube OAuth consent/token storage remains not enabled, and Discord Gateway/`discord.js` remains gated.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
@@ -57,11 +58,13 @@ Reviewer/dev smoke:
 - `/admin/provider-integrations?devAuthToken=...` returned `200`, rendered `Provider Integrations`, and did not contain the known `bsc-dataseed.binance.org` injection marker.
 - Follow-up compatibility patch recognizes legacy Google OAuth env names for YouTube readiness, surfaces Discord OAuth app credentials separately from bot-token readiness, and passes Discord bot/app/guild env names through Turbo dev tasks.
 - Safe live checks after Michael saved the Discord values confirmed the raw container sees the bot/application/guild vars, the Discord bot token returns `200` from `/users/@me` and matches `DISCORD_APPLICATION_ID`, and the configured `DISCORD_GUILD_ID` returns `404 Unknown Guild`.
+- `@twurple/chat` was added after a library capability review so the next Twitch chunk can create a read-only chat intake path. No Twitch chat connection is opened by this slice.
 
 Next provider chunks:
 
-- Define provider scopes, rate-limit/failure handling, token storage/revocation shape, and manual override before real provider intake.
-- Consider a read-only credential presence smoke only after secrets are provided through approved dev/runtime configuration, still without printing secrets or creating provider-side effects.
+- Start Twitch read-only chat intake using `@twurple/chat`, keeping output internal/testable before routing to overlays.
+- Define provider scopes, rate-limit/failure handling, token storage/revocation shape, and manual override before broader provider intake.
+- Keep Discord Gateway/`discord.js`, YouTube OAuth token storage, Twitch EventSub, provider writes, moderation enforcement, money, and production behavior in separate explicit chunks.
 
 ## Chunk 25: Private Notification Panel Foundation (Completed On Dev)
 

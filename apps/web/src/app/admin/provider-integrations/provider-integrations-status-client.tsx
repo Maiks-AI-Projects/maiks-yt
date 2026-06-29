@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 
 type ProviderIntegrationState = "configured" | "missing" | "invalid" | "disabled" | "error";
+type ProviderCapabilityState = "available" | "configured" | "missing" | "not_enabled" | "gated";
 
 type ProviderEnvironmentVariableStatus = {
   name: string;
@@ -12,6 +13,13 @@ type ProviderEnvironmentVariableStatus = {
   required: boolean;
   configured: boolean;
   valid: boolean;
+};
+
+type ProviderCapabilityStatus = {
+  key: string;
+  label: string;
+  state: ProviderCapabilityState;
+  detail: string;
 };
 
 type ProviderIntegrationStatus = {
@@ -22,7 +30,7 @@ type ProviderIntegrationStatus = {
   readOnly: true;
   env: readonly ProviderEnvironmentVariableStatus[];
   issues: readonly string[];
-  capabilities: readonly string[];
+  capabilities: readonly ProviderCapabilityStatus[];
 };
 
 type ProviderIntegrationsStatusResponse =
@@ -48,6 +56,14 @@ const stateLabels: Record<ProviderIntegrationState, string> = {
   invalid: "Invalid",
   disabled: "Disabled",
   error: "Error"
+};
+
+const capabilityStateLabels: Record<ProviderCapabilityState, string> = {
+  available: "Available",
+  configured: "Configured",
+  missing: "Missing",
+  not_enabled: "Not enabled",
+  gated: "Gated"
 };
 
 const formatDate = (value: string): string =>
@@ -229,7 +245,13 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
 
                   <div className="provider-capability-row" aria-label={`${provider.label} foundation capabilities`}>
                     {provider.capabilities.map((capability) => (
-                      <span className="live-helper-pill" key={capability}>{capability}</span>
+                      <div className={`provider-capability-card ${capability.state}`} key={capability.key}>
+                        <div>
+                          <strong>{capability.label}</strong>
+                          <span>{capabilityStateLabels[capability.state]}</span>
+                        </div>
+                        <p>{capability.detail}</p>
+                      </div>
                     ))}
                   </div>
                 </article>

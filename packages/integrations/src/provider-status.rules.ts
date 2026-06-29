@@ -1,11 +1,14 @@
 import type { REST } from "@discordjs/rest";
 import type { ApiClient } from "@twurple/api";
 import type { AppTokenAuthProvider } from "@twurple/auth";
+import type { ChatClient } from "@twurple/chat";
 import type { youtube_v3 } from "googleapis";
 
 export type ProviderIntegrationId = "twitch" | "youtube" | "discord";
 
 export type ProviderIntegrationState = "configured" | "missing" | "invalid" | "disabled" | "error";
+
+export type ProviderCapabilityState = "available" | "configured" | "missing" | "not_enabled" | "gated";
 
 export type ProviderEnvironmentVariableKind = "identifier" | "secret";
 
@@ -17,6 +20,13 @@ export type ProviderEnvironmentVariableStatus = {
   valid: boolean;
 };
 
+export type ProviderCapabilityStatus = {
+  key: string;
+  label: string;
+  state: ProviderCapabilityState;
+  detail: string;
+};
+
 export type ProviderIntegrationStatus = {
   id: ProviderIntegrationId;
   label: string;
@@ -25,7 +35,7 @@ export type ProviderIntegrationStatus = {
   readOnly: true;
   env: readonly ProviderEnvironmentVariableStatus[];
   issues: readonly string[];
-  capabilities: readonly string[];
+  capabilities: readonly ProviderCapabilityStatus[];
 };
 
 export type ProviderIntegrationStatusSnapshot = {
@@ -41,6 +51,7 @@ export type ProviderIntegrationEnvironment = Record<string, string | undefined>;
 export type TwitchProviderSdkFoundation = {
   authProvider: AppTokenAuthProvider;
   apiClient: ApiClient;
+  chatClient?: ChatClient;
 };
 
 export type YouTubeProviderSdkFoundation = {
@@ -162,14 +173,29 @@ const buildTwitchStatus = (env: ProviderIntegrationEnvironment): ProviderIntegra
       configured: variables.every((variable) => variable.configured),
       issues
     }),
-    sdk: "@twurple/auth + @twurple/api",
+    sdk: "@twurple/auth + @twurple/api + @twurple/chat",
     readOnly: true,
     env: variables,
     issues: disabled ? [] : issues,
     capabilities: [
-      "Client credentials status foundation",
-      "Read-only API client typing",
-      "Future EventSub/chat intake remains gated"
+      {
+        key: "twitch-api-client",
+        label: "Helix API client",
+        state: variables.every((variable) => variable.configured) ? "configured" : "missing",
+        detail: "App-token API client foundation is available for read-only Twitch API checks."
+      },
+      {
+        key: "twitch-chat-library",
+        label: "Twitch chat library",
+        state: "available",
+        detail: "@twurple/chat is installed for the next read-only chat intake slice; no chat connection is opened yet."
+      },
+      {
+        key: "twitch-eventsub",
+        label: "Twitch EventSub",
+        state: "gated",
+        detail: "EventSub follow/sub/raid/channel-point intake still needs a separate webhook or WebSocket design."
+      }
     ]
   };
 };
@@ -216,9 +242,27 @@ const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
     env: variables,
     issues: disabled ? [] : issues,
     capabilities: [
-      "YouTube Data API status foundation",
-      "API key, YouTube OAuth client, or legacy Google OAuth client configuration detection",
-      "No OAuth consent flow or token storage yet"
+      {
+        key: "youtube-data-api-client",
+        label: "YouTube Data API client",
+        state: "available",
+        detail: "googleapis is installed for YouTube Data API calls."
+      },
+      {
+        key: "youtube-oauth-client",
+        label: "YouTube OAuth client",
+        state: (youtubeOauthIdConfigured && youtubeOauthSecretConfigured)
+          || (googleOauthIdConfigured && googleOauthSecretConfigured)
+          ? "configured"
+          : "missing",
+        detail: "OAuth client credentials are required for owner-authorized channel and live-chat access."
+      },
+      {
+        key: "youtube-oauth-consent",
+        label: "YouTube owner consent",
+        state: "not_enabled",
+        detail: "OAuth consent, refresh-token storage, and live-chat reads remain separate future slices."
+      }
     ]
   };
 };
@@ -249,9 +293,30 @@ const buildDiscordStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
     env: variables,
     issues: disabled ? [] : issues,
     capabilities: [
-      "Discord REST status foundation",
-      "Optional application/guild identifiers for later read checks",
-      "No Gateway connection, bot commands, or moderation actions yet"
+      {
+        key: "discord-rest-client",
+        label: "Discord REST client",
+        state: "available",
+        detail: "@discordjs/rest is installed for read-only bot and guild checks."
+      },
+      {
+        key: "discord-bot-token",
+        label: "Discord bot token",
+        state: variables[0].configured ? "configured" : "missing",
+        detail: "Bot token presence is required before Discord bot or guild reads."
+      },
+      {
+        key: "discord-guild-target",
+        label: "Discord guild target",
+        state: variables[2].configured ? "configured" : "missing",
+        detail: "Guild ID presence is checked here; actual guild access is verified by a separate read-only smoke."
+      },
+      {
+        key: "discord-gateway-library",
+        label: "Discord Gateway library",
+        state: "gated",
+        detail: "discord.js is not installed yet; Gateway/message intake needs a separate intent and runtime design."
+      }
     ]
   };
 };

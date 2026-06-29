@@ -45,6 +45,36 @@ describe("provider integration status", () => {
     expect(serialized).not.toContain("super-secret-discord");
     expect(serialized).toContain("TWITCH_CLIENT_SECRET");
     expect(serialized).toContain("\"configured\":true");
+    expect(snapshot.providers[0]?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "twitch-chat-library",
+        state: "available"
+      }),
+      expect.objectContaining({
+        key: "twitch-eventsub",
+        state: "gated"
+      })
+    ]));
+    expect(snapshot.providers[1]?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "youtube-data-api-client",
+        state: "available"
+      }),
+      expect.objectContaining({
+        key: "youtube-oauth-consent",
+        state: "not_enabled"
+      })
+    ]));
+    expect(snapshot.providers[2]?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "discord-rest-client",
+        state: "available"
+      }),
+      expect.objectContaining({
+        key: "discord-gateway-library",
+        state: "gated"
+      })
+    ]));
   });
 
   it("reports partial and placeholder values as invalid without leaking values", () => {
@@ -78,6 +108,12 @@ describe("provider integration status", () => {
     const serialized = JSON.stringify(youtube);
 
     expect(youtube?.state).toBe("configured");
+    expect(youtube?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "youtube-oauth-client",
+        state: "configured"
+      })
+    ]));
     expect(youtube?.env).toEqual(expect.arrayContaining([
       expect.objectContaining({
         name: "GOOGLE_CLIENT_ID",
@@ -121,6 +157,33 @@ describe("provider integration status", () => {
       })
     ]));
     expect(serialized).not.toContain("super-secret-discord-oauth");
+  });
+
+  it("reports Discord bot and guild readiness separately from Gateway intake", () => {
+    const discord = getProvider({
+      DISCORD_BOT_TOKEN: "super-secret-discord-bot",
+      DISCORD_APPLICATION_ID: "discord-app",
+      DISCORD_GUILD_ID: "sensitive-guild-value-123"
+    }, "discord");
+    const serialized = JSON.stringify(discord);
+
+    expect(discord?.state).toBe("configured");
+    expect(discord?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "discord-bot-token",
+        state: "configured"
+      }),
+      expect.objectContaining({
+        key: "discord-guild-target",
+        state: "configured"
+      }),
+      expect.objectContaining({
+        key: "discord-gateway-library",
+        state: "gated"
+      })
+    ]));
+    expect(serialized).not.toContain("super-secret-discord-bot");
+    expect(serialized).not.toContain("sensitive-guild-value-123");
   });
 
   it("supports explicit disabled provider state", () => {
