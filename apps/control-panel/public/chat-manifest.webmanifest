@@ -1,0 +1,26 @@
+{
+  "name": "Maiks.yt Streamer Chat",
+  "short_name": "Maiks Chat",
+  "description": "Standalone streamer chat window for Maiks.yt Twitch and local stream chat.",
+  "id": "/chat",
+  "start_url": "/chat",
+  "scope": "/chat",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#141920",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/maiks-tools-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maiks-tools-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

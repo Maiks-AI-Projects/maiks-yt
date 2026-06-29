@@ -316,7 +316,8 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [x] Add standalone Action Panel route.
 - [x] Add PWA manifest and first shared stream-tools icon set.
 - [x] Make control panel installable.
-- [ ] Make streamer chat installable.
+- [x] Make streamer chat installable.
+  - 2026-06-29 added a dedicated `/chat` mode on `control-dev` with its own `chat-manifest.webmanifest`, PWA identity, and focused full-window streamer chat layout. It reuses the existing control-panel token gate and streamer-chat API/live feed, and it does not add provider writes, moderation actions, service-worker private caching, auth changes, migrations, or production behavior.
 - [x] Make private notifications panel installable.
   - 2026-06-27 added the first private `/tools/notifications` panel with standalone tool metadata, owner-gated notification API, and a dev-secret `/dev/notifications` endpoint for watchdog/smoke alerts. Push delivery is not wired yet; the first panel polls the API and keeps private data network-only.
 - [x] Add Web Push delivery for private notifications.

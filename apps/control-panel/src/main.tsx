@@ -18,6 +18,7 @@ import "./styles.css";
 const scenario = createNotificationScenario();
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const panelModeStorageKey = "maiks.yt.control.panelMode";
+const isStandaloneChatRoute = window.location.pathname.replace(/\/+$/, "") === "/chat";
 const eventStormPresets: Array<{ key: EventStormPreset; label: string }> = [
   { key: "notification-burst", label: "Notification burst" },
   { key: "urgent-center-alert", label: "Urgent center alert" },
@@ -327,19 +328,25 @@ const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(un
   second: "2-digit"
 }).format(new Date(createdAt));
 
-const maxStreamerChatViewerMessages = 12;
-
 const chatSourceLabels: Record<StreamerChatMessage["source"], string> = {
   "fake-local": "Local",
   twitch: "Twitch"
 };
 
-const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.ReactNode => {
+const StreamerChatViewer = ({
+  maxMessages = 12,
+  newestOnTop,
+  variant = "embedded"
+}: {
+  maxMessages?: number;
+  newestOnTop: boolean;
+  variant?: "embedded" | "standalone";
+}): React.ReactNode => {
   const [messages, setMessages] = useState<StreamerChatMessage[]>([]);
   const [status, setStatus] = useState<string>("Loading streamer chat.");
   const visibleMessages = newestOnTop
-    ? messages.slice(0, maxStreamerChatViewerMessages)
-    : messages.slice(0, maxStreamerChatViewerMessages).reverse();
+    ? messages.slice(0, maxMessages)
+    : messages.slice(0, maxMessages).reverse();
 
   useEffect(() => {
     let disposed = false;
@@ -419,9 +426,9 @@ const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.Re
   }, []);
 
   return (
-    <div className="streamer-chat-viewer" aria-label="Streamer chat viewer">
+    <div className={`streamer-chat-viewer ${variant}`} aria-label="Streamer chat viewer">
       <div className="streamer-chat-header">
-        <strong>Streamer chat</strong>
+        <strong>{variant === "standalone" ? "Live Chat" : "Streamer chat"}</strong>
         <span>{status}</span>
       </div>
       {visibleMessages.length === 0 ? (
@@ -442,6 +449,14 @@ const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.Re
       )}
     </div>
   );
+};
+
+const updateManifestForRoute = (): void => {
+  const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+
+  if (manifestLink) {
+    manifestLink.href = isStandaloneChatRoute ? "/chat-manifest.webmanifest" : "/manifest.webmanifest";
+  }
 };
 
 const SurfaceStatus = ({ panelMode }: { panelMode: PanelMode }): React.ReactNode => {
@@ -2194,6 +2209,8 @@ const App = (): React.ReactNode => {
   const replaySession = createReplaySessionFromPreset(selectedPreset);
 
   useEffect(() => {
+    updateManifestForRoute();
+    document.title = isStandaloneChatRoute ? "Maiks.yt Streamer Chat" : "Maiks.yt Control Panel";
     void validateControlPanelAccess().then(setAuthState);
   }, []);
 
@@ -2229,9 +2246,24 @@ const App = (): React.ReactNode => {
 
   if (authState.status !== "allowed") {
     return (
-      <main className="surface">
+      <main className={`surface ${isStandaloneChatRoute ? "chat-surface" : ""}`}>
         <h1>Access Required</h1>
         <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
+      </main>
+    );
+  }
+
+  if (isStandaloneChatRoute) {
+    return (
+      <main className="surface chat-surface">
+        <div className="surface-header chat-surface-header">
+          <div className="surface-title">
+            <h1>Maiks.yt Streamer Chat</h1>
+            <p>{authState.displayName}</p>
+          </div>
+          <a className="chat-control-link" href="/">Control panel</a>
+        </div>
+        <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />
       </main>
     );
   }
