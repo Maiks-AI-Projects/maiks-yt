@@ -51,6 +51,10 @@ describe("provider integration status", () => {
         state: "available"
       }),
       expect.objectContaining({
+        key: "twitch-chat-runtime",
+        state: "not_enabled"
+      }),
+      expect.objectContaining({
         key: "twitch-eventsub",
         state: "gated"
       })
@@ -194,5 +198,26 @@ describe("provider integration status", () => {
 
     expect(twitch?.state).toBe("disabled");
     expect(twitch?.issues).toEqual([]);
+  });
+
+  it("reports connected Twitch chat runtime separately from library availability", () => {
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CLIENT_SECRET: "super-secret-twitch"
+    }, new Date("2026-06-29T10:00:00.000Z"), {
+      twitchChatIntakeState: "connected"
+    });
+    const twitch = snapshot.providers.find((provider) => provider.id === "twitch");
+
+    expect(twitch?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "twitch-chat-library",
+        state: "available"
+      }),
+      expect.objectContaining({
+        key: "twitch-chat-runtime",
+        state: "configured"
+      })
+    ]));
   });
 });

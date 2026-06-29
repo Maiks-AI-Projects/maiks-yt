@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
+import { TwitchChatReadOnlyIntakeService, type TwitchChatProjectedMessage } from "@maiks-yt/integrations";
 import type {
   OverlayActiveGoalState,
   OverlayPresentationState,
@@ -48,7 +49,7 @@ import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
-import { registerProviderIntegrationStatusRoutes } from "./provider-integrations/index.js";
+import { registerProviderIntegrationStatusRoutes, registerTwitchChatIntakeControlRoutes } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
@@ -755,17 +756,30 @@ class InMemoryFakeLocalModerationRuntime {
 
 const fakeLocalModerationRuntime = new InMemoryFakeLocalModerationRuntime();
 
-const recordFakeLocalStreamerChatMessage = (
-  event: OverlayFakeChatMessageReceivedEvent
-): StreamerChatMessage => {
-  const message = createStreamerChatMessageFromFakeLocal(event.payload);
-
+const appendStreamerChatMessage = (message: StreamerChatMessage): StreamerChatMessage => {
   streamerChatMessages.unshift(message);
   streamerChatMessages.splice(maxStreamerChatHistory);
   broadcastStreamerChatMessage(message);
 
   return message;
 };
+
+const recordFakeLocalStreamerChatMessage = (
+  event: OverlayFakeChatMessageReceivedEvent
+): StreamerChatMessage => {
+  const message = createStreamerChatMessageFromFakeLocal(event.payload);
+
+  return appendStreamerChatMessage(message);
+};
+
+const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): StreamerChatMessage =>
+  appendStreamerChatMessage({
+    ...message
+  });
+
+const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
+  onMessage: recordTwitchStreamerChatMessage
+});
 
 const broadcastOverlaySnapshots = (): void => {
   for (const client of overlayLiveClients.values()) {
@@ -1075,7 +1089,15 @@ registerNotificationAdminRoutes(server, {
 });
 registerProviderIntegrationStatusRoutes(server, {
   getAuthSession,
-  getDatabasePool
+  getDatabasePool,
+  getRuntimeState: () => ({
+    twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state
+  })
+});
+registerTwitchChatIntakeControlRoutes(server, {
+  getAuthSession,
+  getDatabasePool,
+  runtime: twitchChatIntakeRuntime
 });
 registerEventRoutingDispatchRoutes(server, {
   getDatabasePool,
@@ -1744,7 +1766,7 @@ server.get("/streamer-chat/messages", async (request, reply) => {
 
   return {
     ok: true,
-    source: "fake-local",
+    source: "mixed",
     messages: streamerChatMessages
       .filter((message) => fakeLocalModerationRuntime.isMessageVisible(message))
       .map((message) => ({ ...message })),

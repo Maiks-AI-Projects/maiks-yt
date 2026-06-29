@@ -46,6 +46,36 @@ type ProviderIntegrationsStatusResponse =
     reason: string;
   };
 
+type TwitchChatProjectedMessage = {
+  id: string;
+  authorName: string;
+  channelName: string;
+  createdAt: string;
+  message: string;
+  source: "twitch";
+  visibleOnOverlayByDefault: false;
+};
+
+type TwitchChatIntakeStatus = {
+  channelName: string | null;
+  connectedAt: string | null;
+  lastError: string | null;
+  lastMessageAt: string | null;
+  recentMessages: readonly TwitchChatProjectedMessage[];
+  state: "stopped" | "connecting" | "connected" | "unconfigured";
+};
+
+type TwitchChatIntakeResponse =
+  | {
+    ok: true;
+    readOnly: true;
+    status: TwitchChatIntakeStatus;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -114,8 +144,10 @@ const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBod
 
 const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [snapshot, setSnapshot] = useState<Extract<ProviderIntegrationsStatusResponse, { ok: true }> | null>(null);
+  const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading provider integration status...");
+  const [twitchActionMessage, setTwitchActionMessage] = useState<string>("Twitch chat intake status not loaded.");
 
   const stateCounts = useMemo(() => {
     const counts: Record<ProviderIntegrationState, number> = {
@@ -160,10 +192,55 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     }
   }, []);
 
+  const loadTwitchChatStatus = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/twitch-chat`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<TwitchChatIntakeResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setTwitchChatStatus(payload.status);
+        setTwitchActionMessage("Twitch chat intake status loaded.");
+        return;
+      }
+
+      setTwitchActionMessage(`Twitch chat intake status failed with ${response.status}.`);
+    } catch (error) {
+      setTwitchActionMessage(error instanceof Error ? error.message : "Twitch chat intake status failed.");
+    }
+  }, []);
+
+  const runTwitchChatAction = useCallback(async (action: "start" | "stop"): Promise<void> => {
+    setTwitchActionMessage(action === "start" ? "Starting Twitch chat intake..." : "Stopping Twitch chat intake...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/twitch-chat/${action}`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<TwitchChatIntakeResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setTwitchChatStatus(payload.status);
+        setTwitchActionMessage(action === "start" ? "Twitch chat intake started." : "Twitch chat intake stopped.");
+        await loadStatus();
+        return;
+      }
+
+      setTwitchActionMessage(`Twitch chat intake ${action} failed with ${response.status}.`);
+    } catch (error) {
+      setTwitchActionMessage(error instanceof Error ? error.message : `Twitch chat intake ${action} failed.`);
+    }
+  }, [loadStatus]);
+
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     void loadStatus();
-  }, [loadStatus]);
+    void loadTwitchChatStatus();
+  }, [loadStatus, loadTwitchChatStatus]);
 
   return (
     <>
@@ -202,6 +279,65 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
               <span>Disabled</span>
               <strong>{stateCounts.disabled}</strong>
             </div>
+          </section>
+
+          <section className="project-admin-panel">
+            <div className="project-admin-panel-heading">
+              <div>
+                <h2>Twitch Chat Intake</h2>
+                <p>Read-only dev connection for private streamer chat.</p>
+              </div>
+              <div className="project-admin-actions">
+                <button
+                  type="button"
+                  disabled={twitchChatStatus?.state === "connected" || twitchChatStatus?.state === "connecting"}
+                  onClick={() => void runTwitchChatAction("start")}
+                >
+                  Start
+                </button>
+                <button
+                  type="button"
+                  disabled={twitchChatStatus?.state === "stopped" || twitchChatStatus?.state === "unconfigured"}
+                  onClick={() => void runTwitchChatAction("stop")}
+                >
+                  Stop
+                </button>
+                <button type="button" onClick={() => void loadTwitchChatStatus()}>Refresh</button>
+              </div>
+            </div>
+            <div className="provider-chat-status-grid">
+              <div className={`provider-chat-state ${twitchChatStatus?.state ?? "unconfigured"}`}>
+                <span>State</span>
+                <strong>{twitchChatStatus?.state ?? "Unknown"}</strong>
+              </div>
+              <div>
+                <span>Channel</span>
+                <strong>{twitchChatStatus?.channelName ?? "Not configured"}</strong>
+              </div>
+              <div>
+                <span>Last message</span>
+                <strong>{twitchChatStatus?.lastMessageAt ? formatDate(twitchChatStatus.lastMessageAt) : "None yet"}</strong>
+              </div>
+            </div>
+            <p className="provider-chat-action-message">{twitchActionMessage}</p>
+            {twitchChatStatus?.lastError ? (
+              <p className="provider-chat-error">{twitchChatStatus.lastError}</p>
+            ) : null}
+            {twitchChatStatus?.recentMessages.length ? (
+              <ol className="provider-chat-recent-list" aria-label="Recent Twitch chat messages">
+                {twitchChatStatus.recentMessages.slice(0, 5).map((chatMessage) => (
+                  <li key={chatMessage.id}>
+                    <div>
+                      <strong>{chatMessage.authorName}</strong>
+                      <time dateTime={chatMessage.createdAt}>{formatDate(chatMessage.createdAt)}</time>
+                    </div>
+                    <p>{chatMessage.message}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="provider-chat-empty">No Twitch messages captured in this API runtime yet.</p>
+            )}
           </section>
 
           <section className="project-admin-panel">

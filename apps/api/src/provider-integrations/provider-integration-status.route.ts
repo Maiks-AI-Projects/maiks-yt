@@ -1,4 +1,5 @@
 import type { DatabasePool } from "@maiks-yt/database";
+import type { ProviderIntegrationRuntimeState } from "@maiks-yt/integrations";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { ProviderIntegrationStatusService } from "./provider-integration-status.service.js";
@@ -13,6 +14,7 @@ type ProviderIntegrationStatusAuthSession = {
 type ProviderIntegrationStatusRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<ProviderIntegrationStatusAuthSession>;
   getDatabasePool: () => DatabasePool;
+  getRuntimeState?: () => ProviderIntegrationRuntimeState;
   createService?: () => Pick<ProviderIntegrationStatusService, "getStatus">;
 };
 
@@ -23,7 +25,12 @@ export const registerProviderIntegrationStatusRoutes = (
   const getService = (): Pick<ProviderIntegrationStatusService, "getStatus"> =>
     dependencies.createService?.()
     ?? new ProviderIntegrationStatusService(
-      createProviderIntegrationStatusRepository(dependencies.getDatabasePool())
+      createProviderIntegrationStatusRepository(dependencies.getDatabasePool()),
+      dependencies.getRuntimeState
+        ? {
+          runtimeState: dependencies.getRuntimeState
+        }
+        : {}
     );
 
   const getSession = async (

@@ -1,7 +1,12 @@
 import type { OverlayFakeChatMessage } from "./overlay.events.js";
 
-export type StreamerChatMessage = OverlayFakeChatMessage & {
+export type StreamerChatSource = "fake-local" | "twitch";
+
+export type StreamerChatMessage = Omit<OverlayFakeChatMessage, "source"> & {
+  source: StreamerChatSource;
   visibleOnOverlayByDefault: boolean;
+  channelName?: string;
+  providerMessageId?: string;
 };
 
 export type StreamerChatMessageReceivedEvent = {

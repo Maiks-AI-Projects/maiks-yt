@@ -1603,6 +1603,83 @@ button:disabled {
   line-height: 1.45;
 }
 
+.provider-chat-status-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.provider-chat-status-grid > div {
+  border: 1px solid #d8e0e8;
+  border-radius: 6px;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.75rem;
+}
+
+.provider-chat-status-grid span,
+.provider-chat-action-message,
+.provider-chat-empty,
+.provider-chat-error {
+  color: #4b5966;
+}
+
+.provider-chat-status-grid strong {
+  text-transform: capitalize;
+}
+
+.provider-chat-state.connected {
+  background: #f0fbf4;
+  border-color: #a5d4b7;
+}
+
+.provider-chat-state.connecting {
+  background: #f3f7ff;
+  border-color: #a9c5ee;
+}
+
+.provider-chat-state.stopped,
+.provider-chat-state.unconfigured {
+  background: #fffaf0;
+  border-color: #e4c76f;
+}
+
+.provider-chat-action-message,
+.provider-chat-empty,
+.provider-chat-error {
+  margin: 0.75rem 0 0;
+}
+
+.provider-chat-error {
+  color: #8a1f11;
+  font-weight: 700;
+}
+
+.provider-chat-recent-list {
+  display: grid;
+  gap: 0.6rem;
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+}
+
+.provider-chat-recent-list li {
+  border: 1px solid #d8e0e8;
+  border-radius: 6px;
+  padding: 0.7rem;
+}
+
+.provider-chat-recent-list div {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.provider-chat-recent-list p {
+  margin: 0.4rem 0 0;
+}
+
 .page-creator-form textarea {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   line-height: 1.5;

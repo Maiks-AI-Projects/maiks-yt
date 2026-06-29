@@ -68,7 +68,8 @@ export class ProviderIntegrationStatusService {
 
     return getProviderIntegrationStatusSnapshot(
       this.options.env ?? process.env,
-      this.options.now?.() ?? new Date()
+      this.options.now?.() ?? new Date(),
+      this.options.runtimeState?.()
     );
   }
 }

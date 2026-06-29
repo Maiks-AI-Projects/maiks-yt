@@ -219,4 +219,46 @@ describe("Provider integration status routes", () => {
     expect(serialized).not.toContain("secret-twitch-value");
     expect(serialized).not.toContain("secret-discord-value");
   });
+
+  it("includes sanitized Twitch chat runtime state when provided", async () => {
+    const server = Fastify();
+
+    registerProviderIntegrationStatusRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      getRuntimeState: () => ({
+        twitchChatIntakeState: "connected"
+      }),
+      createService: () => new ProviderIntegrationStatusService(
+        new FakeProviderIntegrationStatusRepository(),
+        {
+          env: {
+            TWITCH_CLIENT_ID: "twitch-client",
+            TWITCH_CLIENT_SECRET: "secret-twitch-value"
+          },
+          now: () => new Date("2026-06-29T12:00:00.000Z"),
+          runtimeState: () => ({
+            twitchChatIntakeState: "connected"
+          })
+        }
+      )
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/status"
+    });
+    const body = response.json();
+    const twitch = body.providers.find((provider: { id: string }) => provider.id === "twitch");
+
+    expect(response.statusCode).toBe(200);
+    expect(twitch.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "twitch-chat-runtime",
+        state: "configured"
+      })
+    ]));
+  });
 });

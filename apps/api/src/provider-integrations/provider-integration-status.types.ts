@@ -1,5 +1,6 @@
 import type {
   ProviderIntegrationEnvironment,
+  ProviderIntegrationRuntimeState,
   ProviderIntegrationStatusSnapshot
 } from "@maiks-yt/integrations";
 
@@ -22,4 +23,5 @@ export interface ProviderIntegrationStatusRepository {
 export type ProviderIntegrationStatusOptions = {
   env?: ProviderIntegrationEnvironment;
   now?: () => Date;
+  runtimeState?: () => ProviderIntegrationRuntimeState;
 };

@@ -156,7 +156,7 @@ type OverlayChatOrderResponse = {
 
 type StreamerChatMessagesResponse = {
   ok: true;
-  source: "fake-local";
+  source: "mixed";
   messages: StreamerChatMessage[];
   checkedAt: string;
 } | {
@@ -329,9 +329,14 @@ const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(un
 
 const maxStreamerChatViewerMessages = 12;
 
+const chatSourceLabels: Record<StreamerChatMessage["source"], string> = {
+  "fake-local": "Local",
+  twitch: "Twitch"
+};
+
 const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.ReactNode => {
   const [messages, setMessages] = useState<StreamerChatMessage[]>([]);
-  const [status, setStatus] = useState<string>("Loading fake/local chat.");
+  const [status, setStatus] = useState<string>("Loading streamer chat.");
   const visibleMessages = newestOnTop
     ? messages.slice(0, maxStreamerChatViewerMessages)
     : messages.slice(0, maxStreamerChatViewerMessages).reverse();
@@ -364,7 +369,7 @@ const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.Re
 
         if (!disposed) {
           setMessages(result.messages);
-          setStatus(`Fake/local chat ready. ${result.messages.length} message(s) loaded.`);
+          setStatus(`Streamer chat ready. ${result.messages.length} message(s) loaded.`);
         }
       } catch (error) {
         if (!disposed) {
@@ -379,7 +384,7 @@ const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.Re
       webSocket = new WebSocket(createAuthenticatedWebSocketUrl(apiBaseUrl, "/streamer-chat/live", token));
       webSocket.addEventListener("open", () => {
         if (!disposed) {
-          setStatus("Fake/local chat live.");
+          setStatus("Streamer chat live.");
         }
       });
       webSocket.addEventListener("message", (event) => {
@@ -397,12 +402,12 @@ const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.Re
       });
       webSocket.addEventListener("close", () => {
         if (!disposed) {
-          setStatus("Fake/local chat live feed closed.");
+          setStatus("Streamer chat live feed closed.");
         }
       });
       webSocket.addEventListener("error", () => {
         if (!disposed) {
-          setStatus("Fake/local chat live feed unavailable.");
+          setStatus("Streamer chat live feed unavailable.");
         }
       });
     }
@@ -414,20 +419,20 @@ const StreamerChatViewer = ({ newestOnTop }: { newestOnTop: boolean }): React.Re
   }, []);
 
   return (
-    <div className="streamer-chat-viewer" aria-label="Streamer fake chat viewer">
+    <div className="streamer-chat-viewer" aria-label="Streamer chat viewer">
       <div className="streamer-chat-header">
         <strong>Streamer chat</strong>
         <span>{status}</span>
       </div>
       {visibleMessages.length === 0 ? (
-        <p className="streamer-chat-empty">No fake/local messages yet.</p>
+        <p className="streamer-chat-empty">No streamer chat messages yet.</p>
       ) : (
         <ol className={`streamer-chat-list ${newestOnTop ? "newest-on-top" : "newest-on-bottom"}`}>
           {visibleMessages.map((message) => (
             <li className={message.visibleOnOverlayByDefault ? "overlay-visible" : "streamer-only"} key={message.id}>
               <div>
                 <strong>{message.authorName}</strong>
-                <span>{message.authorKind}</span>
+                <span>{chatSourceLabels[message.source]} · {message.authorKind}</span>
                 <time dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
               </div>
               <p>{message.message}</p>

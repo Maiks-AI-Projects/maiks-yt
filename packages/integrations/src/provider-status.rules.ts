@@ -48,6 +48,10 @@ export type ProviderIntegrationStatusSnapshot = {
 
 export type ProviderIntegrationEnvironment = Record<string, string | undefined>;
 
+export type ProviderIntegrationRuntimeState = {
+  twitchChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
+};
+
 export type TwitchProviderSdkFoundation = {
   authProvider: AppTokenAuthProvider;
   apiClient: ApiClient;
@@ -155,7 +159,10 @@ const stateFrom = ({
   return configured ? "configured" : "missing";
 };
 
-const buildTwitchStatus = (env: ProviderIntegrationEnvironment): ProviderIntegrationStatus => {
+const buildTwitchStatus = (
+  env: ProviderIntegrationEnvironment,
+  runtimeState: ProviderIntegrationRuntimeState
+): ProviderIntegrationStatus => {
   const variables = [
     createEnvStatus(env, "TWITCH_CLIENT_ID", "identifier", true),
     createEnvStatus(env, "TWITCH_CLIENT_SECRET", "secret", true)
@@ -188,7 +195,25 @@ const buildTwitchStatus = (env: ProviderIntegrationEnvironment): ProviderIntegra
         key: "twitch-chat-library",
         label: "Twitch chat library",
         state: "available",
-        detail: "@twurple/chat is installed for the next read-only chat intake slice; no chat connection is opened yet."
+        detail: "@twurple/chat is installed for read-only chat intake."
+      },
+      {
+        key: "twitch-chat-runtime",
+        label: "Twitch chat runtime",
+        state: runtimeState.twitchChatIntakeState === "connected"
+          ? "configured"
+          : runtimeState.twitchChatIntakeState === "connecting"
+            ? "available"
+            : runtimeState.twitchChatIntakeState === "unconfigured"
+              ? "missing"
+              : "not_enabled",
+        detail: runtimeState.twitchChatIntakeState === "connected"
+          ? "Read-only Twitch chat intake is connected on this API runtime."
+          : runtimeState.twitchChatIntakeState === "connecting"
+            ? "Read-only Twitch chat intake is currently connecting."
+            : runtimeState.twitchChatIntakeState === "unconfigured"
+              ? "Twitch chat intake has no usable channel configuration."
+              : "Read-only Twitch chat intake is installed but stopped."
       },
       {
         key: "twitch-eventsub",
@@ -323,13 +348,14 @@ const buildDiscordStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
 
 export const getProviderIntegrationStatusSnapshot = (
   env: ProviderIntegrationEnvironment = process.env,
-  now = new Date()
+  now = new Date(),
+  runtimeState: ProviderIntegrationRuntimeState = {}
 ): ProviderIntegrationStatusSnapshot => ({
   ok: true,
   generatedAt: now.toISOString(),
   readOnly: true,
   providers: [
-    buildTwitchStatus(env),
+    buildTwitchStatus(env, runtimeState),
     buildYouTubeStatus(env),
     buildDiscordStatus(env)
   ],
