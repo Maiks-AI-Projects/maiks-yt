@@ -6,3 +6,7 @@ export * from "./twitch-chat-intake-control.route.js";
 export * from "./twitch-chat-intake-control.service.js";
 export * from "./twitch-chat-intake-control-store.service.js";
 export * from "./twitch-chat-intake-control.types.js";
+export * from "./youtube-owner-consent.route.js";
+export * from "./youtube-owner-consent.service.js";
+export * from "./youtube-owner-consent-store.service.js";
+export * from "./youtube-owner-consent.types.js";

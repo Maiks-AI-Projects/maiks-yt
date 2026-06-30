@@ -76,6 +76,30 @@ type TwitchChatIntakeResponse =
     reason: string;
   };
 
+type YouTubeCredentialSummary = {
+  provider: "youtube";
+  purpose: "youtube_live_chat";
+  status: "active" | "revoked" | "error";
+  displayName: string | null;
+  scopes: readonly string[];
+  lastVerifiedAt: string | null;
+  lastError: string | null;
+  updatedAt: string | null;
+};
+
+type YouTubeConsentResponse =
+  | {
+    ok: true;
+    credential: YouTubeCredentialSummary | null;
+    redirectUri: string;
+    requiredScope: string;
+    consentUrl?: string;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -145,9 +169,13 @@ const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBod
 const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [snapshot, setSnapshot] = useState<Extract<ProviderIntegrationsStatusResponse, { ok: true }> | null>(null);
   const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
+  const [youtubeCredential, setYouTubeCredential] = useState<YouTubeCredentialSummary | null>(null);
+  const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
+  const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading provider integration status...");
   const [twitchActionMessage, setTwitchActionMessage] = useState<string>("Twitch chat intake status not loaded.");
+  const [youtubeActionMessage, setYouTubeActionMessage] = useState<string>("YouTube owner consent not checked.");
 
   const stateCounts = useMemo(() => {
     const counts: Record<ProviderIntegrationState, number> = {
@@ -212,6 +240,56 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     }
   }, []);
 
+  const loadYouTubeCredential = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/credential`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubeConsentResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubeCredential(payload.credential);
+        setYouTubeRedirectUri(payload.redirectUri);
+        setYouTubeRequiredScope(payload.requiredScope);
+        setYouTubeActionMessage(payload.credential?.status === "active"
+          ? "YouTube owner credential is active."
+          : "YouTube owner credential is not connected yet.");
+        return;
+      }
+
+      setYouTubeActionMessage(`YouTube credential status failed with ${response.status}.`);
+    } catch (error) {
+      setYouTubeActionMessage(error instanceof Error ? error.message : "YouTube credential status failed.");
+    }
+  }, []);
+
+  const connectYouTube = useCallback(async (): Promise<void> => {
+    setYouTubeActionMessage("Creating YouTube owner consent URL...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/consent-url`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubeConsentResponse>(response);
+
+      if (response.ok && payload?.ok && payload.consentUrl) {
+        setYouTubeCredential(payload.credential);
+        setYouTubeRedirectUri(payload.redirectUri);
+        setYouTubeRequiredScope(payload.requiredScope);
+        setYouTubeActionMessage("Opening Google owner consent...");
+        window.location.assign(payload.consentUrl);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : "missing_consent_url";
+      setYouTubeActionMessage(`YouTube owner consent failed: ${reason}.`);
+    } catch (error) {
+      setYouTubeActionMessage(error instanceof Error ? error.message : "YouTube owner consent failed.");
+    }
+  }, []);
+
   const runTwitchChatAction = useCallback(async (action: "start" | "stop"): Promise<void> => {
     setTwitchActionMessage(action === "start" ? "Starting Twitch chat intake..." : "Stopping Twitch chat intake...");
 
@@ -240,7 +318,8 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     captureDevAuthTokenFromUrl();
     void loadStatus();
     void loadTwitchChatStatus();
-  }, [loadStatus, loadTwitchChatStatus]);
+    void loadYouTubeCredential();
+  }, [loadStatus, loadTwitchChatStatus, loadYouTubeCredential]);
 
   return (
     <>
@@ -338,6 +417,44 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
             ) : (
               <p className="provider-chat-empty">No Twitch messages captured in this API runtime yet.</p>
             )}
+          </section>
+
+          <section className="project-admin-panel">
+            <div className="project-admin-panel-heading">
+              <div>
+                <h2>YouTube Owner Consent</h2>
+                <p>Read-only OAuth credential for future live-chat intake.</p>
+              </div>
+              <div className="project-admin-actions">
+                <button type="button" onClick={() => void connectYouTube()}>Connect</button>
+                <button type="button" onClick={() => void loadYouTubeCredential()}>Refresh</button>
+              </div>
+            </div>
+            <div className="provider-chat-status-grid">
+              <div className={`provider-chat-state ${youtubeCredential?.status ?? "unconfigured"}`}>
+                <span>Credential</span>
+                <strong>{youtubeCredential?.status ?? "Not connected"}</strong>
+              </div>
+              <div>
+                <span>Last verified</span>
+                <strong>{youtubeCredential?.lastVerifiedAt ? formatDate(youtubeCredential.lastVerifiedAt) : "Never"}</strong>
+              </div>
+              <div>
+                <span>Scope</span>
+                <strong>{youtubeRequiredScope}</strong>
+              </div>
+            </div>
+            <p className="provider-chat-action-message">{youtubeActionMessage}</p>
+            {youtubeCredential?.lastError ? (
+              <p className="provider-chat-error">{youtubeCredential.lastError}</p>
+            ) : null}
+            <div className="provider-env-grid" aria-label="YouTube OAuth setup details">
+              <div className="provider-env-item">
+                <span>Google redirect URI</span>
+                <strong>{youtubeRedirectUri}</strong>
+                <small>Add this exact URI in Google OAuth before connecting.</small>
+              </div>
+            </div>
           </section>
 
           <section className="project-admin-panel">

@@ -21,7 +21,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Phase 5J completed the docs/design gate for community rules, manual warning/strike escalation, and restriction boundaries. Automatic warnings, real bans, provider enforcement, destructive actions, AI moderation, auth/secrets, money/support authority, production behavior, and new policy/strike schema remain gated.
 - Phase 6A Provider Integration Foundation is deployed and dev-smoked. It adds real provider SDK dependencies and sanitized read-only status plumbing for Twitch, YouTube, and Discord behind owner-gated `GET /admin/provider-integrations/status` plus `/admin/provider-integrations`. It does not add OAuth, token storage/rotation, webhook/EventSub receivers, live chat ingestion, provider moderation/write actions, money behavior, migrations, Cloudflare/Docker config, auth flow changes, or production behavior.
 - Phase 6A provider status now recognizes the saved dev env shape: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` for the YouTube OAuth foundation and `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET` as Discord OAuth app credentials, while `DISCORD_BOT_TOKEN`/`DISCORD_APPLICATION_ID`/`DISCORD_GUILD_ID` are passed through Turbo to app processes. Safe live checks confirmed the Discord bot token is valid, matches the application id, and can read the configured dev guild after the bot invite/code-grant setting was fixed.
-- Phase 6A provider library capability mapping is deployed and dev-smoked. It now includes `@twurple/chat` and typed capability states in provider status. Twitch chat library availability is reported separately from runtime state, Twitch EventSub remains gated, YouTube OAuth consent/token storage remains not enabled, and Discord Gateway/`discord.js` remains gated.
+- Phase 6A provider library capability mapping is deployed and dev-smoked. It now includes `@twurple/chat` and typed capability states in provider status. Twitch chat library availability is reported separately from runtime state, Twitch EventSub remains gated, Phase 6C generated YouTube OAuth consent/token storage but has not been dev-applied yet, and Discord Gateway/`discord.js` remains gated.
 - Phase 6B Twitch Read-Only Chat Intake is deployed and endpoint-smoked on dev: owner-gated status/start/stop controls, anonymous read-only Twurple chat connection to channel `maiksmc`, Twitch messages projected into the private streamer-chat/control-panel feed, provider status runtime state, and a separate installable `control-dev/chat` streamer chat PWA. Twitch messages are not sent to the OBS overlay in this slice.
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
@@ -96,11 +96,45 @@ Reviewer/dev smoke:
 - Standalone streamer chat PWA follow-up added `/chat` on `control-dev` with separate `chat-manifest.webmanifest`, `id`/`scope`/`start_url` of `/chat`, focused chat-only layout, and the same `control:open` token gate. The normal control-panel manifest is narrowed to `id`/`scope`/`start_url` of `/control` so new installs do not claim `/chat`; old Ubuntu/Android installs created with the previous `/` scope may need to be removed once. The ignored usable URL report has the tokenized `/chat` URL for local testing.
 - Phase 6C first hardening slice adds a read-only Twitch intake status card to the standalone `/chat` PWA through a `control:open` token-gated status endpoint. It shows runtime state, channel, last message time, and safe error copy without adding start/stop controls, provider writes, moderation enforcement, EventSub, auth changes, migrations, or production behavior.
 
+## Phase 6C: YouTube Owner Consent And Runtime Credential Storage (Generated, Not Yet Applied)
+
+Coordinator scope:
+
+- Review generated migration `packages/database/drizzle/0019_thankful_famine.sql`.
+- Apply the migration on dev only after review.
+- Deploy the owner-gated YouTube consent endpoints and `/admin/provider-integrations` controls.
+- Ensure Google OAuth has this exact redirect URI, unless `YOUTUBE_OAUTH_REDIRECT_URI` overrides it: `https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback`.
+- Complete owner consent from `/admin/provider-integrations`.
+
+Result:
+
+- Adds `provider_runtime_credentials` for owner/provider/purpose runtime tokens with provider/purpose safety checks and YouTube active rows requiring a refresh token.
+- Adds owner-gated `GET /admin/provider-integrations/youtube/credential` and `GET /admin/provider-integrations/youtube/consent-url`.
+- Adds Google callback `GET /admin/provider-integrations/youtube/callback` that exchanges the code and stores a read-only YouTube refresh token without returning raw tokens.
+- Updates provider status copy so YouTube owner consent is available when Google/YouTube OAuth client credentials exist.
+
+Suggested checks:
+
+- `pnpm --filter @maiks-yt/integrations test`
+- `pnpm --filter @maiks-yt/integrations typecheck`
+- `pnpm --filter @maiks-yt/database typecheck`
+- `pnpm --filter @maiks-yt/api test -- provider-integrations`
+- `pnpm --filter @maiks-yt/api typecheck`
+- `pnpm --filter @maiks-yt/web typecheck`
+- `node scripts/check-architecture.mjs`
+- `git diff --check`
+
+Remaining gates:
+
+- YouTube live-chat polling is not implemented yet; it should be the next runtime chunk after consent smoke succeeds.
+- Discord Gateway/`discord.js`, Twitch EventSub, provider writes, moderation enforcement, money, production behavior, Cloudflare/Docker config, and secret edits remain separate explicit chunks.
+
 Next provider chunks:
 
-- After Phase 6B manual message smoke and the Phase 6C chat status card, either add reconnect/offline-warning behavior for Twitch intake or design YouTube OAuth/live-chat token storage.
-- Define provider scopes, rate-limit/failure handling, token storage/revocation shape, and manual override before broader provider intake.
-- Keep Discord Gateway/`discord.js`, YouTube OAuth token storage, Twitch EventSub, provider writes, moderation enforcement, money, and production behavior in separate explicit chunks.
+- Phase 6D: YouTube read-only live-chat polling from the stored owner credential into the private streamer-chat feed. Use YouTube polling interval/backoff, safe token refresh, no overlay routing by default, and no provider writes.
+- Phase 6E: Discord read-only Gateway message intake for the configured guild/channel set after adding `discord.js` and confirming required Gateway intents. Keep message content private/control-panel only unless Event Routing later routes it.
+- Phase 6F: Twitch reconnect/offline warning hardening for intake status and the notification panel.
+- Define provider scopes, rate-limit/failure handling, token revocation/manual override, and failure alerts before broader provider intake.
 
 ## Chunk 25: Private Notification Panel Foundation (Completed On Dev)
 
@@ -172,6 +206,7 @@ Reviewer gate:
 - `pnpm dev:smoke:notify -- --dry-run` passed locally and inside `maiks-yt-dev`.
 - A synthetic failed `control-dev` smoke created one warning alert, the duplicate guard suppressed the same failure signature during cooldown, and a healthy follow-up run created one lower-severity recovery note.
 - The recurring schedule is installed in Michael's user crontab on `codex-server-1` at `07:00`, `12:00`, `17:00`, and `22:00` Europe/Amsterdam time, matching the preferred five-hour work windows and logging to `/tmp/maiks-yt-dev-smoke-cron.log`.
+- Healthy scheduled runs are intentionally quiet. Failures post warning/critical notifications, and recovery after failure posts a recovery note.
 - A user systemd timer was tested and then disabled because `loginctl enable-linger michael` requires sudo/password; cron is active and avoids that lingering dependency.
 
 ## Phase 5A: Moderator Trust Persistence Migration (Completed On Dev)

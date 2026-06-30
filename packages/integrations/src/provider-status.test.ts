@@ -66,7 +66,7 @@ describe("provider integration status", () => {
       }),
       expect.objectContaining({
         key: "youtube-oauth-consent",
-        state: "not_enabled"
+        state: "missing"
       })
     ]));
     expect(snapshot.providers[2]?.capabilities).toEqual(expect.arrayContaining([

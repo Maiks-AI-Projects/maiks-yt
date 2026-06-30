@@ -525,6 +525,59 @@ export const systemNotifications = mysqlTable(
   ]
 );
 
+export const providerRuntimeCredentials = mysqlTable(
+  "provider_runtime_credentials",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    ownerUserId: varchar("owner_user_id", { length: 36 }).notNull(),
+    provider: mysqlEnum("provider", ["youtube", "twitch", "discord"]).notNull(),
+    purpose: mysqlEnum("purpose", ["youtube_live_chat", "twitch_eventsub", "discord_gateway"]).notNull(),
+    status: mysqlEnum("status", ["active", "revoked", "error"]).notNull().default("active"),
+    providerAccountId: varchar("provider_account_id", { length: 191 }),
+    displayName: varchar("display_name", { length: 191 }),
+    scopes: json("scopes").$type<string[]>().notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    lastVerifiedAt: timestamp("last_verified_at"),
+    lastError: varchar("last_error", { length: 512 }),
+    revokedAt: timestamp("revoked_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("provider_runtime_owner_provider_purpose_uidx").on(table.ownerUserId, table.provider, table.purpose),
+    index("provider_runtime_provider_status_idx").on(table.provider, table.status),
+    index("provider_runtime_owner_status_idx").on(table.ownerUserId, table.status),
+    index("provider_runtime_revoked_at_idx").on(table.revokedAt),
+    check(
+      "provider_runtime_youtube_purpose_check",
+      sql`${table.provider} <> 'youtube' or ${table.purpose} = 'youtube_live_chat'`
+    ),
+    check(
+      "provider_runtime_twitch_purpose_check",
+      sql`${table.provider} <> 'twitch' or ${table.purpose} = 'twitch_eventsub'`
+    ),
+    check(
+      "provider_runtime_discord_purpose_check",
+      sql`${table.provider} <> 'discord' or ${table.purpose} = 'discord_gateway'`
+    ),
+    check(
+      "provider_runtime_active_token_check",
+      sql`${table.provider} <> 'youtube' or ${table.status} <> 'active' or ${table.refreshToken} is not null`
+    ),
+    check(
+      "provider_runtime_revocation_check",
+      sql`(
+        (${table.status} <> 'revoked' and ${table.revokedAt} is null)
+        or
+        (${table.status} = 'revoked' and ${table.revokedAt} is not null)
+      )`
+    )
+  ]
+);
+
 export const notificationPushSubscriptions = mysqlTable(
   "notification_push_subscriptions",
   {

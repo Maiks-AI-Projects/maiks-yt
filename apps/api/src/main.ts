@@ -49,7 +49,11 @@ import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
-import { registerProviderIntegrationStatusRoutes, registerTwitchChatIntakeControlRoutes } from "./provider-integrations/index.js";
+import {
+  registerProviderIntegrationStatusRoutes,
+  registerTwitchChatIntakeControlRoutes,
+  registerYouTubeOwnerConsentRoutes
+} from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
@@ -1093,6 +1097,10 @@ registerProviderIntegrationStatusRoutes(server, {
   getRuntimeState: () => ({
     twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state
   })
+});
+registerYouTubeOwnerConsentRoutes(server, {
+  getAuthSession,
+  getDatabasePool
 });
 registerTwitchChatIntakeControlRoutes(server, {
   getAuthSession,

@@ -78,7 +78,7 @@ const placeholderValues = new Set([
 
 const statusBoundaries = [
   "Read-only provider integration configuration snapshot.",
-  "No OAuth flow, token storage, webhook receiver, live chat ingestion, moderation action, or provider mutation is enabled.",
+  "YouTube owner OAuth can store a read-only live-chat credential; no webhook receiver, provider write, moderation action, or provider mutation is enabled.",
   "Secret values are never returned; only environment variable names, configured booleans, and sanitized validation issues are exposed.",
   "Missing provider environment variables produce safe missing status instead of crashing startup."
 ] as const;
@@ -285,8 +285,11 @@ const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
       {
         key: "youtube-oauth-consent",
         label: "YouTube owner consent",
-        state: "not_enabled",
-        detail: "OAuth consent, refresh-token storage, and live-chat reads remain separate future slices."
+        state: (youtubeOauthIdConfigured && youtubeOauthSecretConfigured)
+          || (googleOauthIdConfigured && googleOauthSecretConfigured)
+          ? "available"
+          : "missing",
+        detail: "Owner-gated OAuth consent can store a read-only YouTube live-chat credential."
       }
     ]
   };
