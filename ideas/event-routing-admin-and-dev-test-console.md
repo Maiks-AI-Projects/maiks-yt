@@ -38,6 +38,10 @@ The routing admin should let the owner configure behavior per event type:
 
 Privacy and security events should default to internal-only and should not be eligible for overlay routing.
 
+Provider intake should be always-on by default once a provider is connected. Twitch, YouTube, Discord, and future payment/support providers can emit meaningful events while the streamer is offline. Examples include Twitch subs, bits, follows, YouTube memberships or paid messages, Discord boosts, and delayed provider/payment events. These should be registered in event history/accounting even when no stream is live.
+
+Live/offline routing flags control display behavior, not whether the platform records the event. An offline sub or bits event may be stored, audited, included in reports, and optionally shown in a private control panel later without appearing on the OBS overlay.
+
 ## Viewer Opt-out
 
 Website users should be able to opt out of stream-visible website interactions:
@@ -115,6 +119,7 @@ Real routed dispatch should not start until the routing decision, event intake r
 
 Safety defaults:
 
+- Provider intake rows should be stored whether live or offline. `live_only` and `offline_only` are routing/display constraints, not intake kill switches.
 - Privacy, account-security, provider-token, auth, and internal audit events are internal-only and cannot route to overlay, streamer chat, TTS, or public notification destinations.
 - Website signup, username-change, and profile-image-update events may become promotional overlay events only when opt-out-aware, cooldown-aware, and routed through approval or conservative defaults.
 - Free website TTS remains a later promotional feature. Its first real implementation needs opt-in or clear disclosure, approval by default, once-per-stream enforcement, and streamer emergency disable.

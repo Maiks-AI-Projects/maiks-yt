@@ -18,7 +18,9 @@ import "./styles.css";
 const scenario = createNotificationScenario();
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const panelModeStorageKey = "maiks.yt.control.panelMode";
-const isStandaloneChatRoute = window.location.pathname.replace(/\/+$/, "") === "/chat";
+const currentRoutePath = window.location.pathname.replace(/\/+$/, "") || "/";
+const isStandaloneChatRoute = currentRoutePath === "/chat";
+const isModerationRulesRoute = currentRoutePath === "/moderation";
 const eventStormPresets: Array<{ key: EventStormPreset; label: string }> = [
   { key: "notification-burst", label: "Notification burst" },
   { key: "urgent-center-alert", label: "Urgent center alert" },
@@ -189,6 +191,67 @@ type TwitchChatStatusResponse = {
   reason: string;
 };
 
+type FakeLocalModerationResponse = {
+  ok: true;
+  source: "fake-local";
+  providerAction: false;
+  auditEntry: {
+    outcome: string;
+    mutedUntil: string | null;
+  };
+} | {
+  ok: false;
+  reason: string;
+  source: "fake-local";
+  providerAction: false;
+};
+
+type StreamerChatModerationResponse = {
+  ok: true;
+  action: "hide" | "ban" | "warn";
+  affectedCount: number;
+  autoBanned?: boolean;
+  providerAction: false;
+  providerMessageSent?: boolean;
+  warningCount?: number;
+  warningThreshold?: number;
+} | {
+  ok: false;
+  reason: string;
+  providerAction: false;
+};
+
+type StreamerChatModerationRule = {
+  appliedAt: string;
+  authorName: string;
+  count?: number;
+  id: string;
+  kind: "message_hidden" | "author_banned" | "author_warned";
+  messageId: string | null;
+  source: StreamerChatMessage["source"];
+};
+
+type StreamerChatModerationRulesResponse = {
+  ok: true;
+  rules: StreamerChatModerationRule[];
+  providerAction: false;
+  checkedAt: string;
+} | {
+  ok: false;
+  reason: string;
+  providerAction: false;
+};
+
+type StreamerChatModerationRuleRetractResponse = {
+  ok: true;
+  retractedRule: StreamerChatModerationRule | null;
+  providerAction: false;
+} | {
+  ok: false;
+  reason: string;
+  providerAction: false;
+};
+
 type OverlayScenesResponse = {
   ok: true;
   scenes: OverlaySceneDefinition[];
@@ -354,7 +417,9 @@ const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(un
 
 const chatSourceLabels: Record<StreamerChatMessage["source"], string> = {
   "fake-local": "Local",
-  twitch: "Twitch"
+  twitch: "Twitch",
+  youtube: "YouTube",
+  discord: "Discord"
 };
 
 const twitchIntakeStateLabels: Record<TwitchChatIntakeStatus["state"], string> = {
@@ -362,6 +427,12 @@ const twitchIntakeStateLabels: Record<TwitchChatIntakeStatus["state"], string> =
   connecting: "Connecting",
   stopped: "Stopped",
   unconfigured: "Not configured"
+};
+
+const moderationRuleKindLabels: Record<StreamerChatModerationRule["kind"], string> = {
+  author_banned: "Ban",
+  author_warned: "Warning",
+  message_hidden: "Hide"
 };
 
 const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null): string => {
@@ -471,9 +542,126 @@ const StreamerChatViewer = ({
 }): React.ReactNode => {
   const [messages, setMessages] = useState<StreamerChatMessage[]>([]);
   const [status, setStatus] = useState<string>("Loading streamer chat.");
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
+  const [openOptionsMessageId, setOpenOptionsMessageId] = useState<string | null>(null);
   const visibleMessages = newestOnTop
     ? messages.slice(0, maxMessages)
     : messages.slice(0, maxMessages).reverse();
+
+  const executeStreamerChatModeration = async (
+    message: StreamerChatMessage,
+    action: "hide" | "ban" | "warn"
+  ): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setActionStatus("Control token missing.");
+      return;
+    }
+
+    setActionStatus(
+      action === "hide"
+        ? "Hiding message locally."
+        : action === "ban"
+          ? "Banning author locally."
+          : "Warning author locally."
+    );
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/streamer-chat/moderation/${action}`, {
+        body: JSON.stringify({
+          accessToken: token,
+          targetMessageId: message.id
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      const result = await response.json() as StreamerChatModerationResponse;
+
+      if (!response.ok) {
+        throw new Error("Streamer chat moderation request failed.");
+      }
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      if (action === "hide" || (action === "warn" && result.autoBanned) || action === "ban") {
+        setMessages((currentMessages) => action === "hide"
+          ? currentMessages.filter((currentMessage) => currentMessage.id !== message.id)
+          : currentMessages.filter((currentMessage) =>
+            currentMessage.source !== message.source
+            || currentMessage.authorName.trim().toLowerCase() !== message.authorName.trim().toLowerCase()
+          ));
+      }
+      setOpenOptionsMessageId(null);
+      setActionStatus(
+        action === "hide"
+          ? `Message hidden locally. ${result.affectedCount} affected.`
+          : action === "ban"
+            ? `${message.authorName} banned locally from stream surfaces. ${result.affectedCount} message(s) hidden.`
+            : result.autoBanned
+              ? `${message.authorName} reached warning ${result.warningCount}/${result.warningThreshold} and was locally banned.`
+              : `${message.authorName} warned locally. ${result.warningCount}/${result.warningThreshold}.`
+      );
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : "Streamer chat moderation failed.");
+    }
+  };
+
+  const executeFakeLocalModeration = async (
+    message: StreamerChatMessage,
+    action: "hide_message" | "temporary_mute_author" | "warn_author" | "note_author",
+    note: string
+  ): Promise<void> => {
+    if (message.source !== "fake-local") {
+      setActionStatus(`${chatSourceLabels[message.source]} provider moderation is not wired yet.`);
+      return;
+    }
+
+    setActionStatus("Sending local moderation command.");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/fake-local-chat/moderation/commands`, {
+        body: JSON.stringify({
+          action,
+          targetMessageId: action === "hide_message" ? message.id : null,
+          targetAuthorName: action === "hide_message" ? null : message.authorName,
+          durationSeconds: action === "temporary_mute_author" ? 15 * 60 : null,
+          note
+        }),
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      const result = await response.json() as FakeLocalModerationResponse;
+
+      if (!response.ok) {
+        throw new Error("Local moderation request failed.");
+      }
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      if (action === "hide_message") {
+        setMessages((currentMessages) => currentMessages.filter((currentMessage) => currentMessage.id !== message.id));
+      }
+
+      setOpenOptionsMessageId(null);
+      setActionStatus(
+        action === "temporary_mute_author" && result.auditEntry.mutedUntil
+          ? `${message.authorName} muted locally until ${formatChatTime(result.auditEntry.mutedUntil)}.`
+          : `Local moderation command applied to ${message.authorName}.`
+      );
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : "Local moderation command failed.");
+    }
+  };
 
   useEffect(() => {
     let disposed = false;
@@ -557,24 +745,259 @@ const StreamerChatViewer = ({
       <div className="streamer-chat-header">
         <strong>{variant === "standalone" ? "Live Chat" : "Streamer chat"}</strong>
         <span>{status}</span>
+        {actionStatus ? <span>{actionStatus}</span> : null}
       </div>
       {visibleMessages.length === 0 ? (
         <p className="streamer-chat-empty">No streamer chat messages yet.</p>
       ) : (
         <ol className={`streamer-chat-list ${newestOnTop ? "newest-on-top" : "newest-on-bottom"}`}>
-          {visibleMessages.map((message) => (
-            <li className={message.visibleOnOverlayByDefault ? "overlay-visible" : "streamer-only"} key={message.id}>
+          {visibleMessages.map((message) => {
+            const optionsOpen = openOptionsMessageId === message.id;
+
+            return (
+            <li
+              className={[
+                message.visibleOnOverlayByDefault ? "overlay-visible" : "streamer-only",
+                `source-${message.source}`
+              ].join(" ")}
+              key={message.id}
+            >
               <div>
                 <strong>{message.authorName}</strong>
                 <span>{chatSourceLabels[message.source]} · {message.authorKind}</span>
                 <time dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
               </div>
               <p>{message.message}</p>
+              <div className="streamer-chat-actions" aria-label={`Moderation controls for ${message.authorName}`}>
+                <button
+                  type="button"
+                  onClick={() => void executeStreamerChatModeration(message, "hide")}
+                  title="Hide this message from Maiks.yt stream chat surfaces locally."
+                >
+                  Hide
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void executeStreamerChatModeration(message, "ban")}
+                  title="Ban this author from Maiks.yt stream chat surfaces locally."
+                >
+                  Ban
+                </button>
+                <button
+                  type="button"
+                  aria-expanded={optionsOpen}
+                  onClick={() => setOpenOptionsMessageId(optionsOpen ? null : message.id)}
+                >
+                  Options
+                </button>
+              </div>
+              {optionsOpen ? (
+                <div className="streamer-chat-options">
+                  <button
+                    type="button"
+                    onClick={() => void executeStreamerChatModeration(message, "warn")}
+                    title="Warn this author locally. A third warning applies a local stream-surface ban."
+                  >
+                    Warn
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void executeFakeLocalModeration(message, "note_author", "Noted from streamer chat options.")}
+                    disabled={message.source !== "fake-local"}
+                    title={message.source !== "fake-local" ? "Provider notes need the provider moderation phase." : "Add a local note drill."}
+                  >
+                    Note
+                  </button>
+                  <button type="button" disabled title="Needs a reviewed moderation allowlist model.">
+                    Allow always
+                  </button>
+                  <button type="button" disabled title="Needs stream-scoped moderation state.">
+                    Allow this stream
+                  </button>
+                  <button type="button" disabled title="Needs timed allowlist persistence.">
+                    Allow x hours
+                  </button>
+                </div>
+              ) : null}
             </li>
-          ))}
+          );
+          })}
         </ol>
       )}
     </div>
+  );
+};
+
+const ChatWindowHeader = (): React.ReactNode => {
+  const [status, setStatus] = useState<string>("Ready");
+
+  const triggerEmergencyClear = async (): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setStatus("Control token missing.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
+        body: JSON.stringify({
+          accessToken: token,
+          enabled: true
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+
+      if (!response.ok) {
+        throw new Error(`Emergency clear failed with ${response.status}.`);
+      }
+
+      setStatus("Emergency clean mode on.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Emergency clear failed.");
+    }
+  };
+
+  const openWindow = (value: string): void => {
+    if (!value) {
+      return;
+    }
+
+    window.location.assign(value);
+  };
+
+  return (
+    <div className="chat-window-toolbar" aria-label="Streamer chat window controls">
+      <button type="button" className="chat-emergency-clear" onClick={() => void triggerEmergencyClear()}>
+        Emergency clear
+      </button>
+      <label>
+        <span>Open</span>
+        <select defaultValue="" onChange={(event) => openWindow(event.currentTarget.value)}>
+          <option value="" disabled>Other window</option>
+          <option value="/control">Control panel</option>
+          <option value="/moderation">Applied rules</option>
+          <option value="https://web-dev.maiks.yt/tools/notifications">Notifications</option>
+          <option value="https://web-dev.maiks.yt/admin/provider-integrations">Provider admin</option>
+          <option value="https://web-dev.maiks.yt/admin/live-helper">Live helper</option>
+        </select>
+      </label>
+      <span>{status}</span>
+    </div>
+  );
+};
+
+const ModerationRulesWindow = (): React.ReactNode => {
+  const [rules, setRules] = useState<StreamerChatModerationRule[]>([]);
+  const [status, setStatus] = useState("Loading applied rules.");
+
+  const loadRules = async (): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setStatus("Control token missing.");
+      return;
+    }
+
+    try {
+      const url = new URL("/streamer-chat/moderation/rules", apiBaseUrl);
+      url.searchParams.set("accessToken", token);
+      const response = await fetch(url);
+      const result = await response.json() as StreamerChatModerationRulesResponse;
+
+      if (!response.ok) {
+        throw new Error("Applied rules request failed.");
+      }
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      setRules(result.rules);
+      setStatus(`${result.rules.length} active local rule(s).`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Applied rules unavailable.");
+    }
+  };
+
+  const retractRule = async (rule: StreamerChatModerationRule): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setStatus("Control token missing.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/streamer-chat/moderation/rules/retract`, {
+        body: JSON.stringify({
+          accessToken: token,
+          ruleId: rule.id
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      const result = await response.json() as StreamerChatModerationRuleRetractResponse;
+
+      if (!response.ok) {
+        throw new Error("Rule retraction request failed.");
+      }
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      setRules((currentRules) => currentRules.filter((currentRule) => currentRule.id !== rule.id));
+      setStatus(`Retracted ${moderationRuleKindLabels[rule.kind].toLowerCase()} rule for ${rule.authorName}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Rule retraction failed.");
+    }
+  };
+
+  useEffect(() => {
+    void loadRules();
+    const intervalId = window.setInterval(() => {
+      void loadRules();
+    }, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  return (
+    <section className="moderation-rules-window" aria-label="Applied stream chat rules">
+      <div className="section-heading">
+        <h2>Applied Rules</h2>
+        <span>{status}</span>
+      </div>
+      {rules.length === 0 ? (
+        <p>No active local chat rules.</p>
+      ) : (
+        <ul className="moderation-rules-list">
+          {rules.map((rule) => (
+            <li key={rule.id}>
+              <div>
+                <strong>{moderationRuleKindLabels[rule.kind]}</strong>
+                <span>
+                  {chatSourceLabels[rule.source]} · {rule.authorName}
+                  {rule.kind === "author_warned" && typeof rule.count === "number" ? ` · ${rule.count}/3` : ""}
+                </span>
+                <time dateTime={rule.appliedAt}>{formatChatTime(rule.appliedAt)}</time>
+              </div>
+              <button type="button" onClick={() => void retractRule(rule)}>
+                Retract
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 };
 
@@ -2337,7 +2760,11 @@ const App = (): React.ReactNode => {
 
   useEffect(() => {
     updateManifestForRoute();
-    document.title = isStandaloneChatRoute ? "Maiks.yt Streamer Chat" : "Maiks.yt Control Panel";
+    document.title = isStandaloneChatRoute
+      ? "Maiks.yt Streamer Chat"
+      : isModerationRulesRoute
+        ? "Maiks.yt Applied Rules"
+        : "Maiks.yt Control Panel";
     void validateControlPanelAccess().then(setAuthState);
   }, []);
 
@@ -2373,7 +2800,7 @@ const App = (): React.ReactNode => {
 
   if (authState.status !== "allowed") {
     return (
-      <main className={`surface ${isStandaloneChatRoute ? "chat-surface" : ""}`}>
+      <main className={`surface ${isStandaloneChatRoute || isModerationRulesRoute ? "chat-surface" : ""}`}>
         <h1>Access Required</h1>
         <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
       </main>
@@ -2383,15 +2810,27 @@ const App = (): React.ReactNode => {
   if (isStandaloneChatRoute) {
     return (
       <main className="surface chat-surface">
-        <div className="surface-header chat-surface-header">
-          <div className="surface-title">
-            <h1>Maiks.yt Streamer Chat</h1>
-            <p>{authState.displayName}</p>
-          </div>
-          <a className="chat-control-link" href="/control">Control panel</a>
-        </div>
+        <ChatWindowHeader />
         <TwitchIntakeStatusCard />
         <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />
+      </main>
+    );
+  }
+
+  if (isModerationRulesRoute) {
+    return (
+      <main className="surface chat-surface">
+        <div className="surface-header chat-surface-header">
+          <div className="surface-title">
+            <h1>Applied Rules</h1>
+            <p>{authState.displayName}</p>
+          </div>
+          <div className="status-action-group">
+            <a className="secondary-window-link" href="/chat">Chat</a>
+            <a className="secondary-window-link" href="/control">Control panel</a>
+          </div>
+        </div>
+        <ModerationRulesWindow />
       </main>
     );
   }

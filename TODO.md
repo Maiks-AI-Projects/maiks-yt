@@ -127,6 +127,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - 2026-06-29 Provider library capability follow-up: added, deployed, and dev-smoked `@twurple/chat` in the integrations package for the next Twitch chat-intake slice and changed provider status capabilities from plain text to typed available/configured/missing/not-enabled/gated entries. Dev status now shows Twitch chat library available, Twitch EventSub gated, YouTube OAuth consent not enabled, and Discord Gateway/`discord.js` gated. No OAuth/token storage, webhooks, provider writes, or moderation actions were added.
   - 2026-06-29 Phase 6B added, deployed, and endpoint-smoked the first read-only Twitch chat intake path: owner-gated admin status/start/stop controls, anonymous read-only Twurple chat connection to the configured/default Maiks channel, Twitch message projection into the private streamer-chat/control-panel feed, and provider-status runtime state. Smoke confirmed channel `maiksmc` can move stopped -> connecting -> connected -> stopped, and provider status reports `twitch-chat-runtime: configured` while connected. Manual harmless Twitch message verification remains open because this agent should not write to Twitch chat. Twitch messages are not sent to the OBS overlay in this slice. No EventSub, YouTube live chat, Discord Gateway, provider writes, moderation enforcement, token storage, real money, migrations, production behavior, Cloudflare/Docker config, or auth changes were added.
   - 2026-06-30 Phase 6C generated migration `0019_thankful_famine.sql` for `provider_runtime_credentials` and added owner-gated YouTube owner-consent endpoints plus `/admin/provider-integrations` controls. The slice can create a Google consent URL, handle the callback, and store a read-only YouTube refresh token without returning raw tokens. Migration application and live consent smoke remain coordinator steps. YouTube live-chat polling, Discord Gateway, Twitch EventSub, provider writes, moderation enforcement, real money, production behavior, Cloudflare/Docker config, and secret edits remain separate work.
+  - 2026-06-30 provider-intake rule update: real provider intake should be always-on by default once connected. Offline Twitch subs/bits/follows, YouTube memberships/paid events, Discord boosts, and similar events still need to be registered for history/accounting. Live/offline routing controls whether they display, not whether they are stored.
 
 ## 6. Overlay Renderer
 
@@ -240,9 +241,16 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [x] Hide fake/local bot/system messages from overlay by default.
 - [x] Build first streamer-only fake/local chat window.
 - [x] Add fake/local chat display order toggle.
-- [ ] Extend streamer-only unified chat beyond fake/local after live platform chat is approved.
-- [ ] Add quick moderation buttons to streamer chat messages.
-- [ ] Add advanced moderation context menu.
+- [x] Extend streamer-only unified chat beyond fake/local after live platform chat is approved.
+  - 2026-06-30 Phase 6B added read-only Twitch messages to the private streamer chat/control-panel feed. YouTube and Discord source support remains type/UI-ready but their live intake is separate follow-up work.
+- [x] Add quick moderation buttons to streamer chat messages.
+  - 2026-06-30 added source-tinted streamer chat rows plus quick Hide/Ban/Options controls. Hide, Ban, and Warn now call universal Maiks.yt-local streamer chat moderation endpoints for any source, with no provider API writes. The third warning applies an automatic local stream-surface ban.
+- [x] Add advanced moderation context menu.
+  - 2026-06-30 added a first Options panel with fake/local Warn/Note actions and disabled placeholders for censored-message allow controls. `Allow always`, `Allow this stream`, and timed allow rules still need a reviewed moderation allowlist/persistence phase.
+- [x] Add applied chat-rules management window.
+  - 2026-06-30 added a separate `/moderation` control-window route for active local chat hide/ban/warning rules and retraction. Hide/ban now write durable active moderation rows, warnings write durable audit rows with counts derived from history, and startup hydrates active local rules into the chat filter. Provider-side enforcement remains a future persistence/provider-write phase.
+- [ ] Send warning messages to originating platform chat.
+  - Required provider-write behavior: when Warn is used, send a message in the originating Twitch/YouTube/Discord chat tagging the user and saying they have a warning and the third warning results in an automatic ban. Current local endpoint returns the intended provider message text but does not send it until provider write clients, permissions, audit, and failure handling are implemented.
 - [ ] Add typed moderation commands for ban, mute, warning, and rank/status changes.
 - [ ] Add basic stream bot command parser.
 - [ ] Add commands for website links.
@@ -356,12 +364,14 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [ ] Check whether credits are technically and legally realistic.
 - [ ] Design multi-currency/value-source support from the start.
 - [ ] Decide whether to use double-entry bookkeeping.
+- [ ] Design profit-aware income/cost reporting with dated fee and split rules.
 - [ ] Draft donation/support terms.
 - [ ] Draft refund/revocation wording.
 - [ ] Draft affiliate/sponsor disclosure.
 - [ ] Decide when real money features can safely start.
 
 Gate note: money remains design-only until Michael explicitly approves a money phase. First safe slice is provider/legal reality-check documentation for the Netherlands, refund/chargeback/recurring-support constraints, and ledger requirements. No payment provider integration, donation buttons, credits, balances, support promises, allocation UI, or real transaction storage before the money gate is opened.
+  - 2026-06-30 added the profit-aware money reporting and dated rules idea card. The money phase now needs private admin reports for gross income, fees, costs, dated third-party split/fee rules, corrections, and exports before real public money behavior is safe.
 
 ## 16. Later Money Features
 
@@ -371,6 +381,7 @@ Gate note: money remains design-only until Michael explicitly approves a money p
 - [ ] Add stream goal auto-allocation.
 - [ ] Add claimable platform-derived support.
 - [ ] Add transparent money trail.
+- [ ] Add private accounting/report export.
 - [ ] Add public withdrawals.
 - [ ] Add spending records.
 - [ ] Add project archives.
@@ -398,6 +409,7 @@ Gate note: backup/export can start before production money, but must be treated 
   - 2026-06-29 Phase 6A opened only the read-only provider SDK/config-status foundation and deployed it to dev. The full provider integration gate remains open for scopes, rate limits, durable token storage, revocation, manual override, webhook/chat intake safety, provider failure handling, and production-secret readiness before any real provider intake or action.
   - 2026-06-29 Phase 6B keeps Twitch chat intake read-only and dev-controlled through owner-gated start/stop/status. It still does not approve provider writes, EventSub, durable token storage, moderation enforcement, money, or production behavior.
   - 2026-06-30 Phase 6C adds the first durable provider runtime credential shape for YouTube owner-authorized read-only live chat. This opens dev token storage only after the migration is applied; production vault/encryption/rotation policy is still future readiness work.
+  - 2026-06-30 provider intake should run by default, including while offline, once a provider is connected. Event Routing live/offline flags must be display/routing gates only.
 - [ ] Moderation gate: approve rules, actions, audit log, appeal/review expectations, and streamer override before enforcement.
 - [ ] AI gate: approve private shadow mode, prompt boundaries, mute/off controls, and public-safety review before public AI output.
 - [ ] Money gate: approve provider, ledger, refunds/chargebacks, terms, and audit/export behavior before any real money behavior.

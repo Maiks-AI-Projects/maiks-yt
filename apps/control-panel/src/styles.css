@@ -62,15 +62,55 @@ a {
   align-items: center;
 }
 
-.chat-control-link {
-  align-self: center;
+.chat-window-toolbar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: space-between;
+}
+
+.chat-window-toolbar label {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.chat-window-toolbar label span,
+.chat-window-toolbar > span {
+  color: #9fb0bd;
+  font-size: 0.85rem;
+}
+
+.chat-window-toolbar select {
   background: #25313d;
   border: 1px solid #2d3a47;
   border-radius: 6px;
   color: #d9e2eb;
-  min-height: 2.75rem;
-  padding: 0.75rem 1rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.chat-emergency-clear {
+  background: #d64545;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.secondary-window-link {
+  align-items: center;
+  background: #25313d;
+  border: 1px solid #2d3a47;
+  border-radius: 6px;
+  color: #d9e2eb;
+  display: inline-flex;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.75rem;
   text-decoration: none;
+}
+
+.secondary-window-link:hover {
+  border-color: #6fd6ff;
 }
 
 .twitch-intake-status {
@@ -102,6 +142,59 @@ a {
   display: grid;
   gap: 0.25rem;
   min-width: 0;
+}
+
+.moderation-rules-window {
+  background: #151d25;
+  border: 1px solid #2d3a47;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.85rem;
+}
+
+.moderation-rules-window > p {
+  color: #9fb0bd;
+  margin: 0;
+}
+
+.moderation-rules-list {
+  display: grid;
+  gap: 0.55rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.moderation-rules-list li {
+  align-items: center;
+  background: rgba(111, 214, 255, 0.06);
+  border: 1px solid #354555;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem;
+}
+
+.moderation-rules-list li div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: min(100%, 18rem);
+}
+
+.moderation-rules-list span,
+.moderation-rules-list time {
+  color: #9fb0bd;
+  font-size: 0.82rem;
+}
+
+.moderation-rules-list button {
+  background: #25313d;
+  border: 1px solid #425366;
+  min-height: 2.15rem;
+  padding: 0.35rem 0.65rem;
 }
 
 .twitch-intake-status span,
@@ -351,7 +444,9 @@ a {
 }
 
 .streamer-chat-list li {
+  background: rgba(111, 214, 255, 0.07);
   border-left: 3px solid #6fd6ff;
+  border-radius: 6px;
   display: grid;
   gap: 0.25rem;
   padding: 0.45rem 0.6rem;
@@ -359,6 +454,25 @@ a {
 
 .streamer-chat-list li.streamer-only {
   border-left-color: #ffb86b;
+}
+
+.streamer-chat-list li.source-fake-local {
+  background: rgba(111, 214, 255, 0.07);
+}
+
+.streamer-chat-list li.source-twitch {
+  background: rgba(145, 70, 255, 0.22);
+  border-left-color: #9146ff;
+}
+
+.streamer-chat-list li.source-youtube {
+  background: rgba(255, 0, 0, 0.18);
+  border-left-color: #ff4d4d;
+}
+
+.streamer-chat-list li.source-discord {
+  background: rgba(88, 101, 242, 0.2);
+  border-left-color: #5865f2;
 }
 
 .streamer-chat-list div {
@@ -378,6 +492,46 @@ a {
   color: #f4f7fb;
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.streamer-chat-actions,
+.streamer-chat-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.streamer-chat-actions button,
+.streamer-chat-options button {
+  background: #202b36;
+  border: 1px solid #425366;
+  border-radius: 6px;
+  color: #f4f7fb;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.55rem;
+}
+
+.streamer-chat-actions button:hover:not(:disabled),
+.streamer-chat-options button:hover:not(:disabled) {
+  background: #2b3a48;
+  border-color: #6fd6ff;
+}
+
+.streamer-chat-actions button:disabled,
+.streamer-chat-options button:disabled {
+  color: #8998a5;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.streamer-chat-options {
+  background: rgba(10, 15, 20, 0.5);
+  border: 1px solid #354555;
+  border-radius: 6px;
+  padding: 0.45rem;
 }
 
 .streamer-chat-viewer.standalone .streamer-chat-list li {
