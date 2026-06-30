@@ -9,7 +9,10 @@ const GeminiLabIndexPage = (): React.ReactNode => (
       "--lab-fg": "#141920",
       "--lab-muted": "#5a6570",
       "--lab-panel": "#ffffff",
-      "--lab-accent": "#2f6fed"
+      "--lab-accent": "#2f6fed",
+      "--lab-danger": "#cc3d3d",
+      "--lab-warning": "#a66b00",
+      "--lab-success": "#238a55"
     } as React.CSSProperties}
   >
     <div className={styles.inner}>
