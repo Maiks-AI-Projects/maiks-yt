@@ -37,6 +37,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 - Money planning now includes `ideas/profit-aware-money-reporting-and-dated-rules.md`. Before public donations/support are implemented, a money phase should include private accounting reports, dated fee/split rules, immutable corrections, and exportable gross/net income/cost summaries.
+- Large-file split planning now lives in `reports/large-file-split-proposal.md`. The most urgent hotspots are `apps/api/src/main.ts` and `apps/control-panel/src/main.tsx`; start with behavior-preserving API streamer-chat extraction before broader cleanup.
 
 ## Phase 6A: Provider Integration Foundation (Completed On Dev)
 

@@ -151,10 +151,11 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Implemented, committed, pushed, deployed, and dev-smoked Phase 6D Discord read-only Gateway chat intake: `discord.js` in `@maiks-yt/integrations`, typed Discord message projection, owner-gated admin status/start/stop endpoints, token-gated `/streamer-chat/discord-status` and reconnect endpoints for the standalone chat window, provider-status runtime capability, `/admin/provider-integrations` controls, and Discord service dots in `/chat`. Smoke confirmed unauthenticated admin status returns `401`, owner status is connected with a guild and no last error, provider status reports Discord runtime configured, token-gated chat status is connected, stop/start is safe, and `/admin/provider-integrations` plus `/chat` return `200` without the known injection marker.
 - Kept Phase 6D private/read-only: Discord messages enter the private streamer chat/control-panel feed only and are not routed to OBS overlay by default. No Discord provider writes, role sync, moderation enforcement, EventSub/webhooks, YouTube polling, real money, migration, auth change, Cloudflare/Docker/deploy config, secret edit, or production behavior was added.
 - Added the first provider failure notification hook for review: when Twitch or Discord auto-reconnect is suppressed after repeated disconnects, the API creates a warning `source: provider` system notification through the existing notification/Web Push path with safe error copy and an action link to `/admin/provider-integrations`.
+- Added `reports/large-file-split-proposal.md` with a staged, behavior-preserving plan to split `apps/api/src/main.ts`, `apps/control-panel/src/main.tsx`, large web admin clients, and eventually database schema files. Recommended first refactor is API streamer-chat extraction.
 
 ## Current Task
 
-Review, deploy, and smoke provider reconnect-suppression notifications.
+Review the large-file split proposal and decide whether to start Chunk R1 API streamer-chat extraction.
 
 ## Next Tasks
 
