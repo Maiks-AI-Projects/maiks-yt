@@ -2806,6 +2806,39 @@ server.get("/streamer-chat/twitch-status", async (request, reply) => {
   };
 });
 
+server.post("/streamer-chat/twitch-reconnect", async (request, reply) => {
+  const parsedRequest = overlayStatusRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  return {
+    ok: true,
+    readOnly: true,
+    status: twitchChatIntakeRuntime.start(),
+    checkedAt: new Date().toISOString()
+  };
+});
+
 server.get("/streamer-chat/live", { websocket: true }, async (socket: StreamerChatLiveSocket, request) => {
   const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
 

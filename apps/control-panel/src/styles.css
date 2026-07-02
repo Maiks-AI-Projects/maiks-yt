@@ -113,35 +113,77 @@ a {
   border-color: #6fd6ff;
 }
 
-.twitch-intake-status {
-  align-items: stretch;
+.chat-service-status {
+  align-items: center;
   background: #151d25;
   border: 1px solid #2d3a47;
   border-radius: 8px;
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.45rem;
 }
 
-.twitch-intake-status.connected {
-  border-color: #2f855a;
-}
-
-.twitch-intake-status.connecting {
-  border-color: #f2c94c;
-}
-
-.twitch-intake-status.stopped,
-.twitch-intake-status.unconfigured,
-.twitch-intake-status.loading {
-  border-color: #8a96a3;
-}
-
-.twitch-intake-status div {
-  display: grid;
-  gap: 0.25rem;
+.chat-service-indicator {
+  align-items: center;
+  background: #1b2630;
+  border: 1px solid #2d3a47;
+  border-radius: 999px;
+  color: #d9e2eb;
+  display: inline-flex;
+  gap: 0.4rem;
+  min-height: 2rem;
   min-width: 0;
+  padding: 0.3rem 0.65rem;
+  text-decoration: none;
+}
+
+.chat-service-indicator:hover:not(:disabled) {
+  border-color: #6fd6ff;
+}
+
+.chat-service-indicator:disabled {
+  cursor: default;
+}
+
+.chat-service-dot {
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 0.7rem;
+  width: 0.7rem;
+}
+
+.chat-service-indicator.connected .chat-service-dot {
+  background: #35d07f;
+  box-shadow: 0 0 0 3px rgba(53, 208, 127, 0.16);
+}
+
+.chat-service-indicator.problem .chat-service-dot {
+  background: #f2c94c;
+  box-shadow: 0 0 0 3px rgba(242, 201, 76, 0.16);
+}
+
+.chat-service-indicator.disconnected .chat-service-dot {
+  background: #f05d5e;
+  box-shadow: 0 0 0 3px rgba(240, 93, 94, 0.16);
+}
+
+.chat-service-indicator.loading .chat-service-dot {
+  background: #8a96a3;
+  box-shadow: 0 0 0 3px rgba(138, 150, 163, 0.16);
+}
+
+.chat-service-name {
+  font-weight: 700;
+}
+
+.chat-service-indicator small {
+  color: #9fb0bd;
+  font-size: 0.76rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .moderation-rules-window {
@@ -195,27 +237,6 @@ a {
   border: 1px solid #425366;
   min-height: 2.15rem;
   padding: 0.35rem 0.65rem;
-}
-
-.twitch-intake-status span,
-.twitch-intake-status small {
-  color: #9fb0bd;
-  font-size: 0.8rem;
-}
-
-.twitch-intake-status strong {
-  overflow-wrap: anywhere;
-}
-
-.twitch-intake-status p {
-  color: #d9e2eb;
-  grid-column: 1 / -1;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.twitch-intake-status small {
-  grid-column: 1 / -1;
 }
 
 .panel-mode-toggle {
@@ -999,8 +1020,15 @@ a {
     width: 100%;
   }
 
-  .twitch-intake-status {
+  .chat-service-status {
+    align-items: stretch;
+    display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .chat-service-indicator {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   .critical-controls {

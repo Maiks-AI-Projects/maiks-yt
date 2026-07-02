@@ -33,16 +33,24 @@ export type TwitchChatIntakeStatus =
   | {
     channelName: string;
     connectedAt: string | null;
+    disconnectsInWindow: number;
     lastError: string | null;
+    lastDisconnectAt: string | null;
     lastMessageAt: string | null;
+    nextReconnectAt: string | null;
     recentMessages: readonly TwitchChatProjectedMessage[];
+    reconnectSuppressed: boolean;
     state: "stopped" | "connecting" | "connected";
   }
   | {
     channelName: string | null;
     connectedAt: null;
+    disconnectsInWindow: 0;
     lastError: string;
+    lastDisconnectAt: null;
     lastMessageAt: null;
+    nextReconnectAt: null;
     recentMessages: readonly TwitchChatProjectedMessage[];
+    reconnectSuppressed: false;
     state: "unconfigured";
   };

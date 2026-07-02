@@ -54,6 +54,12 @@ class FakeChatClient {
       }
     });
   }
+
+  public emitUnexpectedDisconnect(reason = new Error("network dropped")): void {
+    this.isConnected = false;
+    this.isConnecting = false;
+    this.disconnectHandler?.(false, reason);
+  }
 }
 
 describe("projectTwitchChatMessage", () => {
@@ -147,5 +153,118 @@ describe("TwitchChatReadOnlyIntakeService", () => {
         source: "twitch"
       })
     ]);
+  });
+
+  it("auto-reconnects after an unexpected disconnect", () => {
+    const clients: FakeChatClient[] = [];
+    const scheduled: Array<() => void> = [];
+    const service = new TwitchChatReadOnlyIntakeService({
+      createClient: () => {
+        const client = new FakeChatClient();
+        clients.push(client);
+        return client as never;
+      },
+      env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
+      now: () => new Date("2026-06-29T14:00:00.000Z"),
+      reconnectDelayMs: 1_000,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      },
+      clearTimeoutFn: vi.fn()
+    });
+
+    expect(service.start().state).toBe("connected");
+    const firstClient = clients[0];
+    expect(firstClient).toBeDefined();
+    firstClient?.emitUnexpectedDisconnect();
+
+    expect(service.getStatus()).toMatchObject({
+      disconnectsInWindow: 1,
+      reconnectSuppressed: false,
+      state: "stopped"
+    });
+    expect(service.getStatus().nextReconnectAt).toBe("2026-06-29T14:00:01.000Z");
+
+    const scheduledReconnect = scheduled[0];
+    expect(scheduledReconnect).toBeDefined();
+    scheduledReconnect?.();
+
+    expect(clients).toHaveLength(2);
+    const secondClient = clients[1];
+    expect(secondClient).toBeDefined();
+    expect(secondClient?.connect).toHaveBeenCalledTimes(1);
+    expect(service.getStatus()).toMatchObject({
+      disconnectsInWindow: 1,
+      state: "connected"
+    });
+  });
+
+  it("suppresses auto-reconnect after too many disconnects inside the window", () => {
+    let now = new Date("2026-06-29T14:00:00.000Z");
+    const clients: FakeChatClient[] = [];
+    const scheduled: Array<() => void> = [];
+    const service = new TwitchChatReadOnlyIntakeService({
+      createClient: () => {
+        const client = new FakeChatClient();
+        clients.push(client);
+        return client as never;
+      },
+      env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
+      maxUnexpectedDisconnectsInWindow: 2,
+      now: () => now,
+      reconnectDelayMs: 1_000,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      },
+      clearTimeoutFn: vi.fn()
+    });
+
+    service.start();
+    const firstClient = clients[0];
+    expect(firstClient).toBeDefined();
+    firstClient?.emitUnexpectedDisconnect(new Error("first"));
+    now = new Date("2026-06-29T14:00:01.000Z");
+    const scheduledReconnect = scheduled[0];
+    expect(scheduledReconnect).toBeDefined();
+    scheduledReconnect?.();
+    const secondClient = clients[1];
+    expect(secondClient).toBeDefined();
+    secondClient?.emitUnexpectedDisconnect(new Error("second"));
+
+    expect(service.getStatus()).toMatchObject({
+      disconnectsInWindow: 2,
+      lastError: "Twitch chat disconnected too often; manual reconnect required.",
+      nextReconnectAt: null,
+      reconnectSuppressed: true,
+      state: "stopped"
+    });
+    expect(scheduled).toHaveLength(1);
+  });
+
+  it("does not auto-reconnect after a manual stop", () => {
+    const fakeClient = new FakeChatClient();
+    const scheduled: Array<() => void> = [];
+    const clearTimeoutFn = vi.fn();
+    const service = new TwitchChatReadOnlyIntakeService({
+      createClient: () => fakeClient as never,
+      env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      },
+      clearTimeoutFn
+    });
+
+    service.start();
+    expect(service.stop()).toMatchObject({
+      nextReconnectAt: null,
+      reconnectSuppressed: false,
+      state: "stopped"
+    });
+
+    expect(scheduled).toHaveLength(0);
+    expect(clearTimeoutFn).not.toHaveBeenCalled();
   });
 });

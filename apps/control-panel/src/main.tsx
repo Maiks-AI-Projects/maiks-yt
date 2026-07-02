@@ -170,14 +170,18 @@ type StreamerChatMessagesResponse = {
 type TwitchChatIntakeStatus = {
   channelName: string | null;
   connectedAt: string | null;
+  disconnectsInWindow: number;
   lastError: string | null;
+  lastDisconnectAt: string | null;
   lastMessageAt: string | null;
+  nextReconnectAt: string | null;
   recentMessages: Array<{
     id: string;
     authorName: string;
     createdAt: string;
     message: string;
   }>;
+  reconnectSuppressed: boolean;
   state: "stopped" | "connecting" | "connected" | "unconfigured";
 };
 
@@ -440,6 +444,10 @@ const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null): strin
     return "Loading Twitch intake state.";
   }
 
+  if (status.reconnectSuppressed) {
+    return "Auto reconnect paused after repeated disconnects. Open provider admin or retry manually.";
+  }
+
   if (status.lastError) {
     return status.lastError;
   }
@@ -458,51 +466,83 @@ const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null): strin
   }
 };
 
-const TwitchIntakeStatusCard = (): React.ReactNode => {
+type ServiceConnectionTone = "connected" | "problem" | "disconnected" | "loading";
+
+const getTwitchServiceTone = (status: TwitchChatIntakeStatus | null): ServiceConnectionTone => {
+  if (!status) {
+    return "loading";
+  }
+
+  if (status.state === "connected" && !status.lastError && !status.reconnectSuppressed) {
+    return "connected";
+  }
+
+  if (status.state === "connecting" || status.lastError || status.reconnectSuppressed) {
+    return "problem";
+  }
+
+  return "disconnected";
+};
+
+const getServiceStatusLabel = (tone: ServiceConnectionTone): string => {
+  switch (tone) {
+    case "connected":
+      return "connected";
+    case "problem":
+      return "problem";
+    case "disconnected":
+      return "disconnected";
+    case "loading":
+      return "checking";
+  }
+};
+
+const ChatServiceStatusStrip = (): React.ReactNode => {
   const [status, setStatus] = useState<TwitchChatIntakeStatus | null>(null);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
   const [message, setMessage] = useState("Loading Twitch intake state.");
+  const [actionPending, setActionPending] = useState(false);
+
+  const loadStatus = async (isDisposed: () => boolean = () => false): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+    if (!token) {
+      setMessage("Control token missing.");
+      return;
+    }
+
+    try {
+      const url = new URL("/streamer-chat/twitch-status", apiBaseUrl);
+      url.searchParams.set("accessToken", token);
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Twitch intake status failed with ${response.status}.`);
+      }
+
+      const result = await response.json() as TwitchChatStatusResponse;
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      if (!isDisposed()) {
+        setStatus(result.status);
+        setCheckedAt(result.checkedAt);
+        setMessage(getTwitchIntakeStatusCopy(result.status));
+      }
+    } catch (error) {
+      if (!isDisposed()) {
+        setMessage(error instanceof Error ? error.message : "Twitch intake status unavailable.");
+      }
+    }
+  };
 
   useEffect(() => {
     let disposed = false;
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
-    const loadStatus = async (): Promise<void> => {
-      if (!token) {
-        setMessage("Control token missing.");
-        return;
-      }
-
-      try {
-        const url = new URL("/streamer-chat/twitch-status", apiBaseUrl);
-        url.searchParams.set("accessToken", token);
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error(`Twitch intake status failed with ${response.status}.`);
-        }
-
-        const result = await response.json() as TwitchChatStatusResponse;
-
-        if (!result.ok) {
-          throw new Error(result.reason);
-        }
-
-        if (!disposed) {
-          setStatus(result.status);
-          setCheckedAt(result.checkedAt);
-          setMessage(getTwitchIntakeStatusCopy(result.status));
-        }
-      } catch (error) {
-        if (!disposed) {
-          setMessage(error instanceof Error ? error.message : "Twitch intake status unavailable.");
-        }
-      }
-    };
-
-    void loadStatus();
+    void loadStatus(() => disposed);
     const intervalId = window.setInterval(() => {
-      void loadStatus();
+      void loadStatus(() => disposed);
     }, 10000);
 
     return () => {
@@ -511,22 +551,97 @@ const TwitchIntakeStatusCard = (): React.ReactNode => {
     };
   }, []);
 
+  const handleTwitchServiceClick = async (): Promise<void> => {
+    if (status?.state === "unconfigured" || status?.reconnectSuppressed) {
+      window.location.assign("https://web-dev.maiks.yt/admin/provider-integrations");
+      return;
+    }
+
+    if (status?.state === "connected" || status?.state === "connecting" || actionPending) {
+      return;
+    }
+
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setMessage("Control token missing.");
+      return;
+    }
+
+    setActionPending(true);
+    setMessage("Trying to reconnect Twitch chat.");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/streamer-chat/twitch-reconnect`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ accessToken: token })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Twitch reconnect failed with ${response.status}.`);
+      }
+
+      const result = await response.json() as TwitchChatStatusResponse;
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      setStatus(result.status);
+      setCheckedAt(result.checkedAt);
+      setMessage(getTwitchIntakeStatusCopy(result.status));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Twitch reconnect unavailable.");
+    } finally {
+      setActionPending(false);
+      void loadStatus();
+    }
+  };
+
+  const twitchTone = getTwitchServiceTone(status);
+  const twitchDetail = [
+    status ? twitchIntakeStateLabels[status.state] : "Loading",
+    status?.channelName ? `#${status.channelName}` : null,
+    status?.lastMessageAt ? `last ${formatChatTime(status.lastMessageAt)}` : null,
+    status?.nextReconnectAt ? `retry ${formatChatTime(status.nextReconnectAt)}` : null,
+    status?.disconnectsInWindow ? `${status.disconnectsInWindow}/10 disconnects` : null
+  ].filter(Boolean).join(" - ");
+  const twitchTitle = `${message}${checkedAt ? ` Checked ${formatChatTime(checkedAt)}.` : ""}`;
+
   return (
-    <section className={`twitch-intake-status ${status?.state ?? "loading"}`} aria-label="Twitch chat intake status">
-      <div>
-        <span>Twitch intake</span>
-        <strong>{status ? twitchIntakeStateLabels[status.state] : "Loading"}</strong>
-      </div>
-      <div>
-        <span>Channel</span>
-        <strong>{status?.channelName ?? "Unknown"}</strong>
-      </div>
-      <div>
-        <span>Last message</span>
-        <strong>{status?.lastMessageAt ? formatChatTime(status.lastMessageAt) : "None yet"}</strong>
-      </div>
-      <p>{message}</p>
-      {checkedAt ? <small>Checked {formatChatTime(checkedAt)}</small> : null}
+    <section className="chat-service-status" aria-label="Connected chat services">
+      <button
+        className={`chat-service-indicator ${twitchTone}`}
+        disabled={status?.state === "connected" || status?.state === "connecting" || actionPending}
+        onClick={handleTwitchServiceClick}
+        title={twitchTitle}
+        type="button"
+      >
+        <span className="chat-service-dot" aria-hidden="true" />
+        <span className="chat-service-name">Twitch</span>
+        <small>{twitchDetail || getServiceStatusLabel(twitchTone)}</small>
+      </button>
+      <a
+        className="chat-service-indicator disconnected"
+        href="https://web-dev.maiks.yt/admin/provider-integrations"
+        title="YouTube chat intake is not connected in this window yet."
+      >
+        <span className="chat-service-dot" aria-hidden="true" />
+        <span className="chat-service-name">YouTube</span>
+        <small>not connected</small>
+      </a>
+      <a
+        className="chat-service-indicator disconnected"
+        href="https://web-dev.maiks.yt/admin/provider-integrations"
+        title="Discord chat intake is not connected in this window yet."
+      >
+        <span className="chat-service-dot" aria-hidden="true" />
+        <span className="chat-service-name">Discord</span>
+        <small>not connected</small>
+      </a>
     </section>
   );
 };
@@ -2809,12 +2924,12 @@ const App = (): React.ReactNode => {
 
   if (isStandaloneChatRoute) {
     return (
-      <main className="surface chat-surface">
-        <ChatWindowHeader />
-        <TwitchIntakeStatusCard />
-        <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />
-      </main>
-    );
+    <main className="surface chat-surface">
+      <ChatWindowHeader />
+      <ChatServiceStatusStrip />
+      <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />
+    </main>
+  );
   }
 
   if (isModerationRulesRoute) {
