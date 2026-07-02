@@ -213,6 +213,14 @@ a {
   padding: 0;
 }
 
+.moderation-summary-list {
+  color: #d9e2eb;
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
 .moderation-rules-list li {
   align-items: center;
   background: rgba(111, 214, 255, 0.06);

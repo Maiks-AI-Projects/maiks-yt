@@ -9,8 +9,11 @@ import type {
   ModeratorAdminGrant,
   ModeratorAdminGrantCreateInput,
   ModeratorAdminGrantUpdateInput,
+  ModeratorAdminRankPath,
+  ModeratorAdminRankPathInput,
   ModeratorAdminRepository,
   ModeratorAdminRole,
+  ModeratorAdminRoleInput,
   ModeratorAdminUser
 } from "../../src/moderators/moderator-admin.types.js";
 
@@ -35,6 +38,15 @@ const createRole = (
   key,
   name: key,
   permissions,
+  rankPathId: null,
+  rankPathKey: null,
+  rankPathName: null,
+  rankLevel: null,
+  displayLabel: null,
+  nextRoleId: null,
+  discordRoleId: null,
+  isOwnerRank: key === "owner",
+  isSystem: false,
   grantable: key !== "owner" && key !== "admin" && !permissions.includes("*"),
   createdAt: now,
   updatedAt: now
@@ -55,6 +67,17 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
     ["owner-role", createRole("owner-role", "owner", ["*"])],
     ["money-role", createRole("money-role", "finance-helper", ["money:review"])]
   ]);
+  public readonly rankPaths = new Map<string, ModeratorAdminRankPath>([
+    ["mod-path", {
+      id: "mod-path",
+      key: "mod",
+      name: "Moderator",
+      description: null,
+      sortOrder: 10,
+      createdAt: now,
+      updatedAt: now
+    }]
+  ]);
   public readonly grants = new Map<string, ModeratorAdminGrant>();
   public readonly auditLogs: ModeratorAdminAuditLog[] = [];
 
@@ -68,6 +91,10 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
 
   public async listRoles(): Promise<readonly ModeratorAdminRole[]> {
     return [...this.roles.values()].map((role) => structuredClone(role));
+  }
+
+  public async listRankPaths(): Promise<readonly ModeratorAdminRankPath[]> {
+    return [...this.rankPaths.values()].map((rankPath) => structuredClone(rankPath));
   }
 
   public async listGrants(): Promise<readonly ModeratorAdminGrant[]> {
@@ -86,6 +113,16 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
   public async getRole(roleId: string): Promise<ModeratorAdminRole | null> {
     const role = this.roles.get(roleId);
     return role ? structuredClone(role) : null;
+  }
+
+  public async getRoleByKey(key: string): Promise<ModeratorAdminRole | null> {
+    const role = [...this.roles.values()].find((candidate) => candidate.key === key);
+    return role ? structuredClone(role) : null;
+  }
+
+  public async getRankPath(rankPathId: string): Promise<ModeratorAdminRankPath | null> {
+    const rankPath = this.rankPaths.get(rankPathId);
+    return rankPath ? structuredClone(rankPath) : null;
   }
 
   public async getGrant(grantId: string): Promise<ModeratorAdminGrant | null> {
@@ -203,6 +240,93 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
       grant: structuredClone(next),
       auditLog
     };
+  }
+
+  public async createRankPath(input: ModeratorAdminRankPathInput): Promise<ModeratorAdminRankPath | "exists"> {
+    if ([...this.rankPaths.values()].some((rankPath) => rankPath.key === input.key)) {
+      return "exists";
+    }
+
+    const rankPath = {
+      ...input,
+      id: `rank-path-${this.rankPaths.size + 1}`,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.rankPaths.set(rankPath.id, rankPath);
+    return structuredClone(rankPath);
+  }
+
+  public async updateRankPath(
+    rankPathId: string,
+    input: ModeratorAdminRankPathInput
+  ): Promise<ModeratorAdminRankPath | "not-found" | "exists"> {
+    const existing = this.rankPaths.get(rankPathId);
+
+    if (!existing) {
+      return "not-found";
+    }
+
+    if ([...this.rankPaths.values()].some((rankPath) => rankPath.id !== rankPathId && rankPath.key === input.key)) {
+      return "exists";
+    }
+
+    const next = {
+      ...existing,
+      ...input,
+      id: rankPathId,
+      updatedAt: now
+    };
+    this.rankPaths.set(rankPathId, next);
+    return structuredClone(next);
+  }
+
+  public async createRole(input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found"> {
+    if ([...this.roles.values()].some((role) => role.key === input.key)) {
+      return "exists";
+    }
+
+    if (input.rankPathId && !this.rankPaths.has(input.rankPathId)) {
+      return "rank-path-not-found";
+    }
+
+    const role = {
+      ...createRole(`role-${this.roles.size + 1}`, input.key, input.permissions),
+      ...input,
+      id: `role-${this.roles.size + 1}`,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.roles.set(role.id, role);
+    return structuredClone(role);
+  }
+
+  public async updateRole(
+    roleId: string,
+    input: ModeratorAdminRoleInput
+  ): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found"> {
+    const existing = this.roles.get(roleId);
+
+    if (!existing) {
+      return "not-found";
+    }
+
+    if ([...this.roles.values()].some((role) => role.id !== roleId && role.key === input.key)) {
+      return "exists";
+    }
+
+    if (input.rankPathId && !this.rankPaths.has(input.rankPathId)) {
+      return "rank-path-not-found";
+    }
+
+    const next = {
+      ...existing,
+      ...input,
+      id: roleId,
+      updatedAt: now
+    };
+    this.roles.set(roleId, next);
+    return structuredClone(next);
   }
 
   private createAuditLog(

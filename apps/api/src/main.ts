@@ -167,6 +167,8 @@ const streamerChatModerationRuleRetractRequestSchema = z.object({
   accessToken: z.string().min(24),
   ruleId: z.string().trim().min(1).max(240)
 });
+const streamerChatModerationActions = ["hide", "ban", "warn", "retract_rule", "view_rules", "emergency_clear"] as const;
+type StreamerChatModerationAction = typeof streamerChatModerationActions[number];
 const overlayFakeChatTestRequestSchema = z.object({
   accessToken: z.string().min(24),
   authorName: z.string().trim().min(1).max(40).default("Test chatter"),
@@ -2546,6 +2548,191 @@ const validateControlPanelTokenForStreamerChatModeration = async (
   return null;
 };
 
+const normalizeStreamerChatModerationPermissions = (rolePermissionValues: readonly unknown[]): string[] => {
+  const permissions = new Set<string>();
+
+  for (const rolePermissionValue of rolePermissionValues) {
+    for (const permission of parseJsonArray(rolePermissionValue)) {
+      if (typeof permission === "string") {
+        permissions.add(permission);
+      }
+    }
+  }
+
+  return [...permissions];
+};
+
+const canUseStreamerChatModerationAction = (
+  permissions: readonly string[],
+  action: StreamerChatModerationAction
+): boolean => {
+  if (permissions.includes("*")) {
+    return true;
+  }
+
+  switch (action) {
+    case "hide":
+      return permissions.includes("chat:hide-message");
+    case "ban":
+      return permissions.includes("chat:ban-user-local");
+    case "warn":
+      return permissions.includes("chat:warn-user");
+    case "retract_rule":
+      return permissions.includes("chat:hide-message")
+        || permissions.includes("chat:ban-user-local")
+        || permissions.includes("chat:warn-user");
+    case "view_rules":
+      return permissions.includes("moderation-rules:view");
+    case "emergency_clear":
+      return permissions.includes("chat:emergency-clear");
+  }
+};
+
+const canViewStreamerChatModerationWindow = (permissions: readonly string[]): boolean =>
+  permissions.includes("*")
+  || permissions.includes("chat:view")
+  || permissions.includes("moderation-rules:view")
+  || permissions.includes("moderators:manage");
+
+const resolveStreamerChatModerationPermissions = async (
+  request: FastifyRequest,
+  accessToken: string,
+  reply: FastifyReply
+): Promise<{
+  ok: true;
+  permissions: string[];
+} | {
+  ok: false;
+  reason: string;
+}> => {
+  const tokenDeniedReason = await validateControlPanelTokenForStreamerChatModeration(accessToken, reply);
+
+  if (tokenDeniedReason) {
+    return {
+      ok: false,
+      reason: tokenDeniedReason
+    };
+  }
+
+  const session = await getAuthSession(request);
+
+  if (!session) {
+    reply.code(401);
+    return {
+      ok: false,
+      reason: "not_authenticated"
+    };
+  }
+
+  const pool = getDatabasePool();
+  const { user } = await getDomainUserForAuthUser(pool, session.user, false);
+
+  if (!user) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: "streamer_chat_moderation_user_unlinked"
+    };
+  }
+
+  const [roleRows] = await pool.execute(
+    `
+      SELECT roles.permissions
+      FROM user_roles
+      INNER JOIN roles ON roles.id = user_roles.role_id
+      WHERE user_roles.user_id = ?
+        AND user_roles.revoked_at IS NULL
+        AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
+      ORDER BY roles.key
+    `,
+    [user.id]
+  );
+  const permissions = normalizeStreamerChatModerationPermissions(
+    Array.isArray(roleRows)
+      ? roleRows.map((row) => (row as { permissions: unknown }).permissions)
+      : []
+  );
+
+  if (!canViewStreamerChatModerationWindow(permissions)) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: "streamer_chat_moderation_forbidden"
+    };
+  }
+
+  return {
+    ok: true,
+    permissions
+  };
+};
+
+const requireStreamerChatModerationPermission = async (
+  request: FastifyRequest,
+  accessToken: string,
+  action: StreamerChatModerationAction,
+  reply: FastifyReply
+): Promise<string | null> => {
+  const access = await resolveStreamerChatModerationPermissions(request, accessToken, reply);
+
+  if (!access.ok) {
+    return access.reason;
+  }
+
+  if (!canUseStreamerChatModerationAction(access.permissions, action)) {
+    reply.code(403);
+    return "streamer_chat_moderation_forbidden";
+  }
+
+  return null;
+};
+
+server.get("/streamer-chat/moderation/access", async (request, reply) => {
+  const parsedRequest = streamerChatModerationRuleListRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request",
+      providerAction: false
+    };
+  }
+
+  const access = await resolveStreamerChatModerationPermissions(request, parsedRequest.data.accessToken, reply);
+
+  if (!access.ok) {
+    return {
+      ok: false,
+      reason: access.reason,
+      providerAction: false
+    };
+  }
+
+  return {
+    ok: true,
+    permissions: access.permissions,
+    actions: {
+      canBan: canUseStreamerChatModerationAction(access.permissions, "ban"),
+      canEmergencyClear: canUseStreamerChatModerationAction(access.permissions, "emergency_clear"),
+      canHide: canUseStreamerChatModerationAction(access.permissions, "hide"),
+      canRetractRules: canUseStreamerChatModerationAction(access.permissions, "retract_rule"),
+      canViewRules: canUseStreamerChatModerationAction(access.permissions, "view_rules"),
+      canWarn: canUseStreamerChatModerationAction(access.permissions, "warn")
+    },
+    panels: {
+      appliedRules: canUseStreamerChatModerationAction(access.permissions, "view_rules"),
+      chat: access.permissions.includes("*") || access.permissions.includes("chat:view"),
+      liveHelper: access.permissions.includes("*")
+        || access.permissions.includes("moderators:manage")
+        || access.permissions.includes("fake-local-chat:moderate"),
+      pendingApprovals: access.permissions.includes("*") || access.permissions.includes("moderators:manage")
+    },
+    providerAction: false,
+    checkedAt: new Date().toISOString()
+  };
+});
+
 server.post("/streamer-chat/moderation/hide", async (request, reply) => {
   const parsedRequest = streamerChatModerationRequestSchema.safeParse(request.body);
 
@@ -2558,7 +2745,7 @@ server.post("/streamer-chat/moderation/hide", async (request, reply) => {
     };
   }
 
-  const accessDeniedReason = await validateControlPanelTokenForStreamerChatModeration(parsedRequest.data.accessToken, reply);
+  const accessDeniedReason = await requireStreamerChatModerationPermission(request, parsedRequest.data.accessToken, "hide", reply);
 
   if (accessDeniedReason) {
     return {
@@ -2606,7 +2793,7 @@ server.post("/streamer-chat/moderation/ban", async (request, reply) => {
     };
   }
 
-  const accessDeniedReason = await validateControlPanelTokenForStreamerChatModeration(parsedRequest.data.accessToken, reply);
+  const accessDeniedReason = await requireStreamerChatModerationPermission(request, parsedRequest.data.accessToken, "ban", reply);
 
   if (accessDeniedReason) {
     return {
@@ -2654,7 +2841,7 @@ server.post("/streamer-chat/moderation/warn", async (request, reply) => {
     };
   }
 
-  const accessDeniedReason = await validateControlPanelTokenForStreamerChatModeration(parsedRequest.data.accessToken, reply);
+  const accessDeniedReason = await requireStreamerChatModerationPermission(request, parsedRequest.data.accessToken, "warn", reply);
 
   if (accessDeniedReason) {
     return {
@@ -2726,7 +2913,7 @@ server.get("/streamer-chat/moderation/rules", async (request, reply) => {
     };
   }
 
-  const accessDeniedReason = await validateControlPanelTokenForStreamerChatModeration(parsedRequest.data.accessToken, reply);
+  const accessDeniedReason = await requireStreamerChatModerationPermission(request, parsedRequest.data.accessToken, "view_rules", reply);
 
   if (accessDeniedReason) {
     return {
@@ -2756,7 +2943,7 @@ server.post("/streamer-chat/moderation/rules/retract", async (request, reply) =>
     };
   }
 
-  const accessDeniedReason = await validateControlPanelTokenForStreamerChatModeration(parsedRequest.data.accessToken, reply);
+  const accessDeniedReason = await requireStreamerChatModerationPermission(request, parsedRequest.data.accessToken, "retract_rule", reply);
 
   if (accessDeniedReason) {
     return {
@@ -3153,6 +3340,20 @@ server.post("/overlay/emergency-clean-mode", async (request, reply) => {
     return {
       ok: false,
       reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  const accessDeniedReason = await requireStreamerChatModerationPermission(
+    request,
+    parsedRequest.data.accessToken,
+    "emergency_clear",
+    reply
+  );
+
+  if (accessDeniedReason) {
+    return {
+      ok: false,
+      reason: accessDeniedReason
     };
   }
 
