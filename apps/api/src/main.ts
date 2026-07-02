@@ -52,7 +52,11 @@ import {
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
-import { registerNotificationAdminRoutes } from "./notifications/index.js";
+import {
+  createNotificationAdminRepository,
+  NotificationAdminService,
+  registerNotificationAdminRoutes
+} from "./notifications/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
 import {
   registerDiscordChatIntakeControlRoutes,
@@ -175,6 +179,10 @@ const streamerChatModerationRuleRetractRequestSchema = z.object({
 });
 const streamerChatModerationActions = ["hide", "ban", "warn", "retract_rule", "view_rules", "emergency_clear"] as const;
 type StreamerChatModerationAction = typeof streamerChatModerationActions[number];
+type ProviderReconnectSuppressedStatus = {
+  disconnectsInWindow: number;
+  lastError: string | null;
+};
 const overlayFakeChatTestRequestSchema = z.object({
   accessToken: z.string().min(24),
   authorName: z.string().trim().min(1).max(40).default("Test chatter"),
@@ -1533,10 +1541,12 @@ const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage):
   });
 
 const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
-  onMessage: recordTwitchStreamerChatMessage
+  onMessage: recordTwitchStreamerChatMessage,
+  onReconnectSuppressed: createProviderReconnectSuppressedNotifier("twitch", "Twitch")
 });
 const discordChatIntakeRuntime = new DiscordChatReadOnlyIntakeService({
-  onMessage: recordDiscordStreamerChatMessage
+  onMessage: recordDiscordStreamerChatMessage,
+  onReconnectSuppressed: createProviderReconnectSuppressedNotifier("discord", "Discord")
 });
 
 if (process.env.NODE_ENV !== "test" && process.env.TWITCH_CHAT_AUTO_START !== "false") {
@@ -1666,6 +1676,36 @@ const getDatabasePool = (): DatabasePool => {
   databasePool ??= createDatabasePool();
   return databasePool;
 };
+
+const providerSuppressedNotificationKeys = new Set<string>();
+
+function createProviderReconnectSuppressedNotifier(
+  providerId: "twitch" | "discord",
+  providerLabel: string
+): (status: ProviderReconnectSuppressedStatus) => void {
+  return (status) => {
+    const notificationKey = `${providerId}:${status.disconnectsInWindow}`;
+
+    if (providerSuppressedNotificationKeys.has(notificationKey)) {
+      return;
+    }
+
+    providerSuppressedNotificationKeys.add(notificationKey);
+    const safeError = status.lastError?.trim().slice(0, 240) || "No detailed error was reported.";
+
+    void new NotificationAdminService(
+      createNotificationAdminRepository(getDatabasePool())
+    ).createSystemNotification({
+      title: `${providerLabel} chat reconnect paused`,
+      body: `${providerLabel} chat intake stopped auto-reconnecting after ${status.disconnectsInWindow} disconnects inside the reconnect window. Last safe error: ${safeError}`,
+      severity: "warning",
+      source: "provider",
+      actionUrl: "/admin/provider-integrations"
+    }).catch((error: unknown) => {
+      server.log.warn({ err: error, providerId }, "Provider reconnect suppression notification failed.");
+    });
+  };
+}
 
 const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) => {
   if (projection.destination === "top_notification" && !overlayTopBarEnabled) {

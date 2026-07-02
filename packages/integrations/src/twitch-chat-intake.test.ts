@@ -239,6 +239,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
   it("suppresses auto-reconnect after too many disconnects inside the window", () => {
     let now = new Date("2026-06-29T14:00:00.000Z");
     const clients: FakeChatClient[] = [];
+    const onReconnectSuppressed = vi.fn();
     const scheduled: Array<() => void> = [];
     const service = new TwitchChatReadOnlyIntakeService({
       createClient: () => {
@@ -249,6 +250,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
       env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
       maxUnexpectedDisconnectsInWindow: 2,
       now: () => now,
+      onReconnectSuppressed,
       reconnectDelayMs: 1_000,
       setTimeoutFn: (callback) => {
         scheduled.push(callback);
@@ -277,6 +279,10 @@ describe("TwitchChatReadOnlyIntakeService", () => {
       state: "stopped"
     });
     expect(scheduled).toHaveLength(1);
+    expect(onReconnectSuppressed).toHaveBeenCalledWith(expect.objectContaining({
+      reconnectSuppressed: true,
+      state: "stopped"
+    }));
   });
 
   it("does not auto-reconnect after a manual stop", () => {

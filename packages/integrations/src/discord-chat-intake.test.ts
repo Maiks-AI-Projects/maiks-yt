@@ -252,4 +252,58 @@ describe("DiscordChatReadOnlyIntakeService", () => {
     expect(service.getStatus().nextReconnectAt).toBe("2026-07-02T12:00:01.000Z");
     expect(scheduled).toHaveLength(1);
   });
+
+  it("suppresses auto-reconnect after too many Discord disconnects inside the window", async () => {
+    let now = new Date("2026-07-02T12:00:00.000Z");
+    const clients: FakeDiscordClient[] = [];
+    const onReconnectSuppressed = vi.fn();
+    const scheduled: Array<() => void> = [];
+    const service = new DiscordChatReadOnlyIntakeService({
+      createClient: () => {
+        const client = new FakeDiscordClient();
+        clients.push(client);
+        return client as never;
+      },
+      env: {
+        DISCORD_BOT_TOKEN: "bot-token",
+        DISCORD_GUILD_ID: "guild-1"
+      },
+      maxUnexpectedDisconnectsInWindow: 2,
+      now: () => now,
+      onReconnectSuppressed,
+      reconnectDelayMs: 1_000,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      },
+      clearTimeoutFn: vi.fn()
+    });
+
+    service.start();
+    await Promise.resolve();
+    const firstClient = clients[0];
+    expect(firstClient).toBeDefined();
+    firstClient?.emitUnexpectedDisconnect(new Error("first"));
+    now = new Date("2026-07-02T12:00:01.000Z");
+    const scheduledReconnect = scheduled[0];
+    expect(scheduledReconnect).toBeDefined();
+    scheduledReconnect?.();
+    await Promise.resolve();
+    const secondClient = clients[1];
+    expect(secondClient).toBeDefined();
+    secondClient?.emitUnexpectedDisconnect(new Error("second"));
+
+    expect(service.getStatus()).toMatchObject({
+      disconnectsInWindow: 2,
+      lastError: "Discord chat disconnected too often; manual reconnect required.",
+      nextReconnectAt: null,
+      reconnectSuppressed: true,
+      state: "stopped"
+    });
+    expect(scheduled).toHaveLength(1);
+    expect(onReconnectSuppressed).toHaveBeenCalledWith(expect.objectContaining({
+      reconnectSuppressed: true,
+      state: "stopped"
+    }));
+  });
 });

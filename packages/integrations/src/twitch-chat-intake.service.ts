@@ -24,6 +24,7 @@ type TwitchChatReadOnlyIntakeOptions = {
   maxRecentMessages?: number;
   maxUnexpectedDisconnectsInWindow?: number;
   onMessage?: (message: TwitchChatProjectedMessage) => void;
+  onReconnectSuppressed?: (status: TwitchChatIntakeStatus) => void;
   reconnectDelayMs?: number;
   reconnectWindowMs?: number;
   clearTimeoutFn?: (handle: unknown) => void;
@@ -47,6 +48,7 @@ export class TwitchChatReadOnlyIntakeService {
   private readonly maxRecentMessages: number;
   private readonly now: () => Date;
   private readonly onProjectedMessage: ((message: TwitchChatProjectedMessage) => void) | undefined;
+  private readonly onReconnectSuppressed: ((status: TwitchChatIntakeStatus) => void) | undefined;
   private readonly reconnectDelayMs: number;
   private readonly reconnectWindowMs: number;
   private readonly setTimeoutFn: (callback: () => void, ms: number) => unknown;
@@ -76,6 +78,7 @@ export class TwitchChatReadOnlyIntakeService {
     this.maxRecentMessages = options.maxRecentMessages ?? 25;
     this.now = options.now ?? (() => new Date());
     this.onProjectedMessage = options.onMessage;
+    this.onReconnectSuppressed = options.onReconnectSuppressed;
     this.reconnectDelayMs = options.reconnectDelayMs ?? 5_000;
     this.reconnectWindowMs = options.reconnectWindowMs ?? 10 * 60 * 1_000;
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms));
@@ -269,6 +272,7 @@ export class TwitchChatReadOnlyIntakeService {
       this.reconnectSuppressed = true;
       this.nextReconnectAt = null;
       this.lastError = "Twitch chat disconnected too often; manual reconnect required.";
+      this.onReconnectSuppressed?.(this.getStatus());
       return;
     }
 

@@ -59,6 +59,7 @@ type DiscordChatReadOnlyIntakeOptions = {
   maxRecentMessages?: number;
   maxUnexpectedDisconnectsInWindow?: number;
   onMessage?: (message: DiscordChatProjectedMessage) => void;
+  onReconnectSuppressed?: (status: DiscordChatIntakeStatus) => void;
   reconnectDelayMs?: number;
   reconnectWindowMs?: number;
   clearTimeoutFn?: (handle: unknown) => void;
@@ -151,6 +152,7 @@ export class DiscordChatReadOnlyIntakeService {
   private readonly maxRecentMessages: number;
   private readonly now: () => Date;
   private readonly onProjectedMessage: ((message: DiscordChatProjectedMessage) => void) | undefined;
+  private readonly onReconnectSuppressed: ((status: DiscordChatIntakeStatus) => void) | undefined;
   private readonly reconnectDelayMs: number;
   private readonly reconnectWindowMs: number;
   private readonly setTimeoutFn: (callback: () => void, ms: number) => unknown;
@@ -180,6 +182,7 @@ export class DiscordChatReadOnlyIntakeService {
     this.maxRecentMessages = options.maxRecentMessages ?? 25;
     this.now = options.now ?? (() => new Date());
     this.onProjectedMessage = options.onMessage;
+    this.onReconnectSuppressed = options.onReconnectSuppressed;
     this.reconnectDelayMs = options.reconnectDelayMs ?? 5_000;
     this.reconnectWindowMs = options.reconnectWindowMs ?? 10 * 60 * 1_000;
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms));
@@ -384,6 +387,7 @@ export class DiscordChatReadOnlyIntakeService {
       this.reconnectSuppressed = true;
       this.nextReconnectAt = null;
       this.lastError = "Discord chat disconnected too often; manual reconnect required.";
+      this.onReconnectSuppressed?.(this.getStatus());
       return;
     }
 
