@@ -201,11 +201,23 @@ export class TwitchChatReadOnlyIntakeService {
     }));
 
     try {
-      nextClient.connect();
+      const connectResult = nextClient.connect();
+      void Promise.resolve(connectResult).catch((error: unknown) => {
+        if (this.client !== nextClient || this.manualStopRequested) {
+          return;
+        }
+
+        this.lastError = sanitizeError(error);
+        this.clearListeners();
+        this.client = null;
+        this.connectedAt = null;
+        this.scheduleReconnect(error);
+      });
     } catch (error) {
       this.lastError = sanitizeError(error);
       this.clearListeners();
       this.client = null;
+      this.connectedAt = null;
       this.scheduleReconnect(error);
     }
 

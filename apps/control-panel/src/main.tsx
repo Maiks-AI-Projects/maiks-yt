@@ -2924,7 +2924,7 @@ const App = (): React.ReactNode => {
 
   if (isStandaloneChatRoute) {
     return (
-    <main className="surface chat-surface">
+    <main className="surface chat-surface chat-window-surface">
       <ChatWindowHeader />
       <ChatServiceStatusStrip />
       <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />

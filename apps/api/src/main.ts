@@ -1522,6 +1522,12 @@ const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
   onMessage: recordTwitchStreamerChatMessage
 });
 
+if (process.env.NODE_ENV !== "test" && process.env.TWITCH_CHAT_AUTO_START !== "false") {
+  setTimeout(() => {
+    twitchChatIntakeRuntime.start();
+  }, 0);
+}
+
 const broadcastOverlaySnapshots = (): void => {
   for (const client of overlayLiveClients.values()) {
     client.snapshot = {

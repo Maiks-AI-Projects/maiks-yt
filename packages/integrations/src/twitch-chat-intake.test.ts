@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import { projectTwitchChatMessage, resolveTwitchChatChannelName } from "./twitch-chat-intake.rules.js";
 import { TwitchChatReadOnlyIntakeService } from "./twitch-chat-intake.service.js";
@@ -15,7 +15,7 @@ type MessageHandler = (channel: string, user: string, text: string, msg: {
 class FakeChatClient {
   public isConnected = false;
   public isConnecting = false;
-  public readonly connect = vi.fn(() => {
+  public readonly connect: Mock<() => void | Promise<void>> = vi.fn(() => {
     this.isConnecting = true;
     this.connectHandler?.();
     this.isConnecting = false;
@@ -60,6 +60,10 @@ class FakeChatClient {
     this.isConnecting = false;
     this.disconnectHandler?.(false, reason);
   }
+}
+
+class FailingAsyncChatClient extends FakeChatClient {
+  public override readonly connect = vi.fn(() => Promise.reject(new Error("async connect failed")));
 }
 
 describe("projectTwitchChatMessage", () => {
@@ -198,6 +202,38 @@ describe("TwitchChatReadOnlyIntakeService", () => {
       disconnectsInWindow: 1,
       state: "connected"
     });
+  });
+
+  it("schedules reconnect when the async Twitch connect attempt fails", async () => {
+    const clients: FailingAsyncChatClient[] = [];
+    const scheduled: Array<() => void> = [];
+    const service = new TwitchChatReadOnlyIntakeService({
+      createClient: () => {
+        const client = new FailingAsyncChatClient();
+        clients.push(client);
+        return client as never;
+      },
+      env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
+      now: () => new Date("2026-06-29T14:00:00.000Z"),
+      reconnectDelayMs: 1_000,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      },
+      clearTimeoutFn: vi.fn()
+    });
+
+    expect(service.start().state).toBe("stopped");
+    await Promise.resolve();
+
+    expect(service.getStatus()).toMatchObject({
+      disconnectsInWindow: 1,
+      lastError: "async connect failed",
+      reconnectSuppressed: false,
+      state: "stopped"
+    });
+    expect(service.getStatus().nextReconnectAt).toBe("2026-06-29T14:00:01.000Z");
+    expect(scheduled).toHaveLength(1);
   });
 
   it("suppresses auto-reconnect after too many disconnects inside the window", () => {
