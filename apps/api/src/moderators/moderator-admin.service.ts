@@ -18,8 +18,12 @@ import type {
   ModeratorAdminGrantUpdateInput,
   ModeratorAdminListResult,
   ModeratorAdminMutationResult,
+  ModeratorAdminRankPathInput,
+  ModeratorAdminRankPathMutationResult,
   ModeratorAdminRepository,
-  ModeratorAdminRole
+  ModeratorAdminRole,
+  ModeratorAdminRoleInput,
+  ModeratorAdminRoleMutationResult
 } from "./moderator-admin.types.js";
 
 const parsePermissionArray = (value: unknown): unknown[] => {
@@ -59,6 +63,51 @@ const toRoleForGrant = (role: ModeratorAdminRole): ModeratorRoleForGrant => ({
   key: role.key,
   permissions: role.permissions
 });
+
+const hasOwnerWildcard = (permissions: readonly string[]): boolean => permissions.includes("*");
+
+const normalizePermissionList = (permissions: readonly unknown[]): string[] =>
+  [...new Set(permissions
+    .filter((permission): permission is string => typeof permission === "string")
+    .map((permission) => permission.trim())
+    .filter(Boolean))]
+    .sort();
+
+const normalizeKey = (value: string): string =>
+  value.trim().toLowerCase().replace(/[^a-z0-9:-]+/g, "-").replace(/^-+|-+$/g, "");
+
+const normalizeNullableText = (value: string | null | undefined, maxLength: number): string | null => {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed.slice(0, maxLength) : null;
+};
+
+const normalizeRankPathInput = (input: ModeratorAdminRankPathInput): ModeratorAdminRankPathInput => ({
+  key: normalizeKey(input.key),
+  name: input.name.trim().slice(0, 191),
+  description: normalizeNullableText(input.description, 280),
+  sortOrder: Number.isFinite(input.sortOrder) ? Math.max(0, Math.trunc(input.sortOrder)) : 0
+});
+
+const normalizeRoleInput = (input: ModeratorAdminRoleInput): ModeratorAdminRoleInput => ({
+  key: normalizeKey(input.key),
+  name: input.name.trim().slice(0, 191),
+  permissions: normalizePermissionList(input.permissions),
+  rankPathId: normalizeNullableText(input.rankPathId, 36),
+  rankLevel: input.rankLevel === null ? null : Math.max(1, Math.trunc(input.rankLevel)),
+  displayLabel: normalizeNullableText(input.displayLabel, 191),
+  nextRoleId: normalizeNullableText(input.nextRoleId, 36),
+  discordRoleId: normalizeNullableText(input.discordRoleId, 80),
+  isOwnerRank: input.isOwnerRank,
+  isSystem: input.isSystem
+});
+
+const isValidRankPathInput = (input: ModeratorAdminRankPathInput): boolean =>
+  input.key.length > 0 && input.name.length > 0;
+
+const isValidRoleInput = (input: ModeratorAdminRoleInput): boolean =>
+  input.key.length > 0
+  && input.name.length > 0
+  && ((input.rankPathId === null && input.rankLevel === null) || (input.rankPathId !== null && input.rankLevel !== null));
 
 const normalizeCreateInput = (
   input: ModeratorAdminGrantCreateInput
@@ -130,8 +179,10 @@ export class ModeratorAdminService {
       return actor;
     }
 
-    const [users, roles, grants, auditLogs] = await Promise.all([
+    const permissions = normalizeModeratorAdminPermissions(actor.rolePermissionValues);
+    const [users, rankPaths, roles, grants, auditLogs] = await Promise.all([
       this.repository.listUsers(),
+      this.repository.listRankPaths(),
       this.repository.listRoles(),
       this.repository.listGrants(),
       this.repository.listAuditLogs(50)
@@ -140,10 +191,123 @@ export class ModeratorAdminService {
     return {
       ok: true,
       users,
+      rankPaths,
       roles,
       grants,
-      auditLogs
+      auditLogs,
+      canManageRanks: hasOwnerWildcard(permissions)
     };
+  }
+
+  public async createRankPath(input: {
+    authUserId: string;
+    rankPath: ModeratorAdminRankPathInput;
+  }): Promise<ModeratorAdminRankPathMutationResult> {
+    const actor = await this.requireRankManager(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const normalized = normalizeRankPathInput(input.rankPath);
+
+    if (!isValidRankPathInput(normalized)) {
+      return { ok: false, reason: "moderator_admin_invalid_input" };
+    }
+
+    const result = await this.repository.createRankPath(normalized);
+    return result === "exists"
+      ? { ok: false, reason: "moderator_admin_rank_path_exists" }
+      : { ok: true, rankPath: result };
+  }
+
+  public async updateRankPath(input: {
+    authUserId: string;
+    rankPathId: string;
+    rankPath: ModeratorAdminRankPathInput;
+  }): Promise<ModeratorAdminRankPathMutationResult> {
+    const actor = await this.requireRankManager(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const normalized = normalizeRankPathInput(input.rankPath);
+
+    if (!isValidRankPathInput(normalized)) {
+      return { ok: false, reason: "moderator_admin_invalid_input" };
+    }
+
+    const result = await this.repository.updateRankPath(input.rankPathId.trim(), normalized);
+
+    if (result === "not-found") {
+      return { ok: false, reason: "moderator_admin_rank_path_not_found" };
+    }
+    if (result === "exists") {
+      return { ok: false, reason: "moderator_admin_rank_path_exists" };
+    }
+
+    return { ok: true, rankPath: result };
+  }
+
+  public async createRole(input: {
+    authUserId: string;
+    role: ModeratorAdminRoleInput;
+  }): Promise<ModeratorAdminRoleMutationResult> {
+    const actor = await this.requireRankManager(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const normalized = normalizeRoleInput(input.role);
+
+    if (!isValidRoleInput(normalized)) {
+      return { ok: false, reason: "moderator_admin_invalid_input" };
+    }
+
+    const result = await this.repository.createRole(normalized);
+
+    if (result === "exists") {
+      return { ok: false, reason: "moderator_admin_role_exists" };
+    }
+    if (result === "rank-path-not-found") {
+      return { ok: false, reason: "moderator_admin_rank_path_not_found" };
+    }
+
+    return { ok: true, role: result };
+  }
+
+  public async updateRole(input: {
+    authUserId: string;
+    roleId: string;
+    role: ModeratorAdminRoleInput;
+  }): Promise<ModeratorAdminRoleMutationResult> {
+    const actor = await this.requireRankManager(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const normalized = normalizeRoleInput(input.role);
+
+    if (!isValidRoleInput(normalized)) {
+      return { ok: false, reason: "moderator_admin_invalid_input" };
+    }
+
+    const result = await this.repository.updateRole(input.roleId.trim(), normalized);
+
+    if (result === "not-found") {
+      return { ok: false, reason: "moderator_admin_role_not_found" };
+    }
+    if (result === "exists") {
+      return { ok: false, reason: "moderator_admin_role_exists" };
+    }
+    if (result === "rank-path-not-found") {
+      return { ok: false, reason: "moderator_admin_rank_path_not_found" };
+    }
+
+    return { ok: true, role: result };
   }
 
   public async grantRole(input: {
@@ -339,6 +503,7 @@ export class ModeratorAdminService {
   private async requireActor(authUserId: string): Promise<{
     ok: true;
     domainUserId: string;
+    rolePermissionValues: readonly unknown[];
   } | {
     ok: false;
     reason: "moderator_admin_user_unlinked" | "moderator_admin_forbidden";
@@ -361,7 +526,30 @@ export class ModeratorAdminService {
 
     return {
       ok: true,
-      domainUserId: actor.domainUserId
+      domainUserId: actor.domainUserId,
+      rolePermissionValues: actor.rolePermissionValues
     };
+  }
+
+  private async requireRankManager(authUserId: string): Promise<{
+    ok: true;
+    domainUserId: string;
+    rolePermissionValues: readonly unknown[];
+  } | {
+    ok: false;
+    reason: "moderator_admin_user_unlinked" | "moderator_admin_forbidden";
+  }> {
+    const actor = await this.requireActor(authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    return hasOwnerWildcard(normalizeModeratorAdminPermissions(actor.rolePermissionValues))
+      ? actor
+      : {
+        ok: false,
+        reason: "moderator_admin_forbidden"
+      };
   }
 }

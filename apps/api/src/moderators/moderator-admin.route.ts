@@ -28,12 +28,18 @@ type ModeratorAdminRouteDependencies = {
     | "grantRole"
     | "updateGrant"
     | "revokeGrant"
+    | "createRankPath"
+    | "updateRankPath"
+    | "createRole"
+    | "updateRole"
   >;
 };
 
 const grantIdParamsSchema = z.object({
   id: z.string().trim().min(1).max(191)
 }).strict();
+
+const idParamsSchema = grantIdParamsSchema;
 
 const nullableText = (maxLength: number) =>
   z.string().trim().max(maxLength).nullable().optional();
@@ -65,6 +71,26 @@ const grantUpdatePayloadSchema = grantPayloadSchema.pick({
 
 const revokePayloadSchema = z.object({
   reason: nullableText(280)
+}).strict();
+
+const rankPathPayloadSchema = z.object({
+  key: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(191),
+  description: nullableText(280),
+  sortOrder: z.number().int().min(0).max(100000).default(0)
+}).strict();
+
+const rolePayloadSchema = z.object({
+  key: z.string().trim().min(1).max(80),
+  name: z.string().trim().min(1).max(191),
+  permissions: z.array(z.string().trim().min(1).max(120)).max(80),
+  rankPathId: z.string().trim().min(1).max(36).nullable().optional(),
+  rankLevel: z.number().int().min(1).max(1000).nullable().optional(),
+  displayLabel: nullableText(191),
+  nextRoleId: z.string().trim().min(1).max(36).nullable().optional(),
+  discordRoleId: nullableText(80),
+  isOwnerRank: z.boolean().default(false),
+  isSystem: z.boolean().default(false)
 }).strict();
 
 const compactUpdatePayload = (
@@ -125,6 +151,10 @@ export const registerModeratorAdminRoutes = (
     | "grantRole"
     | "updateGrant"
     | "revokeGrant"
+    | "createRankPath"
+    | "updateRankPath"
+    | "createRole"
+    | "updateRole"
   > =>
     dependencies.createService?.()
     ?? new ModeratorAdminService(createModeratorAdminRepository(dependencies.getDatabasePool()));
@@ -280,6 +310,194 @@ export const registerModeratorAdminRoutes = (
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Moderator admin grant revoke failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "moderator_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/moderators/rank-paths", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "moderator_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = rankPathPayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "moderator_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().createRankPath({
+        authUserId: session.user.id,
+        rankPath: {
+          ...parsedBody.data,
+          description: parsedBody.data.description ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "moderator_admin_rank_path_exists" ? 409 : result.reason === "moderator_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Moderator rank path create failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "moderator_admin_unavailable"
+      };
+    }
+  });
+
+  server.patch<{ Params: { id: string } }>("/admin/moderators/rank-paths/:id", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "moderator_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = idParamsSchema.safeParse(request.params);
+    const parsedBody = rankPathPayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "moderator_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().updateRankPath({
+        authUserId: session.user.id,
+        rankPathId: parsedParams.data.id,
+        rankPath: {
+          ...parsedBody.data,
+          description: parsedBody.data.description ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "moderator_admin_rank_path_exists" ? 409 : result.reason === "moderator_admin_rank_path_not_found" ? 404 : result.reason === "moderator_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Moderator rank path update failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "moderator_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/moderators/roles", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "moderator_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = rolePayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "moderator_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().createRole({
+        authUserId: session.user.id,
+        role: {
+          ...parsedBody.data,
+          rankPathId: parsedBody.data.rankPathId ?? null,
+          rankLevel: parsedBody.data.rankLevel ?? null,
+          displayLabel: parsedBody.data.displayLabel ?? null,
+          nextRoleId: parsedBody.data.nextRoleId ?? null,
+          discordRoleId: parsedBody.data.discordRoleId ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "moderator_admin_role_exists" ? 409 : result.reason === "moderator_admin_rank_path_not_found" || result.reason === "moderator_admin_role_not_found" ? 404 : result.reason === "moderator_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Moderator role create failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "moderator_admin_unavailable"
+      };
+    }
+  });
+
+  server.patch<{ Params: { id: string } }>("/admin/moderators/roles/:id", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "moderator_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = idParamsSchema.safeParse(request.params);
+    const parsedBody = rolePayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "moderator_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().updateRole({
+        authUserId: session.user.id,
+        roleId: parsedParams.data.id,
+        role: {
+          ...parsedBody.data,
+          rankPathId: parsedBody.data.rankPathId ?? null,
+          rankLevel: parsedBody.data.rankLevel ?? null,
+          displayLabel: parsedBody.data.displayLabel ?? null,
+          nextRoleId: parsedBody.data.nextRoleId ?? null,
+          discordRoleId: parsedBody.data.discordRoleId ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "moderator_admin_role_exists" ? 409 : result.reason === "moderator_admin_rank_path_not_found" || result.reason === "moderator_admin_role_not_found" ? 404 : result.reason === "moderator_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Moderator role update failed.");
       reply.code(503);
       return {
         ok: false,

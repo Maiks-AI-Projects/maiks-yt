@@ -29,7 +29,26 @@ type ModeratorAdminRole = {
   key: string;
   name: string;
   permissions: readonly string[];
+  rankPathId: string | null;
+  rankPathKey: string | null;
+  rankPathName: string | null;
+  rankLevel: number | null;
+  displayLabel: string | null;
+  nextRoleId: string | null;
+  discordRoleId: string | null;
+  isOwnerRank: boolean;
+  isSystem: boolean;
   grantable: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ModeratorAdminRankPath = {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -72,9 +91,11 @@ type ModeratorAdminListResponse =
   | {
     ok: true;
     users: readonly ModeratorAdminUser[];
+    rankPaths: readonly ModeratorAdminRankPath[];
     roles: readonly ModeratorAdminRole[];
     grants: readonly ModeratorAdminGrant[];
     auditLogs: readonly ModeratorAdminAuditLog[];
+    canManageRanks: boolean;
   }
   | {
     ok: false;
@@ -93,6 +114,26 @@ type ModeratorAdminMutationResponse =
     issues?: readonly string[];
   };
 
+type RankPathMutationResponse =
+  | {
+    ok: true;
+    rankPath: ModeratorAdminRankPath;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type RoleMutationResponse =
+  | {
+    ok: true;
+    role: ModeratorAdminRole;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 type GrantFormState = {
@@ -104,6 +145,28 @@ type GrantFormState = {
   availability: ModeratorGrantAvailability;
   expiresAt: string;
   reason: string;
+};
+
+type RankPathFormState = {
+  id: string | null;
+  key: string;
+  name: string;
+  description: string;
+  sortOrder: string;
+};
+
+type RoleFormState = {
+  id: string | null;
+  key: string;
+  name: string;
+  permissions: string;
+  rankPathId: string;
+  rankLevel: string;
+  displayLabel: string;
+  nextRoleId: string;
+  discordRoleId: string;
+  isOwnerRank: boolean;
+  isSystem: boolean;
 };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -148,6 +211,28 @@ const emptyForm: GrantFormState = {
   availability: "always",
   expiresAt: "",
   reason: ""
+};
+
+const emptyRankPathForm: RankPathFormState = {
+  id: null,
+  key: "",
+  name: "",
+  description: "",
+  sortOrder: "0"
+};
+
+const emptyRoleForm: RoleFormState = {
+  id: null,
+  key: "",
+  name: "",
+  permissions: "",
+  rankPathId: "",
+  rankLevel: "",
+  displayLabel: "",
+  nextRoleId: "",
+  discordRoleId: "",
+  isOwnerRank: false,
+  isSystem: false
 };
 
 const formatDate = (value: string | null): string =>
@@ -233,8 +318,48 @@ const toUpdatePayload = (form: GrantFormState) => ({
   reason: form.reason.trim() || null
 });
 
+const parsePermissionText = (value: string): string[] =>
+  [...new Set(value
+    .split(/[\n,]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean))]
+    .sort();
+
+const toRankPathPayload = (form: RankPathFormState) => ({
+  key: form.key,
+  name: form.name,
+  description: form.description.trim() || null,
+  sortOrder: Number.parseInt(form.sortOrder, 10) || 0
+});
+
+const toRolePayload = (form: RoleFormState) => ({
+  key: form.key,
+  name: form.name,
+  permissions: parsePermissionText(form.permissions),
+  rankPathId: form.rankPathId || null,
+  rankLevel: form.rankLevel ? Number.parseInt(form.rankLevel, 10) : null,
+  displayLabel: form.displayLabel.trim() || null,
+  nextRoleId: form.nextRoleId || null,
+  discordRoleId: form.discordRoleId.trim() || null,
+  isOwnerRank: form.isOwnerRank,
+  isSystem: form.isSystem
+});
+
+const getRankPathLabel = (
+  rankPaths: readonly ModeratorAdminRankPath[],
+  rankPathId: string | null
+): string => {
+  if (!rankPathId) {
+    return "No path";
+  }
+
+  const rankPath = rankPaths.find((candidate) => candidate.id === rankPathId);
+  return rankPath ? rankPath.name : rankPathId;
+};
+
 const ModeratorAdminClient = (): React.ReactNode => {
   const [users, setUsers] = useState<readonly ModeratorAdminUser[]>([]);
+  const [rankPaths, setRankPaths] = useState<readonly ModeratorAdminRankPath[]>([]);
   const [roles, setRoles] = useState<readonly ModeratorAdminRole[]>([]);
   const [grants, setGrants] = useState<readonly ModeratorAdminGrant[]>([]);
   const [auditLogs, setAuditLogs] = useState<readonly ModeratorAdminAuditLog[]>([]);
@@ -244,6 +369,9 @@ const ModeratorAdminClient = (): React.ReactNode => {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading moderator admin...");
   const [busy, setBusy] = useState<boolean>(false);
+  const [canManageRanks, setCanManageRanks] = useState<boolean>(false);
+  const [rankPathForm, setRankPathForm] = useState<RankPathFormState>(emptyRankPathForm);
+  const [roleForm, setRoleForm] = useState<RoleFormState>(emptyRoleForm);
 
   const grantableRoles = useMemo(
     () => roles.filter((role) => role.grantable),
@@ -281,9 +409,11 @@ const ModeratorAdminClient = (): React.ReactNode => {
 
       if (response.ok && payload?.ok) {
         setUsers(payload.users);
+        setRankPaths(payload.rankPaths);
         setRoles(payload.roles);
         setGrants(payload.grants);
         setAuditLogs(payload.auditLogs);
+        setCanManageRanks(payload.canManageRanks);
         setSelectedUserId((current) => current || payload.users[0]?.id || "");
         setForm((current) => ({
           ...current,
@@ -318,6 +448,17 @@ const ModeratorAdminClient = (): React.ReactNode => {
     });
   };
 
+  const resetRankPathForm = (): void => {
+    setRankPathForm(emptyRankPathForm);
+  };
+
+  const resetRoleForm = (): void => {
+    setRoleForm({
+      ...emptyRoleForm,
+      rankPathId: rankPaths[0]?.id ?? ""
+    });
+  };
+
   const startEdit = (grant: ModeratorAdminGrant): void => {
     setEditingGrantId(grant.id);
     setSelectedUserId(grant.userId);
@@ -342,6 +483,78 @@ const ModeratorAdminClient = (): React.ReactNode => {
     });
     setAuditLogs((current) => [auditLog, ...current].slice(0, 50));
     setSelectedUserId(grant.userId);
+  };
+
+  const saveRankPath = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setBusy(true);
+    setMessage(rankPathForm.id ? "Updating rank path..." : "Creating rank path...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}${rankPathForm.id ? `/admin/moderators/rank-paths/${encodeURIComponent(rankPathForm.id)}` : "/admin/moderators/rank-paths"}`, {
+        method: rankPathForm.id ? "PATCH" : "POST",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify(toRankPathPayload(rankPathForm))
+      });
+      const payload = await parseJson<RankPathMutationResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setRankPaths((current) => {
+          const exists = current.some((candidate) => candidate.id === payload.rankPath.id);
+          return exists
+            ? current.map((candidate) => candidate.id === payload.rankPath.id ? payload.rankPath : candidate)
+            : [...current, payload.rankPath].sort((left, right) => left.sortOrder - right.sortOrder || left.key.localeCompare(right.key));
+        });
+        setMessage(rankPathForm.id ? "Rank path updated." : "Rank path created.");
+        resetRankPathForm();
+        return;
+      }
+
+      setMessage(payload?.ok === false ? payload.reason : `Rank path request failed with ${response.status}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Saving rank path failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveRole = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+    setBusy(true);
+    setMessage(roleForm.id ? "Updating role..." : "Creating role...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}${roleForm.id ? `/admin/moderators/roles/${encodeURIComponent(roleForm.id)}` : "/admin/moderators/roles"}`, {
+        method: roleForm.id ? "PATCH" : "POST",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify(toRolePayload(roleForm))
+      });
+      const payload = await parseJson<RoleMutationResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setRoles((current) => {
+          const exists = current.some((candidate) => candidate.id === payload.role.id);
+          return exists
+            ? current.map((candidate) => candidate.id === payload.role.id ? payload.role : candidate)
+            : [...current, payload.role];
+        });
+        setMessage(roleForm.id ? "Role updated." : "Role created.");
+        resetRoleForm();
+        return;
+      }
+
+      setMessage(payload?.ok === false ? payload.reason : `Role request failed with ${response.status}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Saving role failed.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveGrant = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -571,6 +784,139 @@ const ModeratorAdminClient = (): React.ReactNode => {
               </div>
             </form>
 
+            {canManageRanks ? (
+              <section className="project-admin-panel project-admin-form">
+                <div className="project-admin-panel-heading">
+                  <div>
+                    <h2>Rank Paths</h2>
+                    <p>Owner-only role paths and promotion lanes.</p>
+                  </div>
+                  <div className="project-admin-actions">
+                    <button type="button" onClick={resetRankPathForm} disabled={busy}>New path</button>
+                  </div>
+                </div>
+
+                <form className="project-admin-form-grid" onSubmit={(event) => void saveRankPath(event)}>
+                  <label>
+                    Key
+                    <input value={rankPathForm.key} onChange={(event) => setRankPathForm((current) => ({ ...current, key: event.target.value }))} maxLength={80} />
+                  </label>
+                  <label>
+                    Name
+                    <input value={rankPathForm.name} onChange={(event) => setRankPathForm((current) => ({ ...current, name: event.target.value }))} maxLength={191} />
+                  </label>
+                  <label>
+                    Sort
+                    <input type="number" min={0} value={rankPathForm.sortOrder} onChange={(event) => setRankPathForm((current) => ({ ...current, sortOrder: event.target.value }))} />
+                  </label>
+                  <label>
+                    Description
+                    <input value={rankPathForm.description} onChange={(event) => setRankPathForm((current) => ({ ...current, description: event.target.value }))} maxLength={280} />
+                  </label>
+                  <div className="project-admin-actions">
+                    <button type="submit" disabled={busy}>{rankPathForm.id ? "Save path" : "Create path"}</button>
+                  </div>
+                </form>
+
+                <ul className="project-admin-record-list">
+                  {rankPaths.map((rankPath) => (
+                    <li key={rankPath.id}>
+                      <div>
+                        <strong>{rankPath.name}</strong>
+                        <p>{rankPath.key} · sort {rankPath.sortOrder}</p>
+                        <p>{rankPath.description ?? "No description"}</p>
+                      </div>
+                      <div className="project-admin-actions">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setRankPathForm({
+                            id: rankPath.id,
+                            key: rankPath.key,
+                            name: rankPath.name,
+                            description: rankPath.description ?? "",
+                            sortOrder: String(rankPath.sortOrder)
+                          })}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {canManageRanks ? (
+              <section className="project-admin-panel project-admin-form">
+                <div className="project-admin-panel-heading">
+                  <div>
+                    <h2>Role Rights</h2>
+                    <p>Owner-only action rights collected by ranks.</p>
+                  </div>
+                  <div className="project-admin-actions">
+                    <button type="button" onClick={resetRoleForm} disabled={busy}>New role</button>
+                  </div>
+                </div>
+
+                <form className="project-admin-form-grid" onSubmit={(event) => void saveRole(event)}>
+                  <label>
+                    Key
+                    <input value={roleForm.key} onChange={(event) => setRoleForm((current) => ({ ...current, key: event.target.value }))} maxLength={80} />
+                  </label>
+                  <label>
+                    Name
+                    <input value={roleForm.name} onChange={(event) => setRoleForm((current) => ({ ...current, name: event.target.value }))} maxLength={191} />
+                  </label>
+                  <label>
+                    Rank path
+                    <select value={roleForm.rankPathId} onChange={(event) => setRoleForm((current) => ({ ...current, rankPathId: event.target.value }))}>
+                      <option value="">No path</option>
+                      {rankPaths.map((rankPath) => (
+                        <option key={rankPath.id} value={rankPath.id}>{rankPath.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Level
+                    <input type="number" min={1} value={roleForm.rankLevel} onChange={(event) => setRoleForm((current) => ({ ...current, rankLevel: event.target.value }))} />
+                  </label>
+                  <label>
+                    Display label
+                    <input value={roleForm.displayLabel} onChange={(event) => setRoleForm((current) => ({ ...current, displayLabel: event.target.value }))} maxLength={191} />
+                  </label>
+                  <label>
+                    Next promotion
+                    <select value={roleForm.nextRoleId} onChange={(event) => setRoleForm((current) => ({ ...current, nextRoleId: event.target.value }))}>
+                      <option value="">None</option>
+                      {roles.map((role) => (
+                        <option key={role.id} value={role.id}>{role.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Discord role ID
+                    <input value={roleForm.discordRoleId} onChange={(event) => setRoleForm((current) => ({ ...current, discordRoleId: event.target.value }))} maxLength={80} />
+                  </label>
+                  <label>
+                    Permissions
+                    <textarea value={roleForm.permissions} onChange={(event) => setRoleForm((current) => ({ ...current, permissions: event.target.value }))} rows={4} />
+                  </label>
+                  <label className="project-admin-checkbox">
+                    <input type="checkbox" checked={roleForm.isOwnerRank} onChange={(event) => setRoleForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} />
+                    Owner rank
+                  </label>
+                  <label className="project-admin-checkbox">
+                    <input type="checkbox" checked={roleForm.isSystem} onChange={(event) => setRoleForm((current) => ({ ...current, isSystem: event.target.checked }))} />
+                    System/default rank
+                  </label>
+                  <div className="project-admin-actions">
+                    <button type="submit" disabled={busy}>{roleForm.id ? "Save role" : "Create role"}</button>
+                  </div>
+                </form>
+              </section>
+            ) : null}
+
             <section className="project-admin-panel">
               <div className="project-admin-panel-heading">
                 <div>
@@ -583,9 +929,36 @@ const ModeratorAdminClient = (): React.ReactNode => {
                   <li key={role.id}>
                     <div>
                       <strong>{role.name}</strong>
-                      <p>{role.key} · {role.grantable ? "Grantable" : "Protected"}</p>
+                      <p>
+                        {role.key} · {getRankPathLabel(rankPaths, role.rankPathId)}
+                        {role.rankLevel ? ` lvl ${role.rankLevel}` : ""} · {role.grantable ? "Grantable" : "Protected"}
+                      </p>
+                      <p>{role.displayLabel ? `Display: ${role.displayLabel}. ` : ""}{role.discordRoleId ? `Discord: ${role.discordRoleId}. ` : ""}{role.nextRoleId ? `Next: ${roles.find((candidate) => candidate.id === role.nextRoleId)?.name ?? role.nextRoleId}.` : ""}</p>
                       <p>{role.permissions.length > 0 ? role.permissions.join(", ") : "No permissions"}</p>
                     </div>
+                    {canManageRanks ? (
+                      <div className="project-admin-actions">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setRoleForm({
+                            id: role.id,
+                            key: role.key,
+                            name: role.name,
+                            permissions: role.permissions.join("\n"),
+                            rankPathId: role.rankPathId ?? "",
+                            rankLevel: role.rankLevel === null ? "" : String(role.rankLevel),
+                            displayLabel: role.displayLabel ?? "",
+                            nextRoleId: role.nextRoleId ?? "",
+                            discordRoleId: role.discordRoleId ?? "",
+                            isOwnerRank: role.isOwnerRank,
+                            isSystem: role.isSystem
+                          })}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>

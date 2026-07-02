@@ -137,14 +137,56 @@ export const linkedAccounts = mysqlTable(
   ]
 );
 
-export const roles = mysqlTable("roles", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  key: varchar("key", { length: 80 }).notNull().unique(),
-  name: varchar("name", { length: 191 }).notNull(),
-  permissions: json("permissions").$type<string[]>().notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
-});
+export const roleRankPaths = mysqlTable(
+  "role_rank_paths",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    key: varchar("key", { length: 80 }).notNull().unique(),
+    name: varchar("name", { length: 191 }).notNull(),
+    description: varchar("description", { length: 280 }),
+    sortOrder: int("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("role_rank_paths_sort_idx").on(table.sortOrder, table.key),
+    check("role_rank_paths_key_check", sql`trim(${table.key}) <> ''`),
+    check("role_rank_paths_sort_order_check", sql`${table.sortOrder} >= 0`)
+  ]
+);
+
+export const roles = mysqlTable(
+  "roles",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    key: varchar("key", { length: 80 }).notNull().unique(),
+    name: varchar("name", { length: 191 }).notNull(),
+    permissions: json("permissions").$type<string[]>().notNull(),
+    rankPathId: varchar("rank_path_id", { length: 36 }),
+    rankLevel: int("rank_level"),
+    displayLabel: varchar("display_label", { length: 191 }),
+    nextRoleId: varchar("next_role_id", { length: 36 }),
+    discordRoleId: varchar("discord_role_id", { length: 80 }),
+    isOwnerRank: boolean("is_owner_rank").notNull().default(false),
+    isSystem: boolean("is_system").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("roles_rank_path_level_idx").on(table.rankPathId, table.rankLevel),
+    index("roles_next_role_idx").on(table.nextRoleId),
+    index("roles_discord_role_idx").on(table.discordRoleId),
+    check("roles_rank_level_check", sql`${table.rankLevel} is null or ${table.rankLevel} > 0`),
+    check(
+      "roles_rank_path_level_pair_check",
+      sql`(
+        (${table.rankPathId} is null and ${table.rankLevel} is null)
+        or
+        (${table.rankPathId} is not null and ${table.rankLevel} is not null)
+      )`
+    )
+  ]
+);
 
 export const userRoles = mysqlTable(
   "user_roles",

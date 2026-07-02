@@ -14,13 +14,16 @@ import type {
   ModeratorAdminAuditLog,
   ModeratorAdminGrant,
   ModeratorAdminGrantCreateInput,
+  ModeratorAdminRankPath,
+  ModeratorAdminRankPathInput,
   ModeratorAdminRepository,
   ModeratorAdminRole,
+  ModeratorAdminRoleInput,
   ModeratorAdminUser
 } from "./moderator-admin.types.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
-type SqlValue = string | boolean | null;
+type SqlValue = string | number | boolean | null;
 
 type ModeratorUserRow = {
   id: string;
@@ -37,6 +40,25 @@ type ModeratorRoleRow = {
   key: string;
   name: string;
   permissions: unknown;
+  rankPathId?: string | null;
+  rankPathKey?: string | null;
+  rankPathName?: string | null;
+  rankLevel?: number | null;
+  displayLabel?: string | null;
+  nextRoleId?: string | null;
+  discordRoleId?: string | null;
+  isOwnerRank?: number | boolean;
+  isSystem?: number | boolean;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
+type ModeratorRankPathRow = {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  sortOrder: number;
   createdAt: Date | string;
   updatedAt: Date | string;
 };
@@ -137,6 +159,15 @@ const mapRole = (row: ModeratorRoleRow): ModeratorAdminRole => {
     key: row.key,
     name: row.name,
     permissions: parseStringArray(row.permissions),
+    rankPathId: row.rankPathId ?? null,
+    rankPathKey: row.rankPathKey ?? null,
+    rankPathName: row.rankPathName ?? null,
+    rankLevel: row.rankLevel ?? null,
+    displayLabel: row.displayLabel ?? null,
+    nextRoleId: row.nextRoleId ?? null,
+    discordRoleId: row.discordRoleId ?? null,
+    isOwnerRank: Boolean(row.isOwnerRank),
+    isSystem: Boolean(row.isSystem),
     createdAt: toIsoString(row.createdAt),
     updatedAt: toIsoString(row.updatedAt)
   };
@@ -146,6 +177,16 @@ const mapRole = (row: ModeratorRoleRow): ModeratorAdminRole => {
     grantable: isModeratorRoleGrantable(role)
   };
 };
+
+const mapRankPath = (row: ModeratorRankPathRow): ModeratorAdminRankPath => ({
+  id: row.id,
+  key: row.key,
+  name: row.name,
+  description: row.description ?? null,
+  sortOrder: row.sortOrder,
+  createdAt: toIsoString(row.createdAt),
+  updatedAt: toIsoString(row.updatedAt)
+});
 
 const getGrantStatus = (
   row: Pick<ModeratorGrantRow, "expiresAt" | "revokedAt">
@@ -397,18 +438,47 @@ const listRoles = async (executor: QueryExecutor): Promise<readonly ModeratorAdm
   const [rows] = await executor.execute(
     `
       SELECT
-        id,
-        \`key\`,
-        name,
-        permissions,
-        created_at AS createdAt,
-        updated_at AS updatedAt
+        roles.id,
+        roles.\`key\`,
+        roles.name,
+        roles.permissions,
+        roles.rank_path_id AS rankPathId,
+        role_rank_paths.\`key\` AS rankPathKey,
+        role_rank_paths.name AS rankPathName,
+        roles.rank_level AS rankLevel,
+        roles.display_label AS displayLabel,
+        roles.next_role_id AS nextRoleId,
+        roles.discord_role_id AS discordRoleId,
+        roles.is_owner_rank AS isOwnerRank,
+        roles.is_system AS isSystem,
+        roles.created_at AS createdAt,
+        roles.updated_at AS updatedAt
       FROM roles
-      ORDER BY \`key\`
+      LEFT JOIN role_rank_paths ON role_rank_paths.id = roles.rank_path_id
+      ORDER BY role_rank_paths.sort_order, roles.rank_level, roles.\`key\`
     `
   );
 
   return Array.isArray(rows) ? (rows as ModeratorRoleRow[]).map(mapRole) : [];
+};
+
+const listRankPaths = async (executor: QueryExecutor): Promise<readonly ModeratorAdminRankPath[]> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        id,
+        \`key\`,
+        name,
+        description,
+        sort_order AS sortOrder,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM role_rank_paths
+      ORDER BY sort_order, \`key\`
+    `
+  );
+
+  return Array.isArray(rows) ? (rows as ModeratorRankPathRow[]).map(mapRankPath) : [];
 };
 
 const readRole = async (
@@ -418,14 +488,24 @@ const readRole = async (
   const [rows] = await executor.execute(
     `
       SELECT
-        id,
-        \`key\`,
-        name,
-        permissions,
-        created_at AS createdAt,
-        updated_at AS updatedAt
+        roles.id,
+        roles.\`key\`,
+        roles.name,
+        roles.permissions,
+        roles.rank_path_id AS rankPathId,
+        role_rank_paths.\`key\` AS rankPathKey,
+        role_rank_paths.name AS rankPathName,
+        roles.rank_level AS rankLevel,
+        roles.display_label AS displayLabel,
+        roles.next_role_id AS nextRoleId,
+        roles.discord_role_id AS discordRoleId,
+        roles.is_owner_rank AS isOwnerRank,
+        roles.is_system AS isSystem,
+        roles.created_at AS createdAt,
+        roles.updated_at AS updatedAt
       FROM roles
-      WHERE id = ?
+      LEFT JOIN role_rank_paths ON role_rank_paths.id = roles.rank_path_id
+      WHERE roles.id = ?
       LIMIT 1
     `,
     [roleId]
@@ -433,6 +513,67 @@ const readRole = async (
 
   return Array.isArray(rows) && rows.length > 0
     ? mapRole(rows[0] as ModeratorRoleRow)
+    : null;
+};
+
+const readRoleByKey = async (
+  executor: QueryExecutor,
+  key: string
+): Promise<ModeratorAdminRole | null> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        roles.id,
+        roles.\`key\`,
+        roles.name,
+        roles.permissions,
+        roles.rank_path_id AS rankPathId,
+        role_rank_paths.\`key\` AS rankPathKey,
+        role_rank_paths.name AS rankPathName,
+        roles.rank_level AS rankLevel,
+        roles.display_label AS displayLabel,
+        roles.next_role_id AS nextRoleId,
+        roles.discord_role_id AS discordRoleId,
+        roles.is_owner_rank AS isOwnerRank,
+        roles.is_system AS isSystem,
+        roles.created_at AS createdAt,
+        roles.updated_at AS updatedAt
+      FROM roles
+      LEFT JOIN role_rank_paths ON role_rank_paths.id = roles.rank_path_id
+      WHERE roles.\`key\` = ?
+      LIMIT 1
+    `,
+    [key]
+  );
+
+  return Array.isArray(rows) && rows.length > 0
+    ? mapRole(rows[0] as ModeratorRoleRow)
+    : null;
+};
+
+const readRankPath = async (
+  executor: QueryExecutor,
+  rankPathId: string
+): Promise<ModeratorAdminRankPath | null> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        id,
+        \`key\`,
+        name,
+        description,
+        sort_order AS sortOrder,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM role_rank_paths
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [rankPathId]
+  );
+
+  return Array.isArray(rows) && rows.length > 0
+    ? mapRankPath(rows[0] as ModeratorRankPathRow)
     : null;
 };
 
@@ -487,6 +628,204 @@ const readGrantByUserRole = async (
     : null;
 };
 
+const readRankPathByKey = async (
+  executor: QueryExecutor,
+  key: string
+): Promise<ModeratorAdminRankPath | null> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        id,
+        \`key\`,
+        name,
+        description,
+        sort_order AS sortOrder,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM role_rank_paths
+      WHERE \`key\` = ?
+      LIMIT 1
+    `,
+    [key]
+  );
+
+  return Array.isArray(rows) && rows.length > 0
+    ? mapRankPath(rows[0] as ModeratorRankPathRow)
+    : null;
+};
+
+const createRankPath = async (
+  executor: QueryExecutor,
+  input: ModeratorAdminRankPathInput
+): Promise<ModeratorAdminRankPath | "exists"> => {
+  if (await readRankPathByKey(executor, input.key)) {
+    return "exists";
+  }
+
+  const id = randomUUID();
+  await executor.execute(
+    `
+      INSERT INTO role_rank_paths
+        (id, \`key\`, name, description, sort_order)
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    [id, input.key, input.name, input.description, input.sortOrder]
+  );
+
+  const rankPath = await readRankPath(executor, id);
+
+  if (!rankPath) {
+    throw new Error("moderator_admin_rank_path_reread_failed");
+  }
+
+  return rankPath;
+};
+
+const updateRankPath = async (
+  executor: QueryExecutor,
+  rankPathId: string,
+  input: ModeratorAdminRankPathInput
+): Promise<ModeratorAdminRankPath | "not-found" | "exists"> => {
+  const existing = await readRankPath(executor, rankPathId);
+
+  if (!existing) {
+    return "not-found";
+  }
+
+  const duplicate = await readRankPathByKey(executor, input.key);
+  if (duplicate && duplicate.id !== rankPathId) {
+    return "exists";
+  }
+
+  await executor.execute(
+    `
+      UPDATE role_rank_paths
+      SET \`key\` = ?,
+        name = ?,
+        description = ?,
+        sort_order = ?
+      WHERE id = ?
+    `,
+    [input.key, input.name, input.description, input.sortOrder, rankPathId]
+  );
+
+  const rankPath = await readRankPath(executor, rankPathId);
+
+  if (!rankPath) {
+    throw new Error("moderator_admin_rank_path_reread_failed");
+  }
+
+  return rankPath;
+};
+
+const ensureRoleRankPathExists = async (
+  executor: QueryExecutor,
+  input: ModeratorAdminRoleInput
+): Promise<boolean> =>
+  input.rankPathId === null || await readRankPath(executor, input.rankPathId) !== null;
+
+const createRole = async (
+  executor: QueryExecutor,
+  input: ModeratorAdminRoleInput
+): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found"> => {
+  if (await readRoleByKey(executor, input.key)) {
+    return "exists";
+  }
+
+  if (!await ensureRoleRankPathExists(executor, input)) {
+    return "rank-path-not-found";
+  }
+
+  const id = randomUUID();
+  await executor.execute(
+    `
+      INSERT INTO roles
+        (id, \`key\`, name, permissions, rank_path_id, rank_level, display_label, next_role_id, discord_role_id, is_owner_rank, is_system)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      id,
+      input.key,
+      input.name,
+      JSON.stringify(input.permissions),
+      input.rankPathId,
+      input.rankLevel,
+      input.displayLabel,
+      input.nextRoleId,
+      input.discordRoleId,
+      input.isOwnerRank,
+      input.isSystem
+    ]
+  );
+
+  const role = await readRole(executor, id);
+
+  if (!role) {
+    throw new Error("moderator_admin_role_reread_failed");
+  }
+
+  return role;
+};
+
+const updateRole = async (
+  executor: QueryExecutor,
+  roleId: string,
+  input: ModeratorAdminRoleInput
+): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found"> => {
+  const existing = await readRole(executor, roleId);
+
+  if (!existing) {
+    return "not-found";
+  }
+
+  const duplicate = await readRoleByKey(executor, input.key);
+  if (duplicate && duplicate.id !== roleId) {
+    return "exists";
+  }
+
+  if (!await ensureRoleRankPathExists(executor, input)) {
+    return "rank-path-not-found";
+  }
+
+  await executor.execute(
+    `
+      UPDATE roles
+      SET \`key\` = ?,
+        name = ?,
+        permissions = ?,
+        rank_path_id = ?,
+        rank_level = ?,
+        display_label = ?,
+        next_role_id = ?,
+        discord_role_id = ?,
+        is_owner_rank = ?,
+        is_system = ?
+      WHERE id = ?
+    `,
+    [
+      input.key,
+      input.name,
+      JSON.stringify(input.permissions),
+      input.rankPathId,
+      input.rankLevel,
+      input.displayLabel,
+      input.nextRoleId,
+      input.discordRoleId,
+      input.isOwnerRank,
+      input.isSystem,
+      roleId
+    ]
+  );
+
+  const role = await readRole(executor, roleId);
+
+  if (!role) {
+    throw new Error("moderator_admin_role_reread_failed");
+  }
+
+  return role;
+};
+
 export const createModeratorAdminRepository = (
   pool: DatabasePool
 ): ModeratorAdminRepository => ({
@@ -496,6 +835,10 @@ export const createModeratorAdminRepository = (
 
   async listUsers() {
     return await listUsers(pool);
+  },
+
+  async listRankPaths() {
+    return await listRankPaths(pool);
   },
 
   async listRoles() {
@@ -538,8 +881,16 @@ export const createModeratorAdminRepository = (
     return await readUser(pool, userId);
   },
 
+  async getRankPath(rankPathId) {
+    return await readRankPath(pool, rankPathId);
+  },
+
   async getRole(roleId) {
     return await readRole(pool, roleId);
+  },
+
+  async getRoleByKey(key) {
+    return await readRoleByKey(pool, key);
   },
 
   async getGrant(grantId) {
@@ -753,5 +1104,21 @@ export const createModeratorAdminRepository = (
     } finally {
       connection.release();
     }
+  },
+
+  async createRankPath(input) {
+    return await createRankPath(pool, input);
+  },
+
+  async updateRankPath(rankPathId, input) {
+    return await updateRankPath(pool, rankPathId, input);
+  },
+
+  async createRole(input) {
+    return await createRole(pool, input);
+  },
+
+  async updateRole(roleId, input) {
+    return await updateRole(pool, roleId, input);
   }
 });

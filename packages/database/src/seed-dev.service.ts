@@ -14,6 +14,7 @@ import {
   projectItems,
   projectMilestones,
   projects,
+  roleRankPaths,
   roles,
   streamScheduleEntries,
   streamSessions,
@@ -27,8 +28,12 @@ const database = createDatabase(pool);
 
 const creatorUserId = "00000000-0000-4000-8000-000000000001";
 const creatorLinkedAccountId = "00000000-0000-4000-8000-000000000002";
+const ownerRankPathId = "00000000-0000-4000-8000-00000000000a";
+const modRankPathId = "00000000-0000-4000-8000-00000000000b";
+const adminRankPathId = "00000000-0000-4000-8000-00000000000c";
 const ownerRoleId = "00000000-0000-4000-8000-000000000010";
 const ownerUserRoleId = "00000000-0000-4000-8000-000000000011";
+const adminLevelOneRoleId = "00000000-0000-4000-8000-000000000030";
 const projectId = "00000000-0000-4000-8000-000000000020";
 const milestoneId = "00000000-0000-4000-8000-000000000021";
 const projectItemId = "00000000-0000-4000-8000-000000000022";
@@ -329,26 +334,124 @@ await database.insert(linkedAccounts).values({
   }
 });
 
+await database.insert(roleRankPaths).values([
+  {
+    id: ownerRankPathId,
+    key: "owner",
+    name: "Owner",
+    description: "Full platform ownership.",
+    sortOrder: 0
+  },
+  {
+    id: modRankPathId,
+    key: "mod",
+    name: "Moderator",
+    description: "Live moderation and chat safety ranks.",
+    sortOrder: 10
+  },
+  {
+    id: adminRankPathId,
+    key: "admin",
+    name: "Admin",
+    description: "Administrative promotion path.",
+    sortOrder: 20
+  }
+]).onDuplicateKeyUpdate({
+  set: {
+    updatedAt: sql`CURRENT_TIMESTAMP`
+  }
+});
+
 await database.insert(roles).values({
   id: ownerRoleId,
   key: "owner",
   name: "Owner",
-  permissions: ["*"]
+  permissions: ["*"],
+  rankPathId: ownerRankPathId,
+  rankLevel: 1,
+  displayLabel: "Owner",
+  isOwnerRank: true,
+  isSystem: true
 }).onDuplicateKeyUpdate({
   set: {
     name: "Owner",
-    permissions: ["*"]
+    permissions: ["*"],
+    rankPathId: ownerRankPathId,
+    rankLevel: 1,
+    displayLabel: "Owner",
+    isOwnerRank: true,
+    isSystem: true
   }
 });
+
+const modRankRoles = Array.from({ length: 10 }, (_, index) => {
+  const level = index + 1;
+  const idNumber = 20 + index;
+  const id = `00000000-0000-4000-8000-${idNumber.toString().padStart(12, "0")}`;
+  const permissions = [
+    "chat:view",
+    "chat:hide-message",
+    "chat:warn-user",
+    "moderation-rules:view",
+    ...(level >= 2 ? ["chat:emergency-clear"] : []),
+    ...(level >= 3 ? ["chat:ban-user-local"] : [])
+  ];
+
+  return {
+    id,
+    key: `mod-lvl-${level}`,
+    name: `Moderator lvl ${level}`,
+    permissions,
+    rankPathId: modRankPathId,
+    rankLevel: level,
+    displayLabel: "Moderator",
+    nextRoleId: level < 10
+      ? `00000000-0000-4000-8000-${(idNumber + 1).toString().padStart(12, "0")}`
+      : adminLevelOneRoleId,
+    isOwnerRank: false,
+    isSystem: true
+  };
+});
+
+for (const role of [
+  ...modRankRoles,
+  {
+    id: adminLevelOneRoleId,
+    key: "admin-lvl-1",
+    name: "Admin lvl 1",
+    permissions: ["moderators:manage"],
+    rankPathId: adminRankPathId,
+    rankLevel: 1,
+    displayLabel: "Admin",
+    nextRoleId: null,
+    isOwnerRank: false,
+    isSystem: true
+  }
+]) {
+  await database.insert(roles).values(role).onDuplicateKeyUpdate({
+    set: {
+      name: role.name,
+      permissions: role.permissions,
+      rankPathId: role.rankPathId,
+      rankLevel: role.rankLevel,
+      displayLabel: role.displayLabel,
+      nextRoleId: role.nextRoleId,
+      isOwnerRank: role.isOwnerRank,
+      isSystem: role.isSystem
+    }
+  });
+}
 
 await database.insert(userRoles).values({
   id: ownerUserRoleId,
   userId: creatorUserId,
-  roleId: ownerRoleId
+  roleId: ownerRoleId,
+  trustLevel: "owner"
 }).onDuplicateKeyUpdate({
   set: {
     userId: creatorUserId,
-    roleId: ownerRoleId
+    roleId: ownerRoleId,
+    trustLevel: "owner"
   }
 });
 
