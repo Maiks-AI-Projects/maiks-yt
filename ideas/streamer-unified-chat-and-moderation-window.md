@@ -59,6 +59,23 @@ The split between private chat and overlay chat is important. A message can be v
 - audit log for moderation actions
 - keyboard-friendly moderation controls later
 
+## Moderator Variant
+
+Moderators should have a separate control window that starts from this same combined chat model, not from a general admin page.
+
+The moderator version should:
+
+- show the combined private chat first
+- show only quick controls allowed by the moderator's permissions
+- keep rows compact and readable for live use
+- put secondary information behind hover, expansion, or options menus
+- use a top dropdown/menu for allowed panels instead of many permanent tabs
+- hide panels the moderator cannot access
+
+Allowed panels can include active rules, pending approvals, live helper context, notes/follow-up, and limited stream controls when explicitly granted.
+
+Disabled actions should explain why on hover, such as missing permission, provider action unsupported, provider disconnected, or owner review required.
+
 ## Moderation Behavior
 
 Quick mute should use a safe default duration, such as 10 minutes, but the exact default can be configured later.

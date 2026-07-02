@@ -34,7 +34,7 @@ Start with a manual owner-gated moderator management page:
 - record who granted, changed, or revoked access
 - keep owner-only capabilities clearly unavailable to moderators
 
-First version should be manual. No automatic promotions, no Discord role sync, no provider sync, and no trust-score automation.
+First version should be manual. No automatic promotions, no live Discord role sync, no provider sync, and no trust-score automation.
 
 ## Trust Levels
 
@@ -50,6 +50,70 @@ Example levels:
 - owner: full platform authority
 
 Trust levels should map to explicit permissions. The system should never rely on a label alone for authorization.
+
+## Rank Paths And Rights
+
+Moderator/helper authority should be modeled as configurable rank paths plus action rights.
+
+An admin surface should allow Michael to:
+
+- create rank paths, such as `mod`, `admin`, `operator`, or later community/support paths
+- create levels inside a path, such as `mod lvl 1` through `mod lvl 10`
+- keep the public/common name stable across a path, so `mod lvl 1` and `mod lvl 10` are both still shown as mod where that is clearer
+- attach explicit action rights to each rank level
+- define the next promotion step for a rank
+- allow a final promotion step to jump from one path to another, such as highest mod rank promoting into `admin lvl 1`
+
+Permissions belong to actions first, then ranks collect those action rights. This keeps the system flexible: emergency clear, hide, warn, ban, approve queue item, open stream controls, or later provider actions can be added to or removed from a rank without changing code assumptions.
+
+Initial moderation action-right direction:
+
+- `chat:view`: can open the moderator chat panel
+- `chat:hide-message`: can hide one message from Maiks.yt stream surfaces
+- `chat:warn-user`: can issue a local warning
+- `chat:ban-user-local`: can ban the user from Maiks.yt stream surfaces
+- `chat:emergency-clear`: can use emergency clear
+- `moderation-rules:view`: can view active applied rules
+- `moderation-rules:retract`: can retract allowed rules
+
+Emergency clear should not be granted to the first moderator rank by default. It should start at the next rank up from `mod lvl 1`, or equivalent, and remain removable from that rank if Michael wants a stricter setup later.
+
+Approved initial defaults:
+
+- seed a `mod` rank path with levels 1 through 10
+- display `mod` levels as Moderator by default
+- `mod lvl 1`: chat view, hide message, warn user, view active rules
+- `mod lvl 2`: `mod lvl 1` plus emergency clear
+- `mod lvl 3`: `mod lvl 2` plus local ban
+- `mod lvl 4+`: reserve for later rights unless Michael assigns more
+- include an `admin` path in the model, so highest mod rank can promote into `admin lvl 1`
+- include an owner rank for Michael with all rights by default
+- allow multiple rank assignments per user
+- use `/moderation` as the moderator control route instead of creating `/mod`
+
+## Discord-Inspired Rights Model
+
+The Maiks.yt rights model should take inspiration from Discord:
+
+- roles/ranks are collections of explicit permissions
+- users can have multiple roles/ranks
+- effective rights are computed from all active assignments
+- dangerous actions are separate permission flags
+- management rights should have boundaries, so a role can manage only lower/safe roles unless explicitly owner-approved
+- ordering matters for promotion and management safety
+
+Maiks.yt should not copy Discord's full channel-overwrite complexity in the first version. The app should use readable permission keys for auditability, even if a compact internal representation is added later.
+
+Future Discord integration should let Michael manage Discord roles from the website. The website should be the source of truth for Maiks.yt permissions, and Discord role changes should be an audited integration output. Example future behavior:
+
+- map a Maiks.yt rank or role to a Discord role id
+- grant or remove the Discord role when a Maiks.yt assignment changes
+- require a specific action right such as `discord:manage-roles`
+- verify the bot has permission before trying the change
+- write success/failure audit rows
+- fail closed when Discord is disconnected or the role hierarchy blocks the bot
+
+Website rights and Discord rights should be linked but not identical. A Discord role can mirror a Maiks.yt role for community visibility, but Maiks.yt permissions remain authoritative for website, stream, overlay, moderation, money, auth, and admin actions.
 
 ## Permission Areas
 
@@ -79,6 +143,38 @@ When Michael is live, the moderator page should prioritize actions that reduce s
 - quick notes for owner follow-up after stream
 
 Live mode should avoid broad account-management actions unless the permission is explicitly granted.
+
+## Moderator Control Window Direction
+
+Moderators should have their own control window/PWA, shaped like the current standalone chat window rather than a broad admin dashboard.
+
+The first screen should start with the combined private chat plus the moderation controls that the moderator is allowed to use. The top of the window should stay simple:
+
+- an emergency/critical action area only when the moderator has that permission
+- a compact dropdown or menu for allowed panels
+- compact provider/service status indicators when useful
+
+The allowed panels dropdown should only show surfaces the current moderator can access. Examples:
+
+- Chat
+- Active Rules
+- Pending Approvals
+- Live Helper
+- Notes / Follow-up
+- Stream Controls, only for explicitly trusted operators
+
+The UI should be dense enough for live use, but not dense in a way that becomes hard to parse. Default rows should show the information needed to act quickly. Less-common details should move behind hover text, tooltips, expansion, or an options menu.
+
+Useful hover/expanded details:
+
+- prior warning count
+- active restrictions
+- linked site profile status
+- platform/source details
+- last moderator action
+- why an action is disabled
+
+Simple use matters more than exposing every admin capability. Moderator panels should be fast to scan, permission-aware, and fail closed when a permission or provider action is unavailable.
 
 ## Safety Boundaries
 
