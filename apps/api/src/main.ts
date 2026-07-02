@@ -3,7 +3,12 @@ import { createHash, randomUUID } from "node:crypto";
 import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
-import { TwitchChatReadOnlyIntakeService, type TwitchChatProjectedMessage } from "@maiks-yt/integrations";
+import {
+  DiscordChatReadOnlyIntakeService,
+  TwitchChatReadOnlyIntakeService,
+  type DiscordChatProjectedMessage,
+  type TwitchChatProjectedMessage
+} from "@maiks-yt/integrations";
 import type {
   OverlayActiveGoalState,
   OverlayPresentationState,
@@ -50,6 +55,7 @@ import { registerModeratorAdminRoutes } from "./moderators/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
 import {
+  registerDiscordChatIntakeControlRoutes,
   registerProviderIntegrationStatusRoutes,
   registerTwitchChatIntakeControlRoutes,
   registerYouTubeOwnerConsentRoutes
@@ -1520,13 +1526,27 @@ const recordFakeLocalStreamerChatMessage = (
 const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): StreamerChatMessage =>
   appendStreamerChatMessage({ ...message });
 
+const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage): StreamerChatMessage =>
+  appendStreamerChatMessage({
+    ...message,
+    channelName: message.channelName
+  });
+
 const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
   onMessage: recordTwitchStreamerChatMessage
+});
+const discordChatIntakeRuntime = new DiscordChatReadOnlyIntakeService({
+  onMessage: recordDiscordStreamerChatMessage
 });
 
 if (process.env.NODE_ENV !== "test" && process.env.TWITCH_CHAT_AUTO_START !== "false") {
   setTimeout(() => {
     twitchChatIntakeRuntime.start();
+  }, 0);
+}
+if (process.env.NODE_ENV !== "test" && process.env.DISCORD_CHAT_AUTO_START !== "false") {
+  setTimeout(() => {
+    discordChatIntakeRuntime.start();
   }, 0);
 }
 
@@ -1840,6 +1860,7 @@ registerProviderIntegrationStatusRoutes(server, {
   getAuthSession,
   getDatabasePool,
   getRuntimeState: () => ({
+    discordChatIntakeState: discordChatIntakeRuntime.getStatus().state,
     twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state
   })
 });
@@ -1851,6 +1872,11 @@ registerTwitchChatIntakeControlRoutes(server, {
   getAuthSession,
   getDatabasePool,
   runtime: twitchChatIntakeRuntime
+});
+registerDiscordChatIntakeControlRoutes(server, {
+  getAuthSession,
+  getDatabasePool,
+  runtime: discordChatIntakeRuntime
 });
 registerEventRoutingDispatchRoutes(server, {
   getDatabasePool,
@@ -3028,6 +3054,72 @@ server.post("/streamer-chat/twitch-reconnect", async (request, reply) => {
     ok: true,
     readOnly: true,
     status: twitchChatIntakeRuntime.start(),
+    checkedAt: new Date().toISOString()
+  };
+});
+
+server.get("/streamer-chat/discord-status", async (request, reply) => {
+  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  return {
+    ok: true,
+    readOnly: true,
+    status: discordChatIntakeRuntime.getStatus(),
+    checkedAt: new Date().toISOString()
+  };
+});
+
+server.post("/streamer-chat/discord-reconnect", async (request, reply) => {
+  const parsedRequest = overlayStatusRequestSchema.safeParse(request.body);
+
+  if (!parsedRequest.success) {
+    reply.code(400);
+    return {
+      ok: false,
+      reason: "invalid_request"
+    };
+  }
+
+  const tokenValidation = await validateUrlAccessTokenForRequest({
+    token: parsedRequest.data.accessToken,
+    surface: "control-panel",
+    scope: "control:open"
+  });
+
+  if (!tokenValidation.valid) {
+    reply.code(403);
+    return {
+      ok: false,
+      reason: tokenValidation.reason ?? "control_panel_access_denied"
+    };
+  }
+
+  return {
+    ok: true,
+    readOnly: true,
+    status: discordChatIntakeRuntime.start(),
     checkedAt: new Date().toISOString()
   };
 });

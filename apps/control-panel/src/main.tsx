@@ -185,10 +185,40 @@ type TwitchChatIntakeStatus = {
   state: "stopped" | "connecting" | "connected" | "unconfigured";
 };
 
+type DiscordChatIntakeStatus = {
+  channelIds: readonly string[];
+  connectedAt: string | null;
+  disconnectsInWindow: number;
+  guildId: string | null;
+  lastError: string | null;
+  lastDisconnectAt: string | null;
+  lastMessageAt: string | null;
+  nextReconnectAt: string | null;
+  recentMessages: Array<{
+    id: string;
+    authorName: string;
+    channelName: string;
+    createdAt: string;
+    message: string;
+  }>;
+  reconnectSuppressed: boolean;
+  state: "stopped" | "connecting" | "connected" | "unconfigured";
+};
+
 type TwitchChatStatusResponse = {
   ok: true;
   readOnly: true;
   status: TwitchChatIntakeStatus;
+  checkedAt: string;
+} | {
+  ok: false;
+  reason: string;
+};
+
+type DiscordChatStatusResponse = {
+  ok: true;
+  readOnly: true;
+  status: DiscordChatIntakeStatus;
   checkedAt: string;
 } | {
   ok: false;
@@ -478,6 +508,7 @@ const twitchIntakeStateLabels: Record<TwitchChatIntakeStatus["state"], string> =
   stopped: "Stopped",
   unconfigured: "Not configured"
 };
+const discordIntakeStateLabels: Record<DiscordChatIntakeStatus["state"], string> = twitchIntakeStateLabels;
 
 const moderationRuleKindLabels: Record<StreamerChatModerationRule["kind"], string> = {
   author_banned: "Ban",
@@ -512,9 +543,52 @@ const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null): strin
   }
 };
 
+const getDiscordIntakeStatusCopy = (status: DiscordChatIntakeStatus | null): string => {
+  if (!status) {
+    return "Loading Discord intake state.";
+  }
+
+  if (status.reconnectSuppressed) {
+    return "Auto reconnect paused after repeated Discord disconnects. Open provider admin or retry manually.";
+  }
+
+  if (status.lastError) {
+    return status.lastError;
+  }
+
+  switch (status.state) {
+    case "connected":
+      return status.lastMessageAt
+        ? `Last Discord message ${formatChatTime(status.lastMessageAt)}.`
+        : "Waiting for the next Discord message.";
+    case "connecting":
+      return "Connecting to Discord Gateway.";
+    case "stopped":
+      return "Discord chat intake is stopped.";
+    case "unconfigured":
+      return "Discord bot or guild is not configured.";
+  }
+};
+
 type ServiceConnectionTone = "connected" | "problem" | "disconnected" | "loading";
 
 const getTwitchServiceTone = (status: TwitchChatIntakeStatus | null): ServiceConnectionTone => {
+  if (!status) {
+    return "loading";
+  }
+
+  if (status.state === "connected" && !status.lastError && !status.reconnectSuppressed) {
+    return "connected";
+  }
+
+  if (status.state === "connecting" || status.lastError || status.reconnectSuppressed) {
+    return "problem";
+  }
+
+  return "disconnected";
+};
+
+const getDiscordServiceTone = (status: DiscordChatIntakeStatus | null): ServiceConnectionTone => {
   if (!status) {
     return "loading";
   }
@@ -545,9 +619,13 @@ const getServiceStatusLabel = (tone: ServiceConnectionTone): string => {
 
 const ChatServiceStatusStrip = (): React.ReactNode => {
   const [status, setStatus] = useState<TwitchChatIntakeStatus | null>(null);
+  const [discordStatus, setDiscordStatus] = useState<DiscordChatIntakeStatus | null>(null);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
+  const [discordCheckedAt, setDiscordCheckedAt] = useState<string | null>(null);
   const [message, setMessage] = useState("Loading Twitch intake state.");
+  const [discordMessage, setDiscordMessage] = useState("Loading Discord intake state.");
   const [actionPending, setActionPending] = useState(false);
+  const [discordActionPending, setDiscordActionPending] = useState(false);
 
   const loadStatus = async (isDisposed: () => boolean = () => false): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
@@ -583,12 +661,48 @@ const ChatServiceStatusStrip = (): React.ReactNode => {
     }
   };
 
+  const loadDiscordStatus = async (isDisposed: () => boolean = () => false): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+    if (!token) {
+      setDiscordMessage("Control token missing.");
+      return;
+    }
+
+    try {
+      const url = new URL("/streamer-chat/discord-status", apiBaseUrl);
+      url.searchParams.set("accessToken", token);
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Discord intake status failed with ${response.status}.`);
+      }
+
+      const result = await response.json() as DiscordChatStatusResponse;
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      if (!isDisposed()) {
+        setDiscordStatus(result.status);
+        setDiscordCheckedAt(result.checkedAt);
+        setDiscordMessage(getDiscordIntakeStatusCopy(result.status));
+      }
+    } catch (error) {
+      if (!isDisposed()) {
+        setDiscordMessage(error instanceof Error ? error.message : "Discord intake status unavailable.");
+      }
+    }
+  };
+
   useEffect(() => {
     let disposed = false;
 
     void loadStatus(() => disposed);
+    void loadDiscordStatus(() => disposed);
     const intervalId = window.setInterval(() => {
       void loadStatus(() => disposed);
+      void loadDiscordStatus(() => disposed);
     }, 10000);
 
     return () => {
@@ -647,6 +761,56 @@ const ChatServiceStatusStrip = (): React.ReactNode => {
     }
   };
 
+  const handleDiscordServiceClick = async (): Promise<void> => {
+    if (discordStatus?.state === "unconfigured" || discordStatus?.reconnectSuppressed) {
+      window.location.assign("https://web-dev.maiks.yt/admin/provider-integrations");
+      return;
+    }
+
+    if (discordStatus?.state === "connected" || discordStatus?.state === "connecting" || discordActionPending) {
+      return;
+    }
+
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setDiscordMessage("Control token missing.");
+      return;
+    }
+
+    setDiscordActionPending(true);
+    setDiscordMessage("Trying to reconnect Discord chat.");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/streamer-chat/discord-reconnect`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ accessToken: token })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Discord reconnect failed with ${response.status}.`);
+      }
+
+      const result = await response.json() as DiscordChatStatusResponse;
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      setDiscordStatus(result.status);
+      setDiscordCheckedAt(result.checkedAt);
+      setDiscordMessage(getDiscordIntakeStatusCopy(result.status));
+    } catch (error) {
+      setDiscordMessage(error instanceof Error ? error.message : "Discord reconnect unavailable.");
+    } finally {
+      setDiscordActionPending(false);
+      void loadDiscordStatus();
+    }
+  };
+
   const twitchTone = getTwitchServiceTone(status);
   const twitchDetail = [
     status ? twitchIntakeStateLabels[status.state] : "Loading",
@@ -656,6 +820,15 @@ const ChatServiceStatusStrip = (): React.ReactNode => {
     status?.disconnectsInWindow ? `${status.disconnectsInWindow}/10 disconnects` : null
   ].filter(Boolean).join(" - ");
   const twitchTitle = `${message}${checkedAt ? ` Checked ${formatChatTime(checkedAt)}.` : ""}`;
+  const discordTone = getDiscordServiceTone(discordStatus);
+  const discordDetail = [
+    discordStatus ? discordIntakeStateLabels[discordStatus.state] : "Loading",
+    discordStatus?.channelIds.length ? `${discordStatus.channelIds.length} channel(s)` : "guild-wide",
+    discordStatus?.lastMessageAt ? `last ${formatChatTime(discordStatus.lastMessageAt)}` : null,
+    discordStatus?.nextReconnectAt ? `retry ${formatChatTime(discordStatus.nextReconnectAt)}` : null,
+    discordStatus?.disconnectsInWindow ? `${discordStatus.disconnectsInWindow}/10 disconnects` : null
+  ].filter(Boolean).join(" - ");
+  const discordTitle = `${discordMessage}${discordCheckedAt ? ` Checked ${formatChatTime(discordCheckedAt)}.` : ""}`;
 
   return (
     <section className="chat-service-status" aria-label="Connected chat services">
@@ -679,15 +852,17 @@ const ChatServiceStatusStrip = (): React.ReactNode => {
         <span className="chat-service-name">YouTube</span>
         <small>not connected</small>
       </a>
-      <a
-        className="chat-service-indicator disconnected"
-        href="https://web-dev.maiks.yt/admin/provider-integrations"
-        title="Discord chat intake is not connected in this window yet."
+      <button
+        className={`chat-service-indicator ${discordTone}`}
+        disabled={discordStatus?.state === "connected" || discordStatus?.state === "connecting" || discordActionPending}
+        onClick={handleDiscordServiceClick}
+        title={discordTitle}
+        type="button"
       >
         <span className="chat-service-dot" aria-hidden="true" />
         <span className="chat-service-name">Discord</span>
-        <small>not connected</small>
-      </a>
+        <small>{discordDetail || getServiceStatusLabel(discordTone)}</small>
+      </button>
     </section>
   );
 };

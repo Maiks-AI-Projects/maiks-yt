@@ -56,6 +56,16 @@ type TwitchChatProjectedMessage = {
   visibleOnOverlayByDefault: false;
 };
 
+type DiscordChatProjectedMessage = {
+  id: string;
+  authorName: string;
+  channelName: string;
+  createdAt: string;
+  message: string;
+  source: "discord";
+  visibleOnOverlayByDefault: false;
+};
+
 type TwitchChatIntakeStatus = {
   channelName: string | null;
   connectedAt: string | null;
@@ -65,11 +75,36 @@ type TwitchChatIntakeStatus = {
   state: "stopped" | "connecting" | "connected" | "unconfigured";
 };
 
+type DiscordChatIntakeStatus = {
+  channelIds: readonly string[];
+  connectedAt: string | null;
+  disconnectsInWindow: number;
+  guildId: string | null;
+  lastError: string | null;
+  lastDisconnectAt: string | null;
+  lastMessageAt: string | null;
+  nextReconnectAt: string | null;
+  recentMessages: readonly DiscordChatProjectedMessage[];
+  reconnectSuppressed: boolean;
+  state: "stopped" | "connecting" | "connected" | "unconfigured";
+};
+
 type TwitchChatIntakeResponse =
   | {
     ok: true;
     readOnly: true;
     status: TwitchChatIntakeStatus;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type DiscordChatIntakeResponse =
+  | {
+    ok: true;
+    readOnly: true;
+    status: DiscordChatIntakeStatus;
   }
   | {
     ok: false;
@@ -169,12 +204,14 @@ const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBod
 const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [snapshot, setSnapshot] = useState<Extract<ProviderIntegrationsStatusResponse, { ok: true }> | null>(null);
   const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
+  const [discordChatStatus, setDiscordChatStatus] = useState<DiscordChatIntakeStatus | null>(null);
   const [youtubeCredential, setYouTubeCredential] = useState<YouTubeCredentialSummary | null>(null);
   const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
   const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading provider integration status...");
   const [twitchActionMessage, setTwitchActionMessage] = useState<string>("Twitch chat intake status not loaded.");
+  const [discordActionMessage, setDiscordActionMessage] = useState<string>("Discord chat intake status not loaded.");
   const [youtubeActionMessage, setYouTubeActionMessage] = useState<string>("YouTube owner consent not checked.");
 
   const stateCounts = useMemo(() => {
@@ -237,6 +274,26 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
       setTwitchActionMessage(`Twitch chat intake status failed with ${response.status}.`);
     } catch (error) {
       setTwitchActionMessage(error instanceof Error ? error.message : "Twitch chat intake status failed.");
+    }
+  }, []);
+
+  const loadDiscordChatStatus = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/discord-chat`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<DiscordChatIntakeResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setDiscordChatStatus(payload.status);
+        setDiscordActionMessage("Discord chat intake status loaded.");
+        return;
+      }
+
+      setDiscordActionMessage(`Discord chat intake status failed with ${response.status}.`);
+    } catch (error) {
+      setDiscordActionMessage(error instanceof Error ? error.message : "Discord chat intake status failed.");
     }
   }, []);
 
@@ -314,12 +371,37 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     }
   }, [loadStatus]);
 
+  const runDiscordChatAction = useCallback(async (action: "start" | "stop"): Promise<void> => {
+    setDiscordActionMessage(action === "start" ? "Starting Discord chat intake..." : "Stopping Discord chat intake...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/discord-chat/${action}`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<DiscordChatIntakeResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setDiscordChatStatus(payload.status);
+        setDiscordActionMessage(action === "start" ? "Discord chat intake started." : "Discord chat intake stopped.");
+        await loadStatus();
+        return;
+      }
+
+      setDiscordActionMessage(`Discord chat intake ${action} failed with ${response.status}.`);
+    } catch (error) {
+      setDiscordActionMessage(error instanceof Error ? error.message : `Discord chat intake ${action} failed.`);
+    }
+  }, [loadStatus]);
+
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     void loadStatus();
     void loadTwitchChatStatus();
+    void loadDiscordChatStatus();
     void loadYouTubeCredential();
-  }, [loadStatus, loadTwitchChatStatus, loadYouTubeCredential]);
+  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadYouTubeCredential]);
 
   return (
     <>
@@ -358,6 +440,66 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
               <span>Disabled</span>
               <strong>{stateCounts.disabled}</strong>
             </div>
+          </section>
+
+          <section className="project-admin-panel">
+            <div className="project-admin-panel-heading">
+              <div>
+                <h2>Discord Chat Intake</h2>
+                <p>Read-only dev Gateway connection for private streamer chat.</p>
+              </div>
+              <div className="project-admin-actions">
+                <button
+                  type="button"
+                  disabled={discordChatStatus?.state === "connected" || discordChatStatus?.state === "connecting"}
+                  onClick={() => void runDiscordChatAction("start")}
+                >
+                  Start
+                </button>
+                <button
+                  type="button"
+                  disabled={discordChatStatus?.state === "stopped" || discordChatStatus?.state === "unconfigured"}
+                  onClick={() => void runDiscordChatAction("stop")}
+                >
+                  Stop
+                </button>
+                <button type="button" onClick={() => void loadDiscordChatStatus()}>Refresh</button>
+              </div>
+            </div>
+            <div className="provider-chat-status-grid">
+              <div className={`provider-chat-state ${discordChatStatus?.state ?? "unconfigured"}`}>
+                <span>State</span>
+                <strong>{discordChatStatus?.state ?? "Unknown"}</strong>
+              </div>
+              <div>
+                <span>Channels</span>
+                <strong>{discordChatStatus?.channelIds.length ? `${discordChatStatus.channelIds.length} configured` : "Guild-wide"}</strong>
+              </div>
+              <div>
+                <span>Last message</span>
+                <strong>{discordChatStatus?.lastMessageAt ? formatDate(discordChatStatus.lastMessageAt) : "None yet"}</strong>
+              </div>
+            </div>
+            <p className="provider-chat-action-message">{discordActionMessage}</p>
+            {discordChatStatus?.lastError ? (
+              <p className="provider-chat-error">{discordChatStatus.lastError}</p>
+            ) : null}
+            {discordChatStatus?.recentMessages.length ? (
+              <ol className="provider-chat-recent-list" aria-label="Recent Discord chat messages">
+                {discordChatStatus.recentMessages.slice(0, 5).map((chatMessage) => (
+                  <li key={chatMessage.id}>
+                    <div>
+                      <strong>{chatMessage.authorName}</strong>
+                      <span>{chatMessage.channelName}</span>
+                      <time dateTime={chatMessage.createdAt}>{formatDate(chatMessage.createdAt)}</time>
+                    </div>
+                    <p>{chatMessage.message}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="provider-chat-empty">No Discord messages captured in this API runtime yet.</p>
+            )}
           </section>
 
           <section className="project-admin-panel">

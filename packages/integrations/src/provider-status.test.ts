@@ -76,7 +76,7 @@ describe("provider integration status", () => {
       }),
       expect.objectContaining({
         key: "discord-gateway-library",
-        state: "gated"
+        state: "available"
       })
     ]));
   });
@@ -183,7 +183,7 @@ describe("provider integration status", () => {
       }),
       expect.objectContaining({
         key: "discord-gateway-library",
-        state: "gated"
+        state: "available"
       })
     ]));
     expect(serialized).not.toContain("super-secret-discord-bot");
@@ -219,5 +219,29 @@ describe("provider integration status", () => {
         state: "configured"
       })
     ]));
+  });
+
+  it("reports connected Discord chat runtime separately from library availability", () => {
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      DISCORD_BOT_TOKEN: "super-secret-discord-bot",
+      DISCORD_GUILD_ID: "sensitive-guild-value-123"
+    }, new Date("2026-07-02T10:00:00.000Z"), {
+      discordChatIntakeState: "connected"
+    });
+    const discord = snapshot.providers.find((provider) => provider.id === "discord");
+    const serialized = JSON.stringify(discord);
+
+    expect(discord?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "discord-gateway-library",
+        state: "available"
+      }),
+      expect.objectContaining({
+        key: "discord-chat-runtime",
+        state: "configured"
+      })
+    ]));
+    expect(serialized).not.toContain("super-secret-discord-bot");
+    expect(serialized).not.toContain("sensitive-guild-value-123");
   });
 });

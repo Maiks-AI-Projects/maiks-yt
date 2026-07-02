@@ -1,4 +1,7 @@
 export * from "./provider-status.rules.js";
+export * from "./discord-chat-intake.rules.js";
+export * from "./discord-chat-intake.service.js";
+export * from "./discord-chat-intake.types.js";
 export * from "./twitch-chat-intake.rules.js";
 export * from "./twitch-chat-intake.service.js";
 export * from "./twitch-chat-intake.types.js";

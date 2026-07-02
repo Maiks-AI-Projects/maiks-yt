@@ -2,6 +2,7 @@ import type { REST } from "@discordjs/rest";
 import type { ApiClient } from "@twurple/api";
 import type { AppTokenAuthProvider } from "@twurple/auth";
 import type { ChatClient } from "@twurple/chat";
+import type { Client as DiscordClient } from "discord.js";
 import type { youtube_v3 } from "googleapis";
 
 export type ProviderIntegrationId = "twitch" | "youtube" | "discord";
@@ -49,6 +50,7 @@ export type ProviderIntegrationStatusSnapshot = {
 export type ProviderIntegrationEnvironment = Record<string, string | undefined>;
 
 export type ProviderIntegrationRuntimeState = {
+  discordChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
   twitchChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
 };
 
@@ -63,6 +65,7 @@ export type YouTubeProviderSdkFoundation = {
 };
 
 export type DiscordProviderSdkFoundation = {
+  gatewayClient?: DiscordClient;
   rest: REST;
 };
 
@@ -295,7 +298,10 @@ const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
   };
 };
 
-const buildDiscordStatus = (env: ProviderIntegrationEnvironment): ProviderIntegrationStatus => {
+const buildDiscordStatus = (
+  env: ProviderIntegrationEnvironment,
+  runtimeState: ProviderIntegrationRuntimeState
+): ProviderIntegrationStatus => {
   const variables = [
     createEnvStatus(env, "DISCORD_BOT_TOKEN", "secret", true),
     createEnvStatus(env, "DISCORD_APPLICATION_ID", "identifier", false),
@@ -342,8 +348,26 @@ const buildDiscordStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
       {
         key: "discord-gateway-library",
         label: "Discord Gateway library",
-        state: "gated",
-        detail: "discord.js is not installed yet; Gateway/message intake needs a separate intent and runtime design."
+        state: "available",
+        detail: "discord.js is installed for read-only Gateway/message intake."
+      },
+      {
+        key: "discord-chat-runtime",
+        label: "Discord chat runtime",
+        state: runtimeState.discordChatIntakeState === "connected"
+          ? "configured"
+          : runtimeState.discordChatIntakeState === "connecting"
+            ? "available"
+            : runtimeState.discordChatIntakeState === "unconfigured"
+              ? "missing"
+              : "not_enabled",
+        detail: runtimeState.discordChatIntakeState === "connected"
+          ? "Read-only Discord Gateway chat intake is connected on this API runtime."
+          : runtimeState.discordChatIntakeState === "connecting"
+            ? "Read-only Discord Gateway chat intake is currently connecting."
+            : runtimeState.discordChatIntakeState === "unconfigured"
+              ? "Discord chat intake is missing a bot token or guild target."
+              : "Read-only Discord Gateway chat intake is installed but stopped."
       }
     ]
   };
@@ -360,7 +384,7 @@ export const getProviderIntegrationStatusSnapshot = (
   providers: [
     buildTwitchStatus(env, runtimeState),
     buildYouTubeStatus(env),
-    buildDiscordStatus(env)
+    buildDiscordStatus(env, runtimeState)
   ],
   boundaries: statusBoundaries
 });
