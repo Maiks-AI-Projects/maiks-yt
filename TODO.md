@@ -287,11 +287,11 @@ Gate note: AI public output must start in a private draft/shadow mode before any
 
 ## 14. Safety and Moderation
 
-- [ ] Define roles and permissions.
+- [x] Define roles and permissions.
   - Direction: build configurable rank paths with levels and explicit action rights. Example: `mod lvl 1` through `mod lvl 10` are all mods, and a final promotion can jump to another path such as `admin lvl 1`. Rights attach to actions, then ranks collect those rights; emergency clear should start one rank above the first moderator rank by default and remain removable.
   - Approved defaults: seed `mod` levels 1-10, include an `admin` path, add an owner rank for Michael with all rights, allow multiple rank assignments, and use `/moderation` as the moderator control route.
   - Rights model should be Discord-inspired: users can hold multiple roles/ranks, effective rights are computed from explicit action flags, and future Discord role sync can be managed from the website. Maiks.yt remains authoritative; Discord role changes are audited integration output.
-  - 2026-07-02 generated migration `0020_opposite_marauders.sql` for `role_rank_paths` plus rank metadata on `roles`, added owner-only rank path/role rights editing to `/admin/moderators`, and extended dev seed defaults for owner/mod/admin paths. Migration application and dev smoke remain pending.
+  - 2026-07-02 generated and dev-applied migration `0020_opposite_marauders.sql` for `role_rank_paths` plus rank metadata on `roles`, added owner-only rank path/role rights editing to `/admin/moderators`, and extended dev seed defaults for owner/mod/admin paths. Dev smoke confirmed API health, owner-auth `/admin/moderators` rank paths `owner`/`mod`/`admin`, seeded owner/mod/admin roles, `canManageRanks: true`, and `web-dev` `/admin/moderators` returning `200` without the known injection marker.
 - [x] Design moderator management page with trust levels, scoped permissions, temporary grants, and audit history.
   - 2026-06-28 Phase 5B added, deployed, and dev-smoked a manual owner-gated `/admin/moderators` surface plus API/domain rules for listing users/roles/grants/audit context and granting, updating, or revoking non-owner helper/moderator role grants over the Phase 5A persistence shape. Grant/update/revoke writes role-grant audit rows. Owner/admin roles, wildcard/role-management, production auth/secrets, provider credentials, real money, irreversible user deletion, and audit-log-disabling permissions are rejected. No migrations, provider sync, automatic promotion, real moderation enforcement, auth changes, secrets, or production behavior were added.
 - [x] Add read-only live helper dashboard before moderation enforcement.
