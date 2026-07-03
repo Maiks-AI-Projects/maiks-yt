@@ -10,24 +10,13 @@ import {
   type TwitchChatProjectedMessage
 } from "@maiks-yt/integrations";
 import type {
-  OverlayActiveGoalState,
-  OverlayPresentationState,
-  OverlayLayoutKey,
   OverlayLiveMessage,
   OverlayFakeChatMessageReceivedEvent,
-  OverlayNotificationDisplay,
-  OverlaySceneDefinition,
-  OverlaySceneKey,
-  OverlayStateSnapshot,
-  OverlayThemeKey,
-  OverlayCenterNotificationTiming,
-  OverlayRoutedNotificationQueuedEvent,
-  OverlayTopBarNotificationQueuedEvent,
   RealtimeEvent,
   StreamerChatMessage
 } from "@maiks-yt/events";
 import { createStreamerChatMessageFromFakeLocal } from "@maiks-yt/events";
-import { allThemeScenes, overlaySceneSlotIds } from "@maiks-yt/themes";
+import { overlaySceneSlotIds } from "@maiks-yt/themes";
 import fastifyCors from "@fastify/cors";
 import fastifyWebsocket from "@fastify/websocket";
 import { fromNodeHeaders } from "better-auth/node";
@@ -51,6 +40,7 @@ import {
   NotificationAdminService,
   registerNotificationAdminRoutes
 } from "./notifications/index.js";
+import { OverlayRuntime, type DemoRedeemKey, type OverlayLiveSocket } from "./overlay/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
 import {
   registerDiscordChatIntakeControlRoutes,
@@ -80,34 +70,9 @@ const config = createRuntimeConfig({
 
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
-const activeOverlayConnections = new Set<string>();
+const overlayRuntime = new OverlayRuntime();
 const maxStreamerChatHistory = 75;
 const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: maxStreamerChatHistory });
-let overlayEmergencyCleanModeEnabled = false;
-let overlayChatVisible = true;
-let overlayChatNewestOnTop = false;
-let overlaySponsorVisible = true;
-let overlayAiMuted = false;
-let overlayTopBarEnabled = true;
-let overlayCenterEnabled = true;
-let overlayCenterDefaultTiming: OverlayCenterNotificationTiming = {
-  onscreenMs: 4_000,
-  fadeOutMs: 700,
-  restMs: 1_500
-};
-let overlayActiveGoal: OverlayActiveGoalState | null = null;
-const overlayLiveClients = new Map<string, {
-  requestedScene: OverlaySceneKey;
-  requestedLayout: OverlayLayoutKey;
-  requestedTheme: OverlayThemeKey;
-  requestedMode: OverlayStateSnapshot["mode"];
-  snapshot: OverlayStateSnapshot;
-  socket: OverlayLiveSocket;
-}>();
-const overlaySceneDefinitions = new Map<string, OverlaySceneDefinition>(
-  allThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
-);
-let overlayGlobalPresentationState: OverlayPresentationState | null = null;
 
 await server.register(fastifyCors, {
   origin: getTrustedOrigins(),
@@ -310,12 +275,6 @@ interface RealtimeSpikeSocket {
   on(event: "close", listener: () => void): void;
 }
 
-interface OverlayLiveSocket {
-  close: (code?: number, reason?: string) => void;
-  send: (message: string) => void;
-  on(event: "close", listener: () => void): void;
-}
-
 const createRealtimeSpikeEvent = ({
   connectionId,
   sequence,
@@ -401,249 +360,6 @@ const validateUrlAccessTokenForRequest = async ({
   };
 };
 
-const getOverlaySceneDefinition = (
-  theme: OverlayThemeKey,
-  scene: OverlaySceneKey
-): OverlaySceneDefinition => {
-  const sceneDefinition = overlaySceneDefinitions.get(`${theme}:${scene}`)
-    ?? overlaySceneDefinitions.get("default:default");
-
-  if (!sceneDefinition) {
-    throw new Error("Default overlay scene is missing.");
-  }
-
-  return structuredClone(sceneDefinition);
-};
-
-const createOverlayStateSnapshot = ({
-  layout,
-  mode,
-  scene,
-  theme
-}: {
-  layout: OverlayLayoutKey;
-  mode: OverlayStateSnapshot["mode"];
-  scene: OverlaySceneKey;
-  theme: OverlayThemeKey;
-}): OverlayStateSnapshot => {
-  const effectiveLayout = overlayEmergencyCleanModeEnabled ? "clean" : layout;
-  const effectiveMode = overlayEmergencyCleanModeEnabled ? "clean" : mode;
-
-  return {
-    id: randomUUID(),
-    scene,
-    layout: effectiveLayout,
-    theme,
-    mode: effectiveMode,
-    connectionStatus: "snapshot",
-    sceneDefinition: getOverlaySceneDefinition(theme, scene),
-    topBar: {
-      enabled: overlayTopBarEnabled,
-      quietHighlightIntervalMs: 18_000
-    },
-    center: {
-      enabled: overlayCenterEnabled,
-      defaultTiming: overlayCenterDefaultTiming
-    },
-    chat: {
-      newestOnTop: overlayChatNewestOnTop
-    },
-    activeGoal: overlayActiveGoal ? { ...overlayActiveGoal } : null,
-    topNotification: null,
-    centerNotification: null,
-    slots: {
-      camera: {
-        id: "camera",
-        visible: effectiveLayout !== "clean",
-        label: "Camera"
-      },
-      chat: {
-        id: "chat",
-        visible: overlayChatVisible && effectiveLayout !== "clean" && scene !== "just-camera",
-        label: "Chat"
-      },
-      sponsorPrimary: {
-        id: "sponsor-primary",
-        visible: overlaySponsorVisible && effectiveMode !== "clean" && effectiveLayout !== "clean",
-        label: "Sponsor"
-      },
-      sponsorSecondary: {
-        id: "sponsor-secondary",
-        visible: false,
-        label: "Sponsor"
-      },
-      streamGoal: {
-        id: "stream-goal",
-        visible: effectiveMode !== "clean",
-        label: "Stream goal"
-      }
-    },
-    updatedAt: new Date().toISOString()
-  };
-};
-
-const resolveOverlayPresentationState = (
-  requestedState: OverlayPresentationState
-): OverlayPresentationState => ({
-  scene: overlayGlobalPresentationState?.scene ?? requestedState.scene,
-  layout: overlayGlobalPresentationState?.layout ?? requestedState.layout,
-  theme: overlayGlobalPresentationState?.theme ?? requestedState.theme
-});
-
-const createOverlaySnapshotFromRequestedState = ({
-  layout,
-  mode,
-  scene,
-  theme
-}: {
-  layout: OverlayLayoutKey;
-  mode: OverlayStateSnapshot["mode"];
-  scene: OverlaySceneKey;
-  theme: OverlayThemeKey;
-}): OverlayStateSnapshot => {
-  const presentationState = resolveOverlayPresentationState({
-    scene,
-    layout,
-    theme
-  });
-
-  return createOverlayStateSnapshot({
-    scene: presentationState.scene,
-    layout: presentationState.layout,
-    theme: presentationState.theme,
-    mode
-  });
-};
-
-const demoTopBarNotifications: Array<Omit<OverlayNotificationDisplay, "createdAt" | "id">> = [
-  {
-    actorName: "Yasmin",
-    actionLabel: "followed",
-    avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
-    kind: "follow",
-    platform: "twitch",
-    priority: "normal"
-  },
-  {
-    actorName: "Michael",
-    actionLabel: "gifted 5 subs",
-    avatarUrl: "https://yt3.ggpht.com/yti/ANjgQV8-placeholder=s88-c-k-c0x00ffffff-no-rj",
-    kind: "gifted-sub",
-    platform: "youtube",
-    priority: "important"
-  },
-  {
-    actorName: "MaiksMC Fan",
-    actionLabel: "cheered 500 bits",
-    avatarUrl: "https://static-cdn.jtvnw.net/jtv_user_pictures/xarth/404_user_70x70.png",
-    kind: "bits",
-    platform: "twitch",
-    priority: "normal"
-  },
-  {
-    actorName: "Top Supporter",
-    actionLabel: "Donated EUR 20",
-    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
-    kind: "community-highlight",
-    platform: "system",
-    priority: "normal"
-  }
-];
-
-const demoRedeemNotifications = {
-  hydrate: {
-    actorName: "Hydrate",
-    actionLabel: "Take a drink",
-    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
-    kind: "redeem",
-    platform: "site",
-    priority: "important"
-  },
-  jumpscare: {
-    actorName: "Jumpscare",
-    actionLabel: "Brace yourself",
-    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
-    kind: "redeem",
-    platform: "site",
-    priority: "urgent"
-  },
-  mime: {
-    actorName: "Mime",
-    actionLabel: "Act it out",
-    avatarUrl: "https://www.youtube.com/s/desktop/12d6b690/img/favicon_144x144.png",
-    kind: "mime",
-    platform: "site",
-    priority: "important"
-  }
-} satisfies Record<string, Omit<OverlayNotificationDisplay, "createdAt" | "id">>;
-
-const createRedeemNotification = (
-  redeem: keyof typeof demoRedeemNotifications
-): OverlayRoutedNotificationQueuedEvent => {
-  const display: OverlayNotificationDisplay = {
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-    ...demoRedeemNotifications[redeem]
-  };
-
-  return {
-    type: "overlay.routed-notification.queued",
-    payload: {
-      ...display,
-      route: "center",
-      afterCenter: "none",
-      center: {
-        title: display.actorName,
-        message: display.actionLabel,
-        imageUrl: display.avatarUrl,
-        timing: overlayCenterDefaultTiming
-      }
-    }
-  };
-};
-
-const createDemoTopBarNotification = (index: number): OverlayTopBarNotificationQueuedEvent => ({
-  type: "overlay.top-bar-notification.queued",
-  payload: {
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-    ...demoTopBarNotifications[index % demoTopBarNotifications.length]!
-  }
-});
-
-const createDemoRoutedNotification = (
-  index: number,
-  route: OverlayRoutedNotificationQueuedEvent["payload"]["route"],
-  afterCenter: OverlayRoutedNotificationQueuedEvent["payload"]["afterCenter"]
-): OverlayRoutedNotificationQueuedEvent => {
-  const display: OverlayNotificationDisplay = {
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-    ...(route === "center" && afterCenter === "none"
-      ? demoRedeemNotifications.hydrate
-      : demoTopBarNotifications[index % demoTopBarNotifications.length]!)
-  };
-
-  return {
-    type: "overlay.routed-notification.queued",
-    payload: {
-      ...display,
-      route,
-      afterCenter,
-      ...(route === "center"
-        ? {
-          center: {
-            title: display.actorName,
-            message: display.actionLabel,
-            imageUrl: display.avatarUrl,
-            timing: overlayCenterDefaultTiming
-          }
-        }
-        : {})
-    }
-  };
-};
-
 const createFakeChatMessageEvent = ({
   authorKind,
   authorName,
@@ -665,11 +381,7 @@ const createFakeChatMessageEvent = ({
 });
 
 const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
-  const serializedMessage = JSON.stringify(message);
-
-  for (const client of overlayLiveClients.values()) {
-    client.socket.send(serializedMessage);
-  }
+  overlayRuntime.broadcastMessage(message);
 };
 
 const streamerChatModerationRuntime = new InMemoryStreamerChatModerationRuntime({
@@ -750,24 +462,6 @@ if (process.env.NODE_ENV !== "test" && process.env.DISCORD_CHAT_AUTO_START !== "
     discordChatIntakeRuntime.start();
   }, 0);
 }
-
-const broadcastOverlaySnapshots = (): void => {
-  for (const client of overlayLiveClients.values()) {
-    client.snapshot = {
-      ...createOverlaySnapshotFromRequestedState({
-        scene: client.requestedScene,
-        layout: client.requestedLayout,
-        theme: client.requestedTheme,
-        mode: client.requestedMode
-      }),
-      connectionStatus: client.snapshot.connectionStatus
-    };
-    client.socket.send(JSON.stringify({
-      type: "overlay.state.snapshot",
-      payload: client.snapshot
-    } satisfies OverlayLiveMessage));
-  }
-};
 
 const parseJsonArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -930,27 +624,27 @@ function createProviderReconnectSuppressedNotifier(
 }
 
 const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) => {
-  if (projection.destination === "top_notification" && !overlayTopBarEnabled) {
+  if (projection.destination === "top_notification" && !overlayRuntime.isTopBarEnabled()) {
     return {
       emitted: false,
       reason: "top_notifications_disabled",
-      activeOverlayConnections: activeOverlayConnections.size
+      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   }
 
-  if (projection.destination === "center_notification" && !overlayCenterEnabled) {
+  if (projection.destination === "center_notification" && !overlayRuntime.isCenterEnabled()) {
     return {
       emitted: false,
       reason: "center_notifications_disabled",
-      activeOverlayConnections: activeOverlayConnections.size
+      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   }
 
-  broadcastOverlayMessage(projection.overlayEvent);
+  overlayRuntime.broadcastMessage(projection.overlayEvent);
 
   return {
     emitted: true,
-    activeOverlayConnections: activeOverlayConnections.size
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 };
 
@@ -1741,7 +1435,7 @@ server.get("/overlay/state", async (request, reply) => {
 
   return {
     ok: true,
-    snapshot: createOverlaySnapshotFromRequestedState(parsedRequest.data)
+    snapshot: overlayRuntime.createSnapshotFromRequestedState(parsedRequest.data)
   };
 });
 
@@ -1772,22 +1466,7 @@ server.get("/overlay/status", async (request, reply) => {
 
   return {
     ok: true,
-    activeOverlayConnections: activeOverlayConnections.size,
-    overlayActive: activeOverlayConnections.size > 0,
-    presentationState: overlayGlobalPresentationState ?? {
-      scene: "default",
-      layout: "standard",
-      theme: "default"
-    },
-    emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
-    chatVisible: overlayChatVisible,
-    chatNewestOnTop: overlayChatNewestOnTop,
-    sponsorVisible: overlaySponsorVisible,
-    aiMuted: overlayAiMuted,
-    topBarEnabled: overlayTopBarEnabled,
-    centerEnabled: overlayCenterEnabled,
-    centerDefaultTiming: overlayCenterDefaultTiming,
-    activeGoal: overlayActiveGoal ? { ...overlayActiveGoal } : null,
+    ...overlayRuntime.getStatus(),
     checkedAt: new Date().toISOString()
   };
 });
@@ -1835,19 +1514,18 @@ server.post("/overlay/goal", async (request, reply) => {
     };
   }
 
-  overlayActiveGoal = {
+  const activeGoal = overlayRuntime.setActiveGoal({
     enabled: parsedRequest.data.enabled,
     label: parsedRequest.data.label,
     currentAmount: parsedRequest.data.currentAmount,
     targetAmount: parsedRequest.data.targetAmount,
     currencyCode: parsedRequest.data.currencyCode
-  };
-  broadcastOverlaySnapshots();
+  });
 
   return {
     ok: true,
-    activeGoal: { ...overlayActiveGoal },
-    activeOverlayConnections: activeOverlayConnections.size
+    activeGoal,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -1876,9 +1554,13 @@ server.post("/overlay/presentation-state", async (request, reply) => {
     };
   }
 
-  const sceneDefinition = overlaySceneDefinitions.get(`${parsedRequest.data.theme}:${parsedRequest.data.scene}`);
+  const presentationState = overlayRuntime.setPresentationState({
+    scene: parsedRequest.data.scene,
+    layout: parsedRequest.data.layout,
+    theme: parsedRequest.data.theme
+  });
 
-  if (!sceneDefinition) {
+  if (!presentationState) {
     reply.code(400);
     return {
       ok: false,
@@ -1886,17 +1568,10 @@ server.post("/overlay/presentation-state", async (request, reply) => {
     };
   }
 
-  overlayGlobalPresentationState = {
-    scene: parsedRequest.data.scene,
-    layout: parsedRequest.data.layout,
-    theme: parsedRequest.data.theme
-  };
-  broadcastOverlaySnapshots();
-
   return {
     ok: true,
-    presentationState: overlayGlobalPresentationState,
-    activeOverlayConnections: activeOverlayConnections.size
+    presentationState,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -1927,7 +1602,7 @@ server.get("/overlay/scenes", async (request, reply) => {
 
   return {
     ok: true,
-    scenes: Array.from(overlaySceneDefinitions.values()).map((scene) => structuredClone(scene))
+    scenes: overlayRuntime.listScenes()
   };
 });
 
@@ -1983,13 +1658,12 @@ server.post("/overlay/scenes/save", async (request, reply) => {
     };
   }
 
-  overlaySceneDefinitions.set(`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene));
-  broadcastOverlaySnapshots();
+  const savedScene = overlayRuntime.saveScene(scene);
 
   return {
     ok: true,
-    scene: structuredClone(scene),
-    activeOverlayConnections: activeOverlayConnections.size
+    scene: savedScene,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2018,19 +1692,19 @@ server.post("/overlay/center/settings", async (request, reply) => {
     };
   }
 
-  overlayCenterEnabled = parsedRequest.data.enabled;
-  overlayCenterDefaultTiming = {
-    onscreenMs: parsedRequest.data.onscreenMs,
-    fadeOutMs: parsedRequest.data.fadeOutMs,
-    restMs: parsedRequest.data.restMs
-  };
-  broadcastOverlaySnapshots();
+  const centerSettings = overlayRuntime.setCenterSettings({
+    enabled: parsedRequest.data.enabled,
+    timing: {
+      onscreenMs: parsedRequest.data.onscreenMs,
+      fadeOutMs: parsedRequest.data.fadeOutMs,
+      restMs: parsedRequest.data.restMs
+    }
+  });
 
   return {
     ok: true,
-    centerEnabled: overlayCenterEnabled,
-    centerDefaultTiming: overlayCenterDefaultTiming,
-    activeOverlayConnections: activeOverlayConnections.size
+    ...centerSettings,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2059,13 +1733,12 @@ server.post("/overlay/top-bar/enabled", async (request, reply) => {
     };
   }
 
-  overlayTopBarEnabled = parsedRequest.data.enabled;
-  broadcastOverlaySnapshots();
+  const topBarEnabled = overlayRuntime.setTopBarEnabled(parsedRequest.data.enabled);
 
   return {
     ok: true,
-    topBarEnabled: overlayTopBarEnabled,
-    activeOverlayConnections: activeOverlayConnections.size
+    topBarEnabled,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2108,13 +1781,12 @@ server.post("/overlay/emergency-clean-mode", async (request, reply) => {
     };
   }
 
-  overlayEmergencyCleanModeEnabled = parsedRequest.data.enabled;
-  broadcastOverlaySnapshots();
+  const emergencyCleanModeEnabled = overlayRuntime.setEmergencyCleanModeEnabled(parsedRequest.data.enabled);
 
   return {
     ok: true,
-    emergencyCleanModeEnabled: overlayEmergencyCleanModeEnabled,
-    activeOverlayConnections: activeOverlayConnections.size
+    emergencyCleanModeEnabled,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2143,13 +1815,12 @@ server.post("/overlay/chat/visibility", async (request, reply) => {
     };
   }
 
-  overlayChatVisible = parsedRequest.data.visible;
-  broadcastOverlaySnapshots();
+  const chatVisible = overlayRuntime.setChatVisible(parsedRequest.data.visible);
 
   return {
     ok: true,
-    chatVisible: overlayChatVisible,
-    activeOverlayConnections: activeOverlayConnections.size
+    chatVisible,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2178,13 +1849,12 @@ server.post("/overlay/chat/order", async (request, reply) => {
     };
   }
 
-  overlayChatNewestOnTop = parsedRequest.data.newestOnTop;
-  broadcastOverlaySnapshots();
+  const chatNewestOnTop = overlayRuntime.setChatNewestOnTop(parsedRequest.data.newestOnTop);
 
   return {
     ok: true,
-    chatNewestOnTop: overlayChatNewestOnTop,
-    activeOverlayConnections: activeOverlayConnections.size
+    chatNewestOnTop,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2222,10 +1892,10 @@ server.post("/overlay/chat/test", async (request, reply) => {
       queued: 0,
       reason: "fake_local_author_muted",
       mutedUntil: mutedAuthor.mutedUntil,
-      chatVisible: overlayChatVisible,
+      chatVisible: overlayRuntime.getChatVisible(),
       streamerChatMessage: null,
       event: null,
-      activeOverlayConnections: activeOverlayConnections.size
+      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   }
 
@@ -2236,22 +1906,22 @@ server.post("/overlay/chat/test", async (request, reply) => {
       ok: true,
       queued: 0,
       reason: "streamer_chat_actor_banned",
-      chatVisible: overlayChatVisible,
+      chatVisible: overlayRuntime.getChatVisible(),
       streamerChatMessage: null,
       event: null,
-      activeOverlayConnections: activeOverlayConnections.size
+      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   }
 
-  broadcastOverlayMessage(event);
+  overlayRuntime.broadcastMessage(event);
 
   return {
     ok: true,
     queued: 1,
-    chatVisible: overlayChatVisible,
+    chatVisible: overlayRuntime.getChatVisible(),
     streamerChatMessage,
     event,
-    activeOverlayConnections: activeOverlayConnections.size
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2280,13 +1950,12 @@ server.post("/overlay/sponsor/visibility", async (request, reply) => {
     };
   }
 
-  overlaySponsorVisible = parsedRequest.data.visible;
-  broadcastOverlaySnapshots();
+  const sponsorVisible = overlayRuntime.setSponsorVisible(parsedRequest.data.visible);
 
   return {
     ok: true,
-    sponsorVisible: overlaySponsorVisible,
-    activeOverlayConnections: activeOverlayConnections.size
+    sponsorVisible,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2315,12 +1984,12 @@ server.post("/overlay/ai/muted", async (request, reply) => {
     };
   }
 
-  overlayAiMuted = parsedRequest.data.muted;
+  const aiMuted = overlayRuntime.setAiMuted(parsedRequest.data.muted);
 
   return {
     ok: true,
-    aiMuted: overlayAiMuted,
-    activeOverlayConnections: activeOverlayConnections.size
+    aiMuted,
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2351,14 +2020,14 @@ server.post("/overlay/top-bar/test", async (request, reply) => {
 
   for (let index = 0; index < parsedRequest.data.count; index += 1) {
     setTimeout(() => {
-      broadcastOverlayMessage(createDemoTopBarNotification(index));
+      overlayRuntime.broadcastMessage(overlayRuntime.createDemoTopBarNotification(index));
     }, index * 500);
   }
 
   return {
     ok: true,
     queued: parsedRequest.data.count,
-    activeOverlayConnections: activeOverlayConnections.size
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2387,13 +2056,13 @@ server.post("/overlay/notification/test", async (request, reply) => {
     };
   }
 
-  if (parsedRequest.data.route === "center" && !overlayCenterEnabled) {
+  if (parsedRequest.data.route === "center" && !overlayRuntime.isCenterEnabled()) {
     return {
       ok: true,
       queued: 0,
       route: "center",
       reason: "center_notifications_disabled",
-      activeOverlayConnections: activeOverlayConnections.size
+      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   }
 
@@ -2401,7 +2070,7 @@ server.post("/overlay/notification/test", async (request, reply) => {
 
   for (let index = 0; index < parsedRequest.data.count; index += 1) {
     setTimeout(() => {
-      broadcastOverlayMessage(createDemoRoutedNotification(index, route, parsedRequest.data.afterCenter));
+      overlayRuntime.broadcastMessage(overlayRuntime.createDemoRoutedNotification(index, route, parsedRequest.data.afterCenter));
     }, index * 500);
   }
 
@@ -2409,7 +2078,7 @@ server.post("/overlay/notification/test", async (request, reply) => {
     ok: true,
     queued: parsedRequest.data.count,
     route,
-    activeOverlayConnections: activeOverlayConnections.size
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2438,23 +2107,23 @@ server.post("/overlay/redeem/test", async (request, reply) => {
     };
   }
 
-  if (!overlayCenterEnabled) {
+  if (!overlayRuntime.isCenterEnabled()) {
     return {
       ok: true,
       queued: 0,
       redeem: parsedRequest.data.redeem,
       reason: "center_notifications_disabled",
-      activeOverlayConnections: activeOverlayConnections.size
+      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   }
 
-  broadcastOverlayMessage(createRedeemNotification(parsedRequest.data.redeem));
+  overlayRuntime.broadcastMessage(overlayRuntime.createRedeemNotification(parsedRequest.data.redeem as DemoRedeemKey));
 
   return {
     ok: true,
     queued: 1,
     redeem: parsedRequest.data.redeem,
-    activeOverlayConnections: activeOverlayConnections.size
+    activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
 });
 
@@ -2478,21 +2147,7 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
   }
 
   const connectionId = randomUUID();
-  activeOverlayConnections.add(connectionId);
-  let snapshot = createOverlaySnapshotFromRequestedState(parsedRequest.data);
-  snapshot = {
-    ...snapshot,
-    connectionStatus: "live",
-    updatedAt: new Date().toISOString()
-  };
-  overlayLiveClients.set(connectionId, {
-    requestedScene: parsedRequest.data.scene,
-    requestedLayout: parsedRequest.data.layout,
-    requestedTheme: parsedRequest.data.theme,
-    requestedMode: parsedRequest.data.mode,
-    snapshot,
-    socket
-  });
+  const snapshot = overlayRuntime.openLiveConnection(connectionId, parsedRequest.data, socket);
 
   const sendMessage = (message: OverlayLiveMessage): void => {
     socket.send(JSON.stringify(message));
@@ -2516,8 +2171,7 @@ server.get("/overlay/live", { websocket: true }, async (socket: OverlayLiveSocke
 
   socket.on("close", () => {
     clearInterval(heartbeatInterval);
-    activeOverlayConnections.delete(connectionId);
-    overlayLiveClients.delete(connectionId);
+    overlayRuntime.closeLiveConnection(connectionId);
     server.log.info({ connectionId }, "Overlay live connection closed.");
   });
 });
