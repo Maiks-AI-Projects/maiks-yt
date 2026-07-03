@@ -20,6 +20,7 @@ Do not load the full `ideas/` folder or the full project history.
 - Follow the existing domain-first file structure.
 - Prefer existing packages and patterns over new abstractions.
 - Keep changes tightly scoped to the assigned files and behavior.
+- Prefer small, purpose-specific files. When a file becomes hard to review or grows into multiple responsibilities, split it into focused modules instead of continuing to add unrelated logic to it. Keep splits behavior-preserving unless the task explicitly asks for feature changes.
 - Do not revert or rewrite changes made by another worker.
 - Do not edit `.env` files, secrets, Cloudflare configuration, Docker configuration, migrations, deployment scripts, or authentication unless the task explicitly assigns them.
 - Never add real-money behavior without an explicitly approved money-phase task.
