@@ -3,80 +3,8 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
-
-type StreamerChatMessagesResponse = {
-  ok: true;
-  source: "mixed";
-  messages: StreamerChatMessage[];
-  checkedAt: string;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type FakeLocalModerationResponse = {
-  ok: true;
-  source: "fake-local";
-  providerAction: false;
-  auditEntry: {
-    outcome: string;
-    mutedUntil: string | null;
-  };
-} | {
-  ok: false;
-  reason: string;
-  source: "fake-local";
-  providerAction: false;
-};
-
-type StreamerChatModerationResponse = {
-  ok: true;
-  action: "hide" | "ban" | "warn";
-  affectedCount: number;
-  autoBanned?: boolean;
-  providerAction: false;
-  providerMessageSent?: boolean;
-  warningCount?: number;
-  warningThreshold?: number;
-} | {
-  ok: false;
-  reason: string;
-  providerAction: false;
-};
-
-export type StreamerChatActionAccess = {
-  canBan: boolean;
-  canHide: boolean;
-  canWarn: boolean;
-};
-
-type StreamerChatViewerProps = {
-  actionAccess?: StreamerChatActionAccess;
-  apiBaseUrl: string;
-  maxMessages?: number;
-  newestOnTop: boolean;
-  variant?: "embedded" | "standalone";
-};
-
-const defaultActionAccess: StreamerChatActionAccess = {
-  canBan: true,
-  canHide: true,
-  canWarn: true
-};
-
-const createWebSocketUrl = (baseUrl: string, path: string): string => {
-  const url = new URL(path, baseUrl);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-
-  return url.toString();
-};
-
-const createAuthenticatedWebSocketUrl = (baseUrl: string, path: string, accessToken: string): string => {
-  const url = new URL(createWebSocketUrl(baseUrl, path));
-  url.searchParams.set("accessToken", accessToken);
-
-  return url.toString();
-};
+import { createAuthenticatedWebSocketUrl, defaultActionAccess } from "./streamer-chat-viewer.service.js";
+import type { FakeLocalModerationResponse, StreamerChatMessagesResponse, StreamerChatModerationResponse, StreamerChatViewerProps } from "./streamer-chat-viewer.types.js";
 
 export const StreamerChatViewer = ({
   actionAccess = defaultActionAccess,
