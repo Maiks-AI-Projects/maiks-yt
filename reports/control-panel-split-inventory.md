@@ -2,146 +2,70 @@
 
 Updated: 2026-07-03
 
-Purpose: keep `apps/control-panel/src/main.tsx` splits behavior-preserving and predictable. Move one chunk at a time, run `pnpm --filter @maiks-yt/control-panel typecheck`, `node scripts/check-architecture.mjs`, and `git diff --check` after each chunk.
+Purpose: keep `apps/control-panel/src/main.tsx` and nearby control-panel modules small enough to review. Splits should stay behavior-preserving, one concern at a time, with `pnpm --filter @maiks-yt/control-panel build`, `node scripts/check-architecture.mjs`, and `git diff --check` after each chunk.
 
 ## Current State
 
-- `apps/control-panel/src/main.tsx`: 3039 lines after extracting `ChatServiceStatusStrip`.
-- `apps/control-panel/src/chat/ChatServiceStatusStrip.tsx`: provider service-dot status strip for Twitch, YouTube, and Discord.
-- `apps/control-panel/src/chat/chat-time.service.ts`: shared chat time formatter.
+- `apps/control-panel/src/main.tsx`: app shell, route detection, auth gate, manifest route updates, and top-level panel composition.
+- `apps/control-panel/src/chat/`: standalone chat window header, service status strip, streamer chat viewer, and chat helper services/types.
+- `apps/control-panel/src/moderation/`: moderation shell, applied-rules window, helper summary panel, and moderation types.
+- `apps/control-panel/src/overlay/`: overlay status/control component, presence hook, presentational status sections, and overlay API/types.
+- `apps/control-panel/src/scene-designer/`: scene designer component, presentational sections, layout helpers, and scene designer types.
+- `apps/control-panel/src/realtime/`: realtime probe panel.
+- `apps/control-panel/src/simulator/`: simulator panel.
+- `apps/control-panel/src/operations/`: small operations panel.
 
-## Proposed Destinations
+## Completed Splits
 
-### Chat Window
+- Chat status strip extracted from `main.tsx`.
+- Streamer chat window header and viewer extracted.
+- Moderation control window extracted, then split into shell, applied rules, info panel, and types.
+- Realtime probe extracted.
+- Simulator panel extracted.
+- Operations panel extracted.
+- Surface status extracted, then split into types/constants, presence hook, and presentational sections.
+- Scene designer extracted, then split into types, layout helpers, and presentational sections.
+- Streamer chat viewer helper/types extracted.
 
-Destination folder: `apps/control-panel/src/chat/`
+## Remaining Opportunities
 
-Move next:
+### Overlay Actions Hook
 
-- `StreamerChatViewer`
-- `ChatWindowHeader`
-- chat moderation response types used only by chat row actions
-- chat source labels if no other panel needs them
+Candidate files:
 
-Keep shared:
-
-- `formatChatTime` stays in `chat-time.service.ts`.
-- Moderation rule labels may move later only if `ModerationRulesWindow` moves with them.
-
-Notes:
-
-- This should be the next useful split because `/chat` and `/moderation` both depend on the combined chat viewer.
-- Keep API calls and URL-token behavior unchanged.
-
-### Moderation Window
-
-Destination folder: `apps/control-panel/src/moderation/`
-
-Move after chat:
-
-- `ModerationRulesWindow`
-- `ModerationInfoPanel`
-- `ModerationControlWindow`
-- `ModerationPanelKey`
-- moderation access/rules response types not needed by chat
+- `apps/control-panel/src/overlay/SurfaceStatus.tsx`
+- new `apps/control-panel/src/overlay/useSurfaceStatusActions.tsx` if this is worth doing
 
 Notes:
 
-- Chat-first moderation UX should stay unchanged.
-- Keep permission-filtered panels and signed-in plus control-token behavior unchanged.
+- This is the largest remaining control-panel file.
+- It is mostly cohesive overlay POST/action handling now.
+- A hook split would be reasonable, but it should be done carefully because it would pass many state setters and derived values.
 
-### Overlay Controls
+### Scene Designer Runtime Hook
 
-Destination folder: `apps/control-panel/src/overlay/`
+Candidate files:
 
-Move after chat/moderation:
-
-- `SurfaceStatus`
-- overlay status/goal/chat-order/presentation response types
-- overlay goal draft helpers
-- overlay WebSocket URL helpers if only used by overlay controls
+- `apps/control-panel/src/scene-designer/SceneDesigner.tsx`
+- new scene runtime hook or save/load service
 
 Notes:
 
-- This is riskier than chat because it owns many control buttons and status polling.
-- Keep scene designer separate from general overlay controls.
+- The remaining component owns drag/resize/save state.
+- Further splitting is possible, but the current file is already under 500 lines and has one main state machine.
 
-### Scene Designer
+### Streamer Chat Viewer Rows
 
-Destination folder: `apps/control-panel/src/scene-designer/`
+Candidate files:
 
-Move as its own chunk:
-
-- `SceneDesigner`
-- `createSceneSlotStyle`
-- `formatSlotLabel`
-- `cloneScene`
-- `clamp`
-- `slotsOverlap`
-- `getSceneLayoutWarnings`
-- `createSceneCopyKey`
-- drag/resize state and scene warning types
+- `apps/control-panel/src/chat/StreamerChatViewer.tsx`
+- optional chat-row component
 
 Notes:
 
-- This is a large self-contained chunk.
-- Run `pnpm --filter @maiks-yt/control-panel typecheck`; browser smoke is useful if this gets deployed.
+- A row/options component could remove render density.
+- Keep moderation action execution in the viewer or a reviewed hook so permissions remain obvious.
 
-### Realtime Probe
+## Suggested Stop Line
 
-Destination folder: `apps/control-panel/src/realtime/`
-
-Move:
-
-- `RealtimeProbe`
-- probe status types
-- WebSocket URL helper if not moved with overlay controls
-- `appendProbeMessage`
-
-Notes:
-
-- This is small and safe, but lower priority than chat/moderation.
-
-### Simulator Panel
-
-Destination folder: `apps/control-panel/src/simulator/`
-
-Move:
-
-- `OperationsPanel`
-- `SimulatorPanel`
-- `delay`
-- `postReplayEvent`
-- `playReplaySession`
-- replay result types
-- event-storm presets if only used there
-
-Notes:
-
-- Keep `@maiks-yt/testing` imports near this module once moved.
-
-### App Shell
-
-Destination folder: keep in `apps/control-panel/src/main.tsx` until the end, or move later to `apps/control-panel/src/app/App.tsx`.
-
-Keep for now:
-
-- `apiBaseUrl`
-- route detection for `/chat` and `/moderation`
-- auth gate/bootstrap
-- manifest route update
-- root render
-- top-level panel composition
-
-Notes:
-
-- Do not move the app shell until the feature panels are split; it is easier to review once it mostly wires modules together.
-
-## Suggested Order
-
-1. Extract chat viewer and chat header.
-2. Extract moderation window panels.
-3. Extract realtime probe or simulator panel, whichever is smaller at that point.
-4. Extract overlay controls.
-5. Extract scene designer.
-6. Reduce `main.tsx` to app shell and route composition.
+The high-value behavior-preserving splits are complete. Future splits should be tied to new feature work or reviewer pain rather than done mechanically.
