@@ -1,142 +1,23 @@
-import type {
-  OverlayActiveGoalState,
-  OverlayLayoutKey,
-  OverlayPresentationState,
-  OverlaySceneDefinition,
-  StreamerChatMessage
-} from "@maiks-yt/events";
+import type { OverlayActiveGoalState, OverlayLayoutKey, OverlayPresentationState, OverlaySceneDefinition } from "@maiks-yt/events";
 import { useEffect, useState } from "react";
 import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
 import { formatChatTime } from "../chat/chat-time.service.js";
 import type { OverlayScenesResponse } from "./overlay-api.types.js";
-
-const overlayLayoutOptions: Array<{ key: OverlayLayoutKey; label: string }> = [
-  { key: "standard", label: "Standard" },
-  { key: "camera-left", label: "Camera left" },
-  { key: "camera-right", label: "Camera right" },
-  { key: "clean", label: "Clean" }
-];
-const redeemPresetOptions = [
-  { key: "hydrate", label: "Hydrate" },
-  { key: "jumpscare", label: "Jumpscare" },
-  { key: "mime", label: "Mime" }
-] as const;
-
-type RedeemPreset = typeof redeemPresetOptions[number]["key"];
-
-type OverlayPresenceState =
-  | {
-    status: "checking";
-  }
-  | {
-    status: "ready";
-    activeOverlayConnections: number;
-    checkedAt: string;
-    emergencyCleanModeEnabled: boolean;
-    chatVisible: boolean;
-    chatNewestOnTop: boolean;
-    sponsorVisible: boolean;
-    aiMuted: boolean;
-    topBarEnabled: boolean;
-    centerEnabled: boolean;
-    centerDefaultTiming: CenterNotificationTiming;
-    presentationState: OverlayPresentationState;
-    activeGoal: OverlayActiveGoalState | null;
-  }
-  | {
-    status: "error";
-    message: string;
-  };
-
-type CenterNotificationTiming = {
-  onscreenMs: number;
-  fadeOutMs: number;
-  restMs: number;
-};
-
-type OverlayStatusResponse = {
-  ok: true;
-  activeOverlayConnections: number;
-  overlayActive: boolean;
-  checkedAt: string;
-  presentationState: OverlayPresentationState;
-  emergencyCleanModeEnabled: boolean;
-  chatVisible: boolean;
-  chatNewestOnTop: boolean;
-  sponsorVisible: boolean;
-  aiMuted: boolean;
-  topBarEnabled: boolean;
-  centerEnabled: boolean;
-  centerDefaultTiming: CenterNotificationTiming;
-  activeGoal: OverlayActiveGoalState | null;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type OverlayGoalUpdateResponse = {
-  ok: true;
-  activeGoal: OverlayActiveGoalState;
-  activeOverlayConnections: number;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type OverlayRedeemTestResponse = {
-  ok: true;
-  queued: number;
-  redeem: RedeemPreset;
-  reason?: string;
-  activeOverlayConnections: number;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type OverlayFakeChatTestResponse = {
-  ok: true;
-  queued: number;
-  reason?: string;
-  mutedUntil?: string;
-  chatVisible: boolean;
-  streamerChatMessage: StreamerChatMessage | null;
-  activeOverlayConnections: number;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type OverlayChatOrderResponse = {
-  ok: true;
-  chatNewestOnTop: boolean;
-  activeOverlayConnections: number;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type OverlayPresentationStateResponse = {
-  ok: true;
-  presentationState: OverlayPresentationState;
-  activeOverlayConnections: number;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type SurfaceStatusProps = {
-  apiBaseUrl: string;
-  panelMode: string;
-};
-
-const defaultGoalDraft = (): OverlayActiveGoalState => ({
-  enabled: true,
-  label: "Server upgrade fund",
-  currentAmount: 320,
-  targetAmount: 500,
-  currencyCode: "EUR"
-});
+import {
+  defaultGoalDraft,
+  overlayLayoutOptions,
+  redeemPresetOptions,
+  type CenterNotificationTiming,
+  type OverlayChatOrderResponse,
+  type OverlayFakeChatTestResponse,
+  type OverlayGoalUpdateResponse,
+  type OverlayPresenceState,
+  type OverlayPresentationStateResponse,
+  type OverlayRedeemTestResponse,
+  type OverlayStatusResponse,
+  type RedeemPreset,
+  type SurfaceStatusProps
+} from "./SurfaceStatus.types.js";
 
 export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): React.ReactNode => {
   const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
