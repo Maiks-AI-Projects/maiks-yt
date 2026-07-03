@@ -1,4 +1,5 @@
 export { InMemoryFakeLocalModerationRuntime } from "./fake-local-moderation-runtime.service.js";
+export { registerStreamerChatControlRoutes } from "./streamer-chat-control.route.js";
 export {
   InMemoryStreamerChatModerationRuntime,
   type StreamerChatModerationRule,

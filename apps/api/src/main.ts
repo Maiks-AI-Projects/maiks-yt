@@ -63,8 +63,8 @@ import { registerStreamScheduleRoutes } from "./schedule/index.js";
 import {
   InMemoryFakeLocalModerationRuntime,
   InMemoryStreamerChatModerationRuntime,
+  registerStreamerChatControlRoutes,
   StreamerChatRuntime,
-  type StreamerChatLiveSocket,
   type StreamerChatModerationRule,
   type StreamerChatModerationRuleKind
 } from "./streamer-chat/index.js";
@@ -1523,6 +1523,12 @@ registerDiscordChatIntakeControlRoutes(server, {
   getDatabasePool,
   runtime: discordChatIntakeRuntime
 });
+registerStreamerChatControlRoutes(server, {
+  discordChatIntakeRuntime,
+  streamerChatRuntime,
+  twitchChatIntakeRuntime,
+  validateUrlAccessToken: validateUrlAccessTokenForRequest
+});
 registerEventRoutingDispatchRoutes(server, {
   getDatabasePool,
   publishPlayback: publishEventRoutingPlayback
@@ -2163,39 +2169,6 @@ server.get("/overlay/status", async (request, reply) => {
   };
 });
 
-server.get("/streamer-chat/messages", async (request, reply) => {
-  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
-
-  if (!parsedRequest.success) {
-    reply.code(400);
-    return {
-      ok: false,
-      reason: "invalid_request"
-    };
-  }
-
-  const tokenValidation = await validateUrlAccessTokenForRequest({
-    token: parsedRequest.data.accessToken,
-    surface: "control-panel",
-    scope: "control:open"
-  });
-
-  if (!tokenValidation.valid) {
-    reply.code(403);
-    return {
-      ok: false,
-      reason: tokenValidation.reason ?? "control_panel_access_denied"
-    };
-  }
-
-  return {
-    ok: true,
-    source: "mixed",
-    messages: streamerChatRuntime.listVisibleMessages(),
-    checkedAt: new Date().toISOString()
-  };
-});
-
 const validateControlPanelTokenForStreamerChatModeration = async (
   accessToken: string,
   reply: FastifyReply
@@ -2630,161 +2603,6 @@ server.post("/streamer-chat/moderation/rules/retract", async (request, reply) =>
     retractedRule,
     providerAction: false
   };
-});
-
-server.get("/streamer-chat/twitch-status", async (request, reply) => {
-  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
-
-  if (!parsedRequest.success) {
-    reply.code(400);
-    return {
-      ok: false,
-      reason: "invalid_request"
-    };
-  }
-
-  const tokenValidation = await validateUrlAccessTokenForRequest({
-    token: parsedRequest.data.accessToken,
-    surface: "control-panel",
-    scope: "control:open"
-  });
-
-  if (!tokenValidation.valid) {
-    reply.code(403);
-    return {
-      ok: false,
-      reason: tokenValidation.reason ?? "control_panel_access_denied"
-    };
-  }
-
-  return {
-    ok: true,
-    readOnly: true,
-    status: twitchChatIntakeRuntime.getStatus(),
-    checkedAt: new Date().toISOString()
-  };
-});
-
-server.post("/streamer-chat/twitch-reconnect", async (request, reply) => {
-  const parsedRequest = overlayStatusRequestSchema.safeParse(request.body);
-
-  if (!parsedRequest.success) {
-    reply.code(400);
-    return {
-      ok: false,
-      reason: "invalid_request"
-    };
-  }
-
-  const tokenValidation = await validateUrlAccessTokenForRequest({
-    token: parsedRequest.data.accessToken,
-    surface: "control-panel",
-    scope: "control:open"
-  });
-
-  if (!tokenValidation.valid) {
-    reply.code(403);
-    return {
-      ok: false,
-      reason: tokenValidation.reason ?? "control_panel_access_denied"
-    };
-  }
-
-  return {
-    ok: true,
-    readOnly: true,
-    status: twitchChatIntakeRuntime.start(),
-    checkedAt: new Date().toISOString()
-  };
-});
-
-server.get("/streamer-chat/discord-status", async (request, reply) => {
-  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
-
-  if (!parsedRequest.success) {
-    reply.code(400);
-    return {
-      ok: false,
-      reason: "invalid_request"
-    };
-  }
-
-  const tokenValidation = await validateUrlAccessTokenForRequest({
-    token: parsedRequest.data.accessToken,
-    surface: "control-panel",
-    scope: "control:open"
-  });
-
-  if (!tokenValidation.valid) {
-    reply.code(403);
-    return {
-      ok: false,
-      reason: tokenValidation.reason ?? "control_panel_access_denied"
-    };
-  }
-
-  return {
-    ok: true,
-    readOnly: true,
-    status: discordChatIntakeRuntime.getStatus(),
-    checkedAt: new Date().toISOString()
-  };
-});
-
-server.post("/streamer-chat/discord-reconnect", async (request, reply) => {
-  const parsedRequest = overlayStatusRequestSchema.safeParse(request.body);
-
-  if (!parsedRequest.success) {
-    reply.code(400);
-    return {
-      ok: false,
-      reason: "invalid_request"
-    };
-  }
-
-  const tokenValidation = await validateUrlAccessTokenForRequest({
-    token: parsedRequest.data.accessToken,
-    surface: "control-panel",
-    scope: "control:open"
-  });
-
-  if (!tokenValidation.valid) {
-    reply.code(403);
-    return {
-      ok: false,
-      reason: tokenValidation.reason ?? "control_panel_access_denied"
-    };
-  }
-
-  return {
-    ok: true,
-    readOnly: true,
-    status: discordChatIntakeRuntime.start(),
-    checkedAt: new Date().toISOString()
-  };
-});
-
-server.get("/streamer-chat/live", { websocket: true }, async (socket: StreamerChatLiveSocket, request) => {
-  const parsedRequest = overlayStatusRequestSchema.safeParse(request.query);
-
-  if (!parsedRequest.success) {
-    socket.close(1008, "invalid_request");
-    return;
-  }
-
-  const tokenValidation = await validateUrlAccessTokenForRequest({
-    token: parsedRequest.data.accessToken,
-    surface: "control-panel",
-    scope: "control:open"
-  });
-
-  if (!tokenValidation.valid) {
-    socket.close(1008, tokenValidation.reason ?? "control_panel_access_denied");
-    return;
-  }
-
-  const connectionId = randomUUID();
-  streamerChatRuntime.registerLiveClient(connectionId, socket);
 });
 
 server.post("/overlay/goal", async (request, reply) => {
