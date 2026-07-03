@@ -2,332 +2,50 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  MilestoneStatus,
   ProjectCategory,
   ProjectItemKind,
   ProjectItemStatus,
   ProjectReadModelSource,
   ProjectReadUpdateSource,
-  PublicProjectDetail,
-  PublicProjectItem,
   ProjectStatus,
-  ProjectUpdateStatus,
   ProjectType,
-  MilestoneStatus
+  ProjectUpdateStatus
 } from "@maiks-yt/domain/projects";
 import { buildProjectAdminPublicPreview } from "@maiks-yt/domain/projects";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { formatProjectLabel } from "../../projects/project-read-data";
-
-type AdminProjectsResponse =
-  | {
-    ok: true;
-    projects: readonly ProjectReadModelSource[];
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
-
-type AdminMutationResponse =
-  | {
-    ok: true;
-    project: ProjectReadModelSource;
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
-
-type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
-
-type ProjectFormState = {
-  slug: string;
-  title: string;
-  summary: string;
-  type: ProjectType;
-  category: ProjectCategory;
-  status: ProjectStatus;
-  isPublic: boolean;
-};
-
-type MilestoneFormState = {
-  title: string;
-  description: string;
-  status: MilestoneStatus;
-  sortOrder: number;
-};
-
-type ItemFormState = {
-  parentItemId: string;
-  title: string;
-  description: string;
-  kind: ProjectItemKind;
-  status: ProjectItemStatus;
-  quantity: number;
-  sortOrder: number;
-};
-
-type UpdateFormState = {
-  title: string;
-  summary: string;
-  body: string;
-  status: ProjectUpdateStatus;
-  isVisible: boolean;
-  publishedAt: string;
-  isPinned: boolean;
-  sortOrder: number;
-};
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
-
-const projectTypes = [
-  "one-time-purchase",
-  "multi-item-build",
-  "ongoing-cost",
-  "subscription",
-  "stream-work-project",
-  "milestone-only"
-] satisfies ProjectType[];
-
-const projectCategories = [
-  "personal",
-  "family",
-  "content-improvement",
-  "stream-infrastructure",
-  "software-project",
-  "hobby",
-  "community",
-  "health-accessibility",
-  "experiment",
-  "ongoing-cost"
-] satisfies ProjectCategory[];
-
-const projectStatuses = ["planning", "active", "completed", "mothballed", "cancelled"] satisfies ProjectStatus[];
-const milestoneStatuses = ["planned", "active", "completed", "cancelled"] satisfies MilestoneStatus[];
-const itemKinds = ["product", "service", "subscription", "task", "wishlist", "other"] satisfies ProjectItemKind[];
-const itemStatuses = ["planned", "active", "acquired", "completed", "removed"] satisfies ProjectItemStatus[];
-const updateStatuses = ["draft", "published"] satisfies ProjectUpdateStatus[];
-
-const defaultProjectForm: ProjectFormState = {
-  slug: "",
-  title: "",
-  summary: "",
-  type: "milestone-only",
-  category: "software-project",
-  status: "planning",
-  isPublic: false
-};
-
-const defaultMilestoneForm: MilestoneFormState = {
-  title: "",
-  description: "",
-  status: "planned",
-  sortOrder: 1
-};
-
-const defaultItemForm: ItemFormState = {
-  parentItemId: "",
-  title: "",
-  description: "",
-  kind: "task",
-  status: "planned",
-  quantity: 1,
-  sortOrder: 1
-};
-
-const defaultUpdateForm: UpdateFormState = {
-  title: "",
-  summary: "",
-  body: "",
-  status: "draft",
-  isVisible: true,
-  publishedAt: "",
-  isPinned: false,
-  sortOrder: 1
-};
-
-const getFailureMessage = (response: Response, reason?: string): string => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "Sign in before managing projects.";
-  }
-
-  if (response.status === 403 || reason === "project_admin_forbidden") {
-    return "Your account does not have project admin permission.";
-  }
-
-  if (reason === "project_slug_conflict") {
-    return "That project slug is already in use.";
-  }
-
-  if (reason === "project_admin_invalid_input") {
-    return "The project admin request has invalid or missing fields.";
-  }
-
-  if (reason?.includes("not_found")) {
-    return "That project record could not be found.";
-  }
-
-  return `Project admin request failed with ${response.status}.`;
-};
-
-const getLoadStateForFailure = (response: Response, reason?: string): LoadState => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "signed-out";
-  }
-
-  if (response.status === 403 || reason === "project_admin_forbidden" || reason === "project_admin_user_unlinked") {
-    return "forbidden";
-  }
-
-  return "failed";
-};
-
-const toProjectForm = (project: ProjectReadModelSource): ProjectFormState => ({
-  slug: project.slug,
-  title: project.title,
-  summary: project.summary ?? "",
-  type: project.type,
-  category: project.category,
-  status: project.status,
-  isPublic: project.isPublic
-});
-
-const toUpdateForm = (update: ProjectReadUpdateSource): UpdateFormState => ({
-  title: update.title,
-  summary: update.summary ?? "",
-  body: update.body,
-  status: update.status,
-  isVisible: update.isVisible,
-  publishedAt: update.publishedAt ?? "",
-  isPinned: update.isPinned,
-  sortOrder: update.sortOrder
-});
-
-const toAdminUpdatePayload = (updateForm: UpdateFormState): Record<string, unknown> => ({
-  title: updateForm.title,
-  summary: updateForm.summary.trim() || null,
-  body: updateForm.body,
-  status: updateForm.status,
-  isVisible: updateForm.isVisible,
-  ...(updateForm.publishedAt.trim() ? { publishedAt: updateForm.publishedAt.trim() } : {}),
-  isPinned: updateForm.isPinned,
-  sortOrder: updateForm.sortOrder
-});
-
-const getProjectPublicHref = (project: ProjectReadModelSource): string =>
-  `/projects/${encodeURIComponent(project.slug)}`;
-
-const isPublicRouteVisible = (project: ProjectReadModelSource): boolean =>
-  buildProjectAdminPublicPreview(project).ok && project.isPublic;
-
-const flattenItemOptions = (
-  project: ProjectReadModelSource
-): Array<{ id: string; label: string }> =>
-  project.items
-    .slice()
-    .sort((left, right) => left.sortOrder - right.sortOrder || left.title.localeCompare(right.title))
-    .map((item) => ({
-      id: item.id,
-      label: item.parentItemId ? `${item.title} (${item.parentItemId})` : item.title
-    }));
-
-const PreviewItemList = ({
-  items
-}: {
-  items: readonly PublicProjectItem[];
-}): React.ReactNode => (
-  <ul className="project-admin-record-list">
-    {items.map((item) => (
-      <li key={item.id}>
-        <div>
-          <span>{formatProjectLabel(item.kind)}</span>
-          <strong>{item.title}</strong>
-          <em>{formatProjectLabel(item.status)}</em>
-        </div>
-        {item.description ? <p>{item.description}</p> : null}
-        {item.quantity > 1 ? <small>Quantity: {item.quantity}</small> : null}
-        {item.children.length > 0 ? <PreviewItemList items={item.children} /> : null}
-      </li>
-    ))}
-  </ul>
-);
-
-const ProjectAdminPublicPreview = ({
-  isPublished,
-  project
-}: {
-  isPublished: boolean;
-  project: PublicProjectDetail;
-}): React.ReactNode => (
-  <article className="project-admin-preview" aria-label="Public project preview">
-    <div className="project-admin-preview-banner">
-      <span>{isPublished ? "Published page preview" : "Draft page preview"}</span>
-      <span>{formatProjectLabel(project.status)}</span>
-    </div>
-    <header>
-      <p className="eyebrow">{formatProjectLabel(project.category)}</p>
-      <h3>{project.title}</h3>
-      <p>{project.summary}</p>
-      <dl className="project-card-stats">
-        <div>
-          <dt>Milestones</dt>
-          <dd>{project.milestoneCount}</dd>
-        </div>
-        <div>
-          <dt>Items</dt>
-          <dd>{project.itemCount}</dd>
-        </div>
-        <div>
-          <dt>Type</dt>
-          <dd>{formatProjectLabel(project.type)}</dd>
-        </div>
-      </dl>
-    </header>
-    <section>
-      <h4>Updates</h4>
-      {project.updates.length === 0 ? (
-        <p className="project-muted">No public updates are available yet.</p>
-      ) : (
-        <ol className="project-admin-record-list">
-          {project.updates.map((update) => (
-            <li key={update.id}>
-              <span>{update.isPinned ? "Pinned" : "Update"}</span>
-              <strong>{update.title}</strong>
-              {update.summary ? <p>{update.summary}</p> : null}
-              <p>{update.body}</p>
-              {update.publishedAt ? <small>{new Date(update.publishedAt).toLocaleDateString()}</small> : null}
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
-    <section>
-      <h4>Milestones</h4>
-      {project.milestones.length === 0 ? (
-        <p className="project-muted">No public milestones are available yet.</p>
-      ) : (
-        <ol className="project-admin-record-list">
-          {project.milestones.map((milestone) => (
-            <li key={milestone.id}>
-              <span>{formatProjectLabel(milestone.status)}</span>
-              <strong>{milestone.title}</strong>
-              {milestone.description ? <p>{milestone.description}</p> : null}
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
-    <section>
-      <h4>Project Items</h4>
-      {project.items.length === 0 ? (
-        <p className="project-muted">No public project items are available yet.</p>
-      ) : (
-        <PreviewItemList items={project.items} />
-      )}
-    </section>
-  </article>
-);
+import { ProjectAdminPublicPreview } from "./project-admin-preview";
+import {
+  apiBaseUrl,
+  defaultItemForm,
+  defaultMilestoneForm,
+  defaultProjectForm,
+  defaultUpdateForm,
+  flattenItemOptions,
+  getFailureMessage,
+  getLoadStateForFailure,
+  getProjectPublicHref,
+  isPublicRouteVisible,
+  itemKinds,
+  itemStatuses,
+  milestoneStatuses,
+  projectCategories,
+  projectStatuses,
+  projectTypes,
+  toAdminUpdatePayload,
+  toProjectForm,
+  toUpdateForm,
+  updateStatuses,
+  type AdminMutationResponse,
+  type AdminProjectsResponse,
+  type ItemFormState,
+  type LoadState,
+  type MilestoneFormState,
+  type ProjectFormState,
+  type UpdateFormState
+} from "./project-admin-client.service";
 
 const ProjectAdminClient = (): React.ReactNode => {
   const [projects, setProjects] = useState<readonly ProjectReadModelSource[]>([]);
