@@ -4,11 +4,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 
 import type {
   ModeratorAdminGrantCreateInput,
-  ModeratorAdminRankPath,
-  ModeratorAdminRankPathInput,
-  ModeratorAdminRepository,
-  ModeratorAdminRole,
-  ModeratorAdminRoleInput
+  ModeratorAdminRepository
 } from "./moderator-admin.types.js";
 import {
   grantSnapshot,
@@ -19,7 +15,6 @@ import {
   toSqlTimestamp,
   type ModeratorAuditLogRow,
   type ModeratorGrantRow,
-  type QueryExecutor,
   type SqlValue
 } from "./moderator-admin-store-mappers.service.js";
 import {
@@ -30,184 +25,12 @@ import {
   readGrant,
   readGrantByUserRole,
   readRankPath,
-  readRankPathByKey,
   readRole,
   readRoleByKey,
   readUser,
   resolveActor
 } from "./moderator-admin-store-queries.service.js";
-
-const createRankPath = async (
-  executor: QueryExecutor,
-  input: ModeratorAdminRankPathInput
-): Promise<ModeratorAdminRankPath | "exists"> => {
-  if (await readRankPathByKey(executor, input.key)) {
-    return "exists";
-  }
-
-  const id = randomUUID();
-  await executor.execute(
-    `
-      INSERT INTO role_rank_paths
-        (id, \`key\`, name, description, sort_order)
-      VALUES (?, ?, ?, ?, ?)
-    `,
-    [id, input.key, input.name, input.description, input.sortOrder]
-  );
-
-  const rankPath = await readRankPath(executor, id);
-
-  if (!rankPath) {
-    throw new Error("moderator_admin_rank_path_reread_failed");
-  }
-
-  return rankPath;
-};
-
-const updateRankPath = async (
-  executor: QueryExecutor,
-  rankPathId: string,
-  input: ModeratorAdminRankPathInput
-): Promise<ModeratorAdminRankPath | "not-found" | "exists"> => {
-  const existing = await readRankPath(executor, rankPathId);
-
-  if (!existing) {
-    return "not-found";
-  }
-
-  const duplicate = await readRankPathByKey(executor, input.key);
-  if (duplicate && duplicate.id !== rankPathId) {
-    return "exists";
-  }
-
-  await executor.execute(
-    `
-      UPDATE role_rank_paths
-      SET \`key\` = ?,
-        name = ?,
-        description = ?,
-        sort_order = ?
-      WHERE id = ?
-    `,
-    [input.key, input.name, input.description, input.sortOrder, rankPathId]
-  );
-
-  const rankPath = await readRankPath(executor, rankPathId);
-
-  if (!rankPath) {
-    throw new Error("moderator_admin_rank_path_reread_failed");
-  }
-
-  return rankPath;
-};
-
-const ensureRoleRankPathExists = async (
-  executor: QueryExecutor,
-  input: ModeratorAdminRoleInput
-): Promise<boolean> =>
-  input.rankPathId === null || await readRankPath(executor, input.rankPathId) !== null;
-
-const createRole = async (
-  executor: QueryExecutor,
-  input: ModeratorAdminRoleInput
-): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found"> => {
-  if (await readRoleByKey(executor, input.key)) {
-    return "exists";
-  }
-
-  if (!await ensureRoleRankPathExists(executor, input)) {
-    return "rank-path-not-found";
-  }
-
-  const id = randomUUID();
-  await executor.execute(
-    `
-      INSERT INTO roles
-        (id, \`key\`, name, permissions, rank_path_id, rank_level, display_label, next_role_id, discord_role_id, is_owner_rank, is_system)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [
-      id,
-      input.key,
-      input.name,
-      JSON.stringify(input.permissions),
-      input.rankPathId,
-      input.rankLevel,
-      input.displayLabel,
-      input.nextRoleId,
-      input.discordRoleId,
-      input.isOwnerRank,
-      input.isSystem
-    ]
-  );
-
-  const role = await readRole(executor, id);
-
-  if (!role) {
-    throw new Error("moderator_admin_role_reread_failed");
-  }
-
-  return role;
-};
-
-const updateRole = async (
-  executor: QueryExecutor,
-  roleId: string,
-  input: ModeratorAdminRoleInput
-): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found"> => {
-  const existing = await readRole(executor, roleId);
-
-  if (!existing) {
-    return "not-found";
-  }
-
-  const duplicate = await readRoleByKey(executor, input.key);
-  if (duplicate && duplicate.id !== roleId) {
-    return "exists";
-  }
-
-  if (!await ensureRoleRankPathExists(executor, input)) {
-    return "rank-path-not-found";
-  }
-
-  await executor.execute(
-    `
-      UPDATE roles
-      SET \`key\` = ?,
-        name = ?,
-        permissions = ?,
-        rank_path_id = ?,
-        rank_level = ?,
-        display_label = ?,
-        next_role_id = ?,
-        discord_role_id = ?,
-        is_owner_rank = ?,
-        is_system = ?
-      WHERE id = ?
-    `,
-    [
-      input.key,
-      input.name,
-      JSON.stringify(input.permissions),
-      input.rankPathId,
-      input.rankLevel,
-      input.displayLabel,
-      input.nextRoleId,
-      input.discordRoleId,
-      input.isOwnerRank,
-      input.isSystem,
-      roleId
-    ]
-  );
-
-  const role = await readRole(executor, roleId);
-
-  if (!role) {
-    throw new Error("moderator_admin_role_reread_failed");
-  }
-
-  return role;
-};
+import { createRankPath, createRole, updateRankPath, updateRole } from "./moderator-admin-store-roles.service.js";
 
 export const createModeratorAdminRepository = (
   pool: DatabasePool
