@@ -4,358 +4,48 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import {
   grantableModeratorTrustLevels,
   moderatorGrantAvailabilities,
-  moderatorGrantScopeKinds,
-  type GrantableModeratorTrustLevel,
-  type ModeratorGrantAvailability,
-  type ModeratorGrantScopeKind,
-  type ModeratorTrustLevel,
-  type RoleGrantAuditAction
+  moderatorGrantScopeKinds
+} from "@maiks-yt/domain/community";
+import type {
+  GrantableModeratorTrustLevel,
+  ModeratorGrantAvailability,
+  ModeratorGrantScopeKind
 } from "@maiks-yt/domain/community";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
-
-type ModeratorAdminUser = {
-  id: string;
-  displayName: string;
-  profileVisibility: string;
-  avatarUrl: string | null;
-  authEmail: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type ModeratorAdminRole = {
-  id: string;
-  key: string;
-  name: string;
-  permissions: readonly string[];
-  rankPathId: string | null;
-  rankPathKey: string | null;
-  rankPathName: string | null;
-  rankLevel: number | null;
-  displayLabel: string | null;
-  nextRoleId: string | null;
-  discordRoleId: string | null;
-  isOwnerRank: boolean;
-  isSystem: boolean;
-  grantable: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type ModeratorAdminRankPath = {
-  id: string;
-  key: string;
-  name: string;
-  description: string | null;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type ModeratorAdminGrant = {
-  id: string;
-  userId: string;
-  roleId: string;
-  roleKey: string;
-  roleName: string;
-  rolePermissions: readonly string[];
-  trustLevel: ModeratorTrustLevel;
-  scopeKind: ModeratorGrantScopeKind;
-  scopeId: string | null;
-  availability: ModeratorGrantAvailability;
-  assignedByUserId: string | null;
-  expiresAt: string | null;
-  revokedAt: string | null;
-  revokedByUserId: string | null;
-  revocationReason: string | null;
-  assignedAt: string;
-  status: "active" | "expired" | "revoked";
-};
-
-type ModeratorAdminAuditLog = {
-  id: string;
-  targetUserId: string;
-  targetDisplayName: string | null;
-  roleId: string;
-  roleKey: string | null;
-  roleName: string | null;
-  actorUserId: string | null;
-  actorDisplayName: string | null;
-  action: RoleGrantAuditAction;
-  reason: string | null;
-  createdAt: string;
-};
-
-type ModeratorAdminListResponse =
-  | {
-    ok: true;
-    users: readonly ModeratorAdminUser[];
-    rankPaths: readonly ModeratorAdminRankPath[];
-    roles: readonly ModeratorAdminRole[];
-    grants: readonly ModeratorAdminGrant[];
-    auditLogs: readonly ModeratorAdminAuditLog[];
-    canManageRanks: boolean;
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
-
-type ModeratorAdminMutationResponse =
-  | {
-    ok: true;
-    grant: ModeratorAdminGrant;
-    auditLog: ModeratorAdminAuditLog;
-  }
-  | {
-    ok: false;
-    reason: string;
-    issues?: readonly string[];
-  };
-
-type RankPathMutationResponse =
-  | {
-    ok: true;
-    rankPath: ModeratorAdminRankPath;
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
-
-type RoleMutationResponse =
-  | {
-    ok: true;
-    role: ModeratorAdminRole;
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
-
-type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
-
-type GrantFormState = {
-  targetUserId: string;
-  roleId: string;
-  trustLevel: GrantableModeratorTrustLevel;
-  scopeKind: ModeratorGrantScopeKind;
-  scopeId: string;
-  availability: ModeratorGrantAvailability;
-  expiresAt: string;
-  reason: string;
-};
-
-type RankPathFormState = {
-  id: string | null;
-  key: string;
-  name: string;
-  description: string;
-  sortOrder: string;
-};
-
-type RoleFormState = {
-  id: string | null;
-  key: string;
-  name: string;
-  permissions: string;
-  rankPathId: string;
-  rankLevel: string;
-  displayLabel: string;
-  nextRoleId: string;
-  discordRoleId: string;
-  isOwnerRank: boolean;
-  isSystem: boolean;
-};
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
-
-const trustLevelLabels: Record<ModeratorTrustLevel, string> = {
-  observer: "Observer",
-  helper: "Helper",
-  moderator: "Moderator",
-  senior_moderator: "Senior moderator",
-  trusted_operator: "Trusted operator",
-  owner: "Owner"
-};
-
-const scopeLabels: Record<ModeratorGrantScopeKind, string> = {
-  global: "Global",
-  chat: "Chat",
-  event_routing: "Event routing",
-  content: "Content",
-  project: "Project",
-  stream_operations: "Stream operations"
-};
-
-const availabilityLabels: Record<ModeratorGrantAvailability, string> = {
-  always: "Always",
-  live_only: "Live only",
-  offline_only: "Offline only"
-};
-
-const actionLabels: Record<RoleGrantAuditAction, string> = {
-  grant: "Granted",
-  update: "Updated",
-  revoke: "Revoked",
-  expire: "Expired"
-};
-
-const emptyForm: GrantFormState = {
-  targetUserId: "",
-  roleId: "",
-  trustLevel: "helper",
-  scopeKind: "global",
-  scopeId: "",
-  availability: "always",
-  expiresAt: "",
-  reason: ""
-};
-
-const emptyRankPathForm: RankPathFormState = {
-  id: null,
-  key: "",
-  name: "",
-  description: "",
-  sortOrder: "0"
-};
-
-const emptyRoleForm: RoleFormState = {
-  id: null,
-  key: "",
-  name: "",
-  permissions: "",
-  rankPathId: "",
-  rankLevel: "",
-  displayLabel: "",
-  nextRoleId: "",
-  discordRoleId: "",
-  isOwnerRank: false,
-  isSystem: false
-};
-
-const formatDate = (value: string | null): string =>
-  value
-    ? new Intl.DateTimeFormat(undefined, {
-      dateStyle: "medium",
-      timeStyle: "short"
-    }).format(new Date(value))
-    : "None";
-
-const toDateTimeInput = (value: string | null): string =>
-  value ? value.slice(0, 16) : "";
-
-const toIsoOrNull = (value: string): string | null =>
-  value.trim().length > 0 ? new Date(value).toISOString() : null;
-
-const getFailureMessage = (response: Response, reason?: string, issues?: readonly string[]): string => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "Sign in before managing helper and moderator grants.";
-  }
-
-  if (response.status === 403 || reason === "moderator_admin_forbidden") {
-    return "Your account does not have moderator management permission.";
-  }
-
-  if (reason === "moderator_admin_role_forbidden") {
-    return issues && issues.length > 0
-      ? `That role cannot be granted here: ${issues.join(", ")}.`
-      : "That role contains owner-only or dangerous capabilities.";
-  }
-
-  if (reason === "moderator_admin_grant_exists") {
-    return "That user already has an active grant for the selected role.";
-  }
-
-  if (reason === "moderator_admin_invalid_input") {
-    return issues && issues.length > 0
-      ? `Invalid grant: ${issues.join(", ")}.`
-      : "The grant has invalid or missing fields.";
-  }
-
-  return `Moderator admin request failed with ${response.status}.`;
-};
-
-const getLoadStateForFailure = (response: Response, reason?: string): LoadState => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "signed-out";
-  }
-
-  if (response.status === 403 || reason === "moderator_admin_forbidden" || reason === "moderator_admin_user_unlinked") {
-    return "forbidden";
-  }
-
-  return "failed";
-};
-
-const getUserLabel = (users: readonly ModeratorAdminUser[], userId: string | null): string => {
-  if (!userId) {
-    return "Unknown user";
-  }
-
-  const user = users.find((candidate) => candidate.id === userId);
-  return user ? `${user.displayName}${user.authEmail ? ` (${user.authEmail})` : ""}` : userId;
-};
-
-const toPayload = (form: GrantFormState) => ({
-  targetUserId: form.targetUserId,
-  roleId: form.roleId,
-  trustLevel: form.trustLevel,
-  scopeKind: form.scopeKind,
-  scopeId: form.scopeKind === "global" ? null : form.scopeId.trim() || null,
-  availability: form.availability,
-  expiresAt: toIsoOrNull(form.expiresAt),
-  reason: form.reason.trim() || null
-});
-
-const toUpdatePayload = (form: GrantFormState) => ({
-  trustLevel: form.trustLevel,
-  scopeKind: form.scopeKind,
-  scopeId: form.scopeKind === "global" ? null : form.scopeId.trim() || null,
-  availability: form.availability,
-  expiresAt: toIsoOrNull(form.expiresAt),
-  reason: form.reason.trim() || null
-});
-
-const parsePermissionText = (value: string): string[] =>
-  [...new Set(value
-    .split(/[\n,]+/)
-    .map((entry) => entry.trim())
-    .filter(Boolean))]
-    .sort();
-
-const toRankPathPayload = (form: RankPathFormState) => ({
-  key: form.key,
-  name: form.name,
-  description: form.description.trim() || null,
-  sortOrder: Number.parseInt(form.sortOrder, 10) || 0
-});
-
-const toRolePayload = (form: RoleFormState) => ({
-  key: form.key,
-  name: form.name,
-  permissions: parsePermissionText(form.permissions),
-  rankPathId: form.rankPathId || null,
-  rankLevel: form.rankLevel ? Number.parseInt(form.rankLevel, 10) : null,
-  displayLabel: form.displayLabel.trim() || null,
-  nextRoleId: form.nextRoleId || null,
-  discordRoleId: form.discordRoleId.trim() || null,
-  isOwnerRank: form.isOwnerRank,
-  isSystem: form.isSystem
-});
-
-const getRankPathLabel = (
-  rankPaths: readonly ModeratorAdminRankPath[],
-  rankPathId: string | null
-): string => {
-  if (!rankPathId) {
-    return "No path";
-  }
-
-  const rankPath = rankPaths.find((candidate) => candidate.id === rankPathId);
-  return rankPath ? rankPath.name : rankPathId;
-};
+import {
+  actionLabels,
+  apiBaseUrl,
+  availabilityLabels,
+  emptyForm,
+  emptyRankPathForm,
+  emptyRoleForm,
+  formatDate,
+  getFailureMessage,
+  getLoadStateForFailure,
+  getRankPathLabel,
+  getUserLabel,
+  scopeLabels,
+  toDateTimeInput,
+  toPayload,
+  toRankPathPayload,
+  toRolePayload,
+  toUpdatePayload,
+  trustLevelLabels,
+  type GrantFormState,
+  type LoadState,
+  type ModeratorAdminAuditLog,
+  type ModeratorAdminGrant,
+  type ModeratorAdminListResponse,
+  type ModeratorAdminMutationResponse,
+  type ModeratorAdminRankPath,
+  type ModeratorAdminRole,
+  type ModeratorAdminUser,
+  type RankPathFormState,
+  type RankPathMutationResponse,
+  type RoleFormState,
+  type RoleMutationResponse
+} from "./moderator-admin-client.service";
 
 const ModeratorAdminClient = (): React.ReactNode => {
   const [users, setUsers] = useState<readonly ModeratorAdminUser[]>([]);
