@@ -64,9 +64,8 @@ import {
   InMemoryFakeLocalModerationRuntime,
   InMemoryStreamerChatModerationRuntime,
   registerStreamerChatControlRoutes,
+  StreamerChatModerationStoreService,
   StreamerChatRuntime,
-  type StreamerChatModerationRule,
-  type StreamerChatModerationRuleKind
 } from "./streamer-chat/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
 
@@ -687,346 +686,10 @@ const streamerChatModerationRuntime = new InMemoryStreamerChatModerationRuntime(
   chatRuntime: streamerChatRuntime,
   publishOverlayMessage: broadcastOverlayMessage
 });
-
-const controlTokenModerationActorId = "control-token";
-const moderationWarningThreshold = 3;
-
-const toModerationDate = (value: unknown): string => {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (typeof value === "string") {
-    return new Date(value).toISOString();
-  }
-
-  return new Date().toISOString();
-};
-
-const isStreamerChatSource = (source: unknown): source is StreamerChatMessage["source"] =>
-  source === "fake-local" || source === "twitch" || source === "youtube" || source === "discord";
-
-const getStreamerChatModerationFlags = (source: StreamerChatMessage["source"]): {
-  isSimulated: boolean;
-  isTest: boolean;
-  testResettable: boolean;
-} => source === "fake-local"
-  ? {
-    isSimulated: true,
-    isTest: true,
-    testResettable: true
-  }
-  : {
-    isSimulated: false,
-    isTest: false,
-    testResettable: false
-  };
-
-const createStreamerChatActorKey = (source: StreamerChatMessage["source"], authorName: string): string =>
-  `${source}:${authorName.trim().toLowerCase()}`;
-
-const createHiddenMessageRuleId = (messageId: string): string => `message_hidden:${messageId}`;
-const createBannedActorRuleId = (source: StreamerChatMessage["source"], authorName: string): string =>
-  `author_banned:${createStreamerChatActorKey(source, authorName)}`;
-const createWarningRuleId = (source: StreamerChatMessage["source"], authorName: string): string =>
-  `author_warned:${createStreamerChatActorKey(source, authorName)}`;
-
-const appendStreamerChatModerationAudit = async ({
-  action,
-  message,
-  note,
-  outcome,
-  reason
-}: {
-  action: "warn_author" | "hide_message" | "ban_author" | "unban_author";
-  message: {
-    authorName: string;
-    id: string;
-    providerMessageId?: string;
-    source: StreamerChatMessage["source"];
-  };
-  note: string | null;
-  outcome: "applied" | "not_found" | "reverted";
-  reason: string | null;
-}): Promise<{ id: string; at: string }> => {
-  const id = randomUUID();
-  const at = new Date().toISOString();
-  const flags = getStreamerChatModerationFlags(message.source);
-
-  await getDatabasePool().execute(
-    `
-      INSERT INTO moderation_audit_logs
-        (
-          id,
-          source,
-          action,
-          outcome,
-          actor_display_name,
-          target_author_name,
-          target_message_id,
-          target_external_id,
-          reason,
-          note,
-          provider_action,
-          is_test,
-          is_simulated,
-          test_resettable,
-          redacted_context,
-          created_at
-        )
-      VALUES (?, ?, ?, ?, 'Control chat window', ?, ?, ?, ?, ?, false, ?, ?, ?, ?, ?)
-    `,
-    [
-      id,
-      message.source,
-      action,
-      outcome,
-      message.authorName,
-      message.id,
-      message.providerMessageId ?? null,
-      reason,
-      note,
-      flags.isTest,
-      flags.isSimulated,
-      flags.testResettable,
-      JSON.stringify({
-        source: "streamer-chat-window",
-        providerAction: false
-      }),
-      new Date(at)
-    ]
-  );
-
-  return { id, at };
-};
-
-const upsertStreamerChatActiveState = async ({
-  auditLogId,
-  message,
-  stateKind
-}: {
-  auditLogId: string;
-  message: {
-    authorName: string;
-    id: string;
-    providerMessageId?: string;
-    source: StreamerChatMessage["source"];
-  };
-  stateKind: "message_hidden" | "user_banned";
-}): Promise<void> => {
-  const now = new Date();
-  const flags = getStreamerChatModerationFlags(message.source);
-  const targetClause = stateKind === "message_hidden"
-    ? "target_message_id = ?"
-    : "LOWER(target_author_name) = LOWER(?)";
-  const targetValue = stateKind === "message_hidden" ? message.id : message.authorName;
-  const [updateResult] = await getDatabasePool().execute(
-    `
-      UPDATE moderation_active_states
-      SET
-        status = 'active',
-        active_until = NULL,
-        duration_seconds = NULL,
-        reason = ?,
-        note = ?,
-        last_audit_log_id = ?,
-        revoked_audit_log_id = NULL,
-        revoked_at = NULL,
-        revoked_by_user_id = NULL,
-        revocation_reason = NULL,
-        provider_action = false,
-        provider_action_id = NULL,
-        provider_state_id = NULL,
-        is_test = ?,
-        is_simulated = ?,
-        test_resettable = ?,
-        updated_at = ?
-      WHERE source = ?
-        AND state_kind = ?
-        AND status = 'active'
-        AND revoked_at IS NULL
-        AND ${targetClause}
-    `,
-    [
-      stateKind === "message_hidden" ? "Hidden from stream chat surfaces." : "Banned from stream chat surfaces.",
-      "Applied from stream chat quick controls.",
-      auditLogId,
-      flags.isTest,
-      flags.isSimulated,
-      flags.testResettable,
-      now,
-      message.source,
-      stateKind,
-      targetValue
-    ]
-  );
-
-  if (((updateResult as { affectedRows?: number }).affectedRows ?? 0) > 0) {
-    return;
-  }
-
-  await getDatabasePool().execute(
-    `
-      INSERT INTO moderation_active_states
-        (
-          id,
-          source,
-          state_kind,
-          status,
-          target_author_name,
-          target_message_id,
-          target_external_id,
-          active_from,
-          reason,
-          note,
-          created_audit_log_id,
-          last_audit_log_id,
-          provider_action,
-          is_test,
-          is_simulated,
-          test_resettable,
-          created_at,
-          updated_at
-        )
-      VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, false, ?, ?, ?, ?, ?)
-    `,
-    [
-      randomUUID(),
-      message.source,
-      stateKind,
-      message.authorName,
-      stateKind === "message_hidden" ? message.id : null,
-      message.providerMessageId ?? null,
-      now,
-      stateKind === "message_hidden" ? "Hidden from stream chat surfaces." : "Banned from stream chat surfaces.",
-      "Applied from stream chat quick controls.",
-      auditLogId,
-      auditLogId,
-      flags.isTest,
-      flags.isSimulated,
-      flags.testResettable,
-      now,
-      now
-    ]
-  );
-};
-
-const getDurableWarningCount = async (
-  source: StreamerChatMessage["source"],
-  authorName: string
-): Promise<number> => {
-  const [rows] = await getDatabasePool().execute(
-    `
-      SELECT
-        COALESCE(SUM(CASE WHEN outcome = 'applied' THEN 1 WHEN outcome = 'reverted' THEN -1 ELSE 0 END), 0) AS warningCount
-      FROM moderation_audit_logs
-      WHERE source = ?
-        AND action = 'warn_author'
-        AND LOWER(target_author_name) = LOWER(?)
-        AND provider_action = false
-    `,
-    [source, authorName]
-  );
-
-  const firstRow = Array.isArray(rows) ? (rows as Array<{ warningCount?: unknown }>)[0] : null;
-  const count = Number(firstRow?.warningCount ?? 0);
-
-  return Number.isFinite(count) && count > 0 ? count : 0;
-};
-
-const listDurableStreamerChatModerationRules = async (): Promise<StreamerChatModerationRule[]> => {
-  const [activeRows] = await getDatabasePool().execute(
-    `
-      SELECT
-        id,
-        source,
-        state_kind AS stateKind,
-        target_author_name AS authorName,
-        target_message_id AS messageId,
-        active_from AS appliedAt
-      FROM moderation_active_states
-      WHERE status = 'active'
-        AND provider_action = false
-        AND state_kind IN ('message_hidden', 'user_banned')
-        AND source IN ('fake-local', 'twitch', 'youtube', 'discord')
-      ORDER BY active_from DESC
-      LIMIT 100
-    `
-  );
-  const activeRules = (Array.isArray(activeRows) ? activeRows : []).flatMap((row) => {
-    const item = row as {
-      appliedAt: unknown;
-      authorName: string | null;
-      messageId: string | null;
-      source: unknown;
-      stateKind: "message_hidden" | "user_banned";
-    };
-
-    if (!isStreamerChatSource(item.source) || !item.authorName) {
-      return [];
-    }
-
-    const kind: StreamerChatModerationRuleKind = item.stateKind === "message_hidden" ? "message_hidden" : "author_banned";
-
-    return [{
-      appliedAt: toModerationDate(item.appliedAt),
-      authorName: item.authorName,
-      id: kind === "message_hidden" && item.messageId
-        ? createHiddenMessageRuleId(item.messageId)
-        : createBannedActorRuleId(item.source, item.authorName),
-      kind,
-      messageId: item.messageId,
-      source: item.source
-    }];
-  });
-  const [warningRows] = await getDatabasePool().execute(
-    `
-      SELECT
-        source,
-        target_author_name AS authorName,
-        MAX(created_at) AS appliedAt,
-        COALESCE(SUM(CASE WHEN outcome = 'applied' THEN 1 WHEN outcome = 'reverted' THEN -1 ELSE 0 END), 0) AS warningCount,
-        MAX(target_message_id) AS messageId
-      FROM moderation_audit_logs
-      WHERE action = 'warn_author'
-        AND provider_action = false
-        AND source IN ('fake-local', 'twitch', 'youtube', 'discord')
-      GROUP BY source, LOWER(target_author_name), target_author_name
-      HAVING warningCount > 0
-      ORDER BY appliedAt DESC
-      LIMIT 100
-    `
-  );
-  const warningRules = (Array.isArray(warningRows) ? warningRows : []).flatMap((row) => {
-    const item = row as {
-      appliedAt: unknown;
-      authorName: string | null;
-      messageId: string | null;
-      source: unknown;
-      warningCount: unknown;
-    };
-
-    if (!isStreamerChatSource(item.source) || !item.authorName) {
-      return [];
-    }
-
-    return [{
-      appliedAt: toModerationDate(item.appliedAt),
-      authorName: item.authorName,
-      count: Number(item.warningCount),
-      id: createWarningRuleId(item.source, item.authorName),
-      kind: "author_warned" as const,
-      messageId: item.messageId,
-      source: item.source
-    }];
-  });
-
-  return [...activeRules, ...warningRules]
-    .sort((left, right) => right.appliedAt.localeCompare(left.appliedAt));
-};
+let streamerChatModerationStore: StreamerChatModerationStoreService;
 
 const hydrateStreamerChatModerationRuntime = async (): Promise<void> => {
-  const rules = await listDurableStreamerChatModerationRules();
+  const rules = await streamerChatModerationStore.listRules();
 
   for (const rule of rules) {
     if (rule.kind === "message_hidden" && rule.messageId) {
@@ -1041,73 +704,6 @@ const hydrateStreamerChatModerationRuntime = async (): Promise<void> => {
       streamerChatModerationRuntime.hydrateWarningCount(rule.authorName, rule.source, rule.count, rule.messageId, rule.appliedAt);
     }
   }
-};
-
-const retractDurableStreamerChatModerationRule = async (
-  ruleId: string
-): Promise<StreamerChatModerationRule | null> => {
-  const rule = (await listDurableStreamerChatModerationRules()).find((candidate) => candidate.id === ruleId) ?? null;
-
-  if (!rule) {
-    return null;
-  }
-
-  const audit = await appendStreamerChatModerationAudit({
-    action: rule.kind === "author_banned"
-      ? "unban_author"
-      : rule.kind === "message_hidden"
-        ? "hide_message"
-        : "warn_author",
-    message: {
-      authorName: rule.authorName,
-      id: rule.messageId ?? rule.id,
-      source: rule.source
-    },
-    note: "Retracted from applied rules window.",
-    outcome: "reverted",
-    reason: "streamer_chat_rule_retracted"
-  });
-
-  if (rule.kind === "message_hidden" || rule.kind === "author_banned") {
-    const stateKind = rule.kind === "message_hidden" ? "message_hidden" : "user_banned";
-    const targetClause = rule.kind === "message_hidden"
-      ? "target_message_id = ?"
-      : "LOWER(target_author_name) = LOWER(?)";
-    const targetValue = rule.kind === "message_hidden" ? rule.messageId : rule.authorName;
-
-    if (targetValue) {
-      await getDatabasePool().execute(
-        `
-          UPDATE moderation_active_states
-          SET
-            status = 'revoked',
-            revoked_audit_log_id = ?,
-            revoked_at = ?,
-            revoked_by_user_id = ?,
-            revocation_reason = ?,
-            last_audit_log_id = ?,
-            updated_at = ?
-          WHERE source = ?
-            AND state_kind = ?
-            AND status = 'active'
-            AND ${targetClause}
-        `,
-        [
-          audit.id,
-          new Date(audit.at),
-          controlTokenModerationActorId,
-          "Retracted from applied rules window.",
-          audit.id,
-          new Date(audit.at),
-          rule.source,
-          stateKind,
-          targetValue
-        ]
-      );
-    }
-  }
-
-  return rule;
 };
 
 const fakeLocalModerationRuntime = new InMemoryFakeLocalModerationRuntime({
@@ -1281,6 +877,7 @@ const getDatabasePool = (): DatabasePool => {
   databasePool ??= createDatabasePool();
   return databasePool;
 };
+streamerChatModerationStore = new StreamerChatModerationStoreService(getDatabasePool);
 
 const providerSuppressedNotificationKeys = new Set<string>();
 
@@ -2397,14 +1994,14 @@ server.post("/streamer-chat/moderation/hide", async (request, reply) => {
   const affectedMessage = streamerChatModerationRuntime.hideMessage(parsedRequest.data.targetMessageId);
 
   if (affectedMessage) {
-    const audit = await appendStreamerChatModerationAudit({
+    const audit = await streamerChatModerationStore.appendAudit({
       action: "hide_message",
       message: affectedMessage,
       note: "Applied from stream chat quick controls.",
       outcome: "applied",
       reason: "streamer_chat_message_hidden"
     });
-    await upsertStreamerChatActiveState({
+    await streamerChatModerationStore.upsertActiveState({
       auditLogId: audit.id,
       message: affectedMessage,
       stateKind: "message_hidden"
@@ -2445,14 +2042,14 @@ server.post("/streamer-chat/moderation/ban", async (request, reply) => {
   const result = streamerChatModerationRuntime.banActorFromMessage(parsedRequest.data.targetMessageId);
 
   if (result?.bannedMessage) {
-    const audit = await appendStreamerChatModerationAudit({
+    const audit = await streamerChatModerationStore.appendAudit({
       action: "ban_author",
       message: result.bannedMessage,
       note: "Applied from stream chat quick controls.",
       outcome: "applied",
       reason: "streamer_chat_author_banned"
     });
-    await upsertStreamerChatActiveState({
+    await streamerChatModerationStore.upsertActiveState({
       auditLogId: audit.id,
       message: result.bannedMessage,
       stateKind: "user_banned"
@@ -2492,7 +2089,7 @@ server.post("/streamer-chat/moderation/warn", async (request, reply) => {
 
   const targetMessage = streamerChatRuntime.findMessage(parsedRequest.data.targetMessageId);
   const previousWarningCount = targetMessage
-    ? await getDurableWarningCount(targetMessage.source, targetMessage.authorName)
+    ? await streamerChatModerationStore.getWarningCount(targetMessage.source, targetMessage.authorName)
     : 0;
   const result = streamerChatModerationRuntime.warnActorFromMessage(
     parsedRequest.data.targetMessageId,
@@ -2500,7 +2097,7 @@ server.post("/streamer-chat/moderation/warn", async (request, reply) => {
   );
 
   if (result?.message) {
-    await appendStreamerChatModerationAudit({
+    await streamerChatModerationStore.appendAudit({
       action: "warn_author",
       message: result.message,
       note: `Provider warning message pending: @${result.message.authorName} this is warning ${result.warningCount}/${result.warningThreshold}. A third warning results in an automatic Maiks.yt stream-surface ban.`,
@@ -2509,14 +2106,14 @@ server.post("/streamer-chat/moderation/warn", async (request, reply) => {
     });
 
     if (result.autoBanned) {
-      const audit = await appendStreamerChatModerationAudit({
+      const audit = await streamerChatModerationStore.appendAudit({
         action: "ban_author",
         message: result.message,
         note: "Automatic local ban after third warning.",
         outcome: "applied",
         reason: "streamer_chat_warning_threshold_reached"
       });
-      await upsertStreamerChatActiveState({
+      await streamerChatModerationStore.upsertActiveState({
         auditLogId: audit.id,
         message: result.message,
         stateKind: "user_banned"
@@ -2531,7 +2128,7 @@ server.post("/streamer-chat/moderation/warn", async (request, reply) => {
     affectedCount: result?.affectedMessages.length ?? 0,
     autoBanned: result?.autoBanned ?? false,
     warningCount: result?.warningCount ?? 0,
-    warningThreshold: result?.warningThreshold ?? moderationWarningThreshold,
+    warningThreshold: result?.warningThreshold ?? 3,
     providerAction: false,
     providerMessageSent: false,
     providerMessage: result
@@ -2564,7 +2161,7 @@ server.get("/streamer-chat/moderation/rules", async (request, reply) => {
 
   return {
     ok: true,
-    rules: await listDurableStreamerChatModerationRules(),
+    rules: await streamerChatModerationStore.listRules(),
     providerAction: false,
     checkedAt: new Date().toISOString()
   };
@@ -2592,7 +2189,7 @@ server.post("/streamer-chat/moderation/rules/retract", async (request, reply) =>
     };
   }
 
-  const retractedRule = await retractDurableStreamerChatModerationRule(parsedRequest.data.ruleId);
+  const retractedRule = await streamerChatModerationStore.retractRule(parsedRequest.data.ruleId);
 
   if (retractedRule) {
     streamerChatModerationRuntime.retractRule(retractedRule.id);
