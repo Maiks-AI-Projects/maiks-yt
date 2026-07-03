@@ -9,8 +9,106 @@ import {
   overlayLayoutOptions,
   redeemPresetOptions,
   type CenterNotificationTiming,
+  type OverlayPresenceState,
   type RedeemPreset
 } from "./SurfaceStatus.types.js";
+
+type SurfaceStatusControlsProps = {
+  aiMuted: boolean;
+  chatNewestOnTop: boolean;
+  chatVisible: boolean;
+  emergencyCleanModeEnabled: boolean;
+  overlayActive: boolean;
+  overlayPresence: OverlayPresenceState;
+  panelMode: string;
+  sendRedeemTest: (redeem: RedeemPreset) => Promise<void>;
+  sendRoutedNotificationTest: (destination: "center", priority: "top") => Promise<void>;
+  sendTopBarTest: () => Promise<void>;
+  sponsorVisible: boolean;
+  topBarEnabled: boolean;
+  updateAiMuted: (muted: boolean) => Promise<void>;
+  updateChatOrder: (newestOnTop: boolean) => Promise<void>;
+  updateChatVisibility: (visible: boolean) => Promise<void>;
+  updateEmergencyCleanMode: (enabled: boolean) => Promise<void>;
+  updateSponsorVisibility: (visible: boolean) => Promise<void>;
+  updateTopBarEnabled: (enabled: boolean) => Promise<void>;
+};
+
+export const SurfaceStatusControls = ({
+  aiMuted,
+  chatNewestOnTop,
+  chatVisible,
+  emergencyCleanModeEnabled,
+  overlayActive,
+  overlayPresence,
+  panelMode,
+  sendRedeemTest,
+  sendRoutedNotificationTest,
+  sendTopBarTest,
+  sponsorVisible,
+  topBarEnabled,
+  updateAiMuted,
+  updateChatOrder,
+  updateChatVisibility,
+  updateEmergencyCleanMode,
+  updateSponsorVisibility,
+  updateTopBarEnabled
+}: SurfaceStatusControlsProps): React.ReactNode => (
+  <>
+    <div className="status-pill active">
+      <span>Control panel</span>
+      <strong>active</strong>
+    </div>
+    {panelMode === "advanced" ? (
+      <div className="status-pill">
+        <span>Panel mode</span>
+        <strong>advanced</strong>
+        {overlayPresence.status === "ready" ? <small>{overlayPresence.checkedAt}</small> : null}
+      </div>
+    ) : null}
+    <div className={`status-pill ${overlayActive ? "active" : "idle"}`}>
+      <span>Overlay</span>
+      <strong>{overlayPresence.status === "checking" ? "checking" : overlayActive ? "active" : "idle"}</strong>
+      {overlayPresence.status === "ready" ? <small>{overlayPresence.activeOverlayConnections} connected</small> : null}
+      {overlayPresence.status === "error" ? <small>{overlayPresence.message}</small> : null}
+    </div>
+    <button
+      type="button"
+      className={`status-action emergency-clean-action ${emergencyCleanModeEnabled ? "danger-action" : ""}`}
+      onClick={() => void updateEmergencyCleanMode(!emergencyCleanModeEnabled)}
+    >
+      {emergencyCleanModeEnabled ? "Clean mode on" : "Emergency clean"}
+    </button>
+    <div className="status-action-group critical-controls" aria-label="Critical overlay controls">
+      <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
+        {topBarEnabled ? "Top bar on" : "Top bar off"}
+      </button>
+      <button type="button" className="status-action" onClick={() => void updateChatVisibility(!chatVisible)}>
+        {chatVisible ? "Chat on" : "Chat off"}
+      </button>
+      <button type="button" className="status-action" onClick={() => void updateChatOrder(!chatNewestOnTop)}>
+        {chatNewestOnTop ? "Newest top" : "Newest bottom"}
+      </button>
+      <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
+        {sponsorVisible ? "Sponsor on" : "Sponsor off"}
+      </button>
+      <button type="button" className="status-action" onClick={() => void updateAiMuted(!aiMuted)}>
+        {aiMuted ? "AI muted" : "AI live"}
+      </button>
+    </div>
+    <div className="status-action-group notification-test-controls" aria-label="Notification test controls">
+      <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
+        Test top bar
+      </button>
+      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "top")}>
+        Test center + top
+      </button>
+      <button type="button" className="status-action" onClick={() => void sendRedeemTest("hydrate")}>
+        Test redeem
+      </button>
+    </div>
+  </>
+);
 
 type OverlayTargetSettingsProps = {
   presentationState: OverlayPresentationState;

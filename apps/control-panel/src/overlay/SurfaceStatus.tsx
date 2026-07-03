@@ -6,6 +6,7 @@ import {
   FakeChatSettings,
   GoalWidgetSettings,
   NotificationSettings,
+  SurfaceStatusControls,
   OverlayTargetSettings
 } from "./SurfaceStatusSections.js";
 import { useOverlayPresence } from "./useOverlayPresence.js";
@@ -556,58 +557,26 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
 
   return (
     <section className="surface-status" aria-label="Surface status">
-      <div className="status-pill active">
-        <span>Control panel</span>
-        <strong>active</strong>
-      </div>
-      {panelMode === "advanced" ? (
-        <div className="status-pill">
-          <span>Panel mode</span>
-          <strong>advanced</strong>
-          {overlayPresence.status === "ready" ? <small>{overlayPresence.checkedAt}</small> : null}
-        </div>
-      ) : null}
-      <div className={`status-pill ${overlayActive ? "active" : "idle"}`}>
-        <span>Overlay</span>
-        <strong>{overlayPresence.status === "checking" ? "checking" : overlayActive ? "active" : "idle"}</strong>
-        {overlayPresence.status === "ready" ? <small>{overlayPresence.activeOverlayConnections} connected</small> : null}
-        {overlayPresence.status === "error" ? <small>{overlayPresence.message}</small> : null}
-      </div>
-      <button
-        type="button"
-        className={`status-action emergency-clean-action ${emergencyCleanModeEnabled ? "danger-action" : ""}`}
-        onClick={() => void updateEmergencyCleanMode(!emergencyCleanModeEnabled)}
-      >
-        {emergencyCleanModeEnabled ? "Clean mode on" : "Emergency clean"}
-      </button>
-      <div className="status-action-group critical-controls" aria-label="Critical overlay controls">
-        <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
-          {topBarEnabled ? "Top bar on" : "Top bar off"}
-        </button>
-        <button type="button" className="status-action" onClick={() => void updateChatVisibility(!chatVisible)}>
-          {chatVisible ? "Chat on" : "Chat off"}
-        </button>
-        <button type="button" className="status-action" onClick={() => void updateChatOrder(!chatNewestOnTop)}>
-          {chatNewestOnTop ? "Newest top" : "Newest bottom"}
-        </button>
-        <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
-          {sponsorVisible ? "Sponsor on" : "Sponsor off"}
-        </button>
-        <button type="button" className="status-action" onClick={() => void updateAiMuted(!aiMuted)}>
-          {aiMuted ? "AI muted" : "AI live"}
-        </button>
-      </div>
-      <div className="status-action-group notification-test-controls" aria-label="Notification test controls">
-        <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
-          Test top bar
-        </button>
-        <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "top")}>
-          Test center + top
-        </button>
-        <button type="button" className="status-action" onClick={() => void sendRedeemTest("hydrate")}>
-          Test redeem
-        </button>
-      </div>
+      <SurfaceStatusControls
+        aiMuted={aiMuted}
+        chatNewestOnTop={chatNewestOnTop}
+        chatVisible={chatVisible}
+        emergencyCleanModeEnabled={emergencyCleanModeEnabled}
+        overlayActive={overlayActive}
+        overlayPresence={overlayPresence}
+        panelMode={panelMode}
+        sendRedeemTest={sendRedeemTest}
+        sendRoutedNotificationTest={sendRoutedNotificationTest}
+        sendTopBarTest={sendTopBarTest}
+        sponsorVisible={sponsorVisible}
+        topBarEnabled={topBarEnabled}
+        updateAiMuted={updateAiMuted}
+        updateChatOrder={updateChatOrder}
+        updateChatVisibility={updateChatVisibility}
+        updateEmergencyCleanMode={updateEmergencyCleanMode}
+        updateSponsorVisibility={updateSponsorVisibility}
+        updateTopBarEnabled={updateTopBarEnabled}
+      />
       <OverlayTargetSettings
         presentationState={presentationState}
         sceneOptions={sceneOptions}
