@@ -1,0 +1,189 @@
+import type { DatabasePool } from "@maiks-yt/database";
+import type { UrlAccessSurface } from "@maiks-yt/domain/security";
+import type { FastifyRequest } from "fastify";
+
+const streamerChatModerationActions = ["hide", "ban", "warn", "retract_rule", "view_rules", "emergency_clear"] as const;
+export type StreamerChatModerationAction = typeof streamerChatModerationActions[number];
+
+type UrlAccessTokenValidation = {
+  valid: boolean;
+  requiresLogin: boolean;
+  reason?: string;
+};
+
+type ValidateUrlAccessToken = (input: {
+  scope: string;
+  surface: UrlAccessSurface;
+  token: string;
+}) => Promise<UrlAccessTokenValidation>;
+
+type DomainUserResolution =
+  | {
+    ok: true;
+    userId: string;
+  }
+  | {
+    ok: false;
+    reason: string;
+    statusCode: 401 | 403;
+  };
+
+type StreamerChatModerationAccess =
+  | {
+    ok: true;
+    permissions: string[];
+  }
+  | {
+    ok: false;
+    reason: string;
+    statusCode: 401 | 403;
+  };
+
+const parseJsonArray = (value: unknown): unknown[] => {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const normalizeStreamerChatModerationPermissions = (rolePermissionValues: readonly unknown[]): string[] => {
+  const permissions = new Set<string>();
+
+  for (const rolePermissionValue of rolePermissionValues) {
+    for (const permission of parseJsonArray(rolePermissionValue)) {
+      if (typeof permission === "string") {
+        permissions.add(permission);
+      }
+    }
+  }
+
+  return [...permissions];
+};
+
+export const canUseStreamerChatModerationAction = (
+  permissions: readonly string[],
+  action: StreamerChatModerationAction
+): boolean => {
+  if (permissions.includes("*")) {
+    return true;
+  }
+
+  switch (action) {
+    case "hide":
+      return permissions.includes("chat:hide-message");
+    case "ban":
+      return permissions.includes("chat:ban-user-local");
+    case "warn":
+      return permissions.includes("chat:warn-user");
+    case "retract_rule":
+      return permissions.includes("chat:hide-message")
+        || permissions.includes("chat:ban-user-local")
+        || permissions.includes("chat:warn-user");
+    case "view_rules":
+      return permissions.includes("moderation-rules:view");
+    case "emergency_clear":
+      return permissions.includes("chat:emergency-clear");
+  }
+};
+
+export const canViewStreamerChatModerationWindow = (permissions: readonly string[]): boolean =>
+  permissions.includes("*")
+  || permissions.includes("chat:view")
+  || permissions.includes("moderation-rules:view")
+  || permissions.includes("moderators:manage");
+
+export class StreamerChatModerationAccessService {
+  public constructor(private readonly dependencies: {
+    getDatabasePool: () => DatabasePool;
+    resolveDomainUserIdForRequest: (request: FastifyRequest) => Promise<DomainUserResolution>;
+    validateUrlAccessToken: ValidateUrlAccessToken;
+  }) {}
+
+  public async resolvePermissions(
+    request: FastifyRequest,
+    accessToken: string
+  ): Promise<StreamerChatModerationAccess> {
+    const tokenValidation = await this.dependencies.validateUrlAccessToken({
+      token: accessToken,
+      surface: "control-panel",
+      scope: "control:open"
+    });
+
+    if (!tokenValidation.valid) {
+      return {
+        ok: false,
+        statusCode: 403,
+        reason: tokenValidation.reason ?? "control_panel_access_denied"
+      };
+    }
+
+    const domainUser = await this.dependencies.resolveDomainUserIdForRequest(request);
+
+    if (!domainUser.ok) {
+      return domainUser;
+    }
+
+    const [roleRows] = await this.dependencies.getDatabasePool().execute(
+      `
+        SELECT roles.permissions
+        FROM user_roles
+        INNER JOIN roles ON roles.id = user_roles.role_id
+        WHERE user_roles.user_id = ?
+          AND user_roles.revoked_at IS NULL
+          AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
+        ORDER BY roles.key
+      `,
+      [domainUser.userId]
+    );
+    const permissions = normalizeStreamerChatModerationPermissions(
+      Array.isArray(roleRows)
+        ? roleRows.map((row) => (row as { permissions: unknown }).permissions)
+        : []
+    );
+
+    if (!canViewStreamerChatModerationWindow(permissions)) {
+      return {
+        ok: false,
+        statusCode: 403,
+        reason: "streamer_chat_moderation_forbidden"
+      };
+    }
+
+    return {
+      ok: true,
+      permissions
+    };
+  }
+
+  public async requirePermission(
+    request: FastifyRequest,
+    accessToken: string,
+    action: StreamerChatModerationAction
+  ): Promise<StreamerChatModerationAccess> {
+    const access = await this.resolvePermissions(request, accessToken);
+
+    if (!access.ok) {
+      return access;
+    }
+
+    if (!canUseStreamerChatModerationAction(access.permissions, action)) {
+      return {
+        ok: false,
+        statusCode: 403,
+        reason: "streamer_chat_moderation_forbidden"
+      };
+    }
+
+    return access;
+  }
+}

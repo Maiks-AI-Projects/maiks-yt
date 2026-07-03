@@ -1,5 +1,10 @@
 export { InMemoryFakeLocalModerationRuntime } from "./fake-local-moderation-runtime.service.js";
 export { registerStreamerChatControlRoutes } from "./streamer-chat-control.route.js";
+export { registerStreamerChatModerationRoutes } from "./streamer-chat-moderation.route.js";
+export {
+  StreamerChatModerationAccessService,
+  type StreamerChatModerationAction
+} from "./streamer-chat-moderation-access.service.js";
 export {
   InMemoryStreamerChatModerationRuntime,
   type StreamerChatModerationRule,
