@@ -1,37 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import {
-  grantableModeratorTrustLevels,
-  moderatorGrantAvailabilities,
-  moderatorGrantScopeKinds
-} from "@maiks-yt/domain/community";
-import type {
-  GrantableModeratorTrustLevel,
-  ModeratorGrantAvailability,
-  ModeratorGrantScopeKind
-} from "@maiks-yt/domain/community";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import {
-  actionLabels,
+  AuditPanel,
+  GrantFormPanel,
+  GrantsPanel,
+  OwnerOnlyNote,
+  RankPathsPanel,
+  RoleRightsPanel,
+  RolesPanel,
+  UsersSidebar
+} from "./moderator-admin-panels";
+import {
   apiBaseUrl,
-  availabilityLabels,
   emptyForm,
   emptyRankPathForm,
   emptyRoleForm,
-  formatDate,
   getFailureMessage,
   getLoadStateForFailure,
-  getRankPathLabel,
-  getUserLabel,
-  scopeLabels,
   toDateTimeInput,
   toPayload,
   toRankPathPayload,
   toRolePayload,
   toUpdatePayload,
-  trustLevelLabels,
   type GrantFormState,
   type LoadState,
   type ModeratorAdminAuditLog,
@@ -337,351 +330,72 @@ const ModeratorAdminClient = (): React.ReactNode => {
 
       {loadState === "ready" ? (
         <div className="project-admin-layout">
-          <aside className="project-admin-sidebar" aria-label="Users">
-            <div className="project-admin-sidebar-heading">
-              <h2>Users</h2>
-              <span>{users.length}</span>
-            </div>
-            <div className="project-admin-selector">
-              {users.map((user) => (
-                <button
-                  key={user.id}
-                  type="button"
-                  className={user.id === selectedUserId ? "selected" : ""}
-                  onClick={() => {
-                    setSelectedUserId(user.id);
-                    setForm((current) => ({ ...current, targetUserId: user.id }));
-                  }}
-                >
-                  <strong>{user.displayName}</strong>
-                  <span>{user.authEmail ?? user.profileVisibility}</span>
-                </button>
-              ))}
-            </div>
-          </aside>
+          <UsersSidebar
+            users={users}
+            selectedUserId={selectedUserId}
+            onSelectUser={(userId) => {
+              setSelectedUserId(userId);
+              setForm((current) => ({ ...current, targetUserId: userId }));
+            }}
+          />
 
           <section className="project-admin-workspace" aria-label="Moderator grant editor">
-            <section className="project-admin-panel visibility-panel">
-              <div className="project-admin-panel-heading">
-                <div>
-                  <h2>{getUserLabel(users, selectedUserId)}</h2>
-                  <p>Current helper and moderator grants.</p>
-                </div>
-                <div className="project-admin-actions">
-                  <button type="button" onClick={resetForm} disabled={busy}>New grant</button>
-                </div>
-              </div>
+            <GrantsPanel
+              users={users}
+              selectedUserId={selectedUserId}
+              grants={selectedUserGrants}
+              busy={busy}
+              onNewGrant={resetForm}
+              onEditGrant={startEdit}
+              onRevokeGrant={(grant) => void revokeGrant(grant)}
+            />
 
-              {selectedUserGrants.length === 0 ? (
-                <p className="project-admin-note">No role grants for this user.</p>
-              ) : (
-                <ul className="project-admin-record-list">
-                  {selectedUserGrants.map((grant) => (
-                    <li key={grant.id}>
-                      <div>
-                        <strong>{grant.roleName}</strong>
-                        <p>
-                          {trustLevelLabels[grant.trustLevel]} · {scopeLabels[grant.scopeKind]}
-                          {grant.scopeId ? ` / ${grant.scopeId}` : ""} · {availabilityLabels[grant.availability]}
-                        </p>
-                        <p>Status: {grant.status}. Expires: {formatDate(grant.expiresAt)}.</p>
-                      </div>
-                      <div className="project-admin-actions">
-                        <button type="button" onClick={() => startEdit(grant)} disabled={busy || grant.status === "revoked"}>Edit</button>
-                        <button type="button" onClick={() => void revokeGrant(grant)} disabled={busy || grant.status === "revoked"}>Revoke</button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <form className="project-admin-panel project-admin-form moderator-admin-form" onSubmit={(event) => void saveGrant(event)}>
-              <div className="project-admin-panel-heading">
-                <div>
-                  <h2>{editingGrantId ? "Edit Grant" : "Grant Role"}</h2>
-                  <p>{selectedGrant ? `${selectedGrant.roleName} for ${getUserLabel(users, selectedGrant.userId)}` : "Manual helper/moderator access."}</p>
-                </div>
-              </div>
-
-              <div className="project-admin-form-grid">
-                <label>
-                  User
-                  <select value={form.targetUserId} onChange={(event) => setForm((current) => ({ ...current, targetUserId: event.target.value }))} disabled={Boolean(editingGrantId)}>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id}>{user.displayName}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Role
-                  <select value={form.roleId} onChange={(event) => setForm((current) => ({ ...current, roleId: event.target.value }))} disabled={Boolean(editingGrantId)}>
-                    {grantableRoles.length === 0 ? (
-                      <option value="">No grantable roles</option>
-                    ) : grantableRoles.map((role) => (
-                      <option key={role.id} value={role.id}>{role.name} ({role.key})</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Trust level
-                  <select value={form.trustLevel} onChange={(event) => setForm((current) => ({ ...current, trustLevel: event.target.value as GrantableModeratorTrustLevel }))}>
-                    {grantableModeratorTrustLevels.map((trustLevel) => (
-                      <option key={trustLevel} value={trustLevel}>{trustLevelLabels[trustLevel]}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Scope
-                  <select value={form.scopeKind} onChange={(event) => setForm((current) => ({ ...current, scopeKind: event.target.value as ModeratorGrantScopeKind, scopeId: "" }))}>
-                    {moderatorGrantScopeKinds.map((scopeKind) => (
-                      <option key={scopeKind} value={scopeKind}>{scopeLabels[scopeKind]}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Scope ID
-                  <input value={form.scopeId} onChange={(event) => setForm((current) => ({ ...current, scopeId: event.target.value }))} disabled={form.scopeKind === "global"} maxLength={191} />
-                </label>
-
-                <label>
-                  Availability
-                  <select value={form.availability} onChange={(event) => setForm((current) => ({ ...current, availability: event.target.value as ModeratorGrantAvailability }))}>
-                    {moderatorGrantAvailabilities.map((availability) => (
-                      <option key={availability} value={availability}>{availabilityLabels[availability]}</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Expires
-                  <input type="datetime-local" value={form.expiresAt} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} />
-                </label>
-
-                <label>
-                  Reason
-                  <input value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} maxLength={280} />
-                </label>
-              </div>
-
-              <div className="project-admin-actions">
-                <button type="submit" disabled={busy || grantableRoles.length === 0}>{editingGrantId ? "Save grant" : "Grant role"}</button>
-                {editingGrantId ? <button type="button" onClick={resetForm} disabled={busy}>Cancel edit</button> : null}
-              </div>
-            </form>
+            <GrantFormPanel
+              users={users}
+              grantableRoles={grantableRoles}
+              selectedGrant={selectedGrant}
+              editingGrantId={editingGrantId}
+              form={form}
+              busy={busy}
+              onSubmit={(event) => void saveGrant(event)}
+              onCancelEdit={resetForm}
+              setForm={setForm}
+            />
 
             {canManageRanks ? (
-              <section className="project-admin-panel project-admin-form">
-                <div className="project-admin-panel-heading">
-                  <div>
-                    <h2>Rank Paths</h2>
-                    <p>Owner-only role paths and promotion lanes.</p>
-                  </div>
-                  <div className="project-admin-actions">
-                    <button type="button" onClick={resetRankPathForm} disabled={busy}>New path</button>
-                  </div>
-                </div>
-
-                <form className="project-admin-form-grid" onSubmit={(event) => void saveRankPath(event)}>
-                  <label>
-                    Key
-                    <input value={rankPathForm.key} onChange={(event) => setRankPathForm((current) => ({ ...current, key: event.target.value }))} maxLength={80} />
-                  </label>
-                  <label>
-                    Name
-                    <input value={rankPathForm.name} onChange={(event) => setRankPathForm((current) => ({ ...current, name: event.target.value }))} maxLength={191} />
-                  </label>
-                  <label>
-                    Sort
-                    <input type="number" min={0} value={rankPathForm.sortOrder} onChange={(event) => setRankPathForm((current) => ({ ...current, sortOrder: event.target.value }))} />
-                  </label>
-                  <label>
-                    Description
-                    <input value={rankPathForm.description} onChange={(event) => setRankPathForm((current) => ({ ...current, description: event.target.value }))} maxLength={280} />
-                  </label>
-                  <div className="project-admin-actions">
-                    <button type="submit" disabled={busy}>{rankPathForm.id ? "Save path" : "Create path"}</button>
-                  </div>
-                </form>
-
-                <ul className="project-admin-record-list">
-                  {rankPaths.map((rankPath) => (
-                    <li key={rankPath.id}>
-                      <div>
-                        <strong>{rankPath.name}</strong>
-                        <p>{rankPath.key} · sort {rankPath.sortOrder}</p>
-                        <p>{rankPath.description ?? "No description"}</p>
-                      </div>
-                      <div className="project-admin-actions">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => setRankPathForm({
-                            id: rankPath.id,
-                            key: rankPath.key,
-                            name: rankPath.name,
-                            description: rankPath.description ?? "",
-                            sortOrder: String(rankPath.sortOrder)
-                          })}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              <RankPathsPanel
+                rankPaths={rankPaths}
+                form={rankPathForm}
+                busy={busy}
+                onSubmit={(event) => void saveRankPath(event)}
+                onNewPath={resetRankPathForm}
+                setForm={setRankPathForm}
+              />
             ) : null}
 
             {canManageRanks ? (
-              <section className="project-admin-panel project-admin-form">
-                <div className="project-admin-panel-heading">
-                  <div>
-                    <h2>Role Rights</h2>
-                    <p>Owner-only action rights collected by ranks.</p>
-                  </div>
-                  <div className="project-admin-actions">
-                    <button type="button" onClick={resetRoleForm} disabled={busy}>New role</button>
-                  </div>
-                </div>
-
-                <form className="project-admin-form-grid" onSubmit={(event) => void saveRole(event)}>
-                  <label>
-                    Key
-                    <input value={roleForm.key} onChange={(event) => setRoleForm((current) => ({ ...current, key: event.target.value }))} maxLength={80} />
-                  </label>
-                  <label>
-                    Name
-                    <input value={roleForm.name} onChange={(event) => setRoleForm((current) => ({ ...current, name: event.target.value }))} maxLength={191} />
-                  </label>
-                  <label>
-                    Rank path
-                    <select value={roleForm.rankPathId} onChange={(event) => setRoleForm((current) => ({ ...current, rankPathId: event.target.value }))}>
-                      <option value="">No path</option>
-                      {rankPaths.map((rankPath) => (
-                        <option key={rankPath.id} value={rankPath.id}>{rankPath.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Level
-                    <input type="number" min={1} value={roleForm.rankLevel} onChange={(event) => setRoleForm((current) => ({ ...current, rankLevel: event.target.value }))} />
-                  </label>
-                  <label>
-                    Display label
-                    <input value={roleForm.displayLabel} onChange={(event) => setRoleForm((current) => ({ ...current, displayLabel: event.target.value }))} maxLength={191} />
-                  </label>
-                  <label>
-                    Next promotion
-                    <select value={roleForm.nextRoleId} onChange={(event) => setRoleForm((current) => ({ ...current, nextRoleId: event.target.value }))}>
-                      <option value="">None</option>
-                      {roles.map((role) => (
-                        <option key={role.id} value={role.id}>{role.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Discord role ID
-                    <input value={roleForm.discordRoleId} onChange={(event) => setRoleForm((current) => ({ ...current, discordRoleId: event.target.value }))} maxLength={80} />
-                  </label>
-                  <label>
-                    Permissions
-                    <textarea value={roleForm.permissions} onChange={(event) => setRoleForm((current) => ({ ...current, permissions: event.target.value }))} rows={4} />
-                  </label>
-                  <label className="project-admin-checkbox">
-                    <input type="checkbox" checked={roleForm.isOwnerRank} onChange={(event) => setRoleForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} />
-                    Owner rank
-                  </label>
-                  <label className="project-admin-checkbox">
-                    <input type="checkbox" checked={roleForm.isSystem} onChange={(event) => setRoleForm((current) => ({ ...current, isSystem: event.target.checked }))} />
-                    System/default rank
-                  </label>
-                  <div className="project-admin-actions">
-                    <button type="submit" disabled={busy}>{roleForm.id ? "Save role" : "Create role"}</button>
-                  </div>
-                </form>
-              </section>
+              <RoleRightsPanel
+                rankPaths={rankPaths}
+                roles={roles}
+                form={roleForm}
+                busy={busy}
+                onSubmit={(event) => void saveRole(event)}
+                onNewRole={resetRoleForm}
+                setForm={setRoleForm}
+              />
             ) : null}
 
-            <section className="project-admin-panel">
-              <div className="project-admin-panel-heading">
-                <div>
-                  <h2>Roles</h2>
-                  <p>Grantable roles exclude owner-only and dangerous capabilities.</p>
-                </div>
-              </div>
-              <ul className="project-admin-record-list">
-                {roles.map((role) => (
-                  <li key={role.id}>
-                    <div>
-                      <strong>{role.name}</strong>
-                      <p>
-                        {role.key} · {getRankPathLabel(rankPaths, role.rankPathId)}
-                        {role.rankLevel ? ` lvl ${role.rankLevel}` : ""} · {role.grantable ? "Grantable" : "Protected"}
-                      </p>
-                      <p>{role.displayLabel ? `Display: ${role.displayLabel}. ` : ""}{role.discordRoleId ? `Discord: ${role.discordRoleId}. ` : ""}{role.nextRoleId ? `Next: ${roles.find((candidate) => candidate.id === role.nextRoleId)?.name ?? role.nextRoleId}.` : ""}</p>
-                      <p>{role.permissions.length > 0 ? role.permissions.join(", ") : "No permissions"}</p>
-                    </div>
-                    {canManageRanks ? (
-                      <div className="project-admin-actions">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => setRoleForm({
-                            id: role.id,
-                            key: role.key,
-                            name: role.name,
-                            permissions: role.permissions.join("\n"),
-                            rankPathId: role.rankPathId ?? "",
-                            rankLevel: role.rankLevel === null ? "" : String(role.rankLevel),
-                            displayLabel: role.displayLabel ?? "",
-                            nextRoleId: role.nextRoleId ?? "",
-                            discordRoleId: role.discordRoleId ?? "",
-                            isOwnerRank: role.isOwnerRank,
-                            isSystem: role.isSystem
-                          })}
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <RolesPanel
+              rankPaths={rankPaths}
+              roles={roles}
+              busy={busy}
+              canManageRanks={canManageRanks}
+              setRoleForm={setRoleForm}
+            />
 
-            <section className="project-admin-panel">
-              <div className="project-admin-panel-heading">
-                <div>
-                  <h2>Recent Audit</h2>
-                  <p>Role grant changes from newest to oldest.</p>
-                </div>
-              </div>
-              {auditLogs.length === 0 ? (
-                <p className="project-admin-note">No role grant audit entries yet.</p>
-              ) : (
-                <ul className="project-admin-record-list">
-                  {auditLogs.map((log) => (
-                    <li key={log.id}>
-                      <div>
-                        <strong>{actionLabels[log.action]} {log.roleName ?? log.roleId}</strong>
-                        <p>{log.targetDisplayName ?? log.targetUserId} by {log.actorDisplayName ?? log.actorUserId ?? "system"} · {formatDate(log.createdAt)}</p>
-                        <p>{log.reason ?? "No reason recorded"}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <AuditPanel auditLogs={auditLogs} />
 
-            <section className="project-admin-panel project-admin-note">
-              <h2>Owner-only</h2>
-              <p>Owner/admin assignment, production auth and secrets, provider credentials, real money authority, irreversible user deletion, role-management permission, and audit log disabling stay unavailable from this page.</p>
-            </section>
+            <OwnerOnlyNote />
           </section>
         </div>
       ) : null}
