@@ -1,130 +1,32 @@
-import type { OverlayActiveGoalState, OverlayPresentationState, OverlaySceneDefinition } from "@maiks-yt/events";
+import type { OverlayActiveGoalState, OverlayPresentationState } from "@maiks-yt/events";
 import { useEffect, useState } from "react";
 import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
 import { formatChatTime } from "../chat/chat-time.service.js";
-import type { OverlayScenesResponse } from "./overlay-api.types.js";
 import {
   FakeChatSettings,
   GoalWidgetSettings,
   NotificationSettings,
   OverlayTargetSettings
 } from "./SurfaceStatusSections.js";
+import { useOverlayPresence } from "./useOverlayPresence.js";
 import {
   defaultGoalDraft,
   type CenterNotificationTiming,
   type OverlayChatOrderResponse,
   type OverlayFakeChatTestResponse,
   type OverlayGoalUpdateResponse,
-  type OverlayPresenceState,
   type OverlayPresentationStateResponse,
   type OverlayRedeemTestResponse,
-  type OverlayStatusResponse,
   type RedeemPreset,
   type SurfaceStatusProps
 } from "./SurfaceStatus.types.js";
 
 export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): React.ReactNode => {
-  const [overlayPresence, setOverlayPresence] = useState<OverlayPresenceState>({ status: "checking" });
+  const { overlayPresence, sceneOptions, setOverlayPresence } = useOverlayPresence(apiBaseUrl);
   const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
-  const [sceneOptions, setSceneOptions] = useState<OverlaySceneDefinition[]>([]);
   const [fakeChatAuthorName, setFakeChatAuthorName] = useState("Test chatter");
   const [fakeChatMessage, setFakeChatMessage] = useState("Hello from local test chat.");
   const [goalDraft, setGoalDraft] = useState<OverlayActiveGoalState>(defaultGoalDraft);
-
-  useEffect(() => {
-    let disposed = false;
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
-    const refreshPresence = async (): Promise<void> => {
-      if (!token) {
-        setOverlayPresence({
-          status: "error",
-          message: "Control token missing."
-        });
-        return;
-      }
-
-      try {
-        const url = new URL("/overlay/status", apiBaseUrl);
-        url.searchParams.set("accessToken", token);
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error(`Overlay status failed with ${response.status}`);
-        }
-
-        const result = await response.json() as OverlayStatusResponse;
-
-        if (!result.ok) {
-          throw new Error(result.reason);
-        }
-
-        if (!disposed) {
-          setOverlayPresence({
-            status: "ready",
-            activeOverlayConnections: result.activeOverlayConnections,
-            checkedAt: result.checkedAt,
-            emergencyCleanModeEnabled: result.emergencyCleanModeEnabled,
-            chatVisible: result.chatVisible,
-            chatNewestOnTop: result.chatNewestOnTop,
-            sponsorVisible: result.sponsorVisible,
-            aiMuted: result.aiMuted,
-            topBarEnabled: result.topBarEnabled,
-            centerEnabled: result.centerEnabled,
-            centerDefaultTiming: result.centerDefaultTiming,
-            presentationState: result.presentationState,
-            activeGoal: result.activeGoal
-          });
-        }
-      } catch (error) {
-        if (!disposed) {
-          setOverlayPresence({
-            status: "error",
-            message: error instanceof Error ? error.message : "Overlay status unavailable."
-          });
-        }
-      }
-    };
-
-    const loadScenes = async (): Promise<void> => {
-      if (!token) {
-        return;
-      }
-
-      try {
-        const url = new URL("/overlay/scenes", apiBaseUrl);
-        url.searchParams.set("accessToken", token);
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error(`Overlay scenes failed with ${response.status}`);
-        }
-
-        const result = await response.json() as OverlayScenesResponse;
-
-        if (!result.ok) {
-          throw new Error(result.reason);
-        }
-
-        if (!disposed) {
-          setSceneOptions(result.scenes);
-        }
-      } catch {
-        if (!disposed) {
-          setSceneOptions([]);
-        }
-      }
-    };
-
-    void refreshPresence();
-    void loadScenes();
-    const interval = window.setInterval(refreshPresence, 5_000);
-
-    return () => {
-      disposed = true;
-      window.clearInterval(interval);
-    };
-  }, []);
 
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
   const emergencyCleanModeEnabled = overlayPresence.status === "ready" && overlayPresence.emergencyCleanModeEnabled;
