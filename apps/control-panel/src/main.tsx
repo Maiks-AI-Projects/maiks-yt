@@ -15,6 +15,7 @@ import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
 import { formatChatTime } from "./chat/chat-time.service.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
+import { OperationsPanel } from "./operations/OperationsPanel.js";
 import { RealtimeProbe } from "./realtime/RealtimeProbe.js";
 import { SimulatorPanel } from "./simulator/SimulatorPanel.js";
 import { createRoot } from "react-dom/client";
@@ -1769,39 +1770,6 @@ const SceneDesigner = (): React.ReactNode => {
   );
 };
 
-const OperationsPanel = ({
-  panelMode,
-  displayName
-}: {
-  panelMode: PanelMode;
-  displayName: string;
-}): React.ReactNode => (
-  <section className="operations-panel" aria-label="Operations">
-    <div className="section-heading">
-      <h2>Operations</h2>
-      <span>{panelMode}</span>
-    </div>
-    <div className="operations-grid">
-      <article>
-        <span>Operator</span>
-        <strong>{displayName}</strong>
-      </article>
-      <article>
-        <span>API base</span>
-        <strong>{new URL(apiBaseUrl).host}</strong>
-      </article>
-      <article>
-        <span>Surface</span>
-        <strong>control-panel</strong>
-      </article>
-      <article>
-        <span>Realtime tools</span>
-        <strong>quiet</strong>
-      </article>
-    </div>
-  </section>
-);
-
 const App = (): React.ReactNode => {
   const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
@@ -1883,7 +1851,9 @@ const App = (): React.ReactNode => {
       </div>
       <SurfaceStatus panelMode={panelMode} />
       <SceneDesigner />
-      {advancedModeEnabled ? <OperationsPanel displayName={authState.displayName} panelMode={panelMode} /> : null}
+      {advancedModeEnabled ? (
+        <OperationsPanel apiBaseUrl={apiBaseUrl} displayName={authState.displayName} panelMode={panelMode} />
+      ) : null}
       <details className="quiet-section">
         <summary>
           <span>Realtime Probe</span>
