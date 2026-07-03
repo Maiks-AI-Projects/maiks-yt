@@ -1,15 +1,15 @@
 import type { OverlaySceneDefinition, OverlaySceneSlotDefinition, OverlaySceneSlotId } from "@maiks-yt/events";
-import { getDefaultThemeScene, overlaySceneSlotIds } from "@maiks-yt/themes";
+import { getDefaultThemeScene } from "@maiks-yt/themes";
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { OverlayScenesResponse } from "../overlay/overlay-api.types.js";
 import {
   cloneScene,
   clamp,
   createSceneCopyKey,
-  createSceneSlotStyle,
   formatSlotLabel,
   getSceneLayoutWarnings
 } from "./scene-layout.service.js";
+import { SceneCanvasPreview, SceneDesignerToolbar, SlotEditorPanel } from "./SceneDesignerSections.js";
 import type {
   OverlaySceneSaveResponse,
   SceneDesignerProps,
@@ -415,125 +415,44 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
         <h2>Scene Designer</h2>
         <span>{status}</span>
       </div>
-      <div className="scene-designer-toolbar">
-        <label>
-          <span>Scene</span>
-          <select value={selectedScene?.sceneKey ?? selectedSceneKey} onChange={(event) => setSelectedSceneKey(event.currentTarget.value)}>
-            {scenes.map((scene) => (
-              <option key={scene.sceneKey} value={scene.sceneKey}>{scene.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Slot</span>
-          <select value={selectedSlotId} onChange={(event) => setSelectedSlotId(event.currentTarget.value as OverlaySceneSlotId)}>
-            {overlaySceneSlotIds.map((slotId) => (
-              <option key={slotId} value={slotId}>{formatSlotLabel(slotId)}</option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className="status-action" onClick={() => void saveSelectedScene()}>
-          Save scene
-        </button>
-        <button type="button" className="status-action" onClick={() => void duplicateSelectedScene()}>
-          Duplicate
-        </button>
-        <button type="button" className="status-action" onClick={() => void loadScenes()}>
-          Reload
-        </button>
-      </div>
+      <SceneDesignerToolbar
+        duplicateSelectedScene={duplicateSelectedScene}
+        loadScenes={loadScenes}
+        saveSelectedScene={saveSelectedScene}
+        scenes={scenes}
+        selectedSceneKey={selectedScene?.sceneKey ?? selectedSceneKey}
+        selectedSlotId={selectedSlotId}
+        setSelectedSceneKey={setSelectedSceneKey}
+        setSelectedSlotId={setSelectedSlotId}
+      />
       {selectedScene ? (
         <div className="scene-designer-grid">
-          <div className="scene-canvas-panel">
-            <div className="scene-canvas-heading">
-              <strong>Canvas preview</strong>
-              <span>{selectedScene.canvas.width} x {selectedScene.canvas.height} px</span>
-            </div>
-            <div className="scene-canvas" aria-label={`${selectedScene.label} layout preview`}>
-              {overlaySceneSlotIds.map((slotId) => {
-                const slot = selectedScene.slots[slotId];
-
-                return (
-                  <button
-                    type="button"
-                    className={`scene-slot ${selectedSlotId === slotId ? "selected" : ""} ${slot.visible ? "visible" : "hidden"} ${warningSlotIds.has(slotId) ? "warning" : ""}`}
-                    key={slotId}
-                    style={createSceneSlotStyle(slot, selectedScene.canvas)}
-                    onClick={() => setSelectedSlotId(slotId)}
-                    onPointerCancel={finishSlotDrag}
-                    onPointerDown={(event) => startSlotDrag(event, slotId, slot)}
-                    onPointerMove={moveSlotDrag}
-                    onPointerUp={finishSlotDrag}
-                  >
-                    <span className="scene-slot-label">{formatSlotLabel(slotId)}</span>
-                    <span
-                      aria-hidden="true"
-                      className="scene-slot-resize-handle"
-                      onPointerCancel={finishSlotResize}
-                      onPointerDown={(event) => startSlotResize(event, slotId, slot)}
-                      onPointerMove={moveSlotResize}
-                      onPointerUp={finishSlotResize}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <SceneCanvasPreview
+            finishSlotDrag={finishSlotDrag}
+            finishSlotResize={finishSlotResize}
+            moveSlotDrag={moveSlotDrag}
+            moveSlotResize={moveSlotResize}
+            selectedScene={selectedScene}
+            selectedSlotId={selectedSlotId}
+            setSelectedSlotId={setSelectedSlotId}
+            startSlotDrag={startSlotDrag}
+            startSlotResize={startSlotResize}
+            warningSlotIds={warningSlotIds}
+          />
           {selectedSlot ? (
-            <div className="slot-editor">
-              <div className={`layout-warning-summary ${layoutWarnings.length > 0 ? "warning" : "clear"}`}>
-                <strong>
-                  {layoutWarnings.length > 0
-                    ? `${blockedLayoutIssues.length} blocked issue(s), ${softLayoutWarnings.length} warning(s)`
-                    : "No layout warnings"}
-                </strong>
-                {layoutWarnings.length > 0 ? (
-                  <ul>
-                    {layoutWarnings.map((warning) => (
-                      <li key={warning.id}>{warning.message}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-              <div className="slot-editor-actions">
-                <button type="button" className="status-action" onClick={resetSelectedSlot}>
-                  Reset slot
-                </button>
-              </div>
-              <label className="slot-visible">
-                <span>Visible</span>
-                <input
-                  checked={selectedSlot.visible}
-                  type="checkbox"
-                  onChange={(event) => updateSelectedSlot({ visible: event.currentTarget.checked })}
-                />
-              </label>
-              <label className="slot-visible">
-                <span>Lock ratio</span>
-                <input
-                  checked={selectedSlot.lockedAspectRatio !== undefined}
-                  type="checkbox"
-                  onChange={(event) => updateSelectedSlotAspectLock(event.currentTarget.checked)}
-                />
-              </label>
-              {(["x", "y", "width", "height"] as const).map((field) => (
-                <label key={field}>
-                  <span>{field}</span>
-                  <input
-                    min={0}
-                    max={field === "x" || field === "width" ? selectedScene.canvas.width : selectedScene.canvas.height}
-                    step={1}
-                    type="number"
-                    value={selectedSlot[field]}
-                    onChange={(event) => updateSelectedSlot({ [field]: Number(event.currentTarget.value) })}
-                  />
-                </label>
-              ))}
-            </div>
+            <SlotEditorPanel
+              blockedLayoutIssues={blockedLayoutIssues}
+              layoutWarnings={layoutWarnings}
+              resetSelectedSlot={resetSelectedSlot}
+              selectedScene={selectedScene}
+              selectedSlot={selectedSlot}
+              softLayoutWarnings={softLayoutWarnings}
+              updateSelectedSlot={updateSelectedSlot}
+              updateSelectedSlotAspectLock={updateSelectedSlotAspectLock}
+            />
           ) : null}
         </div>
       ) : null}
     </section>
   );
 };
-
