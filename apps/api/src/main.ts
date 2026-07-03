@@ -14,7 +14,6 @@ import type {
   OverlayPresentationState,
   OverlayLayoutKey,
   OverlayLiveMessage,
-  OverlayFakeChatMessageHiddenEvent,
   OverlayFakeChatMessageReceivedEvent,
   OverlayNotificationDisplay,
   OverlaySceneDefinition,
@@ -43,11 +42,7 @@ import {
   registerEventRoutingDispatchRoutes,
   type EventRoutingPlaybackPublisher
 } from "./event-routing/index.js";
-import {
-  registerFakeLocalModerationRoutes,
-  type FakeLocalModerationAuditEntry,
-  type FakeLocalMutedAuthor
-} from "./fake-local-moderation/index.js";
+import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
@@ -66,6 +61,7 @@ import {
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
 import {
+  InMemoryFakeLocalModerationRuntime,
   InMemoryStreamerChatModerationRuntime,
   StreamerChatRuntime,
   type StreamerChatLiveSocket,
@@ -1114,72 +1110,10 @@ const retractDurableStreamerChatModerationRule = async (
   return rule;
 };
 
-class InMemoryFakeLocalModerationRuntime {
-  private readonly auditEntries: FakeLocalModerationAuditEntry[] = [];
-  private readonly hiddenMessageIds = new Set<string>();
-  private readonly mutedAuthors = new Map<string, FakeLocalMutedAuthor>();
-
-  public appendAudit(entry: FakeLocalModerationAuditEntry): void {
-    this.auditEntries.unshift(structuredClone(entry));
-    this.auditEntries.splice(100);
-  }
-
-  public hideMessage(messageId: string, hiddenAt: string): StreamerChatMessage | null {
-    const message = streamerChatRuntime.removeMessage(messageId);
-
-    if (!message) {
-      return null;
-    }
-
-    this.hiddenMessageIds.add(messageId);
-    broadcastOverlayMessage({
-      type: "overlay.fake-chat.message.hidden",
-      payload: {
-        id: messageId,
-        source: "fake-local",
-        hiddenAt
-      }
-    } satisfies OverlayFakeChatMessageHiddenEvent);
-
-    return { ...message };
-  }
-
-  public muteAuthor(authorName: string, mutedUntil: string): FakeLocalMutedAuthor {
-    const mutedAuthor = {
-      authorName,
-      mutedUntil
-    };
-    this.mutedAuthors.set(this.normalizeAuthorName(authorName), mutedAuthor);
-
-    return { ...mutedAuthor };
-  }
-
-  public isAuthorMuted(authorName: string, now = new Date()): FakeLocalMutedAuthor | null {
-    const key = this.normalizeAuthorName(authorName);
-    const mutedAuthor = this.mutedAuthors.get(key);
-
-    if (!mutedAuthor) {
-      return null;
-    }
-
-    if (new Date(mutedAuthor.mutedUntil).getTime() <= now.getTime()) {
-      this.mutedAuthors.delete(key);
-      return null;
-    }
-
-    return { ...mutedAuthor };
-  }
-
-  public isMessageVisible(message: StreamerChatMessage): boolean {
-    return !this.hiddenMessageIds.has(message.id);
-  }
-
-  private normalizeAuthorName(authorName: string): string {
-    return authorName.trim().toLowerCase();
-  }
-}
-
-const fakeLocalModerationRuntime = new InMemoryFakeLocalModerationRuntime();
+const fakeLocalModerationRuntime = new InMemoryFakeLocalModerationRuntime({
+  chatRuntime: streamerChatRuntime,
+  publishOverlayMessage: broadcastOverlayMessage
+});
 
 streamerChatRuntime.setVisibilityFilter((message) =>
   fakeLocalModerationRuntime.isMessageVisible(message)

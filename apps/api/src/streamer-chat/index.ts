@@ -1,3 +1,4 @@
+export { InMemoryFakeLocalModerationRuntime } from "./fake-local-moderation-runtime.service.js";
 export {
   InMemoryStreamerChatModerationRuntime,
   type StreamerChatModerationRule,
