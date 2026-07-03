@@ -12,6 +12,8 @@ import { createNotificationScenario, createReplaySessionFromPreset, type EventSt
 import { getDefaultThemeScene, overlaySceneSlotIds } from "@maiks-yt/themes";
 import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
+import { formatChatTime } from "./chat/chat-time.service.js";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
@@ -161,64 +163,6 @@ type StreamerChatMessagesResponse = {
   ok: true;
   source: "mixed";
   messages: StreamerChatMessage[];
-  checkedAt: string;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type TwitchChatIntakeStatus = {
-  channelName: string | null;
-  connectedAt: string | null;
-  disconnectsInWindow: number;
-  lastError: string | null;
-  lastDisconnectAt: string | null;
-  lastMessageAt: string | null;
-  nextReconnectAt: string | null;
-  recentMessages: Array<{
-    id: string;
-    authorName: string;
-    createdAt: string;
-    message: string;
-  }>;
-  reconnectSuppressed: boolean;
-  state: "stopped" | "connecting" | "connected" | "unconfigured";
-};
-
-type DiscordChatIntakeStatus = {
-  channelIds: readonly string[];
-  connectedAt: string | null;
-  disconnectsInWindow: number;
-  guildId: string | null;
-  lastError: string | null;
-  lastDisconnectAt: string | null;
-  lastMessageAt: string | null;
-  nextReconnectAt: string | null;
-  recentMessages: Array<{
-    id: string;
-    authorName: string;
-    channelName: string;
-    createdAt: string;
-    message: string;
-  }>;
-  reconnectSuppressed: boolean;
-  state: "stopped" | "connecting" | "connected" | "unconfigured";
-};
-
-type TwitchChatStatusResponse = {
-  ok: true;
-  readOnly: true;
-  status: TwitchChatIntakeStatus;
-  checkedAt: string;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type DiscordChatStatusResponse = {
-  ok: true;
-  readOnly: true;
-  status: DiscordChatIntakeStatus;
   checkedAt: string;
 } | {
   ok: false;
@@ -472,17 +416,17 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
   };
 };
 
-const formatChatTime = (createdAt: string): string => new Intl.DateTimeFormat(undefined, {
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit"
-}).format(new Date(createdAt));
-
 const chatSourceLabels: Record<StreamerChatMessage["source"], string> = {
   "fake-local": "Local",
   twitch: "Twitch",
   youtube: "YouTube",
   discord: "Discord"
+};
+
+const moderationRuleKindLabels: Record<StreamerChatModerationRule["kind"], string> = {
+  author_banned: "Ban",
+  author_warned: "Warning",
+  message_hidden: "Hide"
 };
 
 const defaultStreamerChatModerationAccess: StreamerChatModerationAccess = {
@@ -500,371 +444,6 @@ const defaultStreamerChatModerationAccess: StreamerChatModerationAccess = {
     liveHelper: true,
     pendingApprovals: true
   }
-};
-
-const twitchIntakeStateLabels: Record<TwitchChatIntakeStatus["state"], string> = {
-  connected: "Connected",
-  connecting: "Connecting",
-  stopped: "Stopped",
-  unconfigured: "Not configured"
-};
-const discordIntakeStateLabels: Record<DiscordChatIntakeStatus["state"], string> = twitchIntakeStateLabels;
-
-const moderationRuleKindLabels: Record<StreamerChatModerationRule["kind"], string> = {
-  author_banned: "Ban",
-  author_warned: "Warning",
-  message_hidden: "Hide"
-};
-
-const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null): string => {
-  if (!status) {
-    return "Loading Twitch intake state.";
-  }
-
-  if (status.reconnectSuppressed) {
-    return "Auto reconnect paused after repeated disconnects. Open provider admin or retry manually.";
-  }
-
-  if (status.lastError) {
-    return status.lastError;
-  }
-
-  switch (status.state) {
-    case "connected":
-      return status.lastMessageAt
-        ? `Last message ${formatChatTime(status.lastMessageAt)}.`
-        : "Waiting for the next Twitch message.";
-    case "connecting":
-      return "Connecting to Twitch chat.";
-    case "stopped":
-      return "Twitch chat intake is stopped.";
-    case "unconfigured":
-      return "Twitch channel is not configured.";
-  }
-};
-
-const getDiscordIntakeStatusCopy = (status: DiscordChatIntakeStatus | null): string => {
-  if (!status) {
-    return "Loading Discord intake state.";
-  }
-
-  if (status.reconnectSuppressed) {
-    return "Auto reconnect paused after repeated Discord disconnects. Open provider admin or retry manually.";
-  }
-
-  if (status.lastError) {
-    return status.lastError;
-  }
-
-  switch (status.state) {
-    case "connected":
-      return status.lastMessageAt
-        ? `Last Discord message ${formatChatTime(status.lastMessageAt)}.`
-        : "Waiting for the next Discord message.";
-    case "connecting":
-      return "Connecting to Discord Gateway.";
-    case "stopped":
-      return "Discord chat intake is stopped.";
-    case "unconfigured":
-      return "Discord bot or guild is not configured.";
-  }
-};
-
-type ServiceConnectionTone = "connected" | "problem" | "disconnected" | "loading";
-
-const getTwitchServiceTone = (status: TwitchChatIntakeStatus | null): ServiceConnectionTone => {
-  if (!status) {
-    return "loading";
-  }
-
-  if (status.state === "connected" && !status.lastError && !status.reconnectSuppressed) {
-    return "connected";
-  }
-
-  if (status.state === "connecting" || status.lastError || status.reconnectSuppressed) {
-    return "problem";
-  }
-
-  return "disconnected";
-};
-
-const getDiscordServiceTone = (status: DiscordChatIntakeStatus | null): ServiceConnectionTone => {
-  if (!status) {
-    return "loading";
-  }
-
-  if (status.state === "connected" && !status.lastError && !status.reconnectSuppressed) {
-    return "connected";
-  }
-
-  if (status.state === "connecting" || status.lastError || status.reconnectSuppressed) {
-    return "problem";
-  }
-
-  return "disconnected";
-};
-
-const getServiceStatusLabel = (tone: ServiceConnectionTone): string => {
-  switch (tone) {
-    case "connected":
-      return "connected";
-    case "problem":
-      return "problem";
-    case "disconnected":
-      return "disconnected";
-    case "loading":
-      return "checking";
-  }
-};
-
-const ChatServiceStatusStrip = (): React.ReactNode => {
-  const [status, setStatus] = useState<TwitchChatIntakeStatus | null>(null);
-  const [discordStatus, setDiscordStatus] = useState<DiscordChatIntakeStatus | null>(null);
-  const [checkedAt, setCheckedAt] = useState<string | null>(null);
-  const [discordCheckedAt, setDiscordCheckedAt] = useState<string | null>(null);
-  const [message, setMessage] = useState("Loading Twitch intake state.");
-  const [discordMessage, setDiscordMessage] = useState("Loading Discord intake state.");
-  const [actionPending, setActionPending] = useState(false);
-  const [discordActionPending, setDiscordActionPending] = useState(false);
-
-  const loadStatus = async (isDisposed: () => boolean = () => false): Promise<void> => {
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-    if (!token) {
-      setMessage("Control token missing.");
-      return;
-    }
-
-    try {
-      const url = new URL("/streamer-chat/twitch-status", apiBaseUrl);
-      url.searchParams.set("accessToken", token);
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`Twitch intake status failed with ${response.status}.`);
-      }
-
-      const result = await response.json() as TwitchChatStatusResponse;
-
-      if (!result.ok) {
-        throw new Error(result.reason);
-      }
-
-      if (!isDisposed()) {
-        setStatus(result.status);
-        setCheckedAt(result.checkedAt);
-        setMessage(getTwitchIntakeStatusCopy(result.status));
-      }
-    } catch (error) {
-      if (!isDisposed()) {
-        setMessage(error instanceof Error ? error.message : "Twitch intake status unavailable.");
-      }
-    }
-  };
-
-  const loadDiscordStatus = async (isDisposed: () => boolean = () => false): Promise<void> => {
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-    if (!token) {
-      setDiscordMessage("Control token missing.");
-      return;
-    }
-
-    try {
-      const url = new URL("/streamer-chat/discord-status", apiBaseUrl);
-      url.searchParams.set("accessToken", token);
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`Discord intake status failed with ${response.status}.`);
-      }
-
-      const result = await response.json() as DiscordChatStatusResponse;
-
-      if (!result.ok) {
-        throw new Error(result.reason);
-      }
-
-      if (!isDisposed()) {
-        setDiscordStatus(result.status);
-        setDiscordCheckedAt(result.checkedAt);
-        setDiscordMessage(getDiscordIntakeStatusCopy(result.status));
-      }
-    } catch (error) {
-      if (!isDisposed()) {
-        setDiscordMessage(error instanceof Error ? error.message : "Discord intake status unavailable.");
-      }
-    }
-  };
-
-  useEffect(() => {
-    let disposed = false;
-
-    void loadStatus(() => disposed);
-    void loadDiscordStatus(() => disposed);
-    const intervalId = window.setInterval(() => {
-      void loadStatus(() => disposed);
-      void loadDiscordStatus(() => disposed);
-    }, 10000);
-
-    return () => {
-      disposed = true;
-      window.clearInterval(intervalId);
-    };
-  }, []);
-
-  const handleTwitchServiceClick = async (): Promise<void> => {
-    if (status?.state === "unconfigured" || status?.reconnectSuppressed) {
-      window.location.assign("https://web-dev.maiks.yt/admin/provider-integrations");
-      return;
-    }
-
-    if (status?.state === "connected" || status?.state === "connecting" || actionPending) {
-      return;
-    }
-
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
-    if (!token) {
-      setMessage("Control token missing.");
-      return;
-    }
-
-    setActionPending(true);
-    setMessage("Trying to reconnect Twitch chat.");
-
-    try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/twitch-reconnect`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ accessToken: token })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Twitch reconnect failed with ${response.status}.`);
-      }
-
-      const result = await response.json() as TwitchChatStatusResponse;
-
-      if (!result.ok) {
-        throw new Error(result.reason);
-      }
-
-      setStatus(result.status);
-      setCheckedAt(result.checkedAt);
-      setMessage(getTwitchIntakeStatusCopy(result.status));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Twitch reconnect unavailable.");
-    } finally {
-      setActionPending(false);
-      void loadStatus();
-    }
-  };
-
-  const handleDiscordServiceClick = async (): Promise<void> => {
-    if (discordStatus?.state === "unconfigured" || discordStatus?.reconnectSuppressed) {
-      window.location.assign("https://web-dev.maiks.yt/admin/provider-integrations");
-      return;
-    }
-
-    if (discordStatus?.state === "connected" || discordStatus?.state === "connecting" || discordActionPending) {
-      return;
-    }
-
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
-    if (!token) {
-      setDiscordMessage("Control token missing.");
-      return;
-    }
-
-    setDiscordActionPending(true);
-    setDiscordMessage("Trying to reconnect Discord chat.");
-
-    try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/discord-reconnect`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ accessToken: token })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Discord reconnect failed with ${response.status}.`);
-      }
-
-      const result = await response.json() as DiscordChatStatusResponse;
-
-      if (!result.ok) {
-        throw new Error(result.reason);
-      }
-
-      setDiscordStatus(result.status);
-      setDiscordCheckedAt(result.checkedAt);
-      setDiscordMessage(getDiscordIntakeStatusCopy(result.status));
-    } catch (error) {
-      setDiscordMessage(error instanceof Error ? error.message : "Discord reconnect unavailable.");
-    } finally {
-      setDiscordActionPending(false);
-      void loadDiscordStatus();
-    }
-  };
-
-  const twitchTone = getTwitchServiceTone(status);
-  const twitchDetail = [
-    status ? twitchIntakeStateLabels[status.state] : "Loading",
-    status?.channelName ? `#${status.channelName}` : null,
-    status?.lastMessageAt ? `last ${formatChatTime(status.lastMessageAt)}` : null,
-    status?.nextReconnectAt ? `retry ${formatChatTime(status.nextReconnectAt)}` : null,
-    status?.disconnectsInWindow ? `${status.disconnectsInWindow}/10 disconnects` : null
-  ].filter(Boolean).join(" - ");
-  const twitchTitle = `${message}${checkedAt ? ` Checked ${formatChatTime(checkedAt)}.` : ""}`;
-  const discordTone = getDiscordServiceTone(discordStatus);
-  const discordDetail = [
-    discordStatus ? discordIntakeStateLabels[discordStatus.state] : "Loading",
-    discordStatus?.channelIds.length ? `${discordStatus.channelIds.length} channel(s)` : "guild-wide",
-    discordStatus?.lastMessageAt ? `last ${formatChatTime(discordStatus.lastMessageAt)}` : null,
-    discordStatus?.nextReconnectAt ? `retry ${formatChatTime(discordStatus.nextReconnectAt)}` : null,
-    discordStatus?.disconnectsInWindow ? `${discordStatus.disconnectsInWindow}/10 disconnects` : null
-  ].filter(Boolean).join(" - ");
-  const discordTitle = `${discordMessage}${discordCheckedAt ? ` Checked ${formatChatTime(discordCheckedAt)}.` : ""}`;
-
-  return (
-    <section className="chat-service-status" aria-label="Connected chat services">
-      <button
-        className={`chat-service-indicator ${twitchTone}`}
-        disabled={status?.state === "connected" || status?.state === "connecting" || actionPending}
-        onClick={handleTwitchServiceClick}
-        title={twitchTitle}
-        type="button"
-      >
-        <span className="chat-service-dot" aria-hidden="true" />
-        <span className="chat-service-name">Twitch</span>
-        <small>{twitchDetail || getServiceStatusLabel(twitchTone)}</small>
-      </button>
-      <a
-        className="chat-service-indicator disconnected"
-        href="https://web-dev.maiks.yt/admin/provider-integrations"
-        title="YouTube chat intake is not connected in this window yet."
-      >
-        <span className="chat-service-dot" aria-hidden="true" />
-        <span className="chat-service-name">YouTube</span>
-        <small>not connected</small>
-      </a>
-      <button
-        className={`chat-service-indicator ${discordTone}`}
-        disabled={discordStatus?.state === "connected" || discordStatus?.state === "connecting" || discordActionPending}
-        onClick={handleDiscordServiceClick}
-        title={discordTitle}
-        type="button"
-      >
-        <span className="chat-service-dot" aria-hidden="true" />
-        <span className="chat-service-name">Discord</span>
-        <small>{discordDetail || getServiceStatusLabel(discordTone)}</small>
-      </button>
-    </section>
-  );
 };
 
 const StreamerChatViewer = ({
@@ -3385,7 +2964,7 @@ const App = (): React.ReactNode => {
     return (
     <main className="surface chat-surface chat-window-surface">
       <ChatWindowHeader />
-      <ChatServiceStatusStrip />
+      <ChatServiceStatusStrip apiBaseUrl={apiBaseUrl} />
       <StreamerChatViewer newestOnTop maxMessages={60} variant="standalone" />
     </main>
   );
