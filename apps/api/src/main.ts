@@ -25,7 +25,6 @@ import type {
   OverlayRoutedNotificationQueuedEvent,
   OverlayTopBarNotificationQueuedEvent,
   RealtimeEvent,
-  StreamerChatLiveMessage,
   StreamerChatMessage
 } from "@maiks-yt/events";
 import { createStreamerChatMessageFromFakeLocal } from "@maiks-yt/events";
@@ -66,6 +65,7 @@ import {
 } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
+import { StreamerChatRuntime, type StreamerChatLiveSocket } from "./streamer-chat/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
 
 const config = createRuntimeConfig({
@@ -78,6 +78,7 @@ const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
 const activeOverlayConnections = new Set<string>();
 const maxStreamerChatHistory = 75;
+const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: maxStreamerChatHistory });
 let overlayEmergencyCleanModeEnabled = false;
 let overlayChatVisible = true;
 let overlayChatNewestOnTop = false;
@@ -99,8 +100,6 @@ const overlayLiveClients = new Map<string, {
   snapshot: OverlayStateSnapshot;
   socket: OverlayLiveSocket;
 }>();
-const streamerChatLiveClients = new Map<string, StreamerChatLiveSocket>();
-const streamerChatMessages: StreamerChatMessage[] = [];
 const overlaySceneDefinitions = new Map<string, OverlaySceneDefinition>(
   allThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
 );
@@ -321,12 +320,6 @@ interface RealtimeSpikeSocket {
 }
 
 interface OverlayLiveSocket {
-  close: (code?: number, reason?: string) => void;
-  send: (message: string) => void;
-  on(event: "close", listener: () => void): void;
-}
-
-interface StreamerChatLiveSocket {
   close: (code?: number, reason?: string) => void;
   send: (message: string) => void;
   on(event: "close", listener: () => void): void;
@@ -699,38 +692,6 @@ const broadcastOverlayMessage = (message: OverlayLiveMessage): void => {
   }
 };
 
-const createStreamerChatSnapshot = (): StreamerChatLiveMessage => ({
-  type: "streamer-chat.snapshot",
-  payload: {
-    messages: streamerChatMessages
-      .filter((message) =>
-        fakeLocalModerationRuntime.isMessageVisible(message)
-        && streamerChatModerationRuntime.isMessageVisible(message)
-      )
-      .map((message) => ({ ...message })),
-    sentAt: new Date().toISOString()
-  }
-});
-
-const broadcastStreamerChatMessage = (message: StreamerChatMessage): void => {
-  const serializedMessage = JSON.stringify({
-    type: "streamer-chat.message.received",
-    payload: message
-  } satisfies StreamerChatLiveMessage);
-
-  for (const client of streamerChatLiveClients.values()) {
-    client.send(serializedMessage);
-  }
-};
-
-const broadcastStreamerChatSnapshot = (): void => {
-  const serializedMessage = JSON.stringify(createStreamerChatSnapshot());
-
-  for (const client of streamerChatLiveClients.values()) {
-    client.send(serializedMessage);
-  }
-};
-
 class InMemoryStreamerChatModerationRuntime {
   private readonly warningThreshold = 3;
   private readonly hiddenMessageRules = new Map<string, {
@@ -756,7 +717,7 @@ class InMemoryStreamerChatModerationRuntime {
   }>();
 
   public hideMessage(messageId: string): StreamerChatMessage | null {
-    const message = streamerChatMessages.find((candidate) => candidate.id === messageId) ?? null;
+    const message = streamerChatRuntime.findMessage(messageId);
 
     if (!message) {
       return null;
@@ -770,13 +731,13 @@ class InMemoryStreamerChatModerationRuntime {
       source: message.source
     });
     this.broadcastOverlayHideIfNeeded(message);
-    broadcastStreamerChatSnapshot();
+    streamerChatRuntime.broadcastSnapshot();
 
     return { ...message };
   }
 
   public banActorFromMessage(messageId: string): { affectedMessages: StreamerChatMessage[]; bannedMessage: StreamerChatMessage } | null {
-    const message = streamerChatMessages.find((candidate) => candidate.id === messageId) ?? null;
+    const message = streamerChatRuntime.findMessage(messageId);
 
     if (!message) {
       return null;
@@ -789,7 +750,7 @@ class InMemoryStreamerChatModerationRuntime {
       id: this.createBannedActorRuleId(actorKey),
       source: message.source
     });
-    const affectedMessages = streamerChatMessages
+    const affectedMessages = streamerChatRuntime.listAllMessages()
       .filter((candidate) => this.createActorKey(candidate) === actorKey)
       .map((candidate) => ({ ...candidate }));
 
@@ -797,7 +758,7 @@ class InMemoryStreamerChatModerationRuntime {
       this.broadcastOverlayHideIfNeeded(affectedMessage);
     }
 
-    broadcastStreamerChatSnapshot();
+    streamerChatRuntime.broadcastSnapshot();
 
     return {
       affectedMessages,
@@ -812,7 +773,7 @@ class InMemoryStreamerChatModerationRuntime {
     warningCount: number;
     warningThreshold: number;
   } | null {
-    const message = streamerChatMessages.find((candidate) => candidate.id === messageId) ?? null;
+    const message = streamerChatRuntime.findMessage(messageId);
 
     if (!message) {
       return null;
@@ -843,7 +804,7 @@ class InMemoryStreamerChatModerationRuntime {
       };
     }
 
-    broadcastStreamerChatSnapshot();
+    streamerChatRuntime.broadcastSnapshot();
 
     return {
       autoBanned: false,
@@ -939,7 +900,7 @@ class InMemoryStreamerChatModerationRuntime {
     for (const [messageId, rule] of this.hiddenMessageRules.entries()) {
       if (rule.id === ruleId) {
         this.hiddenMessageRules.delete(messageId);
-        broadcastStreamerChatSnapshot();
+        streamerChatRuntime.broadcastSnapshot();
 
         return {
           ...rule,
@@ -952,7 +913,7 @@ class InMemoryStreamerChatModerationRuntime {
     for (const [actorKey, rule] of this.bannedActorRules.entries()) {
       if (rule.id === ruleId) {
         this.bannedActorRules.delete(actorKey);
-        broadcastStreamerChatSnapshot();
+        streamerChatRuntime.broadcastSnapshot();
 
         return {
           ...rule,
@@ -965,7 +926,7 @@ class InMemoryStreamerChatModerationRuntime {
     for (const [actorKey, rule] of this.warningRules.entries()) {
       if (rule.id === ruleId) {
         this.warningRules.delete(actorKey);
-        broadcastStreamerChatSnapshot();
+        streamerChatRuntime.broadcastSnapshot();
 
         return {
           appliedAt: rule.appliedAt,
@@ -1449,16 +1410,13 @@ class InMemoryFakeLocalModerationRuntime {
   }
 
   public hideMessage(messageId: string, hiddenAt: string): StreamerChatMessage | null {
-    const messageIndex = streamerChatMessages.findIndex((message) => message.id === messageId);
-    const message = messageIndex >= 0 ? streamerChatMessages[messageIndex] : null;
+    const message = streamerChatRuntime.removeMessage(messageId);
 
     if (!message) {
       return null;
     }
 
     this.hiddenMessageIds.add(messageId);
-    streamerChatMessages.splice(messageIndex, 1);
-    broadcastStreamerChatSnapshot();
     broadcastOverlayMessage({
       type: "overlay.fake-chat.message.hidden",
       payload: {
@@ -1508,15 +1466,13 @@ class InMemoryFakeLocalModerationRuntime {
 
 const fakeLocalModerationRuntime = new InMemoryFakeLocalModerationRuntime();
 
+streamerChatRuntime.setVisibilityFilter((message) =>
+  fakeLocalModerationRuntime.isMessageVisible(message)
+  && streamerChatModerationRuntime.isMessageVisible(message)
+);
+
 const appendStreamerChatMessage = (message: StreamerChatMessage): StreamerChatMessage => {
-  streamerChatMessages.unshift(message);
-  streamerChatMessages.splice(maxStreamerChatHistory);
-
-  if (streamerChatModerationRuntime.isMessageVisible(message)) {
-    broadcastStreamerChatMessage(message);
-  }
-
-  return message;
+  return streamerChatRuntime.appendMessage(message);
 };
 
 const recordFakeLocalStreamerChatMessage = (
@@ -2586,12 +2542,7 @@ server.get("/streamer-chat/messages", async (request, reply) => {
   return {
     ok: true,
     source: "mixed",
-    messages: streamerChatMessages
-      .filter((message) =>
-        fakeLocalModerationRuntime.isMessageVisible(message)
-        && streamerChatModerationRuntime.isMessageVisible(message)
-      )
-      .map((message) => ({ ...message })),
+    messages: streamerChatRuntime.listVisibleMessages(),
     checkedAt: new Date().toISOString()
   };
 });
@@ -2917,7 +2868,7 @@ server.post("/streamer-chat/moderation/warn", async (request, reply) => {
     };
   }
 
-  const targetMessage = streamerChatMessages.find((message) => message.id === parsedRequest.data.targetMessageId) ?? null;
+  const targetMessage = streamerChatRuntime.findMessage(parsedRequest.data.targetMessageId);
   const previousWarningCount = targetMessage
     ? await getDurableWarningCount(targetMessage.source, targetMessage.authorName)
     : 0;
@@ -3184,11 +3135,7 @@ server.get("/streamer-chat/live", { websocket: true }, async (socket: StreamerCh
   }
 
   const connectionId = randomUUID();
-  streamerChatLiveClients.set(connectionId, socket);
-  socket.send(JSON.stringify(createStreamerChatSnapshot()));
-  socket.on("close", () => {
-    streamerChatLiveClients.delete(connectionId);
-  });
+  streamerChatRuntime.registerLiveClient(connectionId, socket);
 });
 
 server.post("/overlay/goal", async (request, reply) => {
