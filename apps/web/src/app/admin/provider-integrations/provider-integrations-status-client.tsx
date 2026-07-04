@@ -186,6 +186,59 @@ type YouTubeChannelSelectionResponse =
     reason: string;
   };
 
+type TwitchEventSubSubscriptionSummary = {
+  callbackMatches: boolean;
+  condition: Record<string, string>;
+  createdAt: string | null;
+  id: string;
+  status: string;
+  type: string;
+  version: string;
+};
+
+type TwitchEventSubDefaultSubscriptionStatus = {
+  desired: {
+    type: string;
+    version: string;
+  };
+  existing: TwitchEventSubSubscriptionSummary | null;
+  state: "enabled" | "pending" | "missing" | "problem";
+};
+
+type TwitchEventSubSubscriptionListResponse =
+  | {
+    ok: true;
+    broadcasterLogin: string;
+    broadcasterUserId: string;
+    callbackUrl: string;
+    defaults: readonly TwitchEventSubDefaultSubscriptionStatus[];
+    readOnly: true;
+    subscriptions: readonly TwitchEventSubSubscriptionSummary[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type TwitchEventSubEnsureDefaultsResponse =
+  | {
+    ok: true;
+    broadcasterLogin: string;
+    broadcasterUserId: string;
+    callbackUrl: string;
+    results: readonly {
+      desired: {
+        type: string;
+        version: string;
+      };
+      state: "already_enabled" | "already_pending" | "created" | "create_failed";
+    }[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -260,6 +313,9 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [youtubeCredential, setYouTubeCredential] = useState<YouTubeCredentialSummary | null>(null);
   const [youtubeChannels, setYouTubeChannels] = useState<readonly YouTubeSavedChannel[]>([]);
   const [youtubeSelectedChannelId, setYouTubeSelectedChannelId] = useState<string | null>(null);
+  const [twitchEventSubDefaults, setTwitchEventSubDefaults] = useState<readonly TwitchEventSubDefaultSubscriptionStatus[]>([]);
+  const [twitchEventSubSubscriptionCount, setTwitchEventSubSubscriptionCount] = useState<number>(0);
+  const [twitchEventSubCallbackUrl, setTwitchEventSubCallbackUrl] = useState<string | null>(null);
   const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
   const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -269,6 +325,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [youtubeActionMessage, setYouTubeActionMessage] = useState<string>("YouTube owner consent not checked.");
   const [youtubeChannelActionMessage, setYouTubeChannelActionMessage] = useState<string>("YouTube channels not discovered yet.");
   const [youtubeLiveChatActionMessage, setYouTubeLiveChatActionMessage] = useState<string>("YouTube live-chat polling status not loaded.");
+  const [twitchEventSubActionMessage, setTwitchEventSubActionMessage] = useState<string>("Twitch EventSub subscriptions not checked.");
 
   const stateCounts = useMemo(() => {
     const counts: Record<ProviderIntegrationState, number> = {
@@ -425,6 +482,59 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
       setYouTubeChannelActionMessage(error instanceof Error ? error.message : "YouTube channel selection failed.");
     }
   }, []);
+
+  const loadTwitchEventSubSubscriptions = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/twitch-eventsub/subscriptions`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<TwitchEventSubSubscriptionListResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setTwitchEventSubDefaults(payload.defaults);
+        setTwitchEventSubSubscriptionCount(payload.subscriptions.length);
+        setTwitchEventSubCallbackUrl(payload.callbackUrl);
+        setTwitchEventSubActionMessage(payload.defaults.every((entry) => entry.state === "enabled")
+          ? "Default Twitch EventSub subscriptions are enabled."
+          : "Some default Twitch EventSub subscriptions need attention.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setTwitchEventSubActionMessage(`Twitch EventSub subscription status failed: ${reason}.`);
+    } catch (error) {
+      setTwitchEventSubActionMessage(error instanceof Error ? error.message : "Twitch EventSub subscription status failed.");
+    }
+  }, []);
+
+  const ensureTwitchEventSubSubscriptions = useCallback(async (): Promise<void> => {
+    setTwitchEventSubActionMessage("Creating missing Twitch EventSub subscriptions...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/twitch-eventsub/default-subscriptions`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<TwitchEventSubEnsureDefaultsResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        const createdCount = payload.results.filter((entry) => entry.state === "created").length;
+        setTwitchEventSubActionMessage(createdCount > 0
+          ? `Created ${createdCount} missing Twitch EventSub subscription${createdCount === 1 ? "" : "s"}.`
+          : "Twitch EventSub defaults already existed or were pending verification.");
+        await loadTwitchEventSubSubscriptions();
+        await loadStatus();
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setTwitchEventSubActionMessage(`Twitch EventSub subscription creation failed: ${reason}.`);
+    } catch (error) {
+      setTwitchEventSubActionMessage(error instanceof Error ? error.message : "Twitch EventSub subscription creation failed.");
+    }
+  }, [loadStatus, loadTwitchEventSubSubscriptions]);
 
   const discoverYouTubeChannels = useCallback(async (): Promise<void> => {
     setYouTubeChannelActionMessage("Discovering and saving YouTube channels...");
@@ -589,11 +699,12 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     captureDevAuthTokenFromUrl();
     void loadStatus();
     void loadTwitchChatStatus();
+    void loadTwitchEventSubSubscriptions();
     void loadDiscordChatStatus();
     void loadYouTubeCredential();
     void loadYouTubeChannelSelection();
     void loadYouTubeLiveChatStatus();
-  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadYouTubeChannelSelection, loadYouTubeCredential, loadYouTubeLiveChatStatus]);
+  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadTwitchEventSubSubscriptions, loadYouTubeChannelSelection, loadYouTubeCredential, loadYouTubeLiveChatStatus]);
 
   return (
     <>
@@ -750,6 +861,53 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
               </ol>
             ) : (
               <p className="provider-chat-empty">No Twitch messages captured in this API runtime yet.</p>
+            )}
+          </section>
+
+          <section className="project-admin-panel">
+            <div className="project-admin-panel-heading">
+              <div>
+                <h2>Twitch EventSub</h2>
+                <p>Verified log-only webhook subscriptions for offline and online Twitch events.</p>
+              </div>
+              <div className="project-admin-actions">
+                <button type="button" onClick={() => void ensureTwitchEventSubSubscriptions()}>
+                  Create missing
+                </button>
+                <button type="button" onClick={() => void loadTwitchEventSubSubscriptions()}>Refresh</button>
+              </div>
+            </div>
+            <div className="provider-chat-status-grid">
+              <div>
+                <span>Defaults</span>
+                <strong>{twitchEventSubDefaults.length ? `${twitchEventSubDefaults.length} tracked` : "Unknown"}</strong>
+              </div>
+              <div>
+                <span>Subscriptions</span>
+                <strong>{twitchEventSubSubscriptionCount}</strong>
+              </div>
+              <div>
+                <span>Callback</span>
+                <strong>{twitchEventSubCallbackUrl ? "Configured" : "Unknown"}</strong>
+              </div>
+            </div>
+            <p className="provider-chat-action-message">{twitchEventSubActionMessage}</p>
+            {twitchEventSubDefaults.length ? (
+              <ol className="provider-chat-recent-list" aria-label="Twitch EventSub default subscriptions">
+                {twitchEventSubDefaults.map((entry) => (
+                  <li key={`${entry.desired.type}:${entry.desired.version}`}>
+                    <div>
+                      <strong>{entry.desired.type}</strong>
+                      <span>v{entry.desired.version}</span>
+                      <span>{entry.state}</span>
+                      {entry.existing?.status ? <span>{entry.existing.status}</span> : null}
+                    </div>
+                    <p>{entry.existing?.id ?? "No matching subscription yet."}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="provider-chat-empty">Twitch EventSub subscription status has not loaded yet.</p>
             )}
           </section>
 
