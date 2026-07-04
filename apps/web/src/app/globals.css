@@ -1676,6 +1676,17 @@ button:disabled {
   justify-content: space-between;
 }
 
+.provider-chat-recent-list img {
+  border-radius: 4px;
+  height: 2rem;
+  object-fit: cover;
+  width: 2rem;
+}
+
+.youtube-channel-list div {
+  justify-content: flex-start;
+}
+
 .provider-chat-recent-list p {
   margin: 0.4rem 0 0;
 }

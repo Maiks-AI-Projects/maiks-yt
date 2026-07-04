@@ -26,6 +26,7 @@ import {
   registerDiscordChatIntakeControlRoutes,
   registerProviderIntegrationStatusRoutes,
   registerTwitchChatIntakeControlRoutes,
+  registerYouTubeChannelDiscoveryRoutes,
   registerYouTubeOwnerConsentRoutes
 } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
@@ -169,6 +170,10 @@ export const registerApplicationRoutes = ({
     })
   });
   registerYouTubeOwnerConsentRoutes(server, {
+    getAuthSession,
+    getDatabasePool
+  });
+  registerYouTubeChannelDiscoveryRoutes(server, {
     getAuthSession,
     getDatabasePool
   });

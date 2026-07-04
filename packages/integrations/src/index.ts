@@ -5,5 +5,7 @@ export * from "./discord-chat-intake.types.js";
 export * from "./twitch-chat-intake.rules.js";
 export * from "./twitch-chat-intake.service.js";
 export * from "./twitch-chat-intake.types.js";
+export * from "./youtube-channel-discovery.rules.js";
+export * from "./youtube-channel-discovery.types.js";
 export * from "./youtube-owner-oauth.rules.js";
 export * from "./youtube-owner-oauth.types.js";

@@ -135,6 +135,25 @@ type YouTubeConsentResponse =
     reason: string;
   };
 
+type YouTubeDiscoveredChannel = {
+  id: string;
+  title: string;
+  customUrl: string | null;
+  thumbnailUrl: string | null;
+  publishedAt: string | null;
+};
+
+type YouTubeChannelDiscoveryResponse =
+  | {
+    ok: true;
+    channels: readonly YouTubeDiscoveredChannel[];
+    discoveredAt: string;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -206,6 +225,8 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
   const [discordChatStatus, setDiscordChatStatus] = useState<DiscordChatIntakeStatus | null>(null);
   const [youtubeCredential, setYouTubeCredential] = useState<YouTubeCredentialSummary | null>(null);
+  const [youtubeChannels, setYouTubeChannels] = useState<readonly YouTubeDiscoveredChannel[]>([]);
+  const [youtubeChannelsDiscoveredAt, setYouTubeChannelsDiscoveredAt] = useState<string | null>(null);
   const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
   const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -213,6 +234,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [twitchActionMessage, setTwitchActionMessage] = useState<string>("Twitch chat intake status not loaded.");
   const [discordActionMessage, setDiscordActionMessage] = useState<string>("Discord chat intake status not loaded.");
   const [youtubeActionMessage, setYouTubeActionMessage] = useState<string>("YouTube owner consent not checked.");
+  const [youtubeChannelActionMessage, setYouTubeChannelActionMessage] = useState<string>("YouTube channels not discovered yet.");
 
   const stateCounts = useMemo(() => {
     const counts: Record<ProviderIntegrationState, number> = {
@@ -312,12 +334,47 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         setYouTubeActionMessage(payload.credential?.status === "active"
           ? "YouTube owner credential is active."
           : "YouTube owner credential is not connected yet.");
+        if (!payload.credential || payload.credential.status !== "active") {
+          setYouTubeChannels([]);
+          setYouTubeChannelsDiscoveredAt(null);
+          setYouTubeChannelActionMessage("Connect YouTube owner consent before discovering channels.");
+        }
         return;
       }
 
       setYouTubeActionMessage(`YouTube credential status failed with ${response.status}.`);
     } catch (error) {
       setYouTubeActionMessage(error instanceof Error ? error.message : "YouTube credential status failed.");
+    }
+  }, []);
+
+  const discoverYouTubeChannels = useCallback(async (): Promise<void> => {
+    setYouTubeChannelActionMessage("Discovering YouTube channels...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/channels`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubeChannelDiscoveryResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubeChannels(payload.channels);
+        setYouTubeChannelsDiscoveredAt(payload.discoveredAt);
+        setYouTubeChannelActionMessage(payload.channels.length > 0
+          ? `Discovered ${payload.channels.length} YouTube channel${payload.channels.length === 1 ? "" : "s"}.`
+          : "No YouTube channels were returned for this owner credential.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setYouTubeChannels([]);
+      setYouTubeChannelsDiscoveredAt(null);
+      setYouTubeChannelActionMessage(`YouTube channel discovery failed: ${reason}.`);
+    } catch (error) {
+      setYouTubeChannels([]);
+      setYouTubeChannelsDiscoveredAt(null);
+      setYouTubeChannelActionMessage(error instanceof Error ? error.message : "YouTube channel discovery failed.");
     }
   }, []);
 
@@ -565,11 +622,18 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
             <div className="project-admin-panel-heading">
               <div>
                 <h2>YouTube Owner Consent</h2>
-                <p>Read-only OAuth credential for future live-chat intake.</p>
+                <p>Read-only OAuth credential and channel discovery for future live-chat intake.</p>
               </div>
               <div className="project-admin-actions">
                 <button type="button" onClick={() => void connectYouTube()}>Connect</button>
                 <button type="button" onClick={() => void loadYouTubeCredential()}>Refresh</button>
+                <button
+                  type="button"
+                  disabled={youtubeCredential?.status !== "active"}
+                  onClick={() => void discoverYouTubeChannels()}
+                >
+                  Discover channels
+                </button>
               </div>
             </div>
             <div className="provider-chat-status-grid">
@@ -587,9 +651,33 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
               </div>
             </div>
             <p className="provider-chat-action-message">{youtubeActionMessage}</p>
+            <p className="provider-chat-action-message">{youtubeChannelActionMessage}</p>
             {youtubeCredential?.lastError ? (
               <p className="provider-chat-error">{youtubeCredential.lastError}</p>
             ) : null}
+            {youtubeChannelsDiscoveredAt ? (
+              <p className="provider-chat-empty">Last channel discovery: {formatDate(youtubeChannelsDiscoveredAt)}</p>
+            ) : null}
+            {youtubeChannels.length ? (
+              <ol className="provider-chat-recent-list youtube-channel-list" aria-label="Discovered YouTube channels">
+                {youtubeChannels.map((channel) => (
+                  <li key={channel.id}>
+                    <div>
+                      {channel.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img alt="" src={channel.thumbnailUrl} />
+                      ) : null}
+                      <strong>{channel.title}</strong>
+                      {channel.customUrl ? <span>{channel.customUrl}</span> : null}
+                      {channel.publishedAt ? <time dateTime={channel.publishedAt}>{formatDate(channel.publishedAt)}</time> : null}
+                    </div>
+                    <p>{channel.id}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="provider-chat-empty">No YouTube channels discovered in this browser session yet.</p>
+            )}
             <div className="provider-env-grid" aria-label="YouTube OAuth setup details">
               <div className="provider-env-item">
                 <span>Google redirect URI</span>
