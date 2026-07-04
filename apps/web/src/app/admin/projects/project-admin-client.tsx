@@ -3,19 +3,21 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   MilestoneStatus,
-  ProjectCategory,
   ProjectItemStatus,
   ProjectReadModelSource,
   ProjectReadUpdateSource,
-  ProjectStatus,
-  ProjectType
 } from "@maiks-yt/domain/projects";
 import { buildProjectAdminPublicPreview } from "@maiks-yt/domain/projects";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
-import { formatProjectLabel } from "../../projects/project-read-data";
 import { ItemsPanel, ManualUpdatesPanel, MilestonesPanel } from "./project-admin-edit-panels";
-import { ProjectAdminPublicPreview } from "./project-admin-preview";
+import {
+  DeferredProjectAdminNote,
+  ProjectBasicsForm,
+  ProjectSidebar,
+  PublicPreviewPanel,
+  VisibilityPanel
+} from "./project-admin-layout-panels";
 import {
   apiBaseUrl,
   defaultItemForm,
@@ -25,11 +27,6 @@ import {
   flattenItemOptions,
   getFailureMessage,
   getLoadStateForFailure,
-  getProjectPublicHref,
-  isPublicRouteVisible,
-  projectCategories,
-  projectStatuses,
-  projectTypes,
   toAdminUpdatePayload,
   toProjectForm,
   toUpdateForm,
@@ -508,137 +505,38 @@ const ProjectAdminClient = (): React.ReactNode => {
 
       {loadState === "ready" ? (
         <div className="project-admin-layout">
-          <aside className="project-admin-sidebar" aria-label="Projects">
-            <div className="project-admin-sidebar-heading">
-              <h2>Projects</h2>
-              <button type="button" className="secondary-action" onClick={() => {
-                setSelectedProjectId("");
-                setProjectForm(defaultProjectForm);
-                setSelectedUpdateId("");
-                setUpdateForm(defaultUpdateForm);
-              }}>
-                New
-              </button>
-            </div>
-            {projects.length === 0 ? (
-              <p>No projects yet.</p>
-            ) : (
-              <div className="project-admin-selector">
-                {projects.map((project) => (
-                  <button
-                    key={project.id}
-                    type="button"
-                    className={project.id === selectedProjectId ? "selected" : ""}
-                    onClick={() => selectProject(project.id)}
-                  >
-                    <strong>{project.title}</strong>
-                    <span>{project.isPublic ? "Public" : "Private"} / {formatProjectLabel(project.status)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </aside>
+          <ProjectSidebar
+            projects={projects}
+            selectedProjectId={selectedProjectId}
+            onNewProject={() => {
+              setSelectedProjectId("");
+              setProjectForm(defaultProjectForm);
+              setSelectedUpdateId("");
+              setUpdateForm(defaultUpdateForm);
+            }}
+            onSelectProject={selectProject}
+          />
 
           <section className="project-admin-workspace" aria-label="Project editor">
-            <section className="project-admin-panel visibility-panel">
-              <div>
-                <h2>Visibility</h2>
-                <p>
-                  {selectedProject
-                    ? selectedProject.isPublic
-                      ? "This project is public on the website."
-                      : "This project is private and only visible here."
-                    : "New projects can be created as private drafts before publishing."}
-                </p>
-              </div>
-              {selectedProject ? (
-                <div className="project-admin-actions">
-                  {isPublicRouteVisible(selectedProject) ? (
-                    <a className="button-link secondary-action" href={getProjectPublicHref(selectedProject)}>
-                      Open Public Page
-                    </a>
-                  ) : null}
-                  <button type="button" className="secondary-action" onClick={() => void saveVisibility(false)} disabled={busyAction !== null || !selectedProject.isPublic}>
-                    Make Private
-                  </button>
-                  <button type="button" onClick={() => void saveVisibility(true)} disabled={busyAction !== null || selectedProject.isPublic}>
-                    Publish
-                  </button>
-                </div>
-              ) : null}
-            </section>
+            <VisibilityPanel
+              selectedProject={selectedProject}
+              busyAction={busyAction}
+              onSaveVisibility={(isPublic) => void saveVisibility(isPublic)}
+            />
 
-            <form className="project-admin-panel project-admin-form" onSubmit={(event) => selectedProject ? void updateProject(event) : void createProject(event)}>
-              <div className="project-admin-panel-heading">
-                <h2>{selectedProject ? "Project Basics" : "Create Project"}</h2>
-                <button type="submit" disabled={busyAction !== null}>
-                  {busyAction ? "Saving..." : selectedProject ? "Save Project" : "Create Project"}
-                </button>
-              </div>
-              <label>
-                Slug
-                <input value={projectForm.slug} onChange={(event) => setProjectForm((current) => ({ ...current, slug: event.target.value }))} required pattern="[a-z0-9][a-z0-9-]{0,190}" />
-              </label>
-              <label>
-                Title
-                <input value={projectForm.title} onChange={(event) => setProjectForm((current) => ({ ...current, title: event.target.value }))} required maxLength={191} />
-              </label>
-              <label>
-                Summary
-                <textarea value={projectForm.summary} onChange={(event) => setProjectForm((current) => ({ ...current, summary: event.target.value }))} maxLength={2000} rows={4} />
-              </label>
-              <div className="project-admin-form-grid">
-                <label>
-                  Type
-                  <select value={projectForm.type} onChange={(event) => setProjectForm((current) => ({ ...current, type: event.target.value as ProjectType }))}>
-                    {projectTypes.map((type) => <option key={type} value={type}>{formatProjectLabel(type)}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Category
-                  <select value={projectForm.category} onChange={(event) => setProjectForm((current) => ({ ...current, category: event.target.value as ProjectCategory }))}>
-                    {projectCategories.map((category) => <option key={category} value={category}>{formatProjectLabel(category)}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Status
-                  <select value={projectForm.status} onChange={(event) => setProjectForm((current) => ({ ...current, status: event.target.value as ProjectStatus }))}>
-                    {projectStatuses.map((status) => <option key={status} value={status}>{formatProjectLabel(status)}</option>)}
-                  </select>
-                </label>
-                <label className="project-admin-checkbox">
-                  <input type="checkbox" checked={projectForm.isPublic} onChange={(event) => setProjectForm((current) => ({ ...current, isPublic: event.target.checked }))} />
-                  Public after save
-                </label>
-              </div>
-            </form>
+            <ProjectBasicsForm
+              selectedProject={selectedProject}
+              projectForm={projectForm}
+              busyAction={busyAction}
+              onSubmit={(event) => selectedProject ? void updateProject(event) : void createProject(event)}
+              setProjectForm={setProjectForm}
+            />
 
-            <section className="project-admin-panel">
-              <div className="project-admin-panel-heading">
-                <h2>Public Preview</h2>
-                <span className="project-admin-preview-state">
-                  {selectedProject?.isPublic ? "Currently published" : "Not published"}
-                </span>
-              </div>
-              <p>
-                {selectedProject?.isPublic
-                  ? "This preview includes unsaved basic field edits; the public page keeps showing the last saved public version."
-                  : "This preview shows the public page shape before publishing; public routes still hide this project."}
-              </p>
-              {!previewSource ? (
-                <p className="project-muted">Add a slug and title to preview the public page shape.</p>
-              ) : publicPreview?.ok ? (
-                <ProjectAdminPublicPreview
-                  isPublished={selectedProject?.isPublic === true}
-                  project={publicPreview.project}
-                />
-              ) : (
-                <section className="link-admin-warning">
-                  <h3>Preview Unavailable</h3>
-                  <p>Public project pages only show planning, active, or completed projects. Change the status to preview the public page shape.</p>
-                </section>
-              )}
-            </section>
+            <PublicPreviewPanel
+              isPublished={selectedProject?.isPublic === true}
+              previewSource={previewSource}
+              publicPreview={publicPreview}
+            />
 
             {selectedProject ? (
               <>
@@ -678,10 +576,7 @@ const ProjectAdminClient = (): React.ReactNode => {
               </>
             ) : null}
 
-            <section className="project-admin-panel project-admin-note">
-              <h2>Deferred</h2>
-              <p>AI drafting, support actions, funding progress, provider links, ledgers, and wishlist integrations stay outside this manual content slice.</p>
-            </section>
+            <DeferredProjectAdminNote />
           </section>
         </div>
       ) : null}
