@@ -325,6 +325,7 @@ registerApplicationRoutes({
   getDatabasePool,
   overlayRuntime,
   publishEventRoutingPlayback,
+  providerEventIntakeLogService,
   recordFakeLocalStreamerChatMessage,
   requireStreamerChatModerationPermission,
   server,

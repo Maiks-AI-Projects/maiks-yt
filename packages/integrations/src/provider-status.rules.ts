@@ -169,8 +169,10 @@ const buildTwitchStatus = (
 ): ProviderIntegrationStatus => {
   const variables = [
     createEnvStatus(env, "TWITCH_CLIENT_ID", "identifier", true),
-    createEnvStatus(env, "TWITCH_CLIENT_SECRET", "secret", true)
+    createEnvStatus(env, "TWITCH_CLIENT_SECRET", "secret", true),
+    createEnvStatus(env, "TWITCH_EVENTSUB_WEBHOOK_SECRET", "secret", false)
   ] as const;
+  const requiredVariables = variables.filter((variable) => variable.required);
   const issues = variables
     .map((variable) => issueForEnv(env, variable))
     .filter((issue): issue is string => issue !== null);
@@ -181,7 +183,7 @@ const buildTwitchStatus = (
     label: "Twitch",
     state: stateFrom({
       disabled,
-      configured: variables.every((variable) => variable.configured),
+      configured: requiredVariables.every((variable) => variable.configured),
       issues
     }),
     sdk: "@twurple/auth + @twurple/api + @twurple/chat",
@@ -192,7 +194,7 @@ const buildTwitchStatus = (
       {
         key: "twitch-api-client",
         label: "Helix API client",
-        state: variables.every((variable) => variable.configured) ? "configured" : "missing",
+        state: requiredVariables.every((variable) => variable.configured) ? "configured" : "missing",
         detail: "App-token API client foundation is available for read-only Twitch API checks."
       },
       {
@@ -222,8 +224,10 @@ const buildTwitchStatus = (
       {
         key: "twitch-eventsub",
         label: "Twitch EventSub",
-        state: "gated",
-        detail: "EventSub follow/sub/raid/channel-point intake still needs a separate webhook or WebSocket design."
+        state: variables.find((variable) => variable.name === "TWITCH_EVENTSUB_WEBHOOK_SECRET")?.configured
+          ? "configured"
+          : "missing",
+        detail: "Webhook receiver can verify and log EventSub notifications; subscription creation remains separate."
       }
     ]
   };

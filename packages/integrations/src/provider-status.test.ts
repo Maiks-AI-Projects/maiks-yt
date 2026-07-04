@@ -56,7 +56,7 @@ describe("provider integration status", () => {
       }),
       expect.objectContaining({
         key: "twitch-eventsub",
-        state: "gated"
+        state: "missing"
       })
     ]));
     expect(snapshot.providers[1]?.capabilities).toEqual(expect.arrayContaining([
@@ -219,6 +219,24 @@ describe("provider integration status", () => {
         state: "configured"
       })
     ]));
+  });
+
+  it("reports configured Twitch EventSub webhook receiver separately from subscription creation", () => {
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CLIENT_SECRET: "super-secret-twitch",
+      TWITCH_EVENTSUB_WEBHOOK_SECRET: "super-secret-eventsub"
+    }, new Date("2026-07-04T20:00:00.000Z"));
+    const twitch = snapshot.providers.find((provider) => provider.id === "twitch");
+    const serialized = JSON.stringify(twitch);
+
+    expect(twitch?.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "twitch-eventsub",
+        state: "configured"
+      })
+    ]));
+    expect(serialized).not.toContain("super-secret-eventsub");
   });
 
   it("reports connected Discord chat runtime separately from library availability", () => {

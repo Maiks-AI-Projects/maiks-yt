@@ -69,6 +69,51 @@ describe("ProviderEventIntakeLogService", () => {
     });
   });
 
+  it("records Twitch EventSub notifications as pre-routing EventSub events", async () => {
+    const repository = new FakeProviderEventIntakeLogRepository();
+    const service = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      repository
+    });
+
+    await expect(service.recordProviderEvent({
+      actorDisplayName: "Viewer",
+      actorExternalId: "viewer-1",
+      broadcasterUserId: "broadcaster-1",
+      occurredAt: "2026-07-04T15:59:59.000Z",
+      providerEventName: "channel.follow",
+      providerMessageId: null,
+      redactedPayload: {
+        event: {
+          broadcaster_user_id: "broadcaster-1",
+          user_id: "viewer-1",
+          user_name: "Viewer"
+        },
+        subscription: {
+          type: "channel.follow",
+          version: "2"
+        }
+      },
+      source: "twitch",
+      sourceEventId: "twitch-eventsub:eventsub-message-1"
+    })).resolves.toMatchObject({
+      ok: true
+    });
+
+    expect(repository.writes[0]).toMatchObject({
+      actorDisplayName: "Viewer",
+      actorExternalId: "viewer-1",
+      catalogKnown: true,
+      category: "community",
+      internalTrigger: "provider.twitch.eventsub.channel-follow",
+      mechanism: "twitch-eventsub",
+      provider: "twitch",
+      providerChannelId: "broadcaster-1",
+      providerEventName: "channel.follow",
+      sourceEventId: "twitch-eventsub:eventsub-message-1"
+    });
+  });
+
   it("records Discord chat as a Gateway message create event", async () => {
     const repository = new FakeProviderEventIntakeLogRepository();
     const service = new ProviderEventIntakeLogService({

@@ -27,10 +27,12 @@ import {
   registerProviderEventIntakeAdminRoutes,
   registerProviderIntegrationStatusRoutes,
   registerTwitchChatIntakeControlRoutes,
+  registerTwitchEventSubWebhookRoutes,
   registerYouTubeChannelDiscoveryRoutes,
   registerYouTubeLiveChatIntakeControlRoutes,
   registerYouTubeOwnerConsentRoutes
 } from "./provider-integrations/index.js";
+import type { ProviderEventIntakeLogService } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerRealtimeSpikeRoutes } from "./realtime/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
@@ -72,6 +74,7 @@ type RegisterApplicationRoutesInput = {
   getDatabasePool: () => DatabasePool;
   overlayRuntime: OverlayRuntime;
   publishEventRoutingPlayback: EventRoutingPlaybackPublisher;
+  providerEventIntakeLogService: ProviderEventIntakeLogService;
   recordFakeLocalStreamerChatMessage: (event: OverlayFakeChatMessageReceivedEvent) => StreamerChatMessage | null;
   requireStreamerChatModerationPermission: RequireStreamerChatModerationPermission;
   server: FastifyInstance;
@@ -91,6 +94,7 @@ export const registerApplicationRoutes = ({
   getDatabasePool,
   overlayRuntime,
   publishEventRoutingPlayback,
+  providerEventIntakeLogService,
   recordFakeLocalStreamerChatMessage,
   requireStreamerChatModerationPermission,
   server,
@@ -178,6 +182,9 @@ export const registerApplicationRoutes = ({
   registerProviderEventIntakeAdminRoutes(server, {
     getAuthSession,
     getDatabasePool
+  });
+  registerTwitchEventSubWebhookRoutes(server, {
+    intakeLogService: providerEventIntakeLogService
   });
   registerYouTubeOwnerConsentRoutes(server, {
     getAuthSession,

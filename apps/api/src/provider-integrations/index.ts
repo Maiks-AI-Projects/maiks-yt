@@ -17,6 +17,7 @@ export * from "./twitch-chat-intake-control.route.js";
 export * from "./twitch-chat-intake-control.service.js";
 export * from "./twitch-chat-intake-control-store.service.js";
 export * from "./twitch-chat-intake-control.types.js";
+export * from "./twitch-eventsub-webhook.route.js";
 export * from "./youtube-channel-discovery.route.js";
 export * from "./youtube-channel-discovery.service.js";
 export * from "./youtube-channel-discovery-store.service.js";
