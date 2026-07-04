@@ -4,6 +4,8 @@ import {
   summarizeProviderEventCatalog
 } from "@maiks-yt/domain/events";
 
+import ProviderIntakeRecentClient from "./provider-intake-recent-client";
+
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -115,6 +117,8 @@ const ConnectionsPage = (): React.ReactNode => {
           <strong>{summary.actions.moderationShaped}</strong>
         </div>
       </section>
+
+      <ProviderIntakeRecentClient />
 
       <section className="project-admin-panel connections-admin-actions">
         <div className="project-admin-panel-heading">

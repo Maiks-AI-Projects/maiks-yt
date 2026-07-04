@@ -24,6 +24,7 @@ import { registerOverlayRoutes } from "./overlay/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
 import {
   registerDiscordChatIntakeControlRoutes,
+  registerProviderEventIntakeAdminRoutes,
   registerProviderIntegrationStatusRoutes,
   registerTwitchChatIntakeControlRoutes,
   registerYouTubeChannelDiscoveryRoutes,
@@ -173,6 +174,10 @@ export const registerApplicationRoutes = ({
       twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state,
       youtubeLiveChatIntakeState: youtubeLiveChatIntakeRuntime.getStatus().state
     })
+  });
+  registerProviderEventIntakeAdminRoutes(server, {
+    getAuthSession,
+    getDatabasePool
   });
   registerYouTubeOwnerConsentRoutes(server, {
     getAuthSession,
