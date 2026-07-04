@@ -65,13 +65,22 @@ The coordinator/reviewer:
 
 ## Standard Checks
 
-Use the checks relevant to the changed surface:
+Workers should use the narrowest checks relevant to the changed surface:
 
 ```powershell
-corepack pnpm --filter <package-name> test
-corepack pnpm --filter <package-name> typecheck
-corepack pnpm --filter <app-name> build
+pnpm --filter <package-name> test
+pnpm --filter <package-name> typecheck
+pnpm --filter <app-name> build
 node scripts/check-architecture.mjs
 ```
+
+Coordinator/reviewer checks should use the shared scripts unless a task explicitly needs a narrower or heavier run:
+
+```bash
+pnpm check:review
+pnpm check:full
+```
+
+Use `pnpm check:review` before merging reviewed work. Use `pnpm check:full` before high-risk deploys or when changes cross many packages. Update `scripts/check-review.sh` and `scripts/check-full.sh` when the standard verification needs change.
 
 Use `./scripts/push-dev.ps1 -Message "..."` only from the reviewer/coordinator after review succeeds.
