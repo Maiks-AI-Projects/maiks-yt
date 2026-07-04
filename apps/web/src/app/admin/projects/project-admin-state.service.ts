@@ -1,12 +1,18 @@
 import type { ProjectReadModelSource, ProjectReadUpdateSource } from "@maiks-yt/domain/projects";
 
+import { createApiHeaders } from "../../dev-auth-token";
 import {
+  apiBaseUrl,
+  getFailureMessage,
+  getLoadStateForFailure,
   defaultItemForm,
   defaultMilestoneForm,
   defaultProjectForm,
   defaultUpdateForm,
   toProjectForm,
+  type AdminMutationResponse,
   type ItemFormState,
+  type LoadState,
   type MilestoneFormState,
   type ProjectFormState,
   type UpdateFormState
@@ -106,4 +112,64 @@ export const buildProjectAdminPreviewSource = ({
     isPublic: projectForm.isPublic,
     updates
   };
+};
+
+export const runProjectAdminMutation = async ({
+  label,
+  path,
+  body,
+  method,
+  replaceProject,
+  setBusyAction,
+  setLoadState,
+  setMessage
+}: {
+  label: string;
+  path: string;
+  body: Record<string, unknown>;
+  method: "POST" | "PATCH";
+  replaceProject: (project: ProjectReadModelSource) => void;
+  setBusyAction: (action: string | null) => void;
+  setLoadState: (updater: (current: LoadState) => LoadState) => void;
+  setMessage: (message: string) => void;
+}): Promise<ProjectReadModelSource | null> => {
+  setBusyAction(label);
+  setMessage(`${label}...`);
+
+  try {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      method,
+      headers: createApiHeaders({
+        "Content-Type": "application/json"
+      }),
+      credentials: "include",
+      body: JSON.stringify(body)
+    });
+    const payload = await parseJson<AdminMutationResponse>(response);
+
+    if (response.ok && payload?.ok) {
+      replaceProject(payload.project);
+      setLoadState(() => "ready");
+      setMessage(`${label} saved.`);
+      return payload.project;
+    }
+
+    const reason = payload?.ok === false ? payload.reason : undefined;
+    setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
+    setMessage(getFailureMessage(response, reason));
+    return null;
+  } catch (error) {
+    setMessage(error instanceof Error ? error.message : `${label} failed.`);
+    return null;
+  } finally {
+    setBusyAction(null);
+  }
+};
+
+const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
+  try {
+    return await response.json() as ResponseBody;
+  } catch {
+    return null;
+  }
 };

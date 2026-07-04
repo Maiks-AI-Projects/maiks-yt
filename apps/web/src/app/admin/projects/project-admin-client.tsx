@@ -31,7 +31,6 @@ import {
   getLoadStateForFailure,
   toAdminUpdatePayload,
   toUpdateForm,
-  type AdminMutationResponse,
   type AdminProjectsResponse,
   type ItemFormState,
   type LoadState,
@@ -42,7 +41,8 @@ import {
 import {
   buildProjectAdminPreviewSource,
   createEmptyProjectForms,
-  createProjectEditForms
+  createProjectEditForms,
+  runProjectAdminMutation
 } from "./project-admin-state.service";
 
 const ProjectAdminClient = (): React.ReactNode => {
@@ -56,17 +56,14 @@ const ProjectAdminClient = (): React.ReactNode => {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading project admin...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
-
   const selectedProject = useMemo(
     () => projects.find((project) => project.id === selectedProjectId) ?? null,
     [projects, selectedProjectId]
   );
-
   const selectedUpdate = useMemo(
     () => selectedProject?.updates.find((update) => update.id === selectedUpdateId) ?? null,
     [selectedProject, selectedUpdateId]
   );
-
   const previewSource = useMemo(
     () => buildProjectAdminPreviewSource({
       projectForm,
@@ -76,12 +73,10 @@ const ProjectAdminClient = (): React.ReactNode => {
     }),
     [projectForm, selectedProject, selectedUpdate, updateForm]
   );
-
   const publicPreview = useMemo(
     () => previewSource ? buildProjectAdminPublicPreview(previewSource) : null,
     [previewSource]
   );
-
   const replaceProject = useCallback((project: ProjectReadModelSource): void => {
     setProjects((current) => {
       const exists = current.some((candidate) => candidate.id === project.id);
@@ -95,7 +90,6 @@ const ProjectAdminClient = (): React.ReactNode => {
     setProjectForm(createProjectEditForms(project).projectForm);
     setUpdateForm(createProjectEditForms(project).updateForm);
   }, []);
-
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
     try {
       return await response.json() as ResponseBody;
@@ -103,7 +97,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       return null;
     }
   };
-
   const loadProjects = useCallback(async (): Promise<void> => {
     setLoadState("loading");
     setMessage("Loading project admin...");
@@ -143,48 +136,24 @@ const ProjectAdminClient = (): React.ReactNode => {
     captureDevAuthTokenFromUrl();
     void loadProjects();
   }, [loadProjects]);
-
-  const runMutation = async (
+  const runMutation = (
     label: string,
     path: string,
     options: {
       method: "POST" | "PATCH";
       body: Record<string, unknown>;
     }
-  ): Promise<ProjectReadModelSource | null> => {
-    setBusyAction(label);
-    setMessage(`${label}...`);
-
-    try {
-      const response = await fetch(`${apiBaseUrl}${path}`, {
-        method: options.method,
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
-        }),
-        credentials: "include",
-        body: JSON.stringify(options.body)
-      });
-      const payload = await parseJson<AdminMutationResponse>(response);
-
-      if (response.ok && payload?.ok) {
-        replaceProject(payload.project);
-        setLoadState("ready");
-        setMessage(`${label} saved.`);
-        return payload.project;
-      }
-
-      const reason = payload?.ok === false ? payload.reason : undefined;
-      setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
-      setMessage(getFailureMessage(response, reason));
-      return null;
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : `${label} failed.`);
-      return null;
-    } finally {
-      setBusyAction(null);
-    }
-  };
-
+  ): Promise<ProjectReadModelSource | null> =>
+    runProjectAdminMutation({
+      label,
+      path,
+      body: options.body,
+      method: options.method,
+      replaceProject,
+      setBusyAction,
+      setLoadState,
+      setMessage
+    });
   const selectProject = (projectId: string): void => {
     const project = projects.find((candidate) => candidate.id === projectId);
 
@@ -199,7 +168,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       setUpdateForm(nextForms.updateForm);
     }
   };
-
   const createProject = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     const created = await runMutation("Creating project", "/admin/projects", {
@@ -223,7 +191,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       setUpdateForm(defaultUpdateForm);
     }
   };
-
   const updateProject = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
@@ -240,7 +207,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       }
     });
   };
-
   const saveVisibility = async (isPublic: boolean): Promise<void> => {
     if (!selectedProject) {
       setMessage("Choose a project before changing visibility.");
@@ -254,7 +220,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       }
     });
   };
-
   const createMilestone = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
@@ -278,7 +243,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       });
     }
   };
-
   const createItem = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
@@ -303,7 +267,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       });
     }
   };
-
   const createUpdate = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
@@ -325,7 +288,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       });
     }
   };
-
   const updateUpdate = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
@@ -339,12 +301,10 @@ const ProjectAdminClient = (): React.ReactNode => {
       body: toAdminUpdatePayload(updateForm)
     });
   };
-
   const editUpdate = (update: ProjectReadUpdateSource): void => {
     setSelectedUpdateId(update.id);
     setUpdateForm(toUpdateForm(update));
   };
-
   const updateUpdateState = async (
     updateId: string,
     body: Record<string, unknown>
@@ -358,7 +318,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       body
     });
   };
-
   const updateMilestoneStatus = async (
     milestoneId: string,
     status: MilestoneStatus
@@ -374,7 +333,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       }
     });
   };
-
   const updateItemStatus = async (
     itemId: string,
     status: ProjectItemStatus
@@ -390,7 +348,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       }
     });
   };
-
   const reorderMilestones = async (): Promise<void> => {
     if (!selectedProject) {
       return;
@@ -408,7 +365,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       }
     });
   };
-
   const reorderItems = async (): Promise<void> => {
     if (!selectedProject) {
       return;
@@ -426,7 +382,6 @@ const ProjectAdminClient = (): React.ReactNode => {
       }
     });
   };
-
   const itemParentOptions = selectedProject ? flattenItemOptions(selectedProject) : [];
 
   return (
