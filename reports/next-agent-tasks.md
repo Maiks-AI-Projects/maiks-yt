@@ -140,7 +140,7 @@ Suggested checks:
 
 Remaining gates:
 
-- YouTube live-chat polling is implemented locally for review/deploy. Endpoint smoke can verify selected-channel status/start/stop behavior without going live, but real message capture still needs an active YouTube live chat.
+- YouTube live-chat polling is deployed and endpoint-smoked. Real message capture still needs an active YouTube live chat.
 - Durable channel identity/selection persistence is deployed/dev-smoked and selected `MaiksMC` (`@maiksmc`) for live chat.
 - 2026-07-04 no-schema channel discovery is deployed/dev-smoked on commit `9b6f4ff`: owner-gated API discovery, `/admin/provider-integrations` channel display, sanitized response shape, and no raw token exposure. Dev smoke discovered one accessible channel, `MaiksMC` (`@maiksmc`).
 - YouTube channel identity/selection persistence is deployed/dev-smoked on commit `dc2042f` with applied migration `0021_omniscient_bloodstrike.sql`: saved discovered channels, owner-gated discover-and-save, and set/clear selected live-chat channel. Dev smoke selected `MaiksMC` (`@maiksmc`) for live chat.
@@ -149,7 +149,7 @@ Remaining gates:
 Next provider chunks:
 
 - Phase 6D: Discord read-only Gateway message intake is deployed and endpoint-smoked on dev. Michael can still send a harmless Discord message in the configured guild/channel to confirm it appears in the private streamer chat/control-panel feed and does not appear on OBS overlay by default.
-- Phase 6E: YouTube channel identity/selection persistence is deployed and smoked. Read-only live-chat polling from the selected channel is implemented for review/deploy: selected-channel polling/backoff, safe token use through the stored read-only credential, private streamer-chat feed projection, no overlay routing by default, and no provider writes. After deploy, smoke status/start/stop and defer real message-capture verification until Michael can run an active YouTube live chat.
+- Phase 6E: YouTube channel identity/selection persistence and read-only live-chat polling are deployed and endpoint-smoked. Polling uses the selected channel, safe token use through the stored read-only credential, private streamer-chat feed projection, no overlay routing by default, and no provider writes. Smoke confirmed the runtime waits on `MaiksMC` when no active live chat exists; real message-capture verification remains Michael/live-stream work.
 - Phase 6F: Twitch/Discord reconnect-suppression notifications are deployed with the current dev build. If forced verification is needed later, use a test-only runtime threshold/fake runtime path rather than disrupting real provider connections.
 - Phase 6F note: reconnect/autoreconnect and compact chat status are deployed/dev-smoked; the notification hook creates warning provider notifications when Twitch or Discord auto-reconnect is suppressed.
 - Future multi-channel provider work should continue from `ideas/multi-channel-provider-routing.md`: provider credentials, channel identities, content lanes, and routing rules must stay separate so multiple YouTube Brand Accounts/channels and future Twitch/Discord channel identities can be routed by topic.
