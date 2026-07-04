@@ -52,6 +52,7 @@ export type ProviderIntegrationEnvironment = Record<string, string | undefined>;
 export type ProviderIntegrationRuntimeState = {
   discordChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
   twitchChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
+  youtubeLiveChatIntakeState?: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
 };
 
 export type TwitchProviderSdkFoundation = {
@@ -228,7 +229,10 @@ const buildTwitchStatus = (
   };
 };
 
-const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegrationStatus => {
+const buildYouTubeStatus = (
+  env: ProviderIntegrationEnvironment,
+  runtimeState: ProviderIntegrationRuntimeState
+): ProviderIntegrationStatus => {
   const variables = [
     createEnvStatus(env, "YOUTUBE_API_KEY", "secret", false),
     createEnvStatus(env, "YOUTUBE_CLIENT_ID", "identifier", false),
@@ -293,6 +297,26 @@ const buildYouTubeStatus = (env: ProviderIntegrationEnvironment): ProviderIntegr
           ? "available"
           : "missing",
         detail: "Owner-gated OAuth consent can store a read-only YouTube live-chat credential."
+      },
+      {
+        key: "youtube-live-chat-runtime",
+        label: "YouTube live chat runtime",
+        state: runtimeState.youtubeLiveChatIntakeState === "connected"
+          ? "configured"
+          : runtimeState.youtubeLiveChatIntakeState === "connecting" || runtimeState.youtubeLiveChatIntakeState === "waiting"
+            ? "available"
+            : runtimeState.youtubeLiveChatIntakeState === "unconfigured"
+              ? "missing"
+              : "not_enabled",
+        detail: runtimeState.youtubeLiveChatIntakeState === "connected"
+          ? "Read-only YouTube live-chat polling is connected on this API runtime."
+          : runtimeState.youtubeLiveChatIntakeState === "waiting"
+            ? "Read-only YouTube live-chat polling is waiting for an active live chat."
+            : runtimeState.youtubeLiveChatIntakeState === "connecting"
+              ? "Read-only YouTube live-chat polling is checking for an active live chat."
+              : runtimeState.youtubeLiveChatIntakeState === "unconfigured"
+                ? "YouTube live-chat polling needs an active owner credential and selected channel."
+                : "Read-only YouTube live-chat polling is installed but stopped."
       }
     ]
   };
@@ -383,7 +407,7 @@ export const getProviderIntegrationStatusSnapshot = (
   readOnly: true,
   providers: [
     buildTwitchStatus(env, runtimeState),
-    buildYouTubeStatus(env),
+    buildYouTubeStatus(env, runtimeState),
     buildDiscordStatus(env, runtimeState)
   ],
   boundaries: statusBoundaries

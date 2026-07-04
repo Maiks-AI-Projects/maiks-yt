@@ -1,5 +1,10 @@
 import { formatChatTime } from "./chat-time.service.js";
-import type { DiscordChatIntakeStatus, ServiceConnectionTone, TwitchChatIntakeStatus } from "./chat-service-status.types.js";
+import type {
+  DiscordChatIntakeStatus,
+  ServiceConnectionTone,
+  TwitchChatIntakeStatus,
+  YouTubeLiveChatIntakeStatus
+} from "./chat-service-status.types.js";
 
 export const twitchIntakeStateLabels: Record<TwitchChatIntakeStatus["state"], string> = {
   connected: "Connected",
@@ -8,6 +13,13 @@ export const twitchIntakeStateLabels: Record<TwitchChatIntakeStatus["state"], st
   unconfigured: "Not configured"
 };
 export const discordIntakeStateLabels: Record<DiscordChatIntakeStatus["state"], string> = twitchIntakeStateLabels;
+export const youtubeIntakeStateLabels: Record<YouTubeLiveChatIntakeStatus["state"], string> = {
+  connected: "Connected",
+  connecting: "Checking",
+  stopped: "Stopped",
+  unconfigured: "Not configured",
+  waiting: "Waiting"
+};
 
 export const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null): string => {
   if (!status) {
@@ -63,6 +75,31 @@ export const getDiscordIntakeStatusCopy = (status: DiscordChatIntakeStatus | nul
   }
 };
 
+export const getYouTubeIntakeStatusCopy = (status: YouTubeLiveChatIntakeStatus | null): string => {
+  if (!status) {
+    return "Loading YouTube live-chat state.";
+  }
+
+  if (status.lastError) {
+    return status.lastError;
+  }
+
+  switch (status.state) {
+    case "connected":
+      return status.lastMessageAt
+        ? `Last YouTube message ${formatChatTime(status.lastMessageAt)}.`
+        : "Connected to YouTube live chat.";
+    case "connecting":
+      return "Checking for active YouTube live chat.";
+    case "waiting":
+      return "Waiting for an active YouTube live chat.";
+    case "stopped":
+      return "YouTube live-chat polling is stopped.";
+    case "unconfigured":
+      return "YouTube credential or selected channel is missing.";
+  }
+};
+
 export const getTwitchServiceTone = (status: TwitchChatIntakeStatus | null): ServiceConnectionTone => {
   if (!status) {
     return "loading";
@@ -95,6 +132,22 @@ export const getDiscordServiceTone = (status: DiscordChatIntakeStatus | null): S
   return "disconnected";
 };
 
+export const getYouTubeServiceTone = (status: YouTubeLiveChatIntakeStatus | null): ServiceConnectionTone => {
+  if (!status) {
+    return "loading";
+  }
+
+  if (status.state === "connected" && !status.lastError) {
+    return "connected";
+  }
+
+  if (status.state === "connecting" || status.state === "waiting" || status.lastError) {
+    return "problem";
+  }
+
+  return "disconnected";
+};
+
 export const getServiceStatusLabel = (tone: ServiceConnectionTone): string => {
   switch (tone) {
     case "connected":
@@ -107,4 +160,3 @@ export const getServiceStatusLabel = (tone: ServiceConnectionTone): string => {
       return "checking";
   }
 };
-

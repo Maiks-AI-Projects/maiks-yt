@@ -140,8 +140,8 @@ Suggested checks:
 
 Remaining gates:
 
-- YouTube live-chat polling is not implemented yet and should stay last among the current chat providers because it needs live/scheduled-stream validation.
-- Durable channel identity/selection persistence is not implemented yet; the no-schema discovery endpoint/UI is the current safe bridge between owner consent and live polling.
+- YouTube live-chat polling is implemented locally for review/deploy. Endpoint smoke can verify selected-channel status/start/stop behavior without going live, but real message capture still needs an active YouTube live chat.
+- Durable channel identity/selection persistence is deployed/dev-smoked and selected `MaiksMC` (`@maiksmc`) for live chat.
 - 2026-07-04 no-schema channel discovery is deployed/dev-smoked on commit `9b6f4ff`: owner-gated API discovery, `/admin/provider-integrations` channel display, sanitized response shape, and no raw token exposure. Dev smoke discovered one accessible channel, `MaiksMC` (`@maiksmc`).
 - YouTube channel identity/selection persistence is deployed/dev-smoked on commit `dc2042f` with applied migration `0021_omniscient_bloodstrike.sql`: saved discovered channels, owner-gated discover-and-save, and set/clear selected live-chat channel. Dev smoke selected `MaiksMC` (`@maiksmc`) for live chat.
 - Twitch EventSub, provider writes, moderation enforcement, money, production behavior, Cloudflare/Docker config, and secret edits remain separate explicit chunks.
@@ -149,10 +149,10 @@ Remaining gates:
 Next provider chunks:
 
 - Phase 6D: Discord read-only Gateway message intake is deployed and endpoint-smoked on dev. Michael can still send a harmless Discord message in the configured guild/channel to confirm it appears in the private streamer chat/control-panel feed and does not appear on OBS overlay by default.
-- Phase 6E: YouTube channel identity/selection persistence is deployed and smoked. The next YouTube slice is read-only live-chat polling from the selected channel into the private streamer-chat feed. Use YouTube polling interval/backoff, safe token refresh, no overlay routing by default, and no provider writes. Keep polling last among the current chat providers until Michael can live-test it.
+- Phase 6E: YouTube channel identity/selection persistence is deployed and smoked. Read-only live-chat polling from the selected channel is implemented for review/deploy: selected-channel polling/backoff, safe token use through the stored read-only credential, private streamer-chat feed projection, no overlay routing by default, and no provider writes. After deploy, smoke status/start/stop and defer real message-capture verification until Michael can run an active YouTube live chat.
 - Phase 6F: Twitch/Discord reconnect-suppression notifications are deployed with the current dev build. If forced verification is needed later, use a test-only runtime threshold/fake runtime path rather than disrupting real provider connections.
 - Phase 6F note: reconnect/autoreconnect and compact chat status are deployed/dev-smoked; the notification hook creates warning provider notifications when Twitch or Discord auto-reconnect is suppressed.
-- Phase 6E starts with YouTube channel discovery/selection, not polling. See `ideas/multi-channel-provider-routing.md`: provider credentials, channel identities, content lanes, and routing rules must stay separate so multiple YouTube Brand Accounts/channels and future Twitch/Discord channel identities can be routed by topic.
+- Future multi-channel provider work should continue from `ideas/multi-channel-provider-routing.md`: provider credentials, channel identities, content lanes, and routing rules must stay separate so multiple YouTube Brand Accounts/channels and future Twitch/Discord channel identities can be routed by topic.
 - Phase 6G: Always-on provider event intake for non-chat support/community events, starting with read-only history/audit registration. Store offline provider events by default; route/display them only through explicit Event Routing rules.
 - Phase 6H: Provider moderation/write controls for Twitch/YouTube/Discord chat after explicit scope approval. Start by mapping the existing local hide/ban/warn rules to audited provider warning chat messages, hide/delete/timeout/ban capability checks, provider-specific permission validation, fail-closed UI state, and no unreviewed provider actions.
 - Phase 6I: Censored-message review and allowlist rules for `allow always`, `allow this stream`, and timed allows. This needs persistence for phrase/rule scope, moderator identity, expiration, audit history, and stream/session boundaries before runtime enforcement.

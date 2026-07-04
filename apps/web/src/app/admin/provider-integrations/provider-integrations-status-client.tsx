@@ -89,6 +89,23 @@ type DiscordChatIntakeStatus = {
   state: "stopped" | "connecting" | "connected" | "unconfigured";
 };
 
+type YouTubeLiveChatIntakeStatus = {
+  activeLiveChatId: string | null;
+  channelId: string | null;
+  channelName: string | null;
+  connectedAt: string | null;
+  lastError: string | null;
+  lastMessageAt: string | null;
+  nextPollAt: string | null;
+  recentMessages: readonly {
+    id: string;
+    authorName: string;
+    createdAt: string;
+    message: string;
+  }[];
+  state: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+};
+
 type TwitchChatIntakeResponse =
   | {
     ok: true;
@@ -105,6 +122,17 @@ type DiscordChatIntakeResponse =
     ok: true;
     readOnly: true;
     status: DiscordChatIntakeStatus;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type YouTubeLiveChatIntakeResponse =
+  | {
+    ok: true;
+    readOnly: true;
+    status: YouTubeLiveChatIntakeStatus;
   }
   | {
     ok: false;
@@ -228,6 +256,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [snapshot, setSnapshot] = useState<Extract<ProviderIntegrationsStatusResponse, { ok: true }> | null>(null);
   const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
   const [discordChatStatus, setDiscordChatStatus] = useState<DiscordChatIntakeStatus | null>(null);
+  const [youtubeLiveChatStatus, setYouTubeLiveChatStatus] = useState<YouTubeLiveChatIntakeStatus | null>(null);
   const [youtubeCredential, setYouTubeCredential] = useState<YouTubeCredentialSummary | null>(null);
   const [youtubeChannels, setYouTubeChannels] = useState<readonly YouTubeSavedChannel[]>([]);
   const [youtubeSelectedChannelId, setYouTubeSelectedChannelId] = useState<string | null>(null);
@@ -239,6 +268,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [discordActionMessage, setDiscordActionMessage] = useState<string>("Discord chat intake status not loaded.");
   const [youtubeActionMessage, setYouTubeActionMessage] = useState<string>("YouTube owner consent not checked.");
   const [youtubeChannelActionMessage, setYouTubeChannelActionMessage] = useState<string>("YouTube channels not discovered yet.");
+  const [youtubeLiveChatActionMessage, setYouTubeLiveChatActionMessage] = useState<string>("YouTube live-chat polling status not loaded.");
 
   const stateCounts = useMemo(() => {
     const counts: Record<ProviderIntegrationState, number> = {
@@ -349,6 +379,26 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
       setYouTubeActionMessage(`YouTube credential status failed with ${response.status}.`);
     } catch (error) {
       setYouTubeActionMessage(error instanceof Error ? error.message : "YouTube credential status failed.");
+    }
+  }, []);
+
+  const loadYouTubeLiveChatStatus = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube-live-chat`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubeLiveChatIntakeResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubeLiveChatStatus(payload.status);
+        setYouTubeLiveChatActionMessage("YouTube live-chat polling status loaded.");
+        return;
+      }
+
+      setYouTubeLiveChatActionMessage(`YouTube live-chat polling status failed with ${response.status}.`);
+    } catch (error) {
+      setYouTubeLiveChatActionMessage(error instanceof Error ? error.message : "YouTube live-chat polling status failed.");
     }
   }, []);
 
@@ -511,6 +561,30 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     }
   }, [loadStatus]);
 
+  const runYouTubeLiveChatAction = useCallback(async (action: "start" | "stop"): Promise<void> => {
+    setYouTubeLiveChatActionMessage(action === "start" ? "Starting YouTube live-chat polling..." : "Stopping YouTube live-chat polling...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube-live-chat/${action}`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubeLiveChatIntakeResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubeLiveChatStatus(payload.status);
+        setYouTubeLiveChatActionMessage(action === "start" ? "YouTube live-chat polling started." : "YouTube live-chat polling stopped.");
+        await loadStatus();
+        return;
+      }
+
+      setYouTubeLiveChatActionMessage(`YouTube live-chat polling ${action} failed with ${response.status}.`);
+    } catch (error) {
+      setYouTubeLiveChatActionMessage(error instanceof Error ? error.message : `YouTube live-chat polling ${action} failed.`);
+    }
+  }, [loadStatus]);
+
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     void loadStatus();
@@ -518,7 +592,8 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     void loadDiscordChatStatus();
     void loadYouTubeCredential();
     void loadYouTubeChannelSelection();
-  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadYouTubeChannelSelection, loadYouTubeCredential]);
+    void loadYouTubeLiveChatStatus();
+  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadYouTubeChannelSelection, loadYouTubeCredential, loadYouTubeLiveChatStatus]);
 
   return (
     <>
@@ -752,6 +827,69 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
               </ol>
             ) : (
               <p className="provider-chat-empty">No YouTube channels saved yet.</p>
+            )}
+            <div className="project-admin-panel-heading">
+              <div>
+                <h3>YouTube Live Chat Polling</h3>
+                <p>Read-only polling from the selected channel into private streamer chat.</p>
+              </div>
+              <div className="project-admin-actions">
+                <button
+                  type="button"
+                  disabled={
+                    youtubeLiveChatStatus?.state === "connected"
+                    || youtubeLiveChatStatus?.state === "connecting"
+                    || youtubeLiveChatStatus?.state === "waiting"
+                  }
+                  onClick={() => void runYouTubeLiveChatAction("start")}
+                >
+                  Start
+                </button>
+                <button
+                  type="button"
+                  disabled={youtubeLiveChatStatus?.state === "stopped" || youtubeLiveChatStatus?.state === "unconfigured"}
+                  onClick={() => void runYouTubeLiveChatAction("stop")}
+                >
+                  Stop
+                </button>
+                <button type="button" onClick={() => void loadYouTubeLiveChatStatus()}>Refresh</button>
+              </div>
+            </div>
+            <div className="provider-chat-status-grid">
+              <div className={`provider-chat-state ${youtubeLiveChatStatus?.state ?? "unconfigured"}`}>
+                <span>Polling</span>
+                <strong>{youtubeLiveChatStatus?.state ?? "Unknown"}</strong>
+              </div>
+              <div>
+                <span>Selected channel</span>
+                <strong>{youtubeLiveChatStatus?.channelName ?? youtubeSelectedChannelId ?? "None"}</strong>
+              </div>
+              <div>
+                <span>Last message</span>
+                <strong>{youtubeLiveChatStatus?.lastMessageAt ? formatDate(youtubeLiveChatStatus.lastMessageAt) : "None yet"}</strong>
+              </div>
+            </div>
+            <p className="provider-chat-action-message">{youtubeLiveChatActionMessage}</p>
+            {youtubeLiveChatStatus?.nextPollAt ? (
+              <p className="provider-chat-empty">Next poll: {formatDate(youtubeLiveChatStatus.nextPollAt)}</p>
+            ) : null}
+            {youtubeLiveChatStatus?.lastError ? (
+              <p className="provider-chat-error">{youtubeLiveChatStatus.lastError}</p>
+            ) : null}
+            {youtubeLiveChatStatus?.recentMessages.length ? (
+              <ol className="provider-chat-recent-list" aria-label="Recent YouTube live chat messages">
+                {youtubeLiveChatStatus.recentMessages.slice(0, 5).map((chatMessage) => (
+                  <li key={chatMessage.id}>
+                    <div>
+                      <strong>{chatMessage.authorName}</strong>
+                      <time dateTime={chatMessage.createdAt}>{formatDate(chatMessage.createdAt)}</time>
+                    </div>
+                    <p>{chatMessage.message}</p>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="provider-chat-empty">No YouTube live chat messages captured in this API runtime yet.</p>
             )}
             <div className="provider-env-grid" aria-label="YouTube OAuth setup details">
               <div className="provider-env-item">

@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 
 import type { UrlAccessSurface } from "@maiks-yt/domain/security";
-import type { DiscordChatIntakeRuntime, TwitchChatIntakeRuntime } from "../provider-integrations/index.js";
+import type {
+  DiscordChatIntakeRuntime,
+  TwitchChatIntakeRuntime,
+  YouTubeLiveChatIntakeRuntime
+} from "../provider-integrations/index.js";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -29,6 +33,7 @@ export const registerStreamerChatControlRoutes = (
     discordChatIntakeRuntime: DiscordChatIntakeRuntime;
     streamerChatRuntime: StreamerChatRuntime;
     twitchChatIntakeRuntime: TwitchChatIntakeRuntime;
+    youtubeLiveChatIntakeRuntime: YouTubeLiveChatIntakeRuntime;
     validateUrlAccessToken: ValidateUrlAccessToken;
   }
 ): void => {
@@ -182,6 +187,64 @@ export const registerStreamerChatControlRoutes = (
       ok: true,
       readOnly: true,
       status: dependencies.discordChatIntakeRuntime.start(),
+      checkedAt: new Date().toISOString()
+    };
+  });
+
+  server.get("/streamer-chat/youtube-status", async (request, reply) => {
+    const parsedRequest = streamerChatAccessRequestSchema.safeParse(request.query);
+
+    if (!parsedRequest.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "invalid_request"
+      };
+    }
+
+    const tokenValidation = await validateControlPanelAccess(parsedRequest.data.accessToken);
+
+    if (!tokenValidation.valid) {
+      reply.code(403);
+      return {
+        ok: false,
+        reason: tokenValidation.reason ?? "control_panel_access_denied"
+      };
+    }
+
+    return {
+      ok: true,
+      readOnly: true,
+      status: dependencies.youtubeLiveChatIntakeRuntime.getStatus(),
+      checkedAt: new Date().toISOString()
+    };
+  });
+
+  server.post("/streamer-chat/youtube-reconnect", async (request, reply) => {
+    const parsedRequest = streamerChatAccessRequestSchema.safeParse(request.body);
+
+    if (!parsedRequest.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "invalid_request"
+      };
+    }
+
+    const tokenValidation = await validateControlPanelAccess(parsedRequest.data.accessToken);
+
+    if (!tokenValidation.valid) {
+      reply.code(403);
+      return {
+        ok: false,
+        reason: tokenValidation.reason ?? "control_panel_access_denied"
+      };
+    }
+
+    return {
+      ok: true,
+      readOnly: true,
+      status: dependencies.youtubeLiveChatIntakeRuntime.start(),
       checkedAt: new Date().toISOString()
     };
   });

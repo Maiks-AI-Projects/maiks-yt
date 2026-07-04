@@ -27,6 +27,7 @@ import {
   registerProviderIntegrationStatusRoutes,
   registerTwitchChatIntakeControlRoutes,
   registerYouTubeChannelDiscoveryRoutes,
+  registerYouTubeLiveChatIntakeControlRoutes,
   registerYouTubeOwnerConsentRoutes
 } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
@@ -45,7 +46,8 @@ import {
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
 import type {
   DiscordChatReadOnlyIntakeService,
-  TwitchChatReadOnlyIntakeService
+  TwitchChatReadOnlyIntakeService,
+  YouTubeLiveChatReadOnlyIntakeService
 } from "@maiks-yt/integrations";
 import type { OverlayRuntime } from "./overlay/index.js";
 import type { UrlAccessSurface } from "@maiks-yt/domain/security";
@@ -78,6 +80,7 @@ type RegisterApplicationRoutesInput = {
   streamerChatRuntime: StreamerChatRuntime;
   twitchChatIntakeRuntime: TwitchChatReadOnlyIntakeService;
   validateUrlAccessTokenForRequest: ValidateUrlAccessTokenForRequest;
+  youtubeLiveChatIntakeRuntime: YouTubeLiveChatReadOnlyIntakeService;
 };
 
 export const registerApplicationRoutes = ({
@@ -95,7 +98,8 @@ export const registerApplicationRoutes = ({
   streamerChatModerationStore,
   streamerChatRuntime,
   twitchChatIntakeRuntime,
-  validateUrlAccessTokenForRequest
+  validateUrlAccessTokenForRequest,
+  youtubeLiveChatIntakeRuntime
 }: RegisterApplicationRoutesInput): void => {
   registerActionPanelRoutes(server, {
     getAuthSession,
@@ -166,7 +170,8 @@ export const registerApplicationRoutes = ({
     getDatabasePool,
     getRuntimeState: () => ({
       discordChatIntakeState: discordChatIntakeRuntime.getStatus().state,
-      twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state
+      twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state,
+      youtubeLiveChatIntakeState: youtubeLiveChatIntakeRuntime.getStatus().state
     })
   });
   registerYouTubeOwnerConsentRoutes(server, {
@@ -187,10 +192,16 @@ export const registerApplicationRoutes = ({
     getDatabasePool,
     runtime: discordChatIntakeRuntime
   });
+  registerYouTubeLiveChatIntakeControlRoutes(server, {
+    getAuthSession,
+    getDatabasePool,
+    runtime: youtubeLiveChatIntakeRuntime
+  });
   registerStreamerChatControlRoutes(server, {
     discordChatIntakeRuntime,
     streamerChatRuntime,
     twitchChatIntakeRuntime,
+    youtubeLiveChatIntakeRuntime,
     validateUrlAccessToken: validateUrlAccessTokenForRequest
   });
   registerStreamerChatModerationRoutes(server, {

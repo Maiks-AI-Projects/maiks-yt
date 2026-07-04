@@ -3,8 +3,10 @@ import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import {
   DiscordChatReadOnlyIntakeService,
   TwitchChatReadOnlyIntakeService,
+  YouTubeLiveChatReadOnlyIntakeService,
   type DiscordChatProjectedMessage,
-  type TwitchChatProjectedMessage
+  type TwitchChatProjectedMessage,
+  type YouTubeLiveChatProjectedMessage
 } from "@maiks-yt/integrations";
 import type {
   OverlayLiveMessage,
@@ -30,6 +32,7 @@ import {
   NotificationAdminService
 } from "./notifications/index.js";
 import { OverlayRuntime } from "./overlay/index.js";
+import { createYouTubeLiveChatContextRepository } from "./provider-integrations/index.js";
 import {
   InMemoryFakeLocalModerationRuntime,
   InMemoryStreamerChatModerationRuntime,
@@ -47,6 +50,10 @@ const config = createRuntimeConfig({
 
 const server = Fastify({ logger: true });
 let databasePool: DatabasePool | undefined;
+const getDatabasePool = (): DatabasePool => {
+  databasePool ??= createDatabasePool();
+  return databasePool;
+};
 const overlayRuntime = new OverlayRuntime();
 const maxStreamerChatHistory = 75;
 const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: maxStreamerChatHistory });
@@ -132,6 +139,9 @@ const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage):
     channelName: message.channelName
   });
 
+const recordYouTubeStreamerChatMessage = (message: YouTubeLiveChatProjectedMessage): StreamerChatMessage =>
+  appendStreamerChatMessage({ ...message });
+
 const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
   onMessage: recordTwitchStreamerChatMessage,
   onReconnectSuppressed: createProviderReconnectSuppressedNotifier("twitch", "Twitch")
@@ -139,6 +149,11 @@ const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
 const discordChatIntakeRuntime = new DiscordChatReadOnlyIntakeService({
   onMessage: recordDiscordStreamerChatMessage,
   onReconnectSuppressed: createProviderReconnectSuppressedNotifier("discord", "Discord")
+});
+const youtubeLiveChatContextRepository = createYouTubeLiveChatContextRepository(getDatabasePool());
+const youtubeLiveChatIntakeRuntime = new YouTubeLiveChatReadOnlyIntakeService({
+  contextResolver: youtubeLiveChatContextRepository.resolveSelectedLiveChatContext,
+  onMessage: recordYouTubeStreamerChatMessage
 });
 
 if (process.env.NODE_ENV !== "test" && process.env.TWITCH_CHAT_AUTO_START !== "false") {
@@ -151,11 +166,11 @@ if (process.env.NODE_ENV !== "test" && process.env.DISCORD_CHAT_AUTO_START !== "
     discordChatIntakeRuntime.start();
   }, 0);
 }
-
-const getDatabasePool = (): DatabasePool => {
-  databasePool ??= createDatabasePool();
-  return databasePool;
-};
+if (process.env.NODE_ENV !== "test" && process.env.YOUTUBE_LIVE_CHAT_AUTO_START !== "false") {
+  setTimeout(() => {
+    youtubeLiveChatIntakeRuntime.start();
+  }, 0);
+}
 const {
   getAuthSession,
   validateUrlAccessTokenForRequest
@@ -280,7 +295,8 @@ registerApplicationRoutes({
   streamerChatModerationStore,
   streamerChatRuntime,
   twitchChatIntakeRuntime,
-  validateUrlAccessTokenForRequest
+  validateUrlAccessTokenForRequest,
+  youtubeLiveChatIntakeRuntime
 });
 
 server.get("/health", async () => ({
