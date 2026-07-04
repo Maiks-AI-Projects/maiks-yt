@@ -21,7 +21,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Phase 5J completed the docs/design gate for community rules, manual warning/strike escalation, and restriction boundaries. Automatic warnings, real bans, provider enforcement, destructive actions, AI moderation, auth/secrets, money/support authority, production behavior, and new policy/strike schema remain gated.
 - Phase 6A Provider Integration Foundation is deployed and dev-smoked. It adds real provider SDK dependencies and sanitized read-only status plumbing for Twitch, YouTube, and Discord behind owner-gated `GET /admin/provider-integrations/status` plus `/admin/provider-integrations`. It does not add OAuth, token storage/rotation, webhook/EventSub receivers, live chat ingestion, provider moderation/write actions, money behavior, migrations, Cloudflare/Docker config, auth flow changes, or production behavior.
 - Phase 6A provider status now recognizes the saved dev env shape: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` for the YouTube OAuth foundation and `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET` as Discord OAuth app credentials, while `DISCORD_BOT_TOKEN`/`DISCORD_APPLICATION_ID`/`DISCORD_GUILD_ID` are passed through Turbo to app processes. Safe live checks confirmed the Discord bot token is valid, matches the application id, and can read the configured dev guild after the bot invite/code-grant setting was fixed.
-- Phase 6A provider library capability mapping is deployed and dev-smoked. It now includes `@twurple/chat` and typed capability states in provider status. Twitch chat library availability is reported separately from runtime state, Twitch EventSub remains gated, Phase 6D Discord read-only Gateway chat intake is deployed/dev-smoked, and Phase 6C generated YouTube OAuth consent/token storage but has not been dev-applied yet. YouTube live chat should stay last among the current chat providers.
+- Phase 6A provider library capability mapping is deployed and dev-smoked. It now includes `@twurple/chat` and typed capability states in provider status. Twitch chat library availability is reported separately from runtime state, Twitch EventSub remains gated, Phase 6D Discord read-only Gateway chat intake is deployed/dev-smoked, and Phase 6C YouTube OAuth consent/token storage is deployed and endpoint-smoked through consent URL generation. YouTube live chat should stay last among the current chat providers.
 - Phase 6B Twitch Read-Only Chat Intake is deployed and endpoint-smoked on dev: owner-gated status/start/stop controls, anonymous read-only Twurple chat connection to channel `maiksmc`, Twitch messages projected into the private streamer-chat/control-panel feed, provider status runtime state, and a separate installable `control-dev/chat` streamer chat PWA. Twitch messages are not sent to the OBS overlay in this slice.
 - The compact service dots and Twitch reconnect/autoreconnect follow-up is deployed on dev. Twitch read-only chat intake now auto-reconnects after unexpected disconnects, stops auto-reconnecting after 10 disconnects in 10 minutes, and exposes a control-token reconnect action for the standalone chat window. YouTube/Discord remain honest disconnected indicators until their read-only intake phases are implemented.
 - Standalone/private streamer chat has source-tinted rows and first quick moderation controls. Hide, Ban, and Warn call universal Maiks.yt-local moderation endpoints for any source and can be retracted from the separate `/moderation` control window. Hide/ban persist through `moderation_active_states`, warnings persist through `moderation_audit_logs`, and API startup hydrates active rules into the chat filter. The third warning applies an automatic local stream-surface ban. Fake/local Note uses the existing fake/local moderation API. Provider-side warning messages/enforcement and censored-message allow controls remain gated until provider-write moderation and allowlist persistence are approved.
@@ -108,14 +108,13 @@ Reviewer/dev smoke:
 - Standalone streamer chat PWA follow-up added `/chat` on `control-dev` with separate `chat-manifest.webmanifest`, `id`/`scope`/`start_url` of `/chat`, focused chat-only layout, and the same `control:open` token gate. The normal control-panel manifest is narrowed to `id`/`scope`/`start_url` of `/control` so new installs do not claim `/chat`; old Ubuntu/Android installs created with the previous `/` scope may need to be removed once. The ignored usable URL report has the tokenized `/chat` URL for local testing.
 - Phase 6C first hardening slice adds a read-only Twitch intake status card to the standalone `/chat` PWA through a `control:open` token-gated status endpoint. It shows runtime state, channel, last message time, and safe error copy without adding start/stop controls, provider writes, moderation enforcement, EventSub, auth changes, migrations, or production behavior.
 
-## Phase 6C: YouTube Owner Consent And Runtime Credential Storage (Generated, Not Yet Applied)
+## Phase 6C: YouTube Owner Consent And Runtime Credential Storage (Deployed, Consent Pending)
 
 Coordinator scope:
 
-- Review generated migration `packages/database/drizzle/0019_thankful_famine.sql`.
-- Apply the migration on dev only after review.
-- Deploy the owner-gated YouTube consent endpoints and `/admin/provider-integrations` controls.
-- Ensure Google OAuth has this exact redirect URI, unless `YOUTUBE_OAUTH_REDIRECT_URI` overrides it: `https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback`.
+- Generated migration `packages/database/drizzle/0019_thankful_famine.sql` has been reviewed and is present in the dev database.
+- Owner-gated YouTube consent endpoints and `/admin/provider-integrations` controls are deployed on dev.
+- Google OAuth must keep this exact redirect URI, unless `YOUTUBE_OAUTH_REDIRECT_URI` overrides it: `https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback`.
 - Complete owner consent from `/admin/provider-integrations`.
 
 Result:
@@ -124,6 +123,7 @@ Result:
 - Adds owner-gated `GET /admin/provider-integrations/youtube/credential` and `GET /admin/provider-integrations/youtube/consent-url`.
 - Adds Google callback `GET /admin/provider-integrations/youtube/callback` that exchanges the code and stores a read-only YouTube refresh token without returning raw tokens.
 - Updates provider status copy so YouTube owner consent is available when Google/YouTube OAuth client credentials exist.
+- 2026-07-04 coordinator smoke confirmed `provider_runtime_credentials` exists, unauthenticated credential access returns `401`, owner-auth credential summary returns no stored credential yet, and owner-auth consent URL generation returns an accounts.google.com URL with `https://www.googleapis.com/auth/youtube.readonly`, a signed state, and the dev callback redirect URI.
 
 Suggested checks:
 
@@ -138,6 +138,7 @@ Suggested checks:
 
 Remaining gates:
 
+- Human Google consent is still required before a YouTube credential exists.
 - YouTube live-chat polling is not implemented yet and should stay last among the current chat providers because it needs live/scheduled-stream validation.
 - Twitch EventSub, provider writes, moderation enforcement, money, production behavior, Cloudflare/Docker config, and secret edits remain separate explicit chunks.
 
@@ -145,8 +146,8 @@ Next provider chunks:
 
 - Phase 6D: Discord read-only Gateway message intake is deployed and endpoint-smoked on dev. Michael can still send a harmless Discord message in the configured guild/channel to confirm it appears in the private streamer chat/control-panel feed and does not appear on OBS overlay by default.
 - Phase 6E: YouTube owner consent and read-only live-chat polling from the stored owner credential into the private streamer-chat feed. Use YouTube polling interval/backoff, safe token refresh, no overlay routing by default, and no provider writes. Keep this last among the current chat providers until Michael can live-test it.
-- Phase 6F: Twitch/Discord reconnect-suppression notifications are implemented for review. Coordinator should deploy to dev and, if needed, use a test-only runtime threshold/fake runtime path later to force suppression without disrupting real provider connections.
-- Phase 6F note: reconnect/autoreconnect and compact chat status are deployed/dev-smoked; the notification hook now creates warning provider notifications when Twitch or Discord auto-reconnect is suppressed.
+- Phase 6F: Twitch/Discord reconnect-suppression notifications are deployed with the current dev build. If forced verification is needed later, use a test-only runtime threshold/fake runtime path rather than disrupting real provider connections.
+- Phase 6F note: reconnect/autoreconnect and compact chat status are deployed/dev-smoked; the notification hook creates warning provider notifications when Twitch or Discord auto-reconnect is suppressed.
 - Phase 6G: Always-on provider event intake for non-chat support/community events, starting with read-only history/audit registration. Store offline provider events by default; route/display them only through explicit Event Routing rules.
 - Phase 6H: Provider moderation/write controls for Twitch/YouTube/Discord chat after explicit scope approval. Start by mapping the existing local hide/ban/warn rules to audited provider warning chat messages, hide/delete/timeout/ban capability checks, provider-specific permission validation, fail-closed UI state, and no unreviewed provider actions.
 - Phase 6I: Censored-message review and allowlist rules for `allow always`, `allow this stream`, and timed allows. This needs persistence for phrase/rule scope, moderator identity, expiration, audit history, and stream/session boundaries before runtime enforcement.
