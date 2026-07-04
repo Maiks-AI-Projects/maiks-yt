@@ -154,10 +154,11 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added `reports/large-file-split-proposal.md` with a staged, behavior-preserving plan to split `apps/api/src/main.ts`, `apps/control-panel/src/main.tsx`, large web admin clients, and eventually database schema files. Recommended first refactor is API streamer-chat extraction.
 - 2026-07-04 coordinator deploy/smoke: pulled `origin/dev` commit `150351c` to `maiks-yt-dev`, rebuilt/recreated the dev container, and ran `pnpm check:review` locally before deploy. Public smoke confirmed `api-dev` health, `web-dev`, `control-dev/chat`, and `overlay-dev` return `200` without the known injection marker. Dev DB already has `provider_runtime_credentials` and `role_rank_paths`, so no migration application was needed. Owner-auth smoke confirmed provider status reports Twitch and Discord runtimes connected, YouTube OAuth client/consent available, YouTube credential absent, and YouTube consent URL generation uses `https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback` with `https://www.googleapis.com/auth/youtube.readonly`.
 - Added, deployed, and dev-smoked a dev-only short-lived owner test-token mint endpoint for coordinator smoke tests. `POST /dev/testing/owner-token` is disabled in production, requires `DEV_OWNER_TOKEN_MINT_SECRET`, `DEV_TEST_AUTH_MINT_SECRET`, or the existing dev notification secret, stores only a token hash in `dev_auth_tokens`, returns the raw token/login URL once, and caps token lifetime to 15 minutes while still exercising the normal dev owner bearer auth path. Smoke confirmed missing secret returns `403`, a minted token can access owner-gated provider status, no mint secret/raw token appears in that response, the DB stores a 64-character hash, and `api-dev` plus `/admin/provider-integrations` return `200` without the known injection marker.
+- Added `ideas/multi-channel-provider-routing.md` after YouTube consent revealed the real provider model: provider credentials, channel identities, content lanes, and routing rules need to be separate. First safe follow-up is read-only YouTube channel discovery/selection from the stored credential, not live-chat polling.
 
 ## Current Task
 
-Complete the human Google/YouTube owner consent step from `/admin/provider-integrations`, then smoke that a read-only YouTube credential summary is stored without raw token exposure.
+Build read-only YouTube channel discovery/selection from the stored owner credential, keeping live-chat polling for a later live-test slice.
 
 ## Next Tasks
 

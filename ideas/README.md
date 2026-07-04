@@ -53,6 +53,7 @@ Nothing here is final architecture yet. These cards are meant to help compare id
 ## Content and Channels
 
 - [Multi-channel themed landing pages](./multi-channel-themed-landing-pages.md)
+- [Multi-channel provider routing](./multi-channel-provider-routing.md)
 - [Public personal context section](./public-personal-context-section.md)
 - [Public accountability and history section](./public-accountability-and-history-section.md)
 - [Stream scheduling and cancellations](./stream-scheduling-and-cancellations.md)
