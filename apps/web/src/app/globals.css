@@ -1453,6 +1453,70 @@ button:disabled {
   gap: 0.9rem;
 }
 
+.connections-action-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.connections-action-card {
+  background: #f5f7fb;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.connections-action-card h3,
+.connections-action-card p {
+  margin: 0;
+}
+
+.connections-action-card code,
+.connections-event-row code {
+  color: #4b5966;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.connections-event-table {
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.connections-event-row {
+  align-items: start;
+  border-top: 1px solid #d8e0e8;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 6rem minmax(12rem, 1.1fr) minmax(12rem, 1fr) minmax(14rem, 1.2fr);
+  padding: 0.75rem;
+}
+
+.connections-event-row:first-child {
+  border-top: 0;
+}
+
+.connections-event-row.header {
+  background: #eef2f5;
+  color: #4b5966;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.connections-event-row > span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.connections-event-row small {
+  color: #4b5966;
+}
+
 .provider-integration-row {
   border: 1px solid #d8e0e8;
   border-radius: 8px;
@@ -2495,6 +2559,10 @@ button:disabled {
   }
 
   .provider-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .connections-event-row {
     grid-template-columns: 1fr;
   }
 
