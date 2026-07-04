@@ -148,6 +148,13 @@
       "when": 1782988048410,
       "tag": "0020_opposite_marauders",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1783153875071,
+      "tag": "0021_omniscient_bloodstrike",
+      "breakpoints": true
     }
   ]
 }

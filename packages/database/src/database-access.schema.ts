@@ -133,6 +133,39 @@ export const providerRuntimeCredentials = mysqlTable(
   ]
 );
 
+export const providerChannelIdentities = mysqlTable(
+  "provider_channel_identities",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    ownerUserId: varchar("owner_user_id", { length: 36 }).notNull(),
+    provider: mysqlEnum("provider", ["youtube", "twitch", "discord"]).notNull(),
+    providerChannelId: varchar("provider_channel_id", { length: 191 }).notNull(),
+    displayName: varchar("display_name", { length: 191 }).notNull(),
+    handle: varchar("handle", { length: 191 }),
+    thumbnailUrl: varchar("thumbnail_url", { length: 1024 }),
+    selectedForLiveChat: boolean("selected_for_live_chat").notNull().default(false),
+    discoveredAt: timestamp("discovered_at").notNull(),
+    lastSeenAt: timestamp("last_seen_at").notNull(),
+    selectedAt: timestamp("selected_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("provider_channel_owner_provider_channel_uidx").on(
+      table.ownerUserId,
+      table.provider,
+      table.providerChannelId
+    ),
+    index("provider_channel_owner_provider_idx").on(table.ownerUserId, table.provider),
+    index("provider_channel_live_chat_selected_idx").on(table.ownerUserId, table.provider, table.selectedForLiveChat),
+    index("provider_channel_last_seen_idx").on(table.provider, table.lastSeenAt),
+    check(
+      "provider_channel_selected_at_check",
+      sql`${table.selectedForLiveChat} = false or ${table.selectedAt} is not null`
+    )
+  ]
+);
+
 export const notificationPushSubscriptions = mysqlTable(
   "notification_push_subscriptions",
   {

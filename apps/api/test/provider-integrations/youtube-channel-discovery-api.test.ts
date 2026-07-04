@@ -7,8 +7,21 @@ import type {
   YouTubeChannelDiscoveryActor,
   YouTubeChannelDiscoveryRepository,
   YouTubeChannelDiscoveryServiceResult,
-  YouTubeChannelDiscoveryStoredCredential
+  YouTubeChannelDiscoveryStoredCredential,
+  YouTubePersistedChannel
 } from "../../src/provider-integrations/youtube-channel-discovery.types.js";
+
+const savedChannel: YouTubePersistedChannel = {
+  id: "youtube-channel-1",
+  title: "Maiks Minecraft",
+  customUrl: "@maiksmc",
+  thumbnailUrl: null,
+  selectedForLiveChat: false,
+  discoveredAt: "2026-07-04T12:00:00.000Z",
+  lastSeenAt: "2026-07-04T12:00:00.000Z",
+  selectedAt: null,
+  updatedAt: "2026-07-04T12:00:00.000Z"
+};
 
 class FakeYouTubeChannelDiscoveryService {
   public result: YouTubeChannelDiscoveryServiceResult = {
@@ -24,6 +37,18 @@ class FakeYouTubeChannelDiscoveryService {
   };
 
   public async discover(): Promise<YouTubeChannelDiscoveryServiceResult> {
+    return this.result;
+  }
+
+  public async listSelection(): Promise<YouTubeChannelDiscoveryServiceResult> {
+    return this.result;
+  }
+
+  public async discoverAndStore(): Promise<YouTubeChannelDiscoveryServiceResult> {
+    return this.result;
+  }
+
+  public async selectLiveChatChannel(): Promise<YouTubeChannelDiscoveryServiceResult> {
     return this.result;
   }
 }
@@ -49,6 +74,8 @@ const createServer = (input: {
 const createRepository = (input: {
   actor?: YouTubeChannelDiscoveryActor | null;
   credential?: YouTubeChannelDiscoveryStoredCredential | null;
+  channels?: YouTubePersistedChannel[];
+  selectResult?: "selected" | "cleared" | "not_found";
 } = {}): YouTubeChannelDiscoveryRepository => ({
   resolveActor: async () => input.actor ?? {
     domainUserId: "domain-owner",
@@ -61,7 +88,10 @@ const createRepository = (input: {
     scopes: ["https://www.googleapis.com/auth/youtube.readonly"],
     status: "active",
     lastError: null
-  }
+  },
+  listYouTubeChannels: async () => input.channels ?? [savedChannel],
+  upsertYouTubeChannels: async () => undefined,
+  selectYouTubeLiveChatChannel: async () => input.selectResult ?? "selected"
 });
 
 describe("YouTube channel discovery routes", () => {
@@ -160,6 +190,118 @@ describe("YouTube channel discovery routes", () => {
     expect(response.body).not.toContain("refresh-token");
     expect(response.body).not.toContain("access-token");
   });
+
+  it("returns saved channel selection state", async () => {
+    const { server, service } = createServer();
+    service.result = {
+      ok: true,
+      channels: [savedChannel],
+      selectedChannelId: null
+    };
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/youtube/channel-selection"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      channels: [savedChannel],
+      selectedChannelId: null
+    });
+  });
+
+  it("persists discovered channels through the discover-and-store endpoint", async () => {
+    const { server, service } = createServer();
+    service.result = {
+      ok: true,
+      channels: [savedChannel],
+      selectedChannelId: null
+    };
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/provider-integrations/youtube/channel-selection/discover"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      channels: [savedChannel],
+      selectedChannelId: null
+    });
+  });
+
+  it("selects a saved live-chat channel", async () => {
+    const selectedChannel = {
+      ...savedChannel,
+      selectedForLiveChat: true,
+      selectedAt: "2026-07-04T12:05:00.000Z"
+    };
+    const { server, service } = createServer();
+    service.result = {
+      ok: true,
+      channels: [selectedChannel],
+      selectedChannelId: selectedChannel.id
+    };
+
+    const response = await server.inject({
+      method: "PUT",
+      url: "/admin/provider-integrations/youtube/channel-selection",
+      payload: {
+        channelId: selectedChannel.id
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      channels: [selectedChannel],
+      selectedChannelId: selectedChannel.id
+    });
+  });
+
+  it("clears a selected live-chat channel", async () => {
+    const { server, service } = createServer();
+    service.result = {
+      ok: true,
+      channels: [savedChannel],
+      selectedChannelId: null
+    };
+
+    const response = await server.inject({
+      method: "PUT",
+      url: "/admin/provider-integrations/youtube/channel-selection",
+      payload: {
+        channelId: null
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      channels: [savedChannel],
+      selectedChannelId: null
+    });
+  });
+
+  it("rejects malformed selection input", async () => {
+    const { server } = createServer();
+    const response = await server.inject({
+      method: "PUT",
+      url: "/admin/provider-integrations/youtube/channel-selection",
+      payload: {
+        channelId: ""
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "youtube_channel_invalid_input"
+    });
+  });
 });
 
 describe("YouTubeChannelDiscoveryService", () => {
@@ -227,6 +369,76 @@ describe("YouTubeChannelDiscoveryService", () => {
     await expect(service.discover({ authUserId: "auth-owner" })).resolves.toEqual({
       ok: false,
       reason: "youtube_channel_scope_missing"
+    });
+  });
+
+  it("discovers and stores channels before returning selection state", async () => {
+    const storedChannels: YouTubePersistedChannel[] = [{
+      ...savedChannel,
+      lastSeenAt: "2026-07-04T12:00:00.000Z"
+    }];
+    const service = new YouTubeChannelDiscoveryService(createRepository({
+      channels: storedChannels
+    }), {
+      env: {
+        GOOGLE_CLIENT_ID: "google-client",
+        GOOGLE_CLIENT_SECRET: "google-secret"
+      },
+      now: () => new Date("2026-07-04T12:00:00.000Z"),
+      listChannels: async () => ({
+        items: [
+          {
+            id: savedChannel.id,
+            snippet: {
+              title: savedChannel.title,
+              customUrl: savedChannel.customUrl
+            }
+          }
+        ]
+      })
+    });
+
+    await expect(service.discoverAndStore({ authUserId: "auth-owner" })).resolves.toEqual({
+      ok: true,
+      channels: storedChannels,
+      selectedChannelId: null
+    });
+  });
+
+  it("selects and clears the persisted live-chat channel", async () => {
+    const selectedChannel = {
+      ...savedChannel,
+      selectedForLiveChat: true,
+      selectedAt: "2026-07-04T12:05:00.000Z"
+    };
+    const service = new YouTubeChannelDiscoveryService(createRepository({
+      channels: [selectedChannel],
+      selectResult: "selected"
+    }), {
+      now: () => new Date("2026-07-04T12:05:00.000Z")
+    });
+
+    await expect(service.selectLiveChatChannel({
+      authUserId: "auth-owner",
+      channelId: selectedChannel.id
+    })).resolves.toEqual({
+      ok: true,
+      channels: [selectedChannel],
+      selectedChannelId: selectedChannel.id
+    });
+  });
+
+  it("rejects selecting an unknown persisted channel", async () => {
+    const service = new YouTubeChannelDiscoveryService(createRepository({
+      selectResult: "not_found"
+    }));
+
+    await expect(service.selectLiveChatChannel({
+      authUserId: "auth-owner",
+      channelId: "unknown-channel"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "youtube_channel_not_found"
     });
   });
 });

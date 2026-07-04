@@ -9,7 +9,8 @@ import { normalizeProviderIntegrationPermissions } from "./provider-integration-
 import type {
   YouTubeChannelDiscoveryActor,
   YouTubeChannelDiscoveryRepository,
-  YouTubeChannelDiscoveryServiceResult
+  YouTubeChannelDiscoveryServiceResult,
+  YouTubePersistedChannel
 } from "./youtube-channel-discovery.types.js";
 
 type YouTubeChannelDiscoveryServiceOptions = {
@@ -25,6 +26,15 @@ const canManageProviderIntegrations = (actor: YouTubeChannelDiscoveryActor): boo
   return permissions.includes("*") || permissions.includes("provider-integrations:manage");
 };
 
+const getSelectedChannelId = (channels: readonly YouTubePersistedChannel[]): string | null =>
+  channels.find((channel) => channel.selectedForLiveChat)?.id ?? null;
+
+const isValidProviderChannelId = (value: string): boolean => {
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 && trimmed.length <= 191 && !/[\s]/.test(trimmed);
+};
+
 export class YouTubeChannelDiscoveryService {
   public constructor(
     private readonly repository: YouTubeChannelDiscoveryRepository,
@@ -32,7 +42,111 @@ export class YouTubeChannelDiscoveryService {
   ) {}
 
   public async discover(input: { authUserId: string }): Promise<YouTubeChannelDiscoveryServiceResult> {
-    const actor = await this.repository.resolveActor(input.authUserId);
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    return await this.discoverChannelsForActor(actor.domainUserId);
+  }
+
+  public async listSelection(input: { authUserId: string }): Promise<YouTubeChannelDiscoveryServiceResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const channels = await this.repository.listYouTubeChannels(actor.domainUserId);
+
+    return {
+      ok: true,
+      channels,
+      selectedChannelId: getSelectedChannelId(channels)
+    };
+  }
+
+  public async discoverAndStore(input: { authUserId: string }): Promise<YouTubeChannelDiscoveryServiceResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const discovered = await this.discoverChannelsForActor(actor.domainUserId);
+
+    if (!discovered.ok) {
+      return discovered;
+    }
+
+    const now = this.options.now?.() ?? new Date();
+    await this.repository.upsertYouTubeChannels({
+      domainUserId: actor.domainUserId,
+      channels: discovered.channels.map((channel) => ({
+        id: channel.id,
+        title: channel.title,
+        customUrl: channel.customUrl,
+        thumbnailUrl: channel.thumbnailUrl
+      })),
+      now
+    });
+
+    const channels = await this.repository.listYouTubeChannels(actor.domainUserId);
+
+    return {
+      ok: true,
+      channels,
+      selectedChannelId: getSelectedChannelId(channels)
+    };
+  }
+
+  public async selectLiveChatChannel(input: {
+    authUserId: string;
+    channelId: string | null;
+  }): Promise<YouTubeChannelDiscoveryServiceResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const channelId = input.channelId?.trim() || null;
+
+    if (channelId && !isValidProviderChannelId(channelId)) {
+      return {
+        ok: false,
+        reason: "youtube_channel_not_found"
+      };
+    }
+
+    const result = await this.repository.selectYouTubeLiveChatChannel({
+      domainUserId: actor.domainUserId,
+      providerChannelId: channelId,
+      now: this.options.now?.() ?? new Date()
+    });
+
+    if (result === "not_found") {
+      return {
+        ok: false,
+        reason: "youtube_channel_not_found"
+      };
+    }
+
+    const channels = await this.repository.listYouTubeChannels(actor.domainUserId);
+
+    return {
+      ok: true,
+      channels,
+      selectedChannelId: getSelectedChannelId(channels)
+    };
+  }
+
+  private async requireActor(authUserId: string): Promise<
+    | { ok: true; domainUserId: string }
+    | Extract<YouTubeChannelDiscoveryServiceResult, { ok: false }>
+  > {
+    const actor = await this.repository.resolveActor(authUserId);
 
     if (!actor) {
       return {
@@ -48,7 +162,14 @@ export class YouTubeChannelDiscoveryService {
       };
     }
 
-    const credential = await this.repository.getActiveYouTubeCredential(actor.domainUserId);
+    return {
+      ok: true,
+      domainUserId: actor.domainUserId
+    };
+  }
+
+  private async discoverChannelsForActor(domainUserId: string): Promise<YouTubeChannelDiscoveryServiceResult> {
+    const credential = await this.repository.getActiveYouTubeCredential(domainUserId);
 
     if (!credential) {
       return {

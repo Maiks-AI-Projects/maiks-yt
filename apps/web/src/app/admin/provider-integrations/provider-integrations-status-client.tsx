@@ -135,19 +135,23 @@ type YouTubeConsentResponse =
     reason: string;
   };
 
-type YouTubeDiscoveredChannel = {
+type YouTubeSavedChannel = {
   id: string;
   title: string;
   customUrl: string | null;
   thumbnailUrl: string | null;
-  publishedAt: string | null;
+  selectedForLiveChat: boolean;
+  discoveredAt: string;
+  lastSeenAt: string;
+  selectedAt: string | null;
+  updatedAt: string | null;
 };
 
-type YouTubeChannelDiscoveryResponse =
+type YouTubeChannelSelectionResponse =
   | {
     ok: true;
-    channels: readonly YouTubeDiscoveredChannel[];
-    discoveredAt: string;
+    channels: readonly YouTubeSavedChannel[];
+    selectedChannelId: string | null;
   }
   | {
     ok: false;
@@ -225,8 +229,8 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
   const [discordChatStatus, setDiscordChatStatus] = useState<DiscordChatIntakeStatus | null>(null);
   const [youtubeCredential, setYouTubeCredential] = useState<YouTubeCredentialSummary | null>(null);
-  const [youtubeChannels, setYouTubeChannels] = useState<readonly YouTubeDiscoveredChannel[]>([]);
-  const [youtubeChannelsDiscoveredAt, setYouTubeChannelsDiscoveredAt] = useState<string | null>(null);
+  const [youtubeChannels, setYouTubeChannels] = useState<readonly YouTubeSavedChannel[]>([]);
+  const [youtubeSelectedChannelId, setYouTubeSelectedChannelId] = useState<string | null>(null);
   const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
   const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -336,7 +340,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
           : "YouTube owner credential is not connected yet.");
         if (!payload.credential || payload.credential.status !== "active") {
           setYouTubeChannels([]);
-          setYouTubeChannelsDiscoveredAt(null);
+          setYouTubeSelectedChannelId(null);
           setYouTubeChannelActionMessage("Connect YouTube owner consent before discovering channels.");
         }
         return;
@@ -348,33 +352,88 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     }
   }, []);
 
-  const discoverYouTubeChannels = useCallback(async (): Promise<void> => {
-    setYouTubeChannelActionMessage("Discovering YouTube channels...");
-
+  const loadYouTubeChannelSelection = useCallback(async (): Promise<void> => {
     try {
-      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/channels`, {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/channel-selection`, {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubeChannelDiscoveryResponse>(response);
+      const payload = await parseJson<YouTubeChannelSelectionResponse>(response);
 
       if (response.ok && payload?.ok) {
         setYouTubeChannels(payload.channels);
-        setYouTubeChannelsDiscoveredAt(payload.discoveredAt);
+        setYouTubeSelectedChannelId(payload.selectedChannelId);
         setYouTubeChannelActionMessage(payload.channels.length > 0
-          ? `Discovered ${payload.channels.length} YouTube channel${payload.channels.length === 1 ? "" : "s"}.`
+          ? "Saved YouTube channels loaded."
+          : "No saved YouTube channels yet. Discover channels to save them.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setYouTubeChannelActionMessage(`YouTube channel selection failed: ${reason}.`);
+    } catch (error) {
+      setYouTubeChannelActionMessage(error instanceof Error ? error.message : "YouTube channel selection failed.");
+    }
+  }, []);
+
+  const discoverYouTubeChannels = useCallback(async (): Promise<void> => {
+    setYouTubeChannelActionMessage("Discovering and saving YouTube channels...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/channel-selection/discover`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubeChannelSelectionResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubeChannels(payload.channels);
+        setYouTubeSelectedChannelId(payload.selectedChannelId);
+        setYouTubeChannelActionMessage(payload.channels.length > 0
+          ? `Discovered and saved ${payload.channels.length} YouTube channel${payload.channels.length === 1 ? "" : "s"}.`
           : "No YouTube channels were returned for this owner credential.");
         return;
       }
 
       const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
       setYouTubeChannels([]);
-      setYouTubeChannelsDiscoveredAt(null);
+      setYouTubeSelectedChannelId(null);
       setYouTubeChannelActionMessage(`YouTube channel discovery failed: ${reason}.`);
     } catch (error) {
       setYouTubeChannels([]);
-      setYouTubeChannelsDiscoveredAt(null);
+      setYouTubeSelectedChannelId(null);
       setYouTubeChannelActionMessage(error instanceof Error ? error.message : "YouTube channel discovery failed.");
+    }
+  }, []);
+
+  const selectYouTubeChannel = useCallback(async (channelId: string | null): Promise<void> => {
+    setYouTubeChannelActionMessage(channelId ? "Saving selected YouTube live-chat channel..." : "Clearing selected YouTube live-chat channel...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/channel-selection`, {
+        method: "PUT",
+        headers: createApiHeaders({
+          "content-type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify({ channelId })
+      });
+      const payload = await parseJson<YouTubeChannelSelectionResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubeChannels(payload.channels);
+        setYouTubeSelectedChannelId(payload.selectedChannelId);
+        setYouTubeChannelActionMessage(payload.selectedChannelId
+          ? "Selected YouTube live-chat channel saved."
+          : "YouTube live-chat channel selection cleared.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setYouTubeChannelActionMessage(`YouTube channel selection failed: ${reason}.`);
+    } catch (error) {
+      setYouTubeChannelActionMessage(error instanceof Error ? error.message : "YouTube channel selection failed.");
     }
   }, []);
 
@@ -458,7 +517,8 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     void loadTwitchChatStatus();
     void loadDiscordChatStatus();
     void loadYouTubeCredential();
-  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadYouTubeCredential]);
+    void loadYouTubeChannelSelection();
+  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadYouTubeChannelSelection, loadYouTubeCredential]);
 
   return (
     <>
@@ -655,11 +715,11 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
             {youtubeCredential?.lastError ? (
               <p className="provider-chat-error">{youtubeCredential.lastError}</p>
             ) : null}
-            {youtubeChannelsDiscoveredAt ? (
-              <p className="provider-chat-empty">Last channel discovery: {formatDate(youtubeChannelsDiscoveredAt)}</p>
+            {youtubeSelectedChannelId ? (
+              <p className="provider-chat-empty">Selected live-chat channel: {youtubeSelectedChannelId}</p>
             ) : null}
             {youtubeChannels.length ? (
-              <ol className="provider-chat-recent-list youtube-channel-list" aria-label="Discovered YouTube channels">
+              <ol className="provider-chat-recent-list youtube-channel-list" aria-label="Saved YouTube channels">
                 {youtubeChannels.map((channel) => (
                   <li key={channel.id}>
                     <div>
@@ -669,14 +729,29 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
                       ) : null}
                       <strong>{channel.title}</strong>
                       {channel.customUrl ? <span>{channel.customUrl}</span> : null}
-                      {channel.publishedAt ? <time dateTime={channel.publishedAt}>{formatDate(channel.publishedAt)}</time> : null}
+                      <time dateTime={channel.lastSeenAt}>{formatDate(channel.lastSeenAt)}</time>
+                      {channel.selectedForLiveChat ? <span>Selected</span> : null}
                     </div>
                     <p>{channel.id}</p>
+                    <div className="project-admin-actions">
+                      <button
+                        type="button"
+                        disabled={channel.selectedForLiveChat}
+                        onClick={() => void selectYouTubeChannel(channel.id)}
+                      >
+                        Select for live chat
+                      </button>
+                      {channel.selectedForLiveChat ? (
+                        <button type="button" onClick={() => void selectYouTubeChannel(null)}>
+                          Clear selection
+                        </button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ol>
             ) : (
-              <p className="provider-chat-empty">No YouTube channels discovered in this browser session yet.</p>
+              <p className="provider-chat-empty">No YouTube channels saved yet.</p>
             )}
             <div className="provider-env-grid" aria-label="YouTube OAuth setup details">
               <div className="provider-env-item">
