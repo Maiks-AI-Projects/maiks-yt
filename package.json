@@ -11,6 +11,8 @@
     "agent:brief": "node scripts/create-agent-brief.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm check:architecture",
     "check:architecture": "node scripts/check-architecture.mjs",
+    "check:full": "scripts/check-full.sh",
+    "check:review": "scripts/check-review.sh",
     "db:generate": "pnpm --filter @maiks-yt/database db:generate",
     "db:migrate": "pnpm --filter @maiks-yt/database db:migrate",
     "db:seed": "pnpm --filter @maiks-yt/database db:seed",
