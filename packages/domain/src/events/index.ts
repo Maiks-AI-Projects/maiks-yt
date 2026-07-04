@@ -10,3 +10,5 @@ export * from "./event-stream-visibility-preferences.rules.js";
 export * from "./event-stream-visibility-preferences.types.js";
 export * from "./provider-event-catalog.rules.js";
 export * from "./provider-event-catalog.types.js";
+export * from "./provider-event-intake.rules.js";
+export * from "./provider-event-intake.types.js";

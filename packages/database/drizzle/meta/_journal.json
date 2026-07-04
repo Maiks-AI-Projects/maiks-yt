@@ -155,6 +155,13 @@
       "when": 1783153875071,
       "tag": "0021_omniscient_bloodstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1783182856784,
+      "tag": "0022_living_rage",
+      "breakpoints": true
     }
   ]
 }

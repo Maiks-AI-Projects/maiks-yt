@@ -41,6 +41,31 @@ export const eventReplayEvents = mysqlTable(
 
 const eventActualSourcePlatformValues = ["twitch", "youtube", "discord", "website", "test/system"] as const;
 const eventSourcePlatformValues = ["any", ...eventActualSourcePlatformValues] as const;
+const providerEventPlatformValues = ["twitch", "youtube", "discord"] as const;
+const providerEventMechanismValues = [
+  "twitch-eventsub",
+  "twitch-irc",
+  "youtube-live-chat",
+  "youtube-activity",
+  "youtube-pubsub",
+  "discord-gateway",
+  "discord-webhook"
+] as const;
+const providerEventCategoryValues = [
+  "auth",
+  "channel",
+  "chat",
+  "community",
+  "content",
+  "interaction",
+  "moderation",
+  "money",
+  "operations",
+  "roles",
+  "stream",
+  "system",
+  "unknown"
+] as const;
 
 const eventKindValues = [
   "chat",
@@ -158,6 +183,65 @@ export const eventUserOptOuts = mysqlTable(
     uniqueIndex("event_user_opt_outs_user_kind_uidx").on(table.userId, table.eventKind),
     index("event_user_opt_outs_user_id_idx").on(table.userId),
     index("event_user_opt_outs_event_kind_idx").on(table.eventKind)
+  ]
+);
+
+export const providerEventIntakeLogs = mysqlTable(
+  "provider_event_intake_logs",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    provider: mysqlEnum("provider", providerEventPlatformValues).notNull(),
+    mechanism: mysqlEnum("mechanism", providerEventMechanismValues).notNull(),
+    providerEventName: varchar("provider_event_name", { length: 191 }).notNull(),
+    internalTrigger: varchar("internal_trigger", { length: 191 }).notNull(),
+    category: mysqlEnum("category", providerEventCategoryValues).notNull().default("unknown"),
+    sourceEventId: varchar("source_event_id", { length: 191 }),
+    providerChannelIdentityId: varchar("provider_channel_identity_id", { length: 36 }),
+    providerChannelId: varchar("provider_channel_id", { length: 191 }),
+    providerMessageId: varchar("provider_message_id", { length: 191 }),
+    actorExternalId: varchar("actor_external_id", { length: 191 }),
+    actorDisplayName: varchar("actor_display_name", { length: 191 }),
+    catalogKnown: boolean("catalog_known").notNull().default(false),
+    moneyShaped: boolean("money_shaped").notNull().default(false),
+    moderationShaped: boolean("moderation_shaped").notNull().default(false),
+    authOrTokenShaped: boolean("auth_or_token_shaped").notNull().default(false),
+    highVolume: boolean("high_volume").notNull().default(false),
+    overlayEligibleByDefault: boolean("overlay_eligible_by_default").notNull().default(false),
+    processingStatus: mysqlEnum("processing_status", [
+      "stored",
+      "normalized",
+      "mapped_to_event_history",
+      "ignored",
+      "failed"
+    ])
+      .notNull()
+      .default("stored"),
+    eventHistoryId: varchar("event_history_id", { length: 36 }),
+    redactedPayload: json("redacted_payload").$type<Record<string, unknown>>().notNull(),
+    payloadSchemaVersion: int("payload_schema_version").notNull().default(1),
+    occurredAt: timestamp("occurred_at"),
+    receivedAt: timestamp("received_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow()
+  },
+  (table) => [
+    index("provider_event_intake_provider_received_idx").on(table.provider, table.receivedAt),
+    index("provider_event_intake_event_idx").on(table.provider, table.mechanism, table.providerEventName),
+    index("provider_event_intake_trigger_idx").on(table.internalTrigger),
+    index("provider_event_intake_channel_idx").on(table.provider, table.providerChannelId),
+    index("provider_event_intake_actor_idx").on(table.provider, table.actorExternalId),
+    index("provider_event_intake_safety_idx").on(table.moneyShaped, table.moderationShaped, table.authOrTokenShaped),
+    index("provider_event_intake_status_idx").on(table.processingStatus, table.receivedAt),
+    index("provider_event_intake_event_history_idx").on(table.eventHistoryId),
+    uniqueIndex("provider_event_intake_source_event_uidx").on(table.provider, table.mechanism, table.sourceEventId),
+    check("provider_event_intake_schema_version_check", sql`${table.payloadSchemaVersion} > 0`),
+    check(
+      "provider_event_intake_overlay_default_check",
+      sql`${table.overlayEligibleByDefault} = false`
+    ),
+    check(
+      "provider_event_intake_mapped_history_check",
+      sql`${table.processingStatus} <> 'mapped_to_event_history' or ${table.eventHistoryId} is not null`
+    )
   ]
 );
 
