@@ -1,6 +1,7 @@
 import type {
   DiscordChatProjectedMessage,
   DiscordGatewayProjectedEvent,
+  DiscordWebhookProjectedEvent,
   TwitchChatProjectedMessage,
   TwitchEventSubProjectedEvent,
   YouTubeLiveChatProjectedMessage
@@ -27,4 +28,5 @@ export type ProviderChatMessageForIntake =
 
 export type ProviderGenericEventForIntake =
   | DiscordGatewayProjectedEvent
+  | DiscordWebhookProjectedEvent
   | TwitchEventSubProjectedEvent;

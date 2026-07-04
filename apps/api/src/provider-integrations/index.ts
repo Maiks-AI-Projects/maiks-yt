@@ -2,6 +2,7 @@ export * from "./discord-chat-intake-control.route.js";
 export * from "./discord-chat-intake-control.service.js";
 export * from "./discord-chat-intake-control-store.service.js";
 export * from "./discord-chat-intake-control.types.js";
+export * from "./discord-webhook-events.route.js";
 export * from "./provider-integration-status.route.js";
 export * from "./provider-integration-status.service.js";
 export * from "./provider-integration-status-store.service.js";

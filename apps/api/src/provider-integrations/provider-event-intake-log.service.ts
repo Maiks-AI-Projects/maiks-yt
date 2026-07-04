@@ -56,7 +56,9 @@ export class ProviderEventIntakeLogService {
     const normalized = normalizeProviderEventIntake({
       actorDisplayName: event.actorDisplayName,
       actorExternalId: event.actorExternalId,
-      mechanism: event.source === "twitch" ? "twitch-eventsub" : "discord-gateway",
+      mechanism: "mechanism" in event
+        ? event.mechanism
+        : event.source === "twitch" ? "twitch-eventsub" : "discord-gateway",
       occurredAt: event.occurredAt,
       provider: event.source,
       providerChannelId: event.source === "twitch" ? event.broadcasterUserId : event.channelId,

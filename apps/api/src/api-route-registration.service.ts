@@ -24,6 +24,7 @@ import { registerOverlayRoutes } from "./overlay/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
 import {
   registerDiscordChatIntakeControlRoutes,
+  registerDiscordWebhookEventsRoutes,
   registerProviderEventIntakeAdminRoutes,
   registerProviderIntegrationStatusRoutes,
   registerTwitchChatIntakeControlRoutes,
@@ -183,6 +184,9 @@ export const registerApplicationRoutes = ({
   registerProviderEventIntakeAdminRoutes(server, {
     getAuthSession,
     getDatabasePool
+  });
+  registerDiscordWebhookEventsRoutes(server, {
+    intakeLogService: providerEventIntakeLogService
   });
   registerTwitchEventSubWebhookRoutes(server, {
     intakeLogService: providerEventIntakeLogService

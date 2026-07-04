@@ -335,7 +335,9 @@ const buildDiscordStatus = (
     createEnvStatus(env, "DISCORD_APPLICATION_ID", "identifier", false),
     createEnvStatus(env, "DISCORD_GUILD_ID", "identifier", false),
     createEnvStatus(env, "DISCORD_CLIENT_ID", "identifier", false),
-    createEnvStatus(env, "DISCORD_CLIENT_SECRET", "secret", false)
+    createEnvStatus(env, "DISCORD_CLIENT_SECRET", "secret", false),
+    createEnvStatus(env, "DISCORD_PUBLIC_KEY", "identifier", false),
+    createEnvStatus(env, "DISCORD_APPLICATION_PUBLIC_KEY", "identifier", false)
   ] as const;
   const issues = variables
     .map((variable) => issueForEnv(env, variable))
@@ -378,6 +380,12 @@ const buildDiscordStatus = (
         label: "Discord Gateway library",
         state: "available",
         detail: "discord.js is installed for read-only Gateway/message intake."
+      },
+      {
+        key: "discord-webhook-events",
+        label: "Discord webhook events",
+        state: variables[5].configured || variables[6].configured ? "configured" : "missing",
+        detail: "Verified webhook event receiver can log Discord app webhooks when the application public key is configured."
       },
       {
         key: "discord-chat-runtime",
