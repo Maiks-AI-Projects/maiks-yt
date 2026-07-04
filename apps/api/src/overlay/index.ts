@@ -4,4 +4,5 @@ export {
   type OverlayLiveSocket,
   type OverlayRuntimeStatus
 } from "./overlay-runtime.service.js";
-export { registerOverlayRoutes, type OverlayRouteDependencies } from "./overlay.route.js";
+export { registerOverlayRoutes } from "./overlay.route.js";
+export type { OverlayRouteDependencies } from "./overlay-route-validation.service.js";

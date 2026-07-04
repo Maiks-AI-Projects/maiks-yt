@@ -1,180 +1,39 @@
 import { randomUUID } from "node:crypto";
 
-import type { UrlAccessSurface } from "@maiks-yt/domain/security";
-import type { OverlayFakeChatMessageReceivedEvent, OverlayLiveMessage, StreamerChatMessage } from "@maiks-yt/events";
+import type { OverlayLiveMessage } from "@maiks-yt/events";
 import { overlaySceneSlotIds } from "@maiks-yt/themes";
-import type { FastifyInstance, FastifyRequest } from "fastify";
-import { z } from "zod";
+import type { FastifyInstance } from "fastify";
 
-import type { DemoRedeemKey, OverlayLiveSocket, OverlayRuntime } from "./index.js";
-import type { StreamerChatModerationAction } from "../streamer-chat/index.js";
-
-const overlaySceneKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/);
-const overlayThemeKeySchema = z.enum(["default", "satisfactory"]);
-const overlayStateRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  scene: overlaySceneKeySchema.default("default"),
-  layout: z.enum(["standard", "camera-left", "camera-right", "clean"]).default("standard"),
-  theme: overlayThemeKeySchema.default("default"),
-  mode: z.enum(["normal", "clean"]).default("normal")
-});
-const overlayStatusRequestSchema = z.object({
-  accessToken: z.string().min(24)
-});
-const overlayPresentationStateRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  scene: overlaySceneKeySchema,
-  layout: z.enum(["standard", "camera-left", "camera-right", "clean"]),
-  theme: overlayThemeKeySchema
-});
-const overlayTopBarTestRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  count: z.number().int().min(1).max(6).default(1)
-});
-const overlayTopBarEnabledRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  enabled: z.boolean()
-});
-const overlayEmergencyCleanModeRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  enabled: z.boolean()
-});
-const overlayChatVisibilityRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  visible: z.boolean()
-});
-const overlayChatOrderRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  newestOnTop: z.boolean()
-});
-const overlayFakeChatTestRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  authorName: z.string().trim().min(1).max(40).default("Test chatter"),
-  authorKind: z.enum(["human", "bot", "system"]).default("human"),
-  message: z.string().trim().min(1).max(280)
-});
-const overlaySponsorVisibilityRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  visible: z.boolean()
-});
-const overlayAiMutedRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  muted: z.boolean()
-});
-const overlayCenterSettingsRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  enabled: z.boolean(),
-  onscreenMs: z.number().int().min(1_000).max(20_000),
-  fadeOutMs: z.number().int().min(100).max(5_000),
-  restMs: z.number().int().min(0).max(10_000)
-});
-const overlayNotificationTestRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  route: z.enum(["top", "center"]),
-  afterCenter: z.enum(["top", "none"]).default("top"),
-  count: z.number().int().min(1).max(6).default(1)
-});
-const overlayRedeemTestRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  redeem: z.enum(["hydrate", "jumpscare", "mime"])
-});
-const overlayGoalStateSchema = z.object({
-  accessToken: z.string().min(24),
-  enabled: z.boolean(),
-  label: z.string().trim().min(1).max(80),
-  currentAmount: z.number().min(0).max(1_000_000),
-  targetAmount: z.number().positive().max(1_000_000),
-  currencyCode: z.string().trim().regex(/^[A-Z]{3}$/)
-}).refine((value) => value.currentAmount <= value.targetAmount, {
-  message: "current_amount_cannot_exceed_target",
-  path: ["currentAmount"]
-});
-const overlaySceneListRequestSchema = z.object({
-  accessToken: z.string().min(24)
-});
-const overlaySceneSlotSchema = z.object({
-  x: z.number().int().min(0).max(1920),
-  y: z.number().int().min(0).max(1080),
-  width: z.number().int().min(0).max(1920),
-  height: z.number().int().min(0).max(1080),
-  visible: z.boolean(),
-  lockedAspectRatio: z.number().positive().optional()
-});
-const overlaySceneSaveRequestSchema = z.object({
-  accessToken: z.string().min(24),
-  scene: z.object({
-    themeKey: overlayThemeKeySchema,
-    sceneKey: overlaySceneKeySchema,
-    label: z.string().min(1).max(80),
-    canvas: z.object({
-      width: z.literal(1920),
-      height: z.literal(1080)
-    }),
-    slots: z.record(z.enum(overlaySceneSlotIds), overlaySceneSlotSchema)
-  })
-});
-
-type UrlAccessTokenValidation = {
-  valid: boolean;
-  requiresLogin: boolean;
-  reason?: string;
-};
-
-type ValidateUrlAccessToken = (input: {
-  scope: string;
-  surface: UrlAccessSurface;
-  token: string;
-}) => Promise<UrlAccessTokenValidation>;
-
-type RequireStreamerChatModerationPermission = (
-  request: FastifyRequest,
-  accessToken: string,
-  action: StreamerChatModerationAction
-) => Promise<{ ok: true } | { ok: false; reason: string; statusCode: 401 | 403 }>;
-
-type FakeLocalModerationRuntime = {
-  isAuthorMuted(authorName: string): { authorName: string; mutedUntil: string } | null;
-};
-
-export type OverlayRouteDependencies = {
-  fakeLocalModerationRuntime: FakeLocalModerationRuntime;
-  overlayRuntime: OverlayRuntime;
-  recordFakeLocalStreamerChatMessage: (event: OverlayFakeChatMessageReceivedEvent) => StreamerChatMessage | null;
-  requireStreamerChatModerationPermission: RequireStreamerChatModerationPermission;
-  validateUrlAccessToken: ValidateUrlAccessToken;
-};
-
-const createFakeChatMessageEvent = ({
-  authorKind,
-  authorName,
-  message
-}: {
-  authorKind: OverlayFakeChatMessageReceivedEvent["payload"]["authorKind"];
-  authorName: string;
-  message: string;
-}): OverlayFakeChatMessageReceivedEvent => ({
-  type: "overlay.fake-chat.message.received",
-  payload: {
-    id: randomUUID(),
-    authorKind,
-    authorName,
-    createdAt: new Date().toISOString(),
-    message,
-    source: "fake-local"
-  }
-});
+import type { OverlayLiveSocket } from "./index.js";
+import {
+  overlayAiMutedRequestSchema,
+  overlayCenterSettingsRequestSchema,
+  overlayChatOrderRequestSchema,
+  overlayChatVisibilityRequestSchema,
+  overlayEmergencyCleanModeRequestSchema,
+  overlayGoalStateSchema,
+  overlayPresentationStateRequestSchema,
+  overlaySceneListRequestSchema,
+  overlaySceneSaveRequestSchema,
+  overlaySponsorVisibilityRequestSchema,
+  overlayStateRequestSchema,
+  overlayStatusRequestSchema,
+  overlayTopBarEnabledRequestSchema,
+  type OverlayRouteDependencies
+} from "./overlay-route-validation.service.js";
+import { registerOverlayTestRoutes } from "./overlay-test.route.js";
 
 export const registerOverlayRoutes = (
   server: FastifyInstance,
   dependencies: OverlayRouteDependencies
 ): void => {
   const {
-    fakeLocalModerationRuntime,
     overlayRuntime,
-    recordFakeLocalStreamerChatMessage,
     requireStreamerChatModerationPermission,
     validateUrlAccessToken
   } = dependencies;
+
+  registerOverlayTestRoutes(server, dependencies);
 
   server.get("/overlay/state", async (request, reply) => {
     const parsedRequest = overlayStateRequestSchema.safeParse(request.query);
@@ -608,73 +467,6 @@ export const registerOverlayRoutes = (
     };
   });
 
-  server.post("/overlay/chat/test", async (request, reply) => {
-    const parsedRequest = overlayFakeChatTestRequestSchema.safeParse(request.body);
-
-    if (!parsedRequest.success) {
-      reply.code(400);
-      return {
-        ok: false,
-        reason: "invalid_request"
-      };
-    }
-
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
-
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
-    }
-
-    const event = createFakeChatMessageEvent(parsedRequest.data);
-    const mutedAuthor = fakeLocalModerationRuntime.isAuthorMuted(event.payload.authorName);
-
-    if (mutedAuthor) {
-      return {
-        ok: true,
-        queued: 0,
-        reason: "fake_local_author_muted",
-        mutedUntil: mutedAuthor.mutedUntil,
-        chatVisible: overlayRuntime.getChatVisible(),
-        streamerChatMessage: null,
-        event: null,
-        activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-      };
-    }
-
-    const streamerChatMessage = recordFakeLocalStreamerChatMessage(event);
-
-    if (!streamerChatMessage) {
-      return {
-        ok: true,
-        queued: 0,
-        reason: "streamer_chat_actor_banned",
-        chatVisible: overlayRuntime.getChatVisible(),
-        streamerChatMessage: null,
-        event: null,
-        activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-      };
-    }
-
-    overlayRuntime.broadcastMessage(event);
-
-    return {
-      ok: true,
-      queued: 1,
-      chatVisible: overlayRuntime.getChatVisible(),
-      streamerChatMessage,
-      event,
-      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-    };
-  });
-
   server.post("/overlay/sponsor/visibility", async (request, reply) => {
     const parsedRequest = overlaySponsorVisibilityRequestSchema.safeParse(request.body);
 
@@ -739,140 +531,6 @@ export const registerOverlayRoutes = (
     return {
       ok: true,
       aiMuted,
-      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-    };
-  });
-
-  server.post("/overlay/top-bar/test", async (request, reply) => {
-    const parsedRequest = overlayTopBarTestRequestSchema.safeParse(request.body);
-
-    if (!parsedRequest.success) {
-      reply.code(400);
-      return {
-        ok: false,
-        reason: "invalid_request"
-      };
-    }
-
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
-
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
-    }
-
-    for (let index = 0; index < parsedRequest.data.count; index += 1) {
-      setTimeout(() => {
-        overlayRuntime.broadcastMessage(overlayRuntime.createDemoTopBarNotification(index));
-      }, index * 500);
-    }
-
-    return {
-      ok: true,
-      queued: parsedRequest.data.count,
-      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-    };
-  });
-
-  server.post("/overlay/notification/test", async (request, reply) => {
-    const parsedRequest = overlayNotificationTestRequestSchema.safeParse(request.body);
-
-    if (!parsedRequest.success) {
-      reply.code(400);
-      return {
-        ok: false,
-        reason: "invalid_request"
-      };
-    }
-
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
-
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
-    }
-
-    if (parsedRequest.data.route === "center" && !overlayRuntime.isCenterEnabled()) {
-      return {
-        ok: true,
-        queued: 0,
-        route: "center",
-        reason: "center_notifications_disabled",
-        activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-      };
-    }
-
-    const route = parsedRequest.data.route;
-
-    for (let index = 0; index < parsedRequest.data.count; index += 1) {
-      setTimeout(() => {
-        overlayRuntime.broadcastMessage(overlayRuntime.createDemoRoutedNotification(index, route, parsedRequest.data.afterCenter));
-      }, index * 500);
-    }
-
-    return {
-      ok: true,
-      queued: parsedRequest.data.count,
-      route,
-      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-    };
-  });
-
-  server.post("/overlay/redeem/test", async (request, reply) => {
-    const parsedRequest = overlayRedeemTestRequestSchema.safeParse(request.body);
-
-    if (!parsedRequest.success) {
-      reply.code(400);
-      return {
-        ok: false,
-        reason: "invalid_request"
-      };
-    }
-
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
-
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
-    }
-
-    if (!overlayRuntime.isCenterEnabled()) {
-      return {
-        ok: true,
-        queued: 0,
-        redeem: parsedRequest.data.redeem,
-        reason: "center_notifications_disabled",
-        activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-      };
-    }
-
-    overlayRuntime.broadcastMessage(overlayRuntime.createRedeemNotification(parsedRequest.data.redeem as DemoRedeemKey));
-
-    return {
-      ok: true,
-      queued: 1,
-      redeem: parsedRequest.data.redeem,
       activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   });
