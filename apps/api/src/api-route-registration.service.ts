@@ -14,6 +14,7 @@ import {
   registerEventRoutingDispatchRoutes,
   type EventRoutingPlaybackPublisher
 } from "./event-routing/index.js";
+import { registerDevOwnerTokenRoutes } from "./dev-testing/index.js";
 import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
@@ -154,6 +155,9 @@ export const registerApplicationRoutes = ({
   });
   registerNotificationAdminRoutes(server, {
     getAuthSession,
+    getDatabasePool
+  });
+  registerDevOwnerTokenRoutes(server, {
     getDatabasePool
   });
   registerProviderIntegrationStatusRoutes(server, {

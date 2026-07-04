@@ -38,6 +38,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
 - Money planning now includes `ideas/profit-aware-money-reporting-and-dated-rules.md`. Before public donations/support are implemented, a money phase should include private accounting reports, dated fee/split rules, immutable corrections, and exportable gross/net income/cost summaries.
 - Large-file split planning now lives in `reports/large-file-split-proposal.md`. The most urgent hotspots are `apps/api/src/main.ts` and `apps/control-panel/src/main.tsx`; start with behavior-preserving API streamer-chat extraction before broader cleanup.
+- Dev coordinator smoke can use `POST /dev/testing/owner-token` after deployment. It is production-disabled, secret-protected, selects an existing linked owner wildcard user, writes only a hash to `dev_auth_tokens`, returns the raw token/login URL once, and caps TTL to 1-15 minutes. This is for testing normal owner-gated pages/APIs without keeping long-lived tokens in context.
 
 ## Phase 6A: Provider Integration Foundation (Completed On Dev)
 

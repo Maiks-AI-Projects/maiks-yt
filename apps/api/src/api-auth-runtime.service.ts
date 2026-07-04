@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import type { DatabasePool } from "@maiks-yt/database";
 import { canUseUrlAccessToken, type UrlAccessSurface } from "@maiks-yt/domain/security";
 import { fromNodeHeaders } from "better-auth/node";
@@ -7,6 +5,7 @@ import type { FastifyRequest } from "fastify";
 
 import { parseJsonArray, type AuthSessionSnapshot } from "./account/index.js";
 import { auth } from "./auth/better-auth.service.js";
+import { hashToken } from "./security/token-hash.service.js";
 
 type DevAuthTokenRow = {
   tokenId: string;
@@ -16,7 +15,7 @@ type DevAuthTokenRow = {
   image?: string | null;
 };
 
-export const hashToken = (token: string): string => createHash("sha256").update(token, "utf8").digest("hex");
+export { hashToken };
 
 const getRequestOrigin = (request: FastifyRequest): string => {
   const forwardedProto = request.headers["x-forwarded-proto"];
