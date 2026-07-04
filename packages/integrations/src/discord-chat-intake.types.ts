@@ -12,6 +12,19 @@ export type DiscordChatProjectedMessage = {
   visibleOnOverlayByDefault: false;
 };
 
+export type DiscordGatewayProjectedEvent = {
+  actorDisplayName: string | null;
+  actorExternalId: string | null;
+  channelId: string | null;
+  guildId: string;
+  messageId: string | null;
+  occurredAt: string;
+  providerEventName: string;
+  redactedPayload: Record<string, unknown>;
+  source: "discord";
+  sourceEventId: string;
+};
+
 export type DiscordChatProjectionInput = {
   authorDisplayName?: string | null;
   authorUsername: string;
@@ -23,6 +36,14 @@ export type DiscordChatProjectionInput = {
   text: string;
 };
 
+export type DiscordGatewayEventProjectionInput = {
+  data: Record<string, unknown>;
+  guildId: string;
+  providerEventName: string;
+  receivedAt?: Date;
+  sequence?: number | null;
+};
+
 export type DiscordChatProjectionResult =
   | {
     ok: true;
@@ -31,6 +52,16 @@ export type DiscordChatProjectionResult =
   | {
     ok: false;
     reason: "empty_author" | "empty_channel" | "empty_guild" | "empty_message";
+  };
+
+export type DiscordGatewayEventProjectionResult =
+  | {
+    ok: true;
+    event: DiscordGatewayProjectedEvent;
+  }
+  | {
+    ok: false;
+    reason: "empty_event" | "empty_guild" | "wrong_guild" | "chat_message_create";
   };
 
 export type DiscordChatIntakeStatus =

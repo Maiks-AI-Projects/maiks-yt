@@ -7,17 +7,20 @@ import {
 } from "discord.js";
 
 import {
+  projectDiscordGatewayEvent,
   projectDiscordChatMessage,
   resolveDiscordChatChannelIds,
   resolveDiscordChatGuildId
 } from "./discord-chat-intake.rules.js";
 import type {
+  DiscordGatewayProjectedEvent,
   DiscordChatIntakeStatus,
   DiscordChatProjectedMessage
 } from "./discord-chat-intake.types.js";
 
 type DiscordReadyHandler = () => void;
 type DiscordMessageHandler = (message: DiscordReadableMessage) => void;
+type DiscordRawGatewayHandler = (packet: DiscordRawGatewayPacket) => void;
 type DiscordDisconnectHandler = (event?: unknown) => void;
 type DiscordErrorHandler = (error: unknown) => void;
 
@@ -35,6 +38,12 @@ export type DiscordReadableMessage = {
   id: string;
 };
 
+export type DiscordRawGatewayPacket = {
+  d?: unknown;
+  s?: number | null;
+  t?: string | null;
+};
+
 type DiscordGatewayClientLike = {
   destroy: () => void;
   isReady: () => boolean;
@@ -42,12 +51,14 @@ type DiscordGatewayClientLike = {
   off: {
     (event: "ready", handler: DiscordReadyHandler): DiscordGatewayClientLike;
     (event: "messageCreate", handler: DiscordMessageHandler): DiscordGatewayClientLike;
+    (event: "raw", handler: DiscordRawGatewayHandler): DiscordGatewayClientLike;
     (event: "shardDisconnect", handler: DiscordDisconnectHandler): DiscordGatewayClientLike;
     (event: "error", handler: DiscordErrorHandler): DiscordGatewayClientLike;
   };
   on: {
     (event: "ready", handler: DiscordReadyHandler): DiscordGatewayClientLike;
     (event: "messageCreate", handler: DiscordMessageHandler): DiscordGatewayClientLike;
+    (event: "raw", handler: DiscordRawGatewayHandler): DiscordGatewayClientLike;
     (event: "shardDisconnect", handler: DiscordDisconnectHandler): DiscordGatewayClientLike;
     (event: "error", handler: DiscordErrorHandler): DiscordGatewayClientLike;
   };
@@ -58,6 +69,7 @@ type DiscordChatReadOnlyIntakeOptions = {
   env?: Record<string, string | undefined>;
   maxRecentMessages?: number;
   maxUnexpectedDisconnectsInWindow?: number;
+  onGatewayEvent?: (event: DiscordGatewayProjectedEvent) => void;
   onMessage?: (message: DiscordChatProjectedMessage) => void;
   onReconnectSuppressed?: (status: DiscordChatIntakeStatus) => void;
   reconnectDelayMs?: number;
@@ -127,6 +139,15 @@ const createDiscordGatewayClient = (): DiscordGatewayClientLike => {
         return adapter;
       }
 
+      if (event === "raw") {
+        const wrapped = ((packet: DiscordRawGatewayPacket) => {
+          (handler as DiscordRawGatewayHandler)(packet);
+        }) as (...args: never[]) => void;
+        wrappers.set(key, wrapped);
+        client.on(Events.Raw, wrapped as never);
+        return adapter;
+      }
+
       wrappers.set(key, handler as (...args: never[]) => void);
       client.on(event === "ready" ? Events.ClientReady : event, handler as never);
       return adapter;
@@ -135,6 +156,17 @@ const createDiscordGatewayClient = (): DiscordGatewayClientLike => {
       const key = wrapperKey(event, handler);
       const wrapped = wrappers.get(key) ?? handler as (...args: never[]) => void;
       wrappers.delete(key);
+
+      if (event === "messageCreate") {
+        client.off(Events.MessageCreate, wrapped as never);
+        return adapter;
+      }
+
+      if (event === "raw") {
+        client.off(Events.Raw, wrapped as never);
+        return adapter;
+      }
+
       client.off(event === "ready" ? Events.ClientReady : event, wrapped as never);
       return adapter;
     }
@@ -151,6 +183,7 @@ export class DiscordChatReadOnlyIntakeService {
   private readonly maxUnexpectedDisconnectsInWindow: number;
   private readonly maxRecentMessages: number;
   private readonly now: () => Date;
+  private readonly onProjectedGatewayEvent: ((event: DiscordGatewayProjectedEvent) => void) | undefined;
   private readonly onProjectedMessage: ((message: DiscordChatProjectedMessage) => void) | undefined;
   private readonly onReconnectSuppressed: ((status: DiscordChatIntakeStatus) => void) | undefined;
   private readonly reconnectDelayMs: number;
@@ -181,6 +214,7 @@ export class DiscordChatReadOnlyIntakeService {
     this.maxUnexpectedDisconnectsInWindow = options.maxUnexpectedDisconnectsInWindow ?? 10;
     this.maxRecentMessages = options.maxRecentMessages ?? 25;
     this.now = options.now ?? (() => new Date());
+    this.onProjectedGatewayEvent = options.onGatewayEvent;
     this.onProjectedMessage = options.onMessage;
     this.onReconnectSuppressed = options.onReconnectSuppressed;
     this.reconnectDelayMs = options.reconnectDelayMs ?? 5_000;
@@ -290,6 +324,7 @@ export class DiscordChatReadOnlyIntakeService {
   private attachListeners(client: DiscordGatewayClientLike): void {
     client.on("ready", this.handleReady);
     client.on("messageCreate", this.handleMessage);
+    client.on("raw", this.handleRawGatewayPacket);
     client.on("shardDisconnect", this.handleDisconnect);
     client.on("error", this.handleError);
   }
@@ -297,6 +332,7 @@ export class DiscordChatReadOnlyIntakeService {
   private detachListeners(client: DiscordGatewayClientLike): void {
     client.off("ready", this.handleReady);
     client.off("messageCreate", this.handleMessage);
+    client.off("raw", this.handleRawGatewayPacket);
     client.off("shardDisconnect", this.handleDisconnect);
     client.off("error", this.handleError);
   }
@@ -335,6 +371,26 @@ export class DiscordChatReadOnlyIntakeService {
     this.recentMessages.unshift(projection.message);
     this.recentMessages.splice(this.maxRecentMessages);
     this.onProjectedMessage?.({ ...projection.message });
+  };
+
+  private readonly handleRawGatewayPacket = (packet: DiscordRawGatewayPacket): void => {
+    if (!packet.t || !packet.d || typeof packet.d !== "object" || Array.isArray(packet.d)) {
+      return;
+    }
+
+    const projection = projectDiscordGatewayEvent({
+      data: packet.d as Record<string, unknown>,
+      guildId: this.guildId,
+      providerEventName: packet.t,
+      receivedAt: this.now(),
+      ...(packet.s === undefined ? {} : { sequence: packet.s })
+    });
+
+    if (!projection.ok) {
+      return;
+    }
+
+    this.onProjectedGatewayEvent?.({ ...projection.event });
   };
 
   private readonly handleDisconnect = (event?: unknown): void => {

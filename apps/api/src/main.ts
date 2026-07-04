@@ -4,6 +4,7 @@ import {
   DiscordChatReadOnlyIntakeService,
   TwitchChatReadOnlyIntakeService,
   YouTubeLiveChatReadOnlyIntakeService,
+  type DiscordGatewayProjectedEvent,
   type DiscordChatProjectedMessage,
   type TwitchChatProjectedMessage,
   type YouTubeLiveChatProjectedMessage
@@ -138,6 +139,16 @@ const writeProviderChatIntakeLog = (
   });
 };
 
+const writeProviderGatewayIntakeLog = (event: DiscordGatewayProjectedEvent): void => {
+  void providerEventIntakeLogService.recordProviderEvent(event).then((result) => {
+    if (!result.ok) {
+      server.log.warn({ reason: result.reason, source: event.source, providerEventName: event.providerEventName }, "Provider Gateway intake ledger write failed.");
+    }
+  }).catch((error: unknown) => {
+    server.log.warn({ err: error, source: event.source, providerEventName: event.providerEventName }, "Provider Gateway intake ledger write failed.");
+  });
+};
+
 const recordFakeLocalStreamerChatMessage = (
   event: OverlayFakeChatMessageReceivedEvent
 ): StreamerChatMessage | null => {
@@ -173,6 +184,7 @@ const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
   onReconnectSuppressed: createProviderReconnectSuppressedNotifier("twitch", "Twitch")
 });
 const discordChatIntakeRuntime = new DiscordChatReadOnlyIntakeService({
+  onGatewayEvent: writeProviderGatewayIntakeLog,
   onMessage: recordDiscordStreamerChatMessage,
   onReconnectSuppressed: createProviderReconnectSuppressedNotifier("discord", "Discord")
 });

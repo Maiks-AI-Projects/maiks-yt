@@ -108,6 +108,86 @@ describe("ProviderEventIntakeLogService", () => {
     });
   });
 
+  it("records non-chat Discord Gateway events as provider intake rows", async () => {
+    const repository = new FakeProviderEventIntakeLogRepository();
+    const service = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      repository
+    });
+
+    await expect(service.recordProviderEvent({
+      actorDisplayName: "Discord Viewer",
+      actorExternalId: "discord-user-1",
+      channelId: "discord-channel-1",
+      guildId: "discord-guild-1",
+      messageId: "discord-message-1",
+      occurredAt: "2026-07-04T15:59:59.000Z",
+      providerEventName: "MESSAGE_UPDATE",
+      redactedPayload: {
+        channelId: "discord-channel-1",
+        guildId: "discord-guild-1",
+        providerEventName: "MESSAGE_UPDATE"
+      },
+      source: "discord",
+      sourceEventId: "discord-gateway:MESSAGE_UPDATE:discord-message-1"
+    })).resolves.toMatchObject({
+      ok: true
+    });
+
+    expect(repository.writes[0]).toMatchObject({
+      actorDisplayName: "Discord Viewer",
+      actorExternalId: "discord-user-1",
+      catalogKnown: true,
+      category: "chat",
+      internalTrigger: "provider.discord.gateway.message-update",
+      mechanism: "discord-gateway",
+      provider: "discord",
+      providerChannelId: "discord-channel-1",
+      providerEventName: "MESSAGE_UPDATE",
+      providerMessageId: "discord-message-1",
+      sourceEventId: "discord-gateway:MESSAGE_UPDATE:discord-message-1"
+    });
+    expect(repository.writes[0]?.safety.overlayEligibleByDefault).toBe(false);
+  });
+
+  it("records unknown Discord Gateway events with unknown-safe internal triggers", async () => {
+    const repository = new FakeProviderEventIntakeLogRepository();
+    const service = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      repository
+    });
+
+    await expect(service.recordProviderEvent({
+      actorDisplayName: null,
+      actorExternalId: null,
+      channelId: null,
+      guildId: "discord-guild-1",
+      messageId: null,
+      occurredAt: "2026-07-04T15:59:59.000Z",
+      providerEventName: "FUTURE_DISCORD_EVENT",
+      redactedPayload: {
+        guildId: "discord-guild-1",
+        providerEventName: "FUTURE_DISCORD_EVENT",
+        token: "must-redact"
+      },
+      source: "discord",
+      sourceEventId: "discord-gateway:FUTURE_DISCORD_EVENT:1"
+    })).resolves.toMatchObject({
+      ok: true
+    });
+
+    expect(repository.writes[0]).toMatchObject({
+      catalogKnown: false,
+      category: "unknown",
+      internalTrigger: "provider.discord.unknown.discord.gateway.future-discord-event",
+      mechanism: "discord-gateway",
+      provider: "discord",
+      providerEventName: "FUTURE_DISCORD_EVENT"
+    });
+    expect(repository.writes[0]?.safety.internalOnly).toBe(true);
+    expect(repository.writes[0]?.redactedPayload.token).toBe("[redacted]");
+  });
+
   it("records YouTube chat as a live chat text event", async () => {
     const repository = new FakeProviderEventIntakeLogRepository();
     const service = new ProviderEventIntakeLogService({

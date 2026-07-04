@@ -1,13 +1,19 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
 
 import {
+  projectDiscordGatewayEvent,
   projectDiscordChatMessage,
   resolveDiscordChatChannelIds,
   resolveDiscordChatGuildId
 } from "./discord-chat-intake.rules.js";
-import { DiscordChatReadOnlyIntakeService, type DiscordReadableMessage } from "./discord-chat-intake.service.js";
+import {
+  DiscordChatReadOnlyIntakeService,
+  type DiscordRawGatewayPacket,
+  type DiscordReadableMessage
+} from "./discord-chat-intake.service.js";
 
 type EventHandler = (...args: never[]) => void;
+type FakeDiscordEventName = "ready" | "messageCreate" | "raw" | "shardDisconnect" | "error";
 
 class FakeDiscordClient {
   public readonly destroy = vi.fn(() => {
@@ -19,19 +25,19 @@ class FakeDiscordClient {
     this.handlers.ready?.();
     return "logged-in";
   });
-  private readonly handlers: Partial<Record<"ready" | "messageCreate" | "shardDisconnect" | "error", EventHandler>> = {};
+  private readonly handlers: Partial<Record<FakeDiscordEventName, EventHandler>> = {};
   private ready = false;
 
   public isReady(): boolean {
     return this.ready;
   }
 
-  public on(event: "ready" | "messageCreate" | "shardDisconnect" | "error", handler: EventHandler): this {
+  public on(event: FakeDiscordEventName, handler: EventHandler): this {
     this.handlers[event] = handler;
     return this;
   }
 
-  public off(event: "ready" | "messageCreate" | "shardDisconnect" | "error", handler: EventHandler): this {
+  public off(event: FakeDiscordEventName, handler: EventHandler): this {
     if (this.handlers[event] === handler) {
       delete this.handlers[event];
     }
@@ -53,6 +59,10 @@ class FakeDiscordClient {
       id: "discord-message-1",
       ...overrides
     } as never);
+  }
+
+  public emitRaw(packet: DiscordRawGatewayPacket): void {
+    this.handlers.raw?.(packet as never);
   }
 
   public emitUnexpectedDisconnect(reason = new Error("gateway dropped")): void {
@@ -110,6 +120,68 @@ describe("projectDiscordChatMessage", () => {
     });
     expect(resolveDiscordChatGuildId({ DISCORD_GUILD_ID: " guild-1 " })).toBe("guild-1");
     expect(resolveDiscordChatChannelIds({ DISCORD_CHAT_CHANNEL_IDS: " channel-1, channel-2 " })).toEqual(["channel-1", "channel-2"]);
+  });
+});
+
+describe("projectDiscordGatewayEvent", () => {
+  it("projects non-chat Discord Gateway events for provider intake", () => {
+    const result = projectDiscordGatewayEvent({
+      data: {
+        channel_id: "channel-1",
+        guild_id: "guild-1",
+        id: "message-1",
+        user: {
+          global_name: "  Viewer  ",
+          id: "user-1",
+          username: "viewer"
+        }
+      },
+      guildId: "guild-1",
+      providerEventName: "MESSAGE_UPDATE",
+      receivedAt: new Date("2026-07-04T18:00:00.000Z"),
+      sequence: 42
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      event: expect.objectContaining({
+        actorDisplayName: "Viewer",
+        actorExternalId: "user-1",
+        channelId: "channel-1",
+        guildId: "guild-1",
+        messageId: "message-1",
+        occurredAt: "2026-07-04T18:00:00.000Z",
+        providerEventName: "MESSAGE_UPDATE",
+        source: "discord",
+        sourceEventId: "discord-gateway:MESSAGE_UPDATE:message-1"
+      })
+    });
+  });
+
+  it("rejects wrong-guild events and chat create events handled by chat intake", () => {
+    expect(projectDiscordGatewayEvent({
+      data: {
+        guild_id: "other-guild",
+        id: "message-1"
+      },
+      guildId: "guild-1",
+      providerEventName: "MESSAGE_UPDATE"
+    })).toEqual({
+      ok: false,
+      reason: "wrong_guild"
+    });
+
+    expect(projectDiscordGatewayEvent({
+      data: {
+        guild_id: "guild-1",
+        id: "message-1"
+      },
+      guildId: "guild-1",
+      providerEventName: "MESSAGE_CREATE"
+    })).toEqual({
+      ok: false,
+      reason: "chat_message_create"
+    });
   });
 });
 
@@ -174,6 +246,52 @@ describe("DiscordChatReadOnlyIntakeService", () => {
         source: "discord"
       })
     ]);
+  });
+
+  it("projects raw non-chat Gateway packets to the provider intake callback", async () => {
+    const fakeClient = new FakeDiscordClient();
+    const onGatewayEvent = vi.fn();
+    const service = new DiscordChatReadOnlyIntakeService({
+      createClient: () => fakeClient as never,
+      env: {
+        DISCORD_BOT_TOKEN: "bot-token",
+        DISCORD_GUILD_ID: "guild-1"
+      },
+      now: () => new Date("2026-07-04T18:00:00.000Z"),
+      onGatewayEvent
+    });
+
+    service.start();
+    await Promise.resolve();
+    fakeClient.emitRaw({
+      d: {
+        channel_id: "channel-1",
+        guild_id: "guild-1",
+        id: "message-1",
+        user: {
+          id: "user-1",
+          username: "viewer"
+        }
+      },
+      s: 42,
+      t: "MESSAGE_UPDATE"
+    });
+    fakeClient.emitRaw({
+      d: {
+        guild_id: "guild-1",
+        id: "message-2"
+      },
+      s: 43,
+      t: "MESSAGE_CREATE"
+    });
+
+    expect(onGatewayEvent).toHaveBeenCalledTimes(1);
+    expect(onGatewayEvent).toHaveBeenCalledWith(expect.objectContaining({
+      channelId: "channel-1",
+      guildId: "guild-1",
+      providerEventName: "MESSAGE_UPDATE",
+      source: "discord"
+    }));
   });
 
   it("auto-reconnects after an unexpected disconnect", async () => {

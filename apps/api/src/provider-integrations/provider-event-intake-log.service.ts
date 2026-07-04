@@ -2,6 +2,7 @@ import { normalizeProviderEventIntake } from "@maiks-yt/domain/events";
 
 import type {
   ProviderChatMessageForIntake,
+  ProviderGenericEventForIntake,
   ProviderEventIntakeLogRepository,
   ProviderEventIntakeLogResult,
   ProviderEventIntakeLogServiceOptions
@@ -28,6 +29,42 @@ export class ProviderEventIntakeLogService {
       receivedAt: this.now(),
       redactedPayload: this.toRedactedPayload(message),
       sourceEventId: message.providerMessageId
+    });
+
+    if (!normalized.ok) {
+      return {
+        ok: false,
+        reason: "invalid_provider_event"
+      };
+    }
+
+    try {
+      const result = await this.repository.write(normalized.value);
+      return {
+        inserted: result.inserted,
+        ok: true
+      };
+    } catch {
+      return {
+        ok: false,
+        reason: "write_failed"
+      };
+    }
+  }
+
+  public async recordProviderEvent(event: ProviderGenericEventForIntake): Promise<ProviderEventIntakeLogResult> {
+    const normalized = normalizeProviderEventIntake({
+      actorDisplayName: event.actorDisplayName,
+      actorExternalId: event.actorExternalId,
+      mechanism: "discord-gateway",
+      occurredAt: event.occurredAt,
+      provider: event.source,
+      providerChannelId: event.channelId,
+      providerEventName: event.providerEventName,
+      providerMessageId: event.messageId,
+      receivedAt: this.now(),
+      redactedPayload: event.redactedPayload,
+      sourceEventId: event.sourceEventId
     });
 
     if (!normalized.ok) {
