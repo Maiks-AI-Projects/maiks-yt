@@ -32,7 +32,11 @@ import {
   NotificationAdminService
 } from "./notifications/index.js";
 import { OverlayRuntime } from "./overlay/index.js";
-import { createYouTubeLiveChatContextRepository } from "./provider-integrations/index.js";
+import {
+  createProviderEventIntakeLogRepository,
+  createYouTubeLiveChatContextRepository,
+  ProviderEventIntakeLogService
+} from "./provider-integrations/index.js";
 import {
   InMemoryFakeLocalModerationRuntime,
   InMemoryStreamerChatModerationRuntime,
@@ -118,6 +122,22 @@ const appendStreamerChatMessage = (message: StreamerChatMessage): StreamerChatMe
   return streamerChatRuntime.appendMessage(message);
 };
 
+const providerEventIntakeLogService = new ProviderEventIntakeLogService({
+  repository: createProviderEventIntakeLogRepository(getDatabasePool())
+});
+
+const writeProviderChatIntakeLog = (
+  message: TwitchChatProjectedMessage | DiscordChatProjectedMessage | YouTubeLiveChatProjectedMessage
+): void => {
+  void providerEventIntakeLogService.recordChatMessage(message).then((result) => {
+    if (!result.ok) {
+      server.log.warn({ reason: result.reason, source: message.source }, "Provider chat intake ledger write failed.");
+    }
+  }).catch((error: unknown) => {
+    server.log.warn({ err: error, source: message.source }, "Provider chat intake ledger write failed.");
+  });
+};
+
 const recordFakeLocalStreamerChatMessage = (
   event: OverlayFakeChatMessageReceivedEvent
 ): StreamerChatMessage | null => {
@@ -130,17 +150,23 @@ const recordFakeLocalStreamerChatMessage = (
   return appendStreamerChatMessage(message);
 };
 
-const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): StreamerChatMessage =>
-  appendStreamerChatMessage({ ...message });
+const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): StreamerChatMessage => {
+  writeProviderChatIntakeLog(message);
+  return appendStreamerChatMessage({ ...message });
+};
 
-const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage): StreamerChatMessage =>
-  appendStreamerChatMessage({
+const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage): StreamerChatMessage => {
+  writeProviderChatIntakeLog(message);
+  return appendStreamerChatMessage({
     ...message,
     channelName: message.channelName
   });
+};
 
-const recordYouTubeStreamerChatMessage = (message: YouTubeLiveChatProjectedMessage): StreamerChatMessage =>
-  appendStreamerChatMessage({ ...message });
+const recordYouTubeStreamerChatMessage = (message: YouTubeLiveChatProjectedMessage): StreamerChatMessage => {
+  writeProviderChatIntakeLog(message);
+  return appendStreamerChatMessage({ ...message });
+};
 
 const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
   onMessage: recordTwitchStreamerChatMessage,
