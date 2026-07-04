@@ -5,14 +5,16 @@ import type {
   MilestoneStatus,
   ProjectItemStatus,
   ProjectReadModelSource,
-  ProjectReadUpdateSource,
 } from "@maiks-yt/domain/projects";
+import type { ProjectReadUpdateSource } from "@maiks-yt/domain/projects";
 import { buildProjectAdminPublicPreview } from "@maiks-yt/domain/projects";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { ItemsPanel, ManualUpdatesPanel, MilestonesPanel } from "./project-admin-edit-panels";
 import {
   DeferredProjectAdminNote,
+  ProjectAdminHeader,
+  ProjectAdminLoadStatePanel,
   ProjectBasicsForm,
   ProjectSidebar,
   PublicPreviewPanel,
@@ -28,7 +30,6 @@ import {
   getFailureMessage,
   getLoadStateForFailure,
   toAdminUpdatePayload,
-  toProjectForm,
   toUpdateForm,
   type AdminMutationResponse,
   type AdminProjectsResponse,
@@ -38,6 +39,11 @@ import {
   type ProjectFormState,
   type UpdateFormState
 } from "./project-admin-client.service";
+import {
+  buildProjectAdminPreviewSource,
+  createEmptyProjectForms,
+  createProjectEditForms
+} from "./project-admin-state.service";
 
 const ProjectAdminClient = (): React.ReactNode => {
   const [projects, setProjects] = useState<readonly ProjectReadModelSource[]>([]);
@@ -61,58 +67,15 @@ const ProjectAdminClient = (): React.ReactNode => {
     [selectedProject, selectedUpdateId]
   );
 
-  const previewSource = useMemo<ProjectReadModelSource | null>(() => {
-    if (!selectedProject) {
-      if (!projectForm.slug.trim() || !projectForm.title.trim()) {
-        return null;
-      }
-
-      return {
-        id: "new-project-preview",
-        slug: projectForm.slug.trim(),
-        title: projectForm.title.trim(),
-        summary: projectForm.summary.trim() || null,
-        type: projectForm.type,
-        category: projectForm.category,
-        status: projectForm.status,
-        isPublic: projectForm.isPublic,
-        milestones: [],
-        items: [],
-        updates: []
-      };
-    }
-
-    const formUpdate = selectedProject && updateForm.title.trim() && updateForm.body.trim()
-      ? {
-        id: selectedUpdate?.id ?? "update-preview",
-        title: updateForm.title.trim(),
-        summary: updateForm.summary.trim() || null,
-        body: updateForm.body.trim(),
-        status: updateForm.status,
-        isVisible: updateForm.isVisible,
-        publishedAt: updateForm.publishedAt.trim() || (updateForm.status === "published" ? new Date().toISOString() : null),
-        isPinned: updateForm.isPinned,
-        sortOrder: updateForm.sortOrder
-      } satisfies ProjectReadUpdateSource
-      : null;
-    const updates = formUpdate
-      ? selectedUpdate
-        ? selectedProject.updates.map((update) => update.id === selectedUpdate.id ? formUpdate : update)
-        : [...selectedProject.updates, formUpdate]
-      : selectedProject.updates;
-
-    return {
-      ...selectedProject,
-      slug: projectForm.slug.trim() || selectedProject.slug,
-      title: projectForm.title.trim() || selectedProject.title,
-      summary: projectForm.summary.trim() || null,
-      type: projectForm.type,
-      category: projectForm.category,
-      status: projectForm.status,
-      isPublic: projectForm.isPublic,
-      updates
-    };
-  }, [projectForm, selectedProject, selectedUpdate, updateForm]);
+  const previewSource = useMemo(
+    () => buildProjectAdminPreviewSource({
+      projectForm,
+      selectedProject,
+      selectedUpdate,
+      updateForm
+    }),
+    [projectForm, selectedProject, selectedUpdate, updateForm]
+  );
 
   const publicPreview = useMemo(
     () => previewSource ? buildProjectAdminPublicPreview(previewSource) : null,
@@ -129,11 +92,8 @@ const ProjectAdminClient = (): React.ReactNode => {
       return next;
     });
     setSelectedProjectId(project.id);
-    setProjectForm(toProjectForm(project));
-    setUpdateForm({
-      ...defaultUpdateForm,
-      sortOrder: project.updates.length + 1
-    });
+    setProjectForm(createProjectEditForms(project).projectForm);
+    setUpdateForm(createProjectEditForms(project).updateForm);
   }, []);
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
@@ -158,20 +118,13 @@ const ProjectAdminClient = (): React.ReactNode => {
       if (response.ok && payload?.ok) {
         setProjects(payload.projects);
         const firstProject = payload.projects[0] ?? null;
+        const nextForms = firstProject ? createProjectEditForms(firstProject) : createEmptyProjectForms();
+
         setSelectedProjectId(firstProject?.id ?? "");
-        setProjectForm(firstProject ? toProjectForm(firstProject) : defaultProjectForm);
-        setMilestoneForm({
-          ...defaultMilestoneForm,
-          sortOrder: firstProject ? firstProject.milestones.length + 1 : 1
-        });
-        setItemForm({
-          ...defaultItemForm,
-          sortOrder: firstProject ? firstProject.items.length + 1 : 1
-        });
-        setUpdateForm({
-          ...defaultUpdateForm,
-          sortOrder: firstProject ? firstProject.updates.length + 1 : 1
-        });
+        setProjectForm(nextForms.projectForm);
+        setMilestoneForm(nextForms.milestoneForm);
+        setItemForm(nextForms.itemForm);
+        setUpdateForm(nextForms.updateForm);
         setLoadState("ready");
         setMessage(payload.projects.length === 0 ? "No projects exist yet." : "Project admin loaded.");
         return;
@@ -237,20 +190,13 @@ const ProjectAdminClient = (): React.ReactNode => {
 
     setSelectedProjectId(projectId);
     if (project) {
-      setProjectForm(toProjectForm(project));
-      setMilestoneForm({
-        ...defaultMilestoneForm,
-        sortOrder: project.milestones.length + 1
-      });
-      setItemForm({
-        ...defaultItemForm,
-        sortOrder: project.items.length + 1
-      });
+      const nextForms = createProjectEditForms(project);
+
+      setProjectForm(nextForms.projectForm);
+      setMilestoneForm(nextForms.milestoneForm);
+      setItemForm(nextForms.itemForm);
       setSelectedUpdateId("");
-      setUpdateForm({
-        ...defaultUpdateForm,
-        sortOrder: project.updates.length + 1
-      });
+      setUpdateForm(nextForms.updateForm);
     }
   };
 
@@ -485,22 +431,14 @@ const ProjectAdminClient = (): React.ReactNode => {
 
   return (
     <>
-      <header className="project-admin-header">
-        <p className="eyebrow">Owner Admin</p>
-        <h1>Project Content</h1>
-        <p aria-live="polite">{message}</p>
-      </header>
+      <ProjectAdminHeader message={message} />
 
       {loadState !== "ready" ? (
-        <section className={`project-admin-state ${loadState}`}>
-          <h2>{loadState === "loading" ? "Loading" : loadState === "signed-out" ? "Sign In Required" : loadState === "forbidden" ? "Forbidden" : "Unavailable"}</h2>
-          <p>{message}</p>
-          {loadState !== "loading" ? (
-            <button type="button" className="secondary-action" onClick={() => void loadProjects()}>
-              Retry
-            </button>
-          ) : null}
-        </section>
+        <ProjectAdminLoadStatePanel
+          loadState={loadState}
+          message={message}
+          onRetry={() => void loadProjects()}
+        />
       ) : null}
 
       {loadState === "ready" ? (

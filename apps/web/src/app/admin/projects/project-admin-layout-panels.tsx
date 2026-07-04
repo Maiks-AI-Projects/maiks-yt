@@ -8,9 +8,38 @@ import {
   projectCategories,
   projectStatuses,
   projectTypes,
+  type LoadState,
   type ProjectFormState
 } from "./project-admin-client.service";
 import { ProjectAdminPublicPreview } from "./project-admin-preview";
+
+export const ProjectAdminHeader = ({ message }: { message: string }): React.ReactNode => (
+  <header className="project-admin-header">
+    <p className="eyebrow">Owner Admin</p>
+    <h1>Project Content</h1>
+    <p aria-live="polite">{message}</p>
+  </header>
+);
+
+export const ProjectAdminLoadStatePanel = ({
+  loadState,
+  message,
+  onRetry
+}: {
+  loadState: Exclude<LoadState, "ready">;
+  message: string;
+  onRetry: () => void;
+}): React.ReactNode => (
+  <section className={`project-admin-state ${loadState}`}>
+    <h2>{loadState === "loading" ? "Loading" : loadState === "signed-out" ? "Sign In Required" : loadState === "forbidden" ? "Forbidden" : "Unavailable"}</h2>
+    <p>{message}</p>
+    {loadState !== "loading" ? (
+      <button type="button" className="secondary-action" onClick={onRetry}>
+        Retry
+      </button>
+    ) : null}
+  </section>
+);
 
 type ProjectSidebarProps = {
   projects: readonly ProjectReadModelSource[];
