@@ -21,51 +21,27 @@ import { fromNodeHeaders } from "better-auth/node";
 import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 
-import { auth, configuredAuthProviderIds, getTrustedOrigins } from "./auth/better-auth.service.js";
+import { registerApplicationRoutes } from "./api-route-registration.service.js";
+import { auth, getTrustedOrigins } from "./auth/better-auth.service.js";
 import {
   getDomainUserForAuthUser,
   parseJsonArray,
-  registerAccountDomainRoutes,
-  registerStreamVisibilityPreferencesRoutes,
   type AuthSessionSnapshot
 } from "./account/index.js";
-import { registerActionPanelRoutes } from "./actions/index.js";
-import {
-  registerEventRoutingAdminRoutes,
-  registerEventRoutingDispatchRoutes,
-  type EventRoutingPlaybackPublisher
-} from "./event-routing/index.js";
-import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index.js";
-import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
-import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
-import { registerModeratorAdminRoutes } from "./moderators/index.js";
+import type { EventRoutingPlaybackPublisher } from "./event-routing/index.js";
 import {
   createNotificationAdminRepository,
-  NotificationAdminService,
-  registerNotificationAdminRoutes
+  NotificationAdminService
 } from "./notifications/index.js";
-import { OverlayRuntime, registerOverlayRoutes } from "./overlay/index.js";
-import { registerContentPageRoutes } from "./pages/index.js";
-import {
-  registerDiscordChatIntakeControlRoutes,
-  registerProviderIntegrationStatusRoutes,
-  registerTwitchChatIntakeControlRoutes,
-  registerYouTubeOwnerConsentRoutes
-} from "./provider-integrations/index.js";
-import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
-import { registerRealtimeSpikeRoutes } from "./realtime/index.js";
-import { registerStreamScheduleRoutes } from "./schedule/index.js";
+import { OverlayRuntime } from "./overlay/index.js";
 import {
   InMemoryFakeLocalModerationRuntime,
   InMemoryStreamerChatModerationRuntime,
-  registerStreamerChatControlRoutes,
-  registerStreamerChatModerationRoutes,
   StreamerChatModerationAccessService,
   StreamerChatModerationStoreService,
   StreamerChatRuntime,
   type StreamerChatModerationAction
 } from "./streamer-chat/index.js";
-import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
 
 const config = createRuntimeConfig({
   environment: "development",
@@ -436,113 +412,23 @@ const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) 
   };
 };
 
-registerActionPanelRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerStreamVisibilityPreferencesRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerAccountDomainRoutes(server, {
-  configuredAuthProviderIds,
-  getAuthSession,
-  getDatabasePool
-});
-registerProjectReadRoutes(server, {
-  getDatabasePool
-});
-registerCreatorLinkReadRoutes(server, {
-  getDatabasePool
-});
-registerCreatorLinkAdminRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerProjectAdminRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerContentPageRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerStreamScheduleRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerUrlAccessTokenAdminRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerFakeLocalModerationRoutes(server, {
-  getAuthSession,
-  getDatabasePool,
-  runtime: fakeLocalModerationRuntime
-});
-registerLiveHelperDashboardRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerModeratorAdminRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerEventRoutingAdminRoutes(server, {
-  getAuthSession,
-  getDatabasePool,
-  publishPlayback: publishEventRoutingPlayback
-});
-registerNotificationAdminRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerProviderIntegrationStatusRoutes(server, {
-  getAuthSession,
-  getDatabasePool,
-  getRuntimeState: () => ({
-    discordChatIntakeState: discordChatIntakeRuntime.getStatus().state,
-    twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state
-  })
-});
-registerYouTubeOwnerConsentRoutes(server, {
-  getAuthSession,
-  getDatabasePool
-});
-registerTwitchChatIntakeControlRoutes(server, {
-  getAuthSession,
-  getDatabasePool,
-  runtime: twitchChatIntakeRuntime
-});
-registerDiscordChatIntakeControlRoutes(server, {
-  getAuthSession,
-  getDatabasePool,
-  runtime: discordChatIntakeRuntime
-});
-registerStreamerChatControlRoutes(server, {
+registerApplicationRoutes({
   discordChatIntakeRuntime,
-  streamerChatRuntime,
-  twitchChatIntakeRuntime,
-  validateUrlAccessToken: validateUrlAccessTokenForRequest
-});
-registerStreamerChatModerationRoutes(server, {
-  accessService: streamerChatModerationAccessService,
-  moderationRuntime: streamerChatModerationRuntime,
-  moderationStore: streamerChatModerationStore,
-  streamerChatRuntime
-});
-registerOverlayRoutes(server, {
   fakeLocalModerationRuntime,
+  getAuthSession,
+  getDatabasePool,
   overlayRuntime,
+  publishEventRoutingPlayback,
   recordFakeLocalStreamerChatMessage,
   requireStreamerChatModerationPermission,
-  validateUrlAccessToken: validateUrlAccessTokenForRequest
+  server,
+  streamerChatModerationAccessService,
+  streamerChatModerationRuntime,
+  streamerChatModerationStore,
+  streamerChatRuntime,
+  twitchChatIntakeRuntime,
+  validateUrlAccessTokenForRequest
 });
-registerEventRoutingDispatchRoutes(server, {
-  getDatabasePool,
-  publishPlayback: publishEventRoutingPlayback
-});
-registerRealtimeSpikeRoutes(server);
 
 server.get("/health", async () => ({
   ok: true,
