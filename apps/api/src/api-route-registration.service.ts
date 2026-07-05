@@ -30,6 +30,7 @@ import {
   registerTwitchChatIntakeControlRoutes,
   registerTwitchEventSubSubscriptionRoutes,
   registerTwitchEventSubWebhookRoutes,
+  registerYouTubeActivitiesPollRoutes,
   registerYouTubeChannelDiscoveryRoutes,
   registerYouTubeLiveChatIntakeControlRoutes,
   registerYouTubeOwnerConsentRoutes,
@@ -199,6 +200,11 @@ export const registerApplicationRoutes = ({
   registerYouTubePubSubSubscriptionRoutes(server, {
     getAuthSession,
     getDatabasePool
+  });
+  registerYouTubeActivitiesPollRoutes(server, {
+    getAuthSession,
+    getDatabasePool,
+    intakeLogService: providerEventIntakeLogService
   });
   registerTwitchEventSubSubscriptionRoutes(server, {
     getAuthSession,

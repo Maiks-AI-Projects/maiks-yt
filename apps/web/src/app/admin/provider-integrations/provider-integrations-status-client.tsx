@@ -270,6 +270,27 @@ type YouTubePubSubSubscriptionRequestResponse =
     reason: string;
   };
 
+type YouTubeActivitiesPollResponse =
+  | {
+    ok: true;
+    channelId: string;
+    events: readonly {
+      catalogKnown?: boolean;
+      inserted: boolean;
+      providerEventName: string;
+      providerMessageId: string | null;
+      sourceEventId: string;
+    }[];
+    fetched: number;
+    inserted: number;
+    polledAt: string;
+    readOnly: true;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -348,6 +369,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [twitchEventSubSubscriptionCount, setTwitchEventSubSubscriptionCount] = useState<number>(0);
   const [twitchEventSubCallbackUrl, setTwitchEventSubCallbackUrl] = useState<string | null>(null);
   const [youtubePubSubSubscription, setYouTubePubSubSubscription] = useState<Extract<YouTubePubSubSubscriptionResponse, { ok: true }> | null>(null);
+  const [youtubeActivitiesPoll, setYouTubeActivitiesPoll] = useState<Extract<YouTubeActivitiesPollResponse, { ok: true }> | null>(null);
   const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
   const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -359,6 +381,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [youtubeLiveChatActionMessage, setYouTubeLiveChatActionMessage] = useState<string>("YouTube live-chat polling status not loaded.");
   const [twitchEventSubActionMessage, setTwitchEventSubActionMessage] = useState<string>("Twitch EventSub subscriptions not checked.");
   const [youtubePubSubActionMessage, setYouTubePubSubActionMessage] = useState<string>("YouTube PubSub subscription target not checked.");
+  const [youtubeActivitiesActionMessage, setYouTubeActivitiesActionMessage] = useState<string>("YouTube activities have not been polled yet.");
 
   const stateCounts = useMemo(() => {
     const counts: Record<ProviderIntegrationState, number> = {
@@ -597,6 +620,30 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
       setYouTubePubSubActionMessage(`YouTube PubSub ${mode} failed: ${reason}.`);
     } catch (error) {
       setYouTubePubSubActionMessage(error instanceof Error ? error.message : `YouTube PubSub ${mode} failed.`);
+    }
+  }, []);
+
+  const pollYouTubeActivities = useCallback(async (): Promise<void> => {
+    setYouTubeActivitiesActionMessage("Polling recent YouTube channel activities...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube-activities/poll`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubeActivitiesPollResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubeActivitiesPoll(payload);
+        setYouTubeActivitiesActionMessage(`Polled ${payload.fetched} YouTube activities; ${payload.inserted} new intake rows stored.`);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setYouTubeActivitiesActionMessage(`YouTube activities poll failed: ${reason}.`);
+    } catch (error) {
+      setYouTubeActivitiesActionMessage(error instanceof Error ? error.message : "YouTube activities poll failed.");
     }
   }, []);
 
@@ -1209,6 +1256,52 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
                   <small>Selected channel feed topic.</small>
                 </div>
               </div>
+            ) : null}
+            <div className="project-admin-panel-heading">
+              <div>
+                <h3>YouTube Activities</h3>
+                <p>Manual read-only poll for recent channel activity into the intake ledger.</p>
+              </div>
+              <div className="project-admin-actions">
+                <button type="button" onClick={() => void pollYouTubeActivities()}>
+                  Poll recent
+                </button>
+              </div>
+            </div>
+            <p className="provider-chat-action-message">{youtubeActivitiesActionMessage}</p>
+            {youtubeActivitiesPoll ? (
+              <>
+                <div className="provider-chat-status-grid">
+                  <div>
+                    <span>Fetched</span>
+                    <strong>{youtubeActivitiesPoll.fetched}</strong>
+                  </div>
+                  <div>
+                    <span>Inserted</span>
+                    <strong>{youtubeActivitiesPoll.inserted}</strong>
+                  </div>
+                  <div>
+                    <span>Polled</span>
+                    <strong>{formatDate(youtubeActivitiesPoll.polledAt)}</strong>
+                  </div>
+                </div>
+                {youtubeActivitiesPoll.events.length ? (
+                  <ol className="provider-chat-recent-list" aria-label="Recent YouTube activities">
+                    {youtubeActivitiesPoll.events.slice(0, 5).map((event) => (
+                      <li key={event.sourceEventId}>
+                        <div>
+                          <strong>{event.providerEventName}</strong>
+                          <span>{event.catalogKnown ? "Cataloged" : "Unknown-safe"}</span>
+                          <span>{event.inserted ? "Stored" : "Already stored"}</span>
+                        </div>
+                        <p>{event.providerMessageId ?? event.sourceEventId}</p>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p className="provider-chat-empty">No recent YouTube activities returned by the API.</p>
+                )}
+              </>
             ) : null}
           </section>
 
