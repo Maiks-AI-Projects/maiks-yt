@@ -21,3 +21,6 @@ export * from "./youtube-owner-oauth.rules.js";
 export * from "./youtube-owner-oauth.types.js";
 export * from "./youtube-pubsub-webhook.rules.js";
 export * from "./youtube-pubsub-webhook.types.js";
+export * from "./youtube-pubsub-subscriptions.rules.js";
+export * from "./youtube-pubsub-subscriptions.service.js";
+export * from "./youtube-pubsub-subscriptions.types.js";

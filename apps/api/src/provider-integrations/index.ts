@@ -36,3 +36,7 @@ export * from "./youtube-owner-consent.service.js";
 export * from "./youtube-owner-consent-store.service.js";
 export * from "./youtube-owner-consent.types.js";
 export * from "./youtube-pubsub-webhook.route.js";
+export * from "./youtube-pubsub-subscriptions.route.js";
+export * from "./youtube-pubsub-subscriptions.service.js";
+export * from "./youtube-pubsub-subscriptions-store.service.js";
+export * from "./youtube-pubsub-subscriptions.types.js";

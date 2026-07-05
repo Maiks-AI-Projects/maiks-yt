@@ -239,6 +239,37 @@ type TwitchEventSubEnsureDefaultsResponse =
     reason: string;
   };
 
+type YouTubePubSubSubscriptionResponse =
+  | {
+    ok: true;
+    callbackUrl: string;
+    channelId: string;
+    hubUrl: string;
+    readOnly: true;
+    state: "ready";
+    topicUrl: string;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type YouTubePubSubSubscriptionRequestResponse =
+  | {
+    ok: true;
+    callbackUrl: string;
+    channelId: string;
+    hubUrl: string;
+    mode: "subscribe" | "unsubscribe";
+    readOnly: true;
+    state: "requested";
+    topicUrl: string;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -316,6 +347,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [twitchEventSubDefaults, setTwitchEventSubDefaults] = useState<readonly TwitchEventSubDefaultSubscriptionStatus[]>([]);
   const [twitchEventSubSubscriptionCount, setTwitchEventSubSubscriptionCount] = useState<number>(0);
   const [twitchEventSubCallbackUrl, setTwitchEventSubCallbackUrl] = useState<string | null>(null);
+  const [youtubePubSubSubscription, setYouTubePubSubSubscription] = useState<Extract<YouTubePubSubSubscriptionResponse, { ok: true }> | null>(null);
   const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
   const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -326,6 +358,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [youtubeChannelActionMessage, setYouTubeChannelActionMessage] = useState<string>("YouTube channels not discovered yet.");
   const [youtubeLiveChatActionMessage, setYouTubeLiveChatActionMessage] = useState<string>("YouTube live-chat polling status not loaded.");
   const [twitchEventSubActionMessage, setTwitchEventSubActionMessage] = useState<string>("Twitch EventSub subscriptions not checked.");
+  const [youtubePubSubActionMessage, setYouTubePubSubActionMessage] = useState<string>("YouTube PubSub subscription target not checked.");
 
   const stateCounts = useMemo(() => {
     const counts: Record<ProviderIntegrationState, number> = {
@@ -505,6 +538,65 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
       setTwitchEventSubActionMessage(`Twitch EventSub subscription status failed: ${reason}.`);
     } catch (error) {
       setTwitchEventSubActionMessage(error instanceof Error ? error.message : "Twitch EventSub subscription status failed.");
+    }
+  }, []);
+
+  const loadYouTubePubSubSubscription = useCallback(async (): Promise<void> => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube-pubsub/subscription`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubePubSubSubscriptionResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubePubSubSubscription(payload);
+        setYouTubePubSubActionMessage("YouTube PubSub target is ready.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setYouTubePubSubSubscription(null);
+      setYouTubePubSubActionMessage(`YouTube PubSub target failed: ${reason}.`);
+    } catch (error) {
+      setYouTubePubSubSubscription(null);
+      setYouTubePubSubActionMessage(error instanceof Error ? error.message : "YouTube PubSub target failed.");
+    }
+  }, []);
+
+  const requestYouTubePubSubSubscription = useCallback(async (mode: "subscribe" | "unsubscribe"): Promise<void> => {
+    setYouTubePubSubActionMessage(mode === "subscribe"
+      ? "Requesting YouTube PubSub subscription..."
+      : "Requesting YouTube PubSub unsubscribe...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube-pubsub/${mode}`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<YouTubePubSubSubscriptionRequestResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setYouTubePubSubSubscription({
+          ok: true,
+          callbackUrl: payload.callbackUrl,
+          channelId: payload.channelId,
+          hubUrl: payload.hubUrl,
+          readOnly: true,
+          state: "ready",
+          topicUrl: payload.topicUrl
+        });
+        setYouTubePubSubActionMessage(mode === "subscribe"
+          ? "YouTube PubSub subscription requested. The hub should verify the callback."
+          : "YouTube PubSub unsubscribe requested.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : `http_${response.status}`;
+      setYouTubePubSubActionMessage(`YouTube PubSub ${mode} failed: ${reason}.`);
+    } catch (error) {
+      setYouTubePubSubActionMessage(error instanceof Error ? error.message : `YouTube PubSub ${mode} failed.`);
     }
   }, []);
 
@@ -704,7 +796,17 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     void loadYouTubeCredential();
     void loadYouTubeChannelSelection();
     void loadYouTubeLiveChatStatus();
-  }, [loadDiscordChatStatus, loadStatus, loadTwitchChatStatus, loadTwitchEventSubSubscriptions, loadYouTubeChannelSelection, loadYouTubeCredential, loadYouTubeLiveChatStatus]);
+    void loadYouTubePubSubSubscription();
+  }, [
+    loadDiscordChatStatus,
+    loadStatus,
+    loadTwitchChatStatus,
+    loadTwitchEventSubSubscriptions,
+    loadYouTubeChannelSelection,
+    loadYouTubeCredential,
+    loadYouTubeLiveChatStatus,
+    loadYouTubePubSubSubscription
+  ]);
 
   return (
     <>
@@ -1056,6 +1158,58 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
                 <small>Add this exact URI in Google OAuth before connecting.</small>
               </div>
             </div>
+            <div className="project-admin-panel-heading">
+              <div>
+                <h3>YouTube PubSub</h3>
+                <p>Read-only push notifications for uploads and video metadata updates.</p>
+              </div>
+              <div className="project-admin-actions">
+                <button
+                  type="button"
+                  disabled={!youtubePubSubSubscription}
+                  onClick={() => void requestYouTubePubSubSubscription("subscribe")}
+                >
+                  Subscribe
+                </button>
+                <button
+                  type="button"
+                  disabled={!youtubePubSubSubscription}
+                  onClick={() => void requestYouTubePubSubSubscription("unsubscribe")}
+                >
+                  Unsubscribe
+                </button>
+                <button type="button" onClick={() => void loadYouTubePubSubSubscription()}>Refresh</button>
+              </div>
+            </div>
+            <div className="provider-chat-status-grid">
+              <div className={`provider-chat-state ${youtubePubSubSubscription ? "configured" : "unconfigured"}`}>
+                <span>Target</span>
+                <strong>{youtubePubSubSubscription ? "Ready" : "Not ready"}</strong>
+              </div>
+              <div>
+                <span>Channel</span>
+                <strong>{youtubePubSubSubscription?.channelId ?? youtubeSelectedChannelId ?? "None"}</strong>
+              </div>
+              <div>
+                <span>Hub</span>
+                <strong>{youtubePubSubSubscription ? "Google hub" : "Unknown"}</strong>
+              </div>
+            </div>
+            <p className="provider-chat-action-message">{youtubePubSubActionMessage}</p>
+            {youtubePubSubSubscription ? (
+              <div className="provider-env-grid" aria-label="YouTube PubSub setup details">
+                <div className="provider-env-item">
+                  <span>Callback</span>
+                  <strong>{youtubePubSubSubscription.callbackUrl}</strong>
+                  <small>Google hub verifies this public callback.</small>
+                </div>
+                <div className="provider-env-item">
+                  <span>Topic</span>
+                  <strong>{youtubePubSubSubscription.topicUrl}</strong>
+                  <small>Selected channel feed topic.</small>
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className="project-admin-panel">
