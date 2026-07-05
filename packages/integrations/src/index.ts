@@ -19,3 +19,5 @@ export * from "./youtube-live-chat-intake.service.js";
 export * from "./youtube-live-chat-intake.types.js";
 export * from "./youtube-owner-oauth.rules.js";
 export * from "./youtube-owner-oauth.types.js";
+export * from "./youtube-pubsub-webhook.rules.js";
+export * from "./youtube-pubsub-webhook.types.js";

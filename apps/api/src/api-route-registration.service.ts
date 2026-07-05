@@ -32,7 +32,8 @@ import {
   registerTwitchEventSubWebhookRoutes,
   registerYouTubeChannelDiscoveryRoutes,
   registerYouTubeLiveChatIntakeControlRoutes,
-  registerYouTubeOwnerConsentRoutes
+  registerYouTubeOwnerConsentRoutes,
+  registerYouTubePubSubWebhookRoutes
 } from "./provider-integrations/index.js";
 import type { ProviderEventIntakeLogService } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
@@ -189,6 +190,9 @@ export const registerApplicationRoutes = ({
     intakeLogService: providerEventIntakeLogService
   });
   registerTwitchEventSubWebhookRoutes(server, {
+    intakeLogService: providerEventIntakeLogService
+  });
+  registerYouTubePubSubWebhookRoutes(server, {
     intakeLogService: providerEventIntakeLogService
   });
   registerTwitchEventSubSubscriptionRoutes(server, {

@@ -35,3 +35,4 @@ export * from "./youtube-owner-consent.route.js";
 export * from "./youtube-owner-consent.service.js";
 export * from "./youtube-owner-consent-store.service.js";
 export * from "./youtube-owner-consent.types.js";
+export * from "./youtube-pubsub-webhook.route.js";

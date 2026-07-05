@@ -4,6 +4,7 @@ import type {
   DiscordWebhookProjectedEvent,
   TwitchChatProjectedMessage,
   TwitchEventSubProjectedEvent,
+  YouTubePubSubProjectedEvent,
   YouTubeLiveChatProjectedMessage
 } from "@maiks-yt/integrations";
 import type { NormalizedProviderEventIntake } from "@maiks-yt/domain/events";
@@ -29,4 +30,5 @@ export type ProviderChatMessageForIntake =
 export type ProviderGenericEventForIntake =
   | DiscordGatewayProjectedEvent
   | DiscordWebhookProjectedEvent
-  | TwitchEventSubProjectedEvent;
+  | TwitchEventSubProjectedEvent
+  | YouTubePubSubProjectedEvent;

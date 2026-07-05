@@ -61,9 +61,9 @@ export class ProviderEventIntakeLogService {
         : event.source === "twitch" ? "twitch-eventsub" : "discord-gateway",
       occurredAt: event.occurredAt,
       provider: event.source,
-      providerChannelId: event.source === "twitch" ? event.broadcasterUserId : event.channelId,
+      providerChannelId: this.resolveGenericProviderChannelId(event),
       providerEventName: event.providerEventName,
-      providerMessageId: event.source === "twitch" ? event.providerMessageId : event.messageId,
+      providerMessageId: this.resolveGenericProviderMessageId(event),
       receivedAt: this.now(),
       redactedPayload: event.redactedPayload,
       sourceEventId: event.sourceEventId
@@ -88,6 +88,22 @@ export class ProviderEventIntakeLogService {
         reason: "write_failed"
       };
     }
+  }
+
+  private resolveGenericProviderChannelId(event: ProviderGenericEventForIntake): string | null {
+    if (event.source === "twitch") {
+      return event.broadcasterUserId;
+    }
+
+    return event.channelId;
+  }
+
+  private resolveGenericProviderMessageId(event: ProviderGenericEventForIntake): string | null {
+    if (event.source === "twitch" || event.source === "youtube") {
+      return event.providerMessageId;
+    }
+
+    return event.messageId;
   }
 
   private resolveProviderEventName(message: ProviderChatMessageForIntake): string {
