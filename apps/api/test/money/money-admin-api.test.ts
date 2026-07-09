@@ -300,6 +300,63 @@ describe("MoneyAdminService", () => {
     });
   });
 
+  it("exports unresolved accounting warnings as CSV and records warning-review audit", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "warning-transaction",
+      transactionType: "cost",
+      lines: [
+        {
+          id: "warning-line",
+          transactionId: "warning-transaction",
+          lineKind: "cost",
+          direction: "out",
+          amountMinor: 500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: null,
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    repository.resolvedWarnings.push({
+      targetKind: "line",
+      targetId: "warning-line",
+      warningKind: "missing_category"
+    });
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.exportWarningsCsv({ authUserId: "auth-user" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      export: {
+        contentType: "text/csv; charset=utf-8",
+        warningCount: 1
+      }
+    });
+    expect(result.ok && result.export.csv).toContain("warning_id,warning_kind,severity,target_kind,target_id,message");
+    expect(result.ok && result.export.csv).toContain("missing_receipt");
+    expect(result.ok && result.export.csv).not.toContain("missing_category");
+    expect(repository.lastExportAudit).toMatchObject({
+      reportKind: "warning_review",
+      fileKind: "csv",
+      fileReference: expect.stringMatching(/^maiks-money-warnings-\d{4}-\d{2}-\d{2}\.csv$/),
+      fileChecksum: expect.stringMatching(/^[a-f0-9]{64}$/),
+      warningCounts: {
+        missing_receipt: 1
+      },
+      generatedByUserId: "domain-user"
+    });
+  });
+
   it("builds a private JSON accounting summary and records an audit row", async () => {
     const repository = new FakeMoneyAdminRepository();
     repository.transactions.push(createTransaction({
@@ -895,6 +952,62 @@ describe("Money admin route boundary", () => {
     expect(response.body).toContain("transaction_id,line_id,transaction_type");
     expect(response.body).toContain("transaction-1,line-1,income");
     expect(repository.exportAuditCount).toBe(1);
+  });
+
+  it("returns downloadable warning CSV for an owner", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "warning-transaction",
+      transactionType: "cost",
+      lines: [
+        {
+          id: "warning-line",
+          transactionId: "warning-transaction",
+          lineKind: "cost",
+          direction: "out",
+          amountMinor: 500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: null,
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/warnings.csv"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("text/csv");
+    expect(response.headers["content-disposition"]).toContain("maiks-money-warnings-");
+    expect(response.headers["x-maiks-money-warning-count"]).toBe("2");
+    expect(response.body).toContain("warning_id,warning_kind,severity,target_kind,target_id,message");
+    expect(response.body).toContain("missing_category");
+    expect(response.body).toContain("missing_receipt");
+    expect(repository.lastExportAudit).toMatchObject({
+      reportKind: "warning_review"
+    });
   });
 
   it("applies accounting date query filters to list and export routes", async () => {

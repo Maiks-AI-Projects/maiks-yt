@@ -450,6 +450,43 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const exportWarningsCsv = async (): Promise<void> => {
+    setBusy(true);
+    setMessage("Preparing accounting warnings CSV export...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/warnings.csv${buildLedgerQuery()}`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        const payload = await parseJson<{ ok: false; reason?: string }>(response);
+        setMessage(getFailureMessage(response, payload?.reason));
+        return;
+      }
+
+      const csv = await response.text();
+      const filename = response.headers
+        .get("content-disposition")
+        ?.match(/filename="([^"]+)"/)?.[1] ?? "maiks-money-warnings.csv";
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("Accounting warnings CSV export downloaded.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money warnings CSV export failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const voidTransaction = async (transaction: MoneyLedgerTransaction): Promise<void> => {
     const reason = window.prompt("Why should this private money entry be voided?");
 
@@ -551,6 +588,9 @@ const MoneyAdminClient = (): React.ReactNode => {
         <div className="admin-inline-actions">
           <button type="button" onClick={() => void exportSummaryJson()} disabled={busy || loadState !== "ready"}>
             Export Summary
+          </button>
+          <button type="button" onClick={() => void exportWarningsCsv()} disabled={busy || loadState !== "ready"}>
+            Export Warnings
           </button>
           <button type="button" onClick={() => void exportLedgerCsv()} disabled={busy || loadState !== "ready"}>
             Export CSV

@@ -60,6 +60,14 @@ export type MoneyAdminCsvExport = {
   generatedAt: string;
 };
 
+export type MoneyAdminWarningCsvExport = {
+  filename: string;
+  contentType: "text/csv; charset=utf-8";
+  csv: string;
+  warningCount: number;
+  generatedAt: string;
+};
+
 export type MoneyAdminReportBucket = {
   key: string;
   inMinor: number;
@@ -109,6 +117,16 @@ export type MoneyAdminExportResult =
     reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
   };
 
+export type MoneyAdminWarningExportResult =
+  | {
+    ok: true;
+    export: MoneyAdminWarningCsvExport;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
 export type MoneyAdminJsonReportResult =
   | {
     ok: true;
@@ -135,7 +153,7 @@ export interface MoneyAdminRepository {
     actorUserId: string;
   }): Promise<void>;
   recordReportExport(input: {
-    reportKind: "accounting_summary" | "tax_review_export";
+    reportKind: "accounting_summary" | "tax_review_export" | "warning_review";
     periodStart: string;
     periodEnd: string;
     filters: Record<string, unknown>;

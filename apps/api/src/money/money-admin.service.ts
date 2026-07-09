@@ -20,6 +20,7 @@ import type {
   MoneyAdminMutationResult,
   MoneyAdminReportBucket,
   MoneyAdminRepository,
+  MoneyAdminWarningExportResult,
   MoneyAdminWarningResolveResult
 } from "./money-admin.types.js";
 
@@ -238,6 +239,32 @@ const buildLedgerCsv = (transactions: readonly MoneyLedgerTransaction[]): {
     csv: `${rows.join("\n")}\n`,
     lineCount
   };
+};
+
+const warningCsvHeaders = [
+  "warning_id",
+  "warning_kind",
+  "severity",
+  "target_kind",
+  "target_id",
+  "message"
+] as const;
+
+const buildWarningCsv = (warnings: readonly MoneyAccountingWarning[]): string => {
+  const rows = [warningCsvHeaders.join(",")];
+
+  for (const warning of warnings) {
+    rows.push([
+      warning.id,
+      warning.warningKind,
+      warning.severity,
+      warning.targetKind,
+      warning.targetId,
+      warning.message
+    ].map(csvEscape).join(","));
+  }
+
+  return `${rows.join("\n")}\n`;
 };
 
 const warningId = (
@@ -578,6 +605,63 @@ export class MoneyAdminService {
         byMoneyMode: sortBuckets(byMoneyMode),
         byCategory: sortBuckets(byCategory),
         bySourceProvider: sortBuckets(bySourceProvider)
+      }
+    };
+  }
+
+  public async exportWarningsCsv(input: {
+    authUserId: string;
+    filters?: Partial<MoneyAdminLedgerFilters>;
+  }): Promise<MoneyAdminWarningExportResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const filters = normalizeLedgerFilters(input.filters);
+
+    if (!filters) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const transactions = await this.repository.listTransactions(filters);
+    const generatedAt = new Date().toISOString();
+    const resolvedWarnings = await this.repository.listResolvedWarnings(getWarningTargetIds(transactions));
+    const warnings = filterResolvedWarnings(buildAccountingWarnings(transactions), resolvedWarnings);
+    const csv = buildWarningCsv(warnings);
+    const checksum = createHash("sha256").update(csv).digest("hex");
+    const filename = `maiks-money-warnings-${generatedAt.slice(0, 10)}.csv`;
+    const period = getReportPeriod(transactions);
+
+    await this.repository.recordReportExport({
+      reportKind: "warning_review",
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+      filters: {
+        export: "manual-warning-review-csv",
+        transactionLimit: 100,
+        accountingFrom: filters.accountingFrom,
+        accountingTo: filters.accountingTo
+      },
+      warningCounts: countWarningsByKind(warnings),
+      fileKind: "csv",
+      fileReference: filename,
+      fileChecksum: checksum,
+      generatedByUserId: actor.domainUserId
+    });
+
+    return {
+      ok: true,
+      export: {
+        filename,
+        contentType: "text/csv; charset=utf-8",
+        csv,
+        warningCount: warnings.length,
+        generatedAt
       }
     };
   }

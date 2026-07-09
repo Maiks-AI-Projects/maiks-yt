@@ -28,7 +28,7 @@ type MoneyAdminAuthSession = {
 type MoneyAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MoneyAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "resolveWarning" | "voidTransaction">;
+  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "resolveWarning" | "voidTransaction">;
 };
 
 const nullableText = (maxLength: number) =>
@@ -105,7 +105,7 @@ export const registerMoneyAdminRoutes = (
   server: FastifyInstance,
   dependencies: MoneyAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "resolveWarning" | "voidTransaction"> =>
+  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "resolveWarning" | "voidTransaction"> =>
     dependencies.createService?.()
     ?? new MoneyAdminService(createMoneyAdminRepository(dependencies.getDatabasePool()));
 
@@ -268,6 +268,57 @@ export const registerMoneyAdminRoutes = (
       return result.report;
     } catch (error) {
       server.log.warn({ err: error }, "Money JSON report export failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.get("/admin/money/warnings.csv", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const filters = moneyLedgerFilterQuerySchema.safeParse(request.query);
+
+    if (!filters.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().exportWarningsCsv({
+        authUserId: session.user.id,
+        filters: {
+          accountingFrom: filters.data.accountingFrom ?? null,
+          accountingTo: filters.data.accountingTo ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_invalid_input" ? 400 : 403);
+        return result;
+      }
+
+      reply
+        .header("content-type", result.export.contentType)
+        .header("content-disposition", `attachment; filename="${result.export.filename}"`)
+        .header("x-maiks-money-warning-count", String(result.export.warningCount))
+        .header("x-maiks-money-warning-export-generated-at", result.export.generatedAt);
+
+      return result.export.csv;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money warning CSV export failed.");
       reply.code(503);
       return {
         ok: false,
