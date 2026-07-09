@@ -240,6 +240,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Design first safe page creator and route-admin scope.
 - [x] Add owner/admin page creator for path-owned normal website pages.
   - 2026-06-28 added and deployed the first runtime Page Creator slice: owner-gated `/admin/pages`, Markdown draft editing, saved preview-before-publish, publish/unpublish controls, reserved/code-owned route blocking, and public exact-path rendering for published visible page records only.
+  - 2026-07-09 coordinator-reviewed Phase D1 adds local Page Creator validation copy before save/publish mutations and records the next content chunks: current-schema page polish, support destination activation after Michael approval, project/public-policy polish, and schema-gated Game Library/play schedule.
 - [ ] Keep AI assistance draft-only until manual admin workflows exist.
 
 Note: Chunk 2 project-admin domain/API route code, tests, API registration, and `/admin/projects` page are implemented for non-money project content. Chunk 3A added the database-backed public Creator Links foundation. Chunk 3B added owner/admin Creator Hub link mutations and `/admin/links` manual controls while keeping support unavailable. Chunk 13 added reviewed/deployed project-admin preview-before-publish behavior without schema or migration work. Chunk 16A extends project admin preview-before-publish to manual project updates with drafts hidden from public read models. The 2026-06-22 Page Creator and Route Admin design gate chose a first safe path-only page creator for normal website pages, kept code-owned/admin/tool/API/overlay/dev routes reserved, required unique normalized route ownership with fail-closed ambiguity, and deferred host/subdomain plus Cloudflare automation to a later infrastructure-reviewed phase. Chunk 23 generated and dev-applied reviewed migration `0013_lowly_justin_hammer.sql` for `content_pages` persistence only; runtime page admin, public catch-all routing, host/subdomain routing, Cloudflare/DNS automation, AI, and money/legal behavior remain gated.
@@ -399,6 +400,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [ ] Design multi-currency/value-source support from the start.
 - [ ] Decide whether to use double-entry bookkeeping.
 - [ ] Design profit-aware income/cost reporting with dated fee and split rules.
+  - 2026-07-09 Phase C1 added `reports/money-accounting-stage-plan.md`, defining a private/admin-first ledger/report/export path plus a generated-migration-only Phase C2 target. Public payment/donation/support behavior remains gated.
 - [ ] Draft donation/support terms.
 - [ ] Draft refund/revocation wording.
 - [ ] Draft affiliate/sponsor disclosure.
@@ -429,11 +431,12 @@ Gate note: later money features require an immutable ledger design, refund/revoc
 - [ ] Add automated database backups.
 - [ ] Add backup health checks.
 - [ ] Add manual export for key data.
-- [ ] Document restore process.
-- [ ] Document rare improper-deletion restore process.
+- [x] Document restore process.
+- [x] Document rare improper-deletion restore process.
 - [ ] Decide backup retention and encryption.
 
 Gate note: backup/export can start before production money, but must be treated as reliability/security work. First safe slice is a backup inventory and restore runbook using dev/staging data only; do not automate production backups, touch secrets, or claim recovery guarantees until retention, encryption, and restore testing are defined.
+  - 2026-07-09 Phase E1 added `reports/backup-restore-runbook.md` for dev/staging-safe inventory, manual export/restore verification, improper-deletion drill boundaries, and failure-only backup-health notification expectations. Production backup automation, encryption/key policy, retention, and destructive restore remain gated.
 
 ## 18. Phase Gates Before Risky Work
 
@@ -447,8 +450,10 @@ Gate note: backup/export can start before production money, but must be treated 
   - 2026-07-04 provider event inventory gate: before adding broad EventSub/Gateway/webhook intake, implement a typed provider-event catalog and append-only intake ledger so unknown/new provider events are stored and mapped to internal triggers instead of being dropped.
   - 2026-07-05 typed provider-event/action catalog, append-only intake ledger migration, runtime writes for existing read-only chat intake services, read-only admin intake visibility, broad Discord Gateway non-chat intake logging, the first Twitch EventSub verified/log-only receiver, Twitch EventSub default subscription manager, Discord webhook-events receiver, YouTube PubSub receiver, YouTube PubSub subscription manager, and manual YouTube activities poller are deployed on dev. Provider intake foundations are broad enough to switch to the next explicit phase, still without provider writes or public routing unless that phase is opened.
 - [ ] Moderation gate: approve rules, actions, audit log, appeal/review expectations, and streamer override before enforcement.
+  - 2026-07-09 Phase B1 adds moderation-window disabled-action explanations for missing rights and provider-write gates. Real provider enforcement, automatic warnings, durable allow rules, and policy/strike schema remain gated.
 - [ ] AI gate: approve private shadow mode, prompt boundaries, mute/off controls, and public-safety review before public AI output.
 - [ ] Money gate: approve provider, ledger, refunds/chargebacks, terms, and audit/export behavior before any real money behavior.
 - [ ] Backup gate: approve retention, encryption, restore testing, and manual export shape before production backup automation.
+  - 2026-07-09 Phase F1 refreshed `reports/production-readiness-checklist.md` into a staged dev-to-prod gate checklist. It is still not deployment approval.
 
 Note: 2026-06-22 added the design-only production readiness / dev-to-main checklist in `reports/production-readiness-checklist.md`. It defines future release branch policy, explicit release/operations/safety owners, fresh production secrets/OAuth keys, explicit owner assignment with no first-login auto-promotion, migration order, backup/restore basics, smoke surfaces, rollback decision points, dev-only exclusions, and dangerous gates for real money, provider credentials, public AI, moderation enforcement, production auth/secrets, and backup automation. This does not approve deployment, production config edits, secret rotation, migration generation/application, or server changes.

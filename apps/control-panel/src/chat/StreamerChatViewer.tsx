@@ -11,6 +11,7 @@ export const StreamerChatViewer = ({
   apiBaseUrl,
   maxMessages = 12,
   newestOnTop,
+  showUnavailableActions = false,
   variant = "embedded"
 }: StreamerChatViewerProps): ReactNode => {
   const [messages, setMessages] = useState<StreamerChatMessage[]>([]);
@@ -243,29 +244,36 @@ export const StreamerChatViewer = ({
                 </div>
                 <p>{message.message}</p>
                 <div className="streamer-chat-actions" aria-label={`Moderation controls for ${message.authorName}`}>
-                  {actionAccess.canHide ? (
+                  {actionAccess.canHide || showUnavailableActions ? (
                     <button
                       type="button"
+                      disabled={!actionAccess.canHide}
                       onClick={() => void executeStreamerChatModeration(message, "hide")}
-                      title="Hide this message from Maiks.yt stream chat surfaces locally."
+                      title={actionAccess.canHide
+                        ? "Hide this message from Maiks.yt stream chat surfaces locally."
+                        : "Missing chat:hide-message permission."}
                     >
                       Hide
                     </button>
                   ) : null}
-                  {actionAccess.canBan ? (
+                  {actionAccess.canBan || showUnavailableActions ? (
                     <button
                       type="button"
+                      disabled={!actionAccess.canBan}
                       onClick={() => void executeStreamerChatModeration(message, "ban")}
-                      title="Ban this author from Maiks.yt stream chat surfaces locally."
+                      title={actionAccess.canBan
+                        ? "Ban this author from Maiks.yt stream chat surfaces locally."
+                        : "Missing chat:ban-user-local permission."}
                     >
                       Ban
                     </button>
                   ) : null}
-                  {actionAccess.canWarn || message.source === "fake-local" ? (
+                  {actionAccess.canWarn || showUnavailableActions || message.source === "fake-local" ? (
                     <button
                       type="button"
                       aria-expanded={optionsOpen}
                       onClick={() => setOpenOptionsMessageId(optionsOpen ? null : message.id)}
+                      title="Show local moderation options and gated follow-up actions."
                     >
                       Options
                     </button>
@@ -273,11 +281,14 @@ export const StreamerChatViewer = ({
                 </div>
                 {optionsOpen ? (
                   <div className="streamer-chat-options">
-                    {actionAccess.canWarn ? (
+                    {actionAccess.canWarn || showUnavailableActions ? (
                       <button
                         type="button"
+                        disabled={!actionAccess.canWarn}
                         onClick={() => void executeStreamerChatModeration(message, "warn")}
-                        title="Warn this author locally. A third warning applies a local stream-surface ban."
+                        title={actionAccess.canWarn
+                          ? "Warn this author locally. A third warning applies a local stream-surface ban."
+                          : "Missing chat:warn-user permission."}
                       >
                         Warn
                       </button>
@@ -290,6 +301,16 @@ export const StreamerChatViewer = ({
                     >
                       Note
                     </button>
+                    {showUnavailableActions ? (
+                      <>
+                        <button type="button" disabled title="Provider warning messages need the provider-write moderation phase.">
+                          Provider warn
+                        </button>
+                        <button type="button" disabled title="Provider timeouts need audited provider-write clients and permission checks.">
+                          Provider timeout
+                        </button>
+                      </>
+                    ) : null}
                     <button type="button" disabled title="Needs a reviewed moderation allowlist model.">
                       Allow always
                     </button>

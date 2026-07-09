@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-06-29
+Updated: 2026-07-09
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -38,6 +38,12 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - The previous public `web-dev` Cloudflare-side injection blocker was resolved by Michael removing the malicious Worker route. Keep an eye on future public smoke for injection markers, but do not edit Cloudflare config unless explicitly assigned.
 - The first private notification panel slice is implemented, deployed, migrated, and dev-smoked on `dev`: `system_notifications` persistence, typed notification validation, owner-gated notification list/read/archive API, dev-secret `/dev/notifications`, standalone `/tools/notifications` polling UI, Web Push delivery, owner-device notification receipt, and a four-times-a-day dev smoke runner wired through user cron on `codex-server-1`.
 - Production readiness now has a design-only dev-to-main checklist in `reports/production-readiness-checklist.md`. It is not deployment approval; production config edits, secret changes, migration application, deployments, and server state changes remain coordinator/release-owner work only.
+- Phase A non-provider smoke review adds route-level `/chat` and `/moderation` reachability/injection checks to the dev smoke runner plus `reports/dev-smoke/phase-a-manual-smoke-gap-review.md`. Manual installed-window/token-gated UI smoke is still open.
+- Phase B1 moderation follow-up adds disabled-action explanations to `/moderation` chat rows so missing local rights and provider-write gates are visible without changing authorization.
+- Phase C1 money planning is captured in `reports/money-accounting-stage-plan.md`. The next money task should be Phase C2 generated-migration-only for private ledger/rules/reports, not public payment behavior.
+- Phase D1 content planning adds Page Creator client-side validation copy and records the content completion chunks: page polish, support destination after Michael approval, project/policy polish, and schema-gated Game Library/play schedule.
+- Phase E1 backup/export planning is captured in `reports/backup-restore-runbook.md`. Production backup automation remains blocked on retention, encryption, restore-owner, and destructive-restore decisions.
+- Phase F1 refreshes `reports/production-readiness-checklist.md` into a staged dev-to-prod gate checklist. It is not production approval.
 - Money planning now includes `ideas/profit-aware-money-reporting-and-dated-rules.md`. Before public donations/support are implemented, a money phase should include private accounting reports, dated fee/split rules, immutable corrections, and exportable gross/net income/cost summaries.
 - Large-file split planning now lives in `reports/large-file-split-proposal.md`. The most urgent hotspots are `apps/api/src/main.ts` and `apps/control-panel/src/main.tsx`; start with behavior-preserving API streamer-chat extraction before broader cleanup.
 - Dev coordinator smoke can use deployed `POST /dev/testing/owner-token`. It is production-disabled, secret-protected, selects an existing linked owner wildcard user, writes only a hash to `dev_auth_tokens`, returns the raw token/login URL once, and caps TTL to 1-15 minutes. Smoke confirmed missing secret returns `403`, a minted token can access owner-gated provider status, no mint secret/raw token appears in that response, and the DB stores a 64-character hash. This is for testing normal owner-gated pages/APIs without keeping long-lived tokens in context.

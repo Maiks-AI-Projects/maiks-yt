@@ -1,6 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  contentPageBodyMaxLength,
+  contentPagePathMaxLength,
+  contentPageSeoDescriptionMaxLength,
+  contentPageSeoTitleMaxLength,
+  contentPageTitleMaxLength,
+  normalizeContentPagePath
+} from "@maiks-yt/domain/pages";
 import type { ContentPageSource } from "@maiks-yt/domain/pages";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
@@ -61,6 +69,52 @@ const toPayload = (form: PageFormState): Record<string, unknown> => ({
   seoDescription: form.seoDescription.trim() || null,
   body: form.body.trim()
 });
+
+const getLocalFormIssue = (form: PageFormState): string | null => {
+  const title = form.title.trim();
+  const body = form.body.trim();
+  const seoTitle = form.seoTitle.trim();
+  const seoDescription = form.seoDescription.trim();
+  const path = normalizeContentPagePath(form.path);
+
+  if (title.length === 0) {
+    return "Add a page title before saving.";
+  }
+
+  if (title.length > contentPageTitleMaxLength) {
+    return `Page title must be ${contentPageTitleMaxLength} characters or fewer.`;
+  }
+
+  if (!path.ok) {
+    if (path.reason === "reserved_path") {
+      return "That path is reserved for code-owned, admin, tool, API, overlay, dev, auth, account, or static asset routes.";
+    }
+
+    if (path.reason === "path_too_long") {
+      return `Page path must be ${contentPagePathMaxLength} characters or fewer.`;
+    }
+
+    return "Use a simple path such as /channel-rules with lowercase letters, numbers, and hyphens.";
+  }
+
+  if (seoTitle.length > contentPageSeoTitleMaxLength) {
+    return `SEO title must be ${contentPageSeoTitleMaxLength} characters or fewer.`;
+  }
+
+  if (seoDescription.length > contentPageSeoDescriptionMaxLength) {
+    return `SEO description must be ${contentPageSeoDescriptionMaxLength} characters or fewer.`;
+  }
+
+  if (body.length === 0) {
+    return "Add Markdown body content before saving.";
+  }
+
+  if (body.length > contentPageBodyMaxLength) {
+    return `Markdown body must be ${contentPageBodyMaxLength} characters or fewer.`;
+  }
+
+  return null;
+};
 
 const sortPages = (pages: readonly ContentPageSource[]): readonly ContentPageSource[] =>
   pages
@@ -249,6 +303,13 @@ const ContentPageAdminClient = (): React.ReactNode => {
 
   const createPage = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    const issue = getLocalFormIssue(pageForm);
+
+    if (issue) {
+      setMessage(issue);
+      return;
+    }
+
     await runPageMutation("Creating page", "/admin/pages", {
       method: "POST",
       body: toPayload(pageForm)
@@ -260,6 +321,13 @@ const ContentPageAdminClient = (): React.ReactNode => {
 
     if (!selectedPage) {
       setMessage("Choose a page before saving changes.");
+      return;
+    }
+
+    const issue = getLocalFormIssue(pageForm);
+
+    if (issue) {
+      setMessage(issue);
       return;
     }
 

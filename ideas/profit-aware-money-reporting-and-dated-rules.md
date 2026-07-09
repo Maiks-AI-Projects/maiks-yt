@@ -138,6 +138,22 @@ The first implementation should be private/admin-only and manual-first:
 
 Provider imports, payment checkout, automatic tax logic, public money pages, and provider write actions can come later.
 
+## Phase C1 Stage Plan
+
+The Phase C1 design gate is captured in [../reports/money-accounting-stage-plan.md](../reports/money-accounting-stage-plan.md).
+
+The next safe step is Phase C2 migration generation only:
+
+- append-only private ledger transactions and ledger lines
+- explicit `real`, `provider_sandbox`, `simulated`, and `test` money modes
+- dated provider fee, payout fee, split, conversion, and estimate rule versions
+- correction entries that link to the original row and require a reason
+- receipt/invoice reference metadata without upload behavior
+- report/export audit metadata
+- warning records for unmapped sources, missing fees/categories/receipts/allocations, rule gaps, mixed money modes, and unconfirmed estimates
+
+Phase C2 should not add runtime API, admin UI, provider imports, checkout, public donation/support behavior, production behavior, secrets, migration application, commits, pushes, or deploys.
+
 ## Open Questions
 
 - Which cost categories are needed for Dutch accounting?

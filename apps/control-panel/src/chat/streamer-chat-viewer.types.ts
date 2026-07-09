@@ -51,5 +51,6 @@ export type StreamerChatViewerProps = {
   apiBaseUrl: string;
   maxMessages?: number;
   newestOnTop: boolean;
+  showUnavailableActions?: boolean;
   variant?: "embedded" | "standalone";
 };

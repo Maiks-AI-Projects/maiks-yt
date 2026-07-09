@@ -121,6 +121,7 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
           apiBaseUrl={apiBaseUrl}
           newestOnTop
           maxMessages={80}
+          showUnavailableActions
           variant="standalone"
         />
       ) : activePanel === "rules" ? (

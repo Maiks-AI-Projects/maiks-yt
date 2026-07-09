@@ -270,6 +270,18 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     url: http.makeUrl(config.controlUrl, "/"),
     scanInjection: true
   }),
+  checkTextEndpoint({
+    http,
+    name: "chat window reachability",
+    url: http.makeUrl(config.controlUrl, "/chat"),
+    scanInjection: true
+  }),
+  checkTextEndpoint({
+    http,
+    name: "moderation window reachability",
+    url: http.makeUrl(config.controlUrl, "/moderation"),
+    scanInjection: true
+  }),
   checkProviderIntakeHealth({ config, getDevOwnerToken, http }),
   checkYouTubeActivitiesPoll({ config, getDevOwnerToken, http })
 ]);
