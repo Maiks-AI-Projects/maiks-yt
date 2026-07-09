@@ -174,6 +174,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added provider intake health shape verification to the existing `pnpm dev:smoke:notify` runner for review. When a dev testing secret is available it mints a short-lived owner token, verifies the owner-gated intake health payload shape, and does not alert merely because an individual provider mechanism is stale or missing.
 - Added the existing read-only YouTube activities poll endpoint to the dev smoke runner for review. When a dev testing secret is available, the runner reuses its short-lived owner token and performs one low-frequency activities poll so the selected YouTube channel has a recurring dev intake heartbeat.
 - Split the oversized `scripts/dev-smoke-notify.mjs` into focused `scripts/dev-smoke/` modules for config, HTTP, owner-token minting, checks, notifications, and state. This is behavior-preserving and keeps future unattended smoke additions easier to review.
+- Started the provider integrations admin client split by moving its large response/type block and shared display helpers into `provider-integrations-status.types.ts` and `provider-integrations-status.service.ts`. The rendered UI and API behavior are unchanged.
 
 ## Current Task
 

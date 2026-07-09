@@ -109,6 +109,7 @@ After the API/control-panel split, tackle large admin clients:
   - Split project details editor, milestones/items editor, updates editor, preview panel.
 - `apps/web/src/app/admin/provider-integrations/provider-integrations-status-client.tsx`
   - Split provider summary, Twitch panel, Discord panel, YouTube consent panel, provider capability list.
+  - 2026-07-09 progress: response/type definitions and shared display helpers were extracted to nearby focused files. Remaining work is mostly JSX panel extraction.
 
 These are good smaller-model or mechanical-worker candidates once the component boundaries are written down.
 
