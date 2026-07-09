@@ -54,6 +54,7 @@ describe("content page path rules", () => {
     expect(normalizeContentPagePath("/api/pages")).toMatchObject({ ok: false, reason: "reserved_path" });
     expect(normalizeContentPagePath("/tools/actions")).toMatchObject({ ok: false, reason: "reserved_path" });
     expect(normalizeContentPagePath("/projects/maiks-yt-v2")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/games/satisfactory")).toMatchObject({ ok: false, reason: "reserved_path" });
     expect(normalizeContentPagePath("/manifest.webmanifest")).toMatchObject({ ok: false, reason: "malformed_path" });
     expect(normalizeContentPagePath("/bad path")).toMatchObject({ ok: false, reason: "malformed_path" });
     expect(normalizeContentPagePath("/bad?draft=true")).toMatchObject({ ok: false, reason: "malformed_path" });

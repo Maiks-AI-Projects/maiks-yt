@@ -310,6 +310,30 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
     http,
+    name: "admin games",
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    url: http.makeUrl(config.webUrl, "/admin/games"),
+    scanInjection: true
+  }),
+  checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    http,
+    name: "public games",
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    url: http.makeUrl(config.webUrl, "/games"),
+    scanInjection: true
+  }),
+  checkJsonEndpoint({
+    http,
+    name: "public games API",
+    url: http.makeUrl(config.apiUrl, "/games"),
+    validate: (json) => json?.ok === true && Array.isArray(json?.games)
+      ? null
+      : "public games API returned an unexpected payload."
+  }),
+  checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    http,
     name: "overlay reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.overlayUrl, "/"),

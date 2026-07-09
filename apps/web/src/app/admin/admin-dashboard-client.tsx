@@ -120,6 +120,11 @@ const groups: readonly AdminDashboardGroup[] = [
         description: "Draft, preview, and publish editable site pages."
       },
       {
+        href: "/admin/games",
+        label: "Games",
+        description: "Manage the curated game library and stream-planning metadata."
+      },
+      {
         href: "/admin/projects",
         label: "Projects",
         description: "Manage public project content, milestones, and updates."

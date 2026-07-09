@@ -2012,6 +2012,56 @@ button:disabled {
   padding: 1rem;
 }
 
+.game-library-page {
+  max-width: 72rem;
+}
+
+.game-library-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.game-library-card {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.game-library-card h2,
+.game-library-card p,
+.game-library-card dl,
+.game-library-card dd {
+  margin: 0;
+}
+
+.game-library-card span {
+  color: #4b5966;
+  font-size: 0.85rem;
+}
+
+.game-library-card dl {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.game-library-card dt {
+  color: #4b5966;
+  font-size: 0.78rem;
+}
+
+.game-library-card dd {
+  color: #102131;
+  font-weight: 700;
+}
+
+.game-library-warning {
+  color: #6d3f00;
+}
+
 .dev-test-console-page {
   max-width: 82rem;
 }

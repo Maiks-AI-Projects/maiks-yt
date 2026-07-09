@@ -35,6 +35,7 @@ const reservedPathPrefixes = [
   "/context",
   "/dev",
   "/gemini-lab",
+  "/games",
   "/icons",
   "/links",
   "/oauth",
