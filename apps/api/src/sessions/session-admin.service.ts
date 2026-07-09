@@ -89,6 +89,43 @@ export class SessionAdminService {
       };
   }
 
+  public async revokeOtherSessions(input: {
+    authUserId: string;
+    currentSessionId?: string | null;
+  }): Promise<
+    | {
+      ok: true;
+      revokedCount: number;
+    }
+    | {
+      ok: false;
+      reason:
+        | "session_admin_user_unlinked"
+        | "session_admin_forbidden"
+        | "session_admin_invalid_input";
+    }
+  > {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const currentSessionId = input.currentSessionId?.trim() ?? "";
+
+    if (currentSessionId.length === 0 || currentSessionId.length > 36 || currentSessionId.startsWith("dev-token:")) {
+      return {
+        ok: false,
+        reason: "session_admin_invalid_input"
+      };
+    }
+
+    return {
+      ok: true,
+      revokedCount: await this.repository.revokeOtherSessions(currentSessionId)
+    };
+  }
+
   private async requireActor(authUserId: string): Promise<
     | { ok: true }
     | { ok: false; reason: "session_admin_user_unlinked" | "session_admin_forbidden" }

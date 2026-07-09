@@ -44,4 +44,5 @@ export interface SessionAdminRepository {
   resolveActor(authUserId: string): Promise<SessionAdminActor | null>;
   listSessions(currentSessionId: string | null): Promise<readonly SessionAdminRecord[]>;
   revokeSession(id: string): Promise<boolean>;
+  revokeOtherSessions(currentSessionId: string): Promise<number>;
 }

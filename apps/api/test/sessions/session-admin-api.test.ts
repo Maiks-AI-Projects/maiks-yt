@@ -64,6 +64,14 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
     this.sessions.splice(index, 1);
     return true;
   }
+
+  public async revokeOtherSessions(currentSessionId: string): Promise<number> {
+    const before = this.sessions.length;
+    const remaining = this.sessions.filter((session) => session.id === currentSessionId);
+    this.sessions.splice(0, this.sessions.length, ...remaining);
+
+    return before - this.sessions.length;
+  }
 }
 
 describe("SessionAdminService", () => {
@@ -133,6 +141,33 @@ describe("SessionAdminService", () => {
     await expect(service.revokeSession({
       authUserId: "auth-owner",
       id: "dev-token:temporary"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "session_admin_invalid_input"
+    });
+  });
+
+  it("revokes other sessions while preserving the current session", async () => {
+    const repository = new FakeSessionAdminRepository();
+    const service = new SessionAdminService(repository);
+
+    await expect(service.revokeOtherSessions({
+      authUserId: "auth-owner",
+      currentSessionId: "session-current"
+    })).resolves.toEqual({
+      ok: true,
+      revokedCount: 1
+    });
+    expect(repository.sessions.map((session) => session.id)).toEqual(["session-current"]);
+  });
+
+  it("rejects revoke-others without a real current browser session id", async () => {
+    const repository = new FakeSessionAdminRepository();
+    const service = new SessionAdminService(repository);
+
+    await expect(service.revokeOtherSessions({
+      authUserId: "auth-owner",
+      currentSessionId: "dev-token:temporary"
     })).resolves.toEqual({
       ok: false,
       reason: "session_admin_invalid_input"
@@ -226,6 +261,38 @@ describe("session admin API", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       ok: true
+    });
+    expect(repository.sessions.map((session) => session.id)).toEqual(["session-current"]);
+  });
+
+  it("revokes all other sessions for an owner with a real current session", async () => {
+    const repository = new FakeSessionAdminRepository();
+    const server = Fastify();
+    registerSessionAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-owner"
+        },
+        session: {
+          id: "session-current",
+          userId: "auth-owner"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new SessionAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/sessions/revoke-others"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      revokedCount: 1
     });
     expect(repository.sessions.map((session) => session.id)).toEqual(["session-current"]);
   });

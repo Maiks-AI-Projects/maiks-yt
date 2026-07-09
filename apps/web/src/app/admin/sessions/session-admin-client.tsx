@@ -31,6 +31,7 @@ type SessionAdminResponse =
 type SessionAdminMutationResponse =
   | {
     ok: true;
+    revokedCount?: number;
   }
   | {
     ok: false;
@@ -158,6 +159,39 @@ const SessionAdminClient = (): React.ReactNode => {
     }
   };
 
+  const revokeOtherSessions = async (): Promise<void> => {
+    const confirmed = window.confirm("Revoke every other browser session and keep this one signed in?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setBusySessionId("revoke-others");
+    setMessage("Revoking other sessions...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/sessions/revoke-others`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<SessionAdminMutationResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        await loadSessions();
+        setMessage(`Revoked ${payload.revokedCount ?? 0} other session${payload.revokedCount === 1 ? "" : "s"}.`);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Bulk session revoke failed.");
+    } finally {
+      setBusySessionId(null);
+    }
+  };
+
   return (
     <section className="project-admin-shell">
       <header className="project-admin-header">
@@ -167,6 +201,13 @@ const SessionAdminClient = (): React.ReactNode => {
           <p>Review active browser sessions and revoke anything suspicious.</p>
         </div>
         <div className="admin-inline-actions">
+          <button
+            type="button"
+            onClick={() => void revokeOtherSessions()}
+            disabled={loadState !== "ready" || sessions.length <= 1 || busySessionId !== null}
+          >
+            Revoke Others
+          </button>
           <button type="button" onClick={() => void loadSessions()} disabled={loadState === "loading"}>
             Refresh
           </button>

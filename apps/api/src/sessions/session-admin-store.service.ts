@@ -128,5 +128,19 @@ export const createSessionAdminRepository = (
       && "affectedRows" in result
       && typeof result.affectedRows === "number"
       && result.affectedRows > 0;
+  },
+
+  async revokeOtherSessions(currentSessionId) {
+    const [result] = await pool.execute(
+      "DELETE FROM auth_sessions WHERE id <> ?",
+      [currentSessionId]
+    );
+
+    return typeof result === "object"
+      && result !== null
+      && "affectedRows" in result
+      && typeof result.affectedRows === "number"
+      ? result.affectedRows
+      : 0;
   }
 });

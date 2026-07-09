@@ -9,7 +9,7 @@ import { createSessionAdminRepository } from "./session-admin-store.service.js";
 type SessionAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<SessionAdminService, "listSessions" | "revokeSession">;
+  createService?: () => Pick<SessionAdminService, "listSessions" | "revokeSession" | "revokeOtherSessions">;
 };
 
 const sessionParamsSchema = z.object({
@@ -20,7 +20,7 @@ export const registerSessionAdminRoutes = (
   server: FastifyInstance,
   dependencies: SessionAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<SessionAdminService, "listSessions" | "revokeSession"> =>
+  const getService = (): Pick<SessionAdminService, "listSessions" | "revokeSession" | "revokeOtherSessions"> =>
     dependencies.createService?.()
     ?? new SessionAdminService(createSessionAdminRepository(dependencies.getDatabasePool()));
 
@@ -105,6 +105,37 @@ export const registerSessionAdminRoutes = (
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Session admin revoke failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "session_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/sessions/revoke-others", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "session_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    try {
+      const result = await getService().revokeOtherSessions({
+        authUserId: session.user.id,
+        currentSessionId: session.session.id ?? null
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "session_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Session admin revoke others failed.");
       reply.code(503);
       return {
         ok: false,
