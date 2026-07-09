@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
-import { createAuthenticatedWebSocketUrl, defaultActionAccess } from "./streamer-chat-viewer.service.js";
+import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
 import type { FakeLocalModerationResponse, StreamerChatMessagesResponse, StreamerChatModerationResponse, StreamerChatViewerProps } from "./streamer-chat-viewer.types.js";
 
 export const StreamerChatViewer = ({
@@ -104,7 +104,7 @@ export const StreamerChatViewer = ({
           action,
           targetMessageId: action === "hide_message" ? message.id : null,
           targetAuthorName: action === "hide_message" ? null : message.authorName,
-          durationSeconds: action === "temporary_mute_author" ? 15 * 60 : null,
+          durationSeconds: action === "temporary_mute_author" ? defaultTemporaryMuteDurationSeconds : null,
           note
         }),
         credentials: "include",
@@ -300,6 +300,14 @@ export const StreamerChatViewer = ({
                       title={message.source !== "fake-local" ? "Provider notes need the provider moderation phase." : "Add a local note drill."}
                     >
                       Note
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void executeFakeLocalModeration(message, "temporary_mute_author", "Muted for 10 minutes from streamer chat options.")}
+                      disabled={message.source !== "fake-local"}
+                      title={message.source !== "fake-local" ? "Provider timeouts need the provider-write moderation phase." : "Mute this fake/local author for 10 minutes."}
+                    >
+                      Mute 10m
                     </button>
                     {showUnavailableActions ? (
                       <>

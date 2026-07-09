@@ -10,8 +10,9 @@ import {
 
 const actionSet = new Set<string>(fakeLocalModerationActions);
 const maxNoteLength = 280;
-const minMuteDurationSeconds = 30;
-const maxMuteDurationSeconds = 15 * 60;
+export const minFakeLocalMuteDurationSeconds = 30;
+export const defaultFakeLocalMuteDurationSeconds = 10 * 60;
+export const maxFakeLocalMuteDurationSeconds = 15 * 60;
 
 export const canModerateFakeLocalChat = (capabilities: readonly unknown[]): boolean =>
   capabilities.some((capability): capability is string =>
@@ -66,8 +67,8 @@ export const validateFakeLocalModerationCommand = (
       issues.push("fake_local_moderation_duration_required");
     } else if (
       !Number.isInteger(command.durationSeconds)
-      || command.durationSeconds < minMuteDurationSeconds
-      || command.durationSeconds > maxMuteDurationSeconds
+      || command.durationSeconds < minFakeLocalMuteDurationSeconds
+      || command.durationSeconds > maxFakeLocalMuteDurationSeconds
     ) {
       issues.push("fake_local_moderation_duration_out_of_range");
     }

@@ -359,7 +359,8 @@ Gate note: AI public output must start in a private draft/shadow mode before any
   - 2026-06-29 Phase 5J designed the restriction escalation model only. Existing `moderation_active_states` remains the current-effect read model for hides/mutes/restrictions/bans, while future strike/policy records should be separate from active enforcement state. Runtime restrictions, real bans, provider actions, destructive actions, and automatic escalation remain gated.
 - [ ] Add moderation audit history.
   - 2026-06-29 Phase 5J kept `moderation_audit_logs` as append-only action history and `moderation_active_states` as current effect. A minimal future schema, if approved, would add `community_policy_versions`, `community_rule_definitions`, and `moderation_strikes`; no migration was generated.
-- [ ] Decide default quick mute duration.
+- [x] Decide default quick mute duration.
+  - 2026-07-10 default quick temporary mute is 10 minutes. The chat options menu exposes this for fake/local messages; provider timeouts remain disabled until the provider-write moderation phase.
 - [x] Add abuse policy page, including police-report warning for serious abuse.
   - 2026-07-10 first draft is live as `/community-rules` for dev testing. Final production wording, policy-version records, strike records, and appeal workflow remain future work.
 - [ ] Add offensive display name handling.

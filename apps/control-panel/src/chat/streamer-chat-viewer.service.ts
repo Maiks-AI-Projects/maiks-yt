@@ -6,6 +6,8 @@ export const defaultActionAccess: StreamerChatActionAccess = {
   canWarn: true
 };
 
+export const defaultTemporaryMuteDurationSeconds = 10 * 60;
+
 export const createWebSocketUrl = (baseUrl: string, path: string): string => {
   const url = new URL(path, baseUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";

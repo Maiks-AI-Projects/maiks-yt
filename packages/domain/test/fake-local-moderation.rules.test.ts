@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   canModerateFakeLocalChat,
+  defaultFakeLocalMuteDurationSeconds,
   fakeLocalModerationCapability,
+  maxFakeLocalMuteDurationSeconds,
+  minFakeLocalMuteDurationSeconds,
   validateFakeLocalModerationCommand
 } from "../src/community/index.js";
 
@@ -38,6 +41,12 @@ describe("fake/local moderation rules", () => {
         durationSeconds: 120
       }
     });
+  });
+
+  it("keeps the default mute shorter than the maximum allowed temporary mute", () => {
+    expect(defaultFakeLocalMuteDurationSeconds).toBe(10 * 60);
+    expect(defaultFakeLocalMuteDurationSeconds).toBeGreaterThanOrEqual(minFakeLocalMuteDurationSeconds);
+    expect(defaultFakeLocalMuteDurationSeconds).toBeLessThan(maxFakeLocalMuteDurationSeconds);
   });
 
   it("rejects missing targets and unsafe duration shapes", () => {
