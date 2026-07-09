@@ -125,6 +125,21 @@ const toPayload = (form: GameFormState): Record<string, unknown> => ({
   sortOrder: form.sortOrder
 });
 
+const suggestionToGameForm = (suggestion: GameSuggestionSource): GameFormState => ({
+  title: suggestion.title,
+  slug: createGameSlugFromTitle(suggestion.title),
+  platformLabel: suggestion.platformLabel ?? "",
+  storeProvider: "",
+  storeUrl: suggestion.storeUrl ?? "",
+  ownershipStatus: "unknown",
+  interestStatus: "interested",
+  streamFitNote: suggestion.reason ?? "",
+  contentWarnings: "",
+  categoryLabel: suggestion.tags[0] ?? "",
+  visibility: "private",
+  sortOrder: 0
+});
+
 const getLocalFormIssue = (form: GameFormState): string | null => {
   const title = form.title.trim();
   const slug = form.slug.trim() || createGameSlugFromTitle(title);
@@ -391,6 +406,16 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     });
   };
 
+  const draftGameFromSuggestion = (suggestion: GameSuggestionSource): void => {
+    setSelectedId("");
+    setGameForm(suggestionToGameForm(suggestion));
+    setSuggestionReview((current) => ({
+      ...current,
+      reviewerNote: current.reviewerNote || `Drafted from suggestion: ${suggestion.title}`
+    }));
+    setMessage("Suggestion copied into a private game draft. Save it before reviewing the suggestion.");
+  };
+
   const visibleGames = sortGames(games);
   const pendingSuggestions = suggestions.filter((suggestion) => suggestion.status === "pending");
 
@@ -481,6 +506,9 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                         </label>
                       </div>
                       <div className="project-admin-actions">
+                        <button type="button" className="secondary-action" onClick={() => draftGameFromSuggestion(suggestion)} disabled={busyAction !== null}>
+                          Draft Game
+                        </button>
                         <button type="button" onClick={() => void reviewSuggestion(suggestion.id, "accepted")} disabled={busyAction !== null}>
                           Accept
                         </button>
