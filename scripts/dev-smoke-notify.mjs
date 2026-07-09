@@ -11,6 +11,7 @@ const defaultConfig = {
   notificationPath: "/dev/notifications",
   ownerTokenPath: "/dev/testing/owner-token",
   providerIntakeHealthPath: "/admin/connections/intake/health",
+  youtubeActivitiesPollPath: "/admin/provider-integrations/youtube-activities/poll",
   stateFile: "/tmp/maiks-yt-dev-smoke-state.json",
   duplicateCooldownMs: 12 * 60 * 60 * 1000,
   timeoutMs: 30_000,
@@ -139,6 +140,8 @@ const getDevTestingSecret = () =>
   ?? process.env.DEV_NOTIFICATION_POST_SECRET
   ?? null;
 
+let devOwnerTokenPromise = null;
+
 const mintDevOwnerToken = async () => {
   const secret = getDevTestingSecret();
 
@@ -183,6 +186,11 @@ const mintDevOwnerToken = async () => {
     ok: true,
     token: parsed.token
   };
+};
+
+const getDevOwnerToken = () => {
+  devOwnerTokenPromise ??= mintDevOwnerToken();
+  return devOwnerTokenPromise;
 };
 
 const readText = async (url) => {
@@ -294,7 +302,7 @@ const checkTextEndpoint = async ({ name, url, scanInjection = false, rejectNavba
 
 const checkProviderIntakeHealth = async () => {
   try {
-    const minted = await mintDevOwnerToken();
+    const minted = await getDevOwnerToken();
 
     if (minted.skipped) {
       return {
@@ -362,6 +370,68 @@ const checkProviderIntakeHealth = async () => {
   }
 };
 
+const checkYouTubeActivitiesPoll = async () => {
+  try {
+    const minted = await getDevOwnerToken();
+
+    if (minted.skipped) {
+      return {
+        ok: true,
+        name: "youtube activities poll",
+        message: `youtube activities poll skipped: ${minted.reason}`
+      };
+    }
+
+    if (!minted.ok) {
+      return {
+        ok: false,
+        critical: false,
+        name: "youtube activities poll",
+        message: `youtube activities poll could not mint an owner token: ${minted.reason}`
+      };
+    }
+
+    const response = await fetchWithTimeout(makeUrl(config.apiUrl, config.youtubeActivitiesPollPath), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${minted.token}`
+      }
+    });
+    const body = await response.text();
+
+    let parsed;
+
+    try {
+      parsed = body ? JSON.parse(body) : null;
+    } catch {
+      parsed = null;
+    }
+
+    if (!response.ok || parsed?.ok !== true || parsed?.readOnly !== true) {
+      return {
+        ok: false,
+        critical: false,
+        name: "youtube activities poll",
+        message: `youtube activities poll returned HTTP ${response.status}.`
+      };
+    }
+
+    return {
+      ok: true,
+      name: "youtube activities poll",
+      message: `youtube activities poll passed with ${parsed.fetched ?? 0} fetched and ${parsed.inserted ?? 0} inserted.`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      critical: false,
+      name: "youtube activities poll",
+      message: `youtube activities poll failed: ${error instanceof Error ? error.message : String(error)}.`
+    };
+  }
+};
+
 const runChecks = async () => Promise.all([
   checkJsonEndpoint({
     name: "api health",
@@ -406,7 +476,8 @@ const runChecks = async () => Promise.all([
     url: makeUrl(config.controlUrl, "/"),
     scanInjection: true
   }),
-  checkProviderIntakeHealth()
+  checkProviderIntakeHealth(),
+  checkYouTubeActivitiesPoll()
 ]);
 
 const readState = async () => {
