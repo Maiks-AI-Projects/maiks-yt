@@ -302,6 +302,14 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
     http,
+    name: "admin dashboard",
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    url: http.makeUrl(config.webUrl, "/admin"),
+    scanInjection: true
+  }),
+  checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    http,
     name: "overlay reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.overlayUrl, "/"),
