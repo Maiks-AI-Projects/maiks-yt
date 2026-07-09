@@ -176,6 +176,8 @@ Checks:
 
 Move `scripts/dev-smoke-notify.mjs` into a small entrypoint plus focused modules under `scripts/dev-smoke/`.
 
+Status: completed on 2026-07-09. The entrypoint is now a small orchestrator, with config, HTTP helpers, owner-token minting, checks, notification posting, and state hashing split into focused modules.
+
 Suggested extraction:
 
 - `config.mjs`: defaults, CLI parsing, URL helpers.
