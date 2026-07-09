@@ -30,6 +30,7 @@ reports/agent-brief.md
 reports/rule-violations.md
 reports/dev-urls/
 reports/usable-urls.md
+reports/visual-qa/current-dev-smoke/
 
 # Private local runtime files
 .private/
