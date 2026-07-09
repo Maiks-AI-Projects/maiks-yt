@@ -14,6 +14,7 @@ import type {
 
 import type {
   MoneyAdminExportResult,
+  MoneyAdminLedgerFilters,
   MoneyAdminListResult,
   MoneyAdminMutationResult,
   MoneyAdminRepository
@@ -58,6 +59,27 @@ const normalizeNullableText = (value: string | null | undefined, maxLength: numb
 const normalizeCurrency = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim().toUpperCase() ?? "";
   return trimmed.length > 0 ? trimmed.slice(0, 3) : null;
+};
+
+const normalizeLedgerFilters = (filters?: Partial<MoneyAdminLedgerFilters>): MoneyAdminLedgerFilters | null => {
+  const accountingFrom = normalizeNullableText(filters?.accountingFrom, 40);
+  const accountingTo = normalizeNullableText(filters?.accountingTo, 40);
+
+  if (
+    (accountingFrom && !Number.isFinite(Date.parse(accountingFrom)))
+    || (accountingTo && !Number.isFinite(Date.parse(accountingTo)))
+  ) {
+    return null;
+  }
+
+  if (accountingFrom && accountingTo && Date.parse(accountingTo) <= Date.parse(accountingFrom)) {
+    return null;
+  }
+
+  return {
+    accountingFrom,
+    accountingTo
+  };
 };
 
 const normalizeInput = (input: MoneyLedgerTransactionInput): MoneyLedgerTransactionInput => ({
@@ -292,14 +314,26 @@ const countWarningsByKind = (
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
 
-  public async listTransactions(input: { authUserId: string }): Promise<MoneyAdminListResult> {
+  public async listTransactions(input: {
+    authUserId: string;
+    filters?: Partial<MoneyAdminLedgerFilters>;
+  }): Promise<MoneyAdminListResult> {
     const actor = await this.requireActor(input.authUserId);
 
     if (!actor.ok) {
       return actor;
     }
 
-    const transactions = await this.repository.listTransactions();
+    const filters = normalizeLedgerFilters(input.filters);
+
+    if (!filters) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const transactions = await this.repository.listTransactions(filters);
 
     return {
       ok: true,
@@ -308,14 +342,26 @@ export class MoneyAdminService {
     };
   }
 
-  public async exportLedgerCsv(input: { authUserId: string }): Promise<MoneyAdminExportResult> {
+  public async exportLedgerCsv(input: {
+    authUserId: string;
+    filters?: Partial<MoneyAdminLedgerFilters>;
+  }): Promise<MoneyAdminExportResult> {
     const actor = await this.requireActor(input.authUserId);
 
     if (!actor.ok) {
       return actor;
     }
 
-    const transactions = await this.repository.listTransactions();
+    const filters = normalizeLedgerFilters(input.filters);
+
+    if (!filters) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const transactions = await this.repository.listTransactions(filters);
     const generatedAt = new Date().toISOString();
     const warnings = buildAccountingWarnings(transactions);
     const { csv, lineCount } = buildLedgerCsv(transactions);
@@ -329,7 +375,9 @@ export class MoneyAdminService {
       periodEnd: period.periodEnd,
       filters: {
         export: "manual-ledger-csv",
-        transactionLimit: 100
+        transactionLimit: 100,
+        accountingFrom: filters.accountingFrom,
+        accountingTo: filters.accountingTo
       },
       warningCounts: countWarningsByKind(warnings),
       fileKind: "csv",

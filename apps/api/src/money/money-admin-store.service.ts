@@ -271,14 +271,30 @@ export const createMoneyAdminRepository = (
     return await resolveActor(pool, authUserId);
   },
 
-  async listTransactions() {
+  async listTransactions(filters) {
+    const whereClauses: string[] = [];
+    const params: string[] = [];
+
+    if (filters.accountingFrom) {
+      whereClauses.push("accounting_at >= ?");
+      params.push(toSqlTimestamp(filters.accountingFrom));
+    }
+
+    if (filters.accountingTo) {
+      whereClauses.push("accounting_at < ?");
+      params.push(toSqlTimestamp(filters.accountingTo));
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
     const [transactionRows] = await pool.execute(
       `
         SELECT ${selectTransactionFields}
         FROM money_ledger_transactions
+        ${whereSql}
         ORDER BY accounting_at DESC, created_at DESC
         LIMIT 100
-      `
+      `,
+      params
     );
 
     if (!Array.isArray(transactionRows) || transactionRows.length === 0) {

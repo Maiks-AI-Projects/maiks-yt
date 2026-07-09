@@ -9,6 +9,11 @@ export type MoneyAdminActor = {
   rolePermissionValues: readonly unknown[];
 };
 
+export type MoneyAdminLedgerFilters = {
+  accountingFrom: string | null;
+  accountingTo: string | null;
+};
+
 export type MoneyAdminListResult =
   | {
     ok: true;
@@ -17,7 +22,7 @@ export type MoneyAdminListResult =
   }
   | {
     ok: false;
-    reason: "money_admin_user_unlinked" | "money_admin_forbidden";
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
   };
 
 export type MoneyAdminMutationResult =
@@ -50,12 +55,12 @@ export type MoneyAdminExportResult =
   }
   | {
     ok: false;
-    reason: "money_admin_user_unlinked" | "money_admin_forbidden";
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
   };
 
 export interface MoneyAdminRepository {
   resolveActor(authUserId: string): Promise<MoneyAdminActor | null>;
-  listTransactions(): Promise<readonly MoneyLedgerTransaction[]>;
+  listTransactions(filters: MoneyAdminLedgerFilters): Promise<readonly MoneyLedgerTransaction[]>;
   getTransaction(id: string): Promise<MoneyLedgerTransaction | null>;
   recordReportExport(input: {
     reportKind: "tax_review_export";

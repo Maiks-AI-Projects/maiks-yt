@@ -6,6 +6,7 @@ import { registerMoneyAdminRoutes } from "../../src/money/money-admin.route.js";
 import { MoneyAdminService } from "../../src/money/money-admin.service.js";
 import type {
   MoneyAdminActor,
+  MoneyAdminLedgerFilters,
   MoneyAdminRepository
 } from "../../src/money/money-admin.types.js";
 
@@ -62,8 +63,13 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     return this.actor ? structuredClone(this.actor) : null;
   }
 
-  public async listTransactions(): Promise<readonly MoneyLedgerTransaction[]> {
-    return structuredClone(this.transactions);
+  public async listTransactions(filters: MoneyAdminLedgerFilters): Promise<readonly MoneyLedgerTransaction[]> {
+    return structuredClone(this.transactions.filter((transaction) => {
+      const accountingTime = Date.parse(transaction.accountingAt);
+
+      return (!filters.accountingFrom || accountingTime >= Date.parse(filters.accountingFrom))
+        && (!filters.accountingTo || accountingTime < Date.parse(filters.accountingTo));
+    }));
   }
 
   public async getTransaction(id: string): Promise<MoneyLedgerTransaction | null> {
@@ -132,6 +138,97 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
 }
 
 describe("MoneyAdminService", () => {
+  it("filters ledger list and exports by accounting date", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "old-transaction",
+      accountingAt: "2026-06-01T10:00:00.000Z",
+      lines: [
+        {
+          id: "old-line",
+          transactionId: "old-transaction",
+          lineKind: "gross_income",
+          direction: "in",
+          amountMinor: 100,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: "old",
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-06-01T10:05:00.000Z"
+        }
+      ]
+    }));
+    const service = new MoneyAdminService(repository);
+
+    const listResult = await service.listTransactions({
+      authUserId: "auth-user",
+      filters: {
+        accountingFrom: "2026-07-01T00:00:00.000Z",
+        accountingTo: "2026-08-01T00:00:00.000Z"
+      }
+    });
+
+    expect(listResult).toMatchObject({
+      ok: true,
+      transactions: [
+        {
+          id: "transaction-1"
+        }
+      ]
+    });
+    expect(listResult.ok && listResult.transactions).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "old-transaction"
+      })
+    ]));
+
+    const exportResult = await service.exportLedgerCsv({
+      authUserId: "auth-user",
+      filters: {
+        accountingFrom: "2026-07-01T00:00:00.000Z",
+        accountingTo: "2026-08-01T00:00:00.000Z"
+      }
+    });
+
+    expect(exportResult).toMatchObject({
+      ok: true,
+      export: {
+        transactionCount: 1,
+        lineCount: 1
+      }
+    });
+    expect(exportResult.ok && exportResult.export.csv).toContain("transaction-1");
+    expect(exportResult.ok && exportResult.export.csv).not.toContain("old-transaction");
+    expect(repository.lastExportAudit).toMatchObject({
+      filters: {
+        accountingFrom: "2026-07-01T00:00:00.000Z",
+        accountingTo: "2026-08-01T00:00:00.000Z"
+      }
+    });
+  });
+
+  it("rejects invalid accounting date windows", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.listTransactions({
+      authUserId: "auth-user",
+      filters: {
+        accountingFrom: "2026-08-01T00:00:00.000Z",
+        accountingTo: "2026-07-01T00:00:00.000Z"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
+  });
+
   it("exports private ledger lines as CSV and records an audit row", async () => {
     const repository = new FakeMoneyAdminRepository();
     repository.transactions.push(createTransaction({
@@ -570,5 +667,104 @@ describe("Money admin route boundary", () => {
     expect(response.body).toContain("transaction_id,line_id,transaction_type");
     expect(response.body).toContain("transaction-1,line-1,income");
     expect(repository.exportAuditCount).toBe(1);
+  });
+
+  it("applies accounting date query filters to list and export routes", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "old-transaction",
+      accountingAt: "2026-06-01T10:00:00.000Z",
+      lines: [
+        {
+          id: "old-line",
+          transactionId: "old-transaction",
+          lineKind: "gross_income",
+          direction: "in",
+          amountMinor: 100,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: "old",
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-06-01T10:05:00.000Z"
+        }
+      ]
+    }));
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const query = "accountingFrom=2026-07-01T00%3A00%3A00.000Z&accountingTo=2026-08-01T00%3A00%3A00.000Z";
+    const listResponse = await server.inject({
+      method: "GET",
+      url: `/admin/money/ledger?${query}`
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toMatchObject({
+      ok: true,
+      transactions: [
+        {
+          id: "transaction-1"
+        }
+      ]
+    });
+    expect(JSON.stringify(listResponse.json())).not.toContain("old-transaction");
+
+    const exportResponse = await server.inject({
+      method: "GET",
+      url: `/admin/money/ledger.csv?${query}`
+    });
+
+    expect(exportResponse.statusCode).toBe(200);
+    expect(exportResponse.body).toContain("transaction-1");
+    expect(exportResponse.body).not.toContain("old-transaction");
+    expect(repository.lastExportAudit).toMatchObject({
+      filters: {
+        accountingFrom: "2026-07-01T00:00:00.000Z",
+        accountingTo: "2026-08-01T00:00:00.000Z"
+      }
+    });
+  });
+
+  it("rejects invalid accounting date filters", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/ledger?accountingFrom=not-a-date"
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
   });
 });

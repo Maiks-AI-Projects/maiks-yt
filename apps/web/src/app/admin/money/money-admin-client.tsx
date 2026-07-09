@@ -61,6 +61,11 @@ type MoneyFormState = {
   notesPrivate: string;
 };
 
+type MoneyFilterState = {
+  accountingFrom: string;
+  accountingTo: string;
+};
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const nowLocalInputValue = (): string => {
@@ -90,6 +95,17 @@ const defaultForm = (): MoneyFormState => ({
   correctionReason: "",
   notesPrivate: ""
 });
+
+const currentMonthFilters = (): MoneyFilterState => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  return {
+    accountingFrom: start.toISOString().slice(0, 10),
+    accountingTo: next.toISOString().slice(0, 10)
+  };
+};
 
 const transactionTypeLabels: Record<MoneyTransactionType, string> = {
   income: "Income",
@@ -149,6 +165,9 @@ const parseAmountMinor = (value: string): number | null => {
 const toIsoFromLocalInput = (value: string): string =>
   new Date(value).toISOString();
 
+const toIsoFromDateInput = (value: string): string | null =>
+  value ? new Date(`${value}T00:00:00`).toISOString() : null;
+
 const getFailureMessage = (response: Response, reason?: string): string => {
   if (response.status === 401 || reason === "not_authenticated") {
     return "Sign in before managing the private money ledger.";
@@ -184,6 +203,7 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
 const MoneyAdminClient = (): React.ReactNode => {
   const [transactions, setTransactions] = useState<readonly MoneyLedgerTransaction[]>([]);
   const [warnings, setWarnings] = useState<readonly MoneyAccountingWarning[]>([]);
+  const [filters, setFilters] = useState<MoneyFilterState>(() => currentMonthFilters());
   const [form, setForm] = useState<MoneyFormState>(() => defaultForm());
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading private money ledger...");
@@ -215,12 +235,30 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const buildLedgerQuery = useCallback((): string => {
+    const params = new URLSearchParams();
+    const accountingFrom = toIsoFromDateInput(filters.accountingFrom);
+    const accountingTo = toIsoFromDateInput(filters.accountingTo);
+
+    if (accountingFrom) {
+      params.set("accountingFrom", accountingFrom);
+    }
+
+    if (accountingTo) {
+      params.set("accountingTo", accountingTo);
+    }
+
+    const query = params.toString();
+
+    return query ? `?${query}` : "";
+  }, [filters.accountingFrom, filters.accountingTo]);
+
   const loadLedger = useCallback(async (): Promise<void> => {
     setLoadState("loading");
     setMessage("Loading private money ledger...");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/admin/money/ledger`, {
+      const response = await fetch(`${apiBaseUrl}/admin/money/ledger${buildLedgerQuery()}`, {
         headers: createApiHeaders(),
         credentials: "include"
       });
@@ -243,7 +281,7 @@ const MoneyAdminClient = (): React.ReactNode => {
       setLoadState("failed");
       setMessage(error instanceof Error ? error.message : "Money ledger request failed.");
     }
-  }, []);
+  }, [buildLedgerQuery]);
 
   useEffect(() => {
     captureDevAuthTokenFromUrl();
@@ -334,7 +372,7 @@ const MoneyAdminClient = (): React.ReactNode => {
     setMessage("Preparing private money CSV export...");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/admin/money/ledger.csv`, {
+      const response = await fetch(`${apiBaseUrl}/admin/money/ledger.csv${buildLedgerQuery()}`, {
         headers: createApiHeaders(),
         credentials: "include"
       });
@@ -650,6 +688,39 @@ const MoneyAdminClient = (): React.ReactNode => {
 
           <section className="project-admin-preview">
             <h2>Ledger Summary</h2>
+            <div className="admin-inline-actions">
+              <label>
+                From
+                <input
+                  type="date"
+                  value={filters.accountingFrom}
+                  onChange={(event) => setFilters((current) => ({
+                    ...current,
+                    accountingFrom: event.target.value
+                  }))}
+                />
+              </label>
+              <label>
+                To
+                <input
+                  type="date"
+                  value={filters.accountingTo}
+                  onChange={(event) => setFilters((current) => ({
+                    ...current,
+                    accountingTo: event.target.value
+                  }))}
+                />
+              </label>
+              <button type="button" onClick={() => void loadLedger()} disabled={busy}>
+                Apply dates
+              </button>
+              <button type="button" onClick={() => setFilters(currentMonthFilters())}>
+                This month
+              </button>
+              <button type="button" onClick={() => setFilters({ accountingFrom: "", accountingTo: "" })}>
+                Clear dates
+              </button>
+            </div>
             <div className="admin-metric-grid">
               <div><strong>{formatAmount(totals.incomeMinor, "EUR")}</strong><span>Real in</span></div>
               <div><strong>{formatAmount(totals.outMinor, "EUR")}</strong><span>Real out</span></div>
