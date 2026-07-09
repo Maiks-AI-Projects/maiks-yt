@@ -69,6 +69,45 @@ export type MoneyAdminWarningCsvExport = {
   generatedAt: string;
 };
 
+export type MoneyAdminReceiptIndexEntry = {
+  transactionId: string;
+  lineId: string;
+  referenceType: string;
+  storageKind: string;
+  label: string;
+  privateReference: string;
+  uploadId: string | null;
+};
+
+export type MoneyAdminReviewPackagePayload = {
+  manifest: {
+    generatedAt: string;
+    accountingFrom: string | null;
+    accountingTo: string | null;
+    transactionCount: number;
+    lineCount: number;
+    warningCount: number;
+    receiptReferenceCount: number;
+    includes: readonly string[];
+    note: string;
+  };
+  summary: MoneyAdminJsonReport;
+  ledgerCsv: string;
+  warningsCsv: string;
+  receiptIndex: readonly MoneyAdminReceiptIndexEntry[];
+};
+
+export type MoneyAdminReviewPackageExport = {
+  filename: string;
+  contentType: "application/json; charset=utf-8";
+  json: string;
+  generatedAt: string;
+  transactionCount: number;
+  lineCount: number;
+  warningCount: number;
+  receiptReferenceCount: number;
+};
+
 export type MoneyAdminReceiptUpload = {
   id: string;
   filename: string;
@@ -168,6 +207,16 @@ export type MoneyAdminJsonReportResult =
   | {
     ok: true;
     report: MoneyAdminJsonReport;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
+export type MoneyAdminReviewPackageExportResult =
+  | {
+    ok: true;
+    export: MoneyAdminReviewPackageExport;
   }
   | {
     ok: false;

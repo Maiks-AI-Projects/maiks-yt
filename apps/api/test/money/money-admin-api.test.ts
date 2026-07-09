@@ -362,6 +362,100 @@ describe("MoneyAdminService", () => {
     });
   });
 
+  it("exports a private accounting review package with summary, CSVs, and receipt index", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "receipt-transaction",
+      transactionType: "cost",
+      lines: [
+        {
+          id: "receipt-line",
+          transactionId: "receipt-transaction",
+          lineKind: "cost",
+          direction: "out",
+          amountMinor: 1200,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: "hosting",
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: "receipt-reference",
+          receiptReference: {
+            id: "receipt-reference",
+            referenceType: "receipt",
+            storageKind: "future_upload",
+            label: "Hosting receipt",
+            privateReference: "money-upload:11111111-1111-4111-8111-111111111111:hosting.txt",
+            createdByUserId: "domain-user",
+            createdAt: "2026-07-09T10:05:00.000Z"
+          },
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.exportReviewPackageJson({ authUserId: "auth-user" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      export: {
+        contentType: "application/json; charset=utf-8",
+        transactionCount: 2,
+        lineCount: 2,
+        receiptReferenceCount: 1
+      }
+    });
+
+    if (!result.ok) {
+      throw new Error("package export failed");
+    }
+
+    const payload = JSON.parse(result.export.json) as {
+      manifest: {
+        includes: string[];
+        note: string;
+      };
+      summary: {
+        counts: {
+          transactions: number;
+          lines: number;
+        };
+      };
+      ledgerCsv: string;
+      warningsCsv: string;
+      receiptIndex: Array<{
+        lineId: string;
+        uploadId: string | null;
+      }>;
+    };
+
+    expect(payload.manifest.includes).toEqual(["summary", "ledgerCsv", "warningsCsv", "receiptIndex"]);
+    expect(payload.manifest.note).toContain("not official tax advice");
+    expect(payload.summary.counts).toMatchObject({
+      transactions: 2,
+      lines: 2
+    });
+    expect(payload.ledgerCsv).toContain("transaction_id,line_id,transaction_type");
+    expect(payload.warningsCsv).toContain("warning_id,warning_kind,severity,target_kind,target_id,message");
+    expect(payload.receiptIndex).toEqual([
+      expect.objectContaining({
+        lineId: "receipt-line",
+        uploadId: "11111111-1111-4111-8111-111111111111"
+      })
+    ]);
+    expect(repository.lastExportAudit).toMatchObject({
+      reportKind: "tax_review_export",
+      fileKind: "none",
+      fileReference: expect.stringMatching(/^maiks-money-review-package-\d{4}-\d{2}-\d{2}\.json$/),
+      fileChecksum: expect.stringMatching(/^[a-f0-9]{64}$/),
+      generatedByUserId: "domain-user"
+    });
+  });
+
   it("uploads private receipt evidence as a future-upload reference", async () => {
     const repository = new FakeMoneyAdminRepository();
     const service = new MoneyAdminService(repository);
@@ -1075,6 +1169,39 @@ describe("Money admin route boundary", () => {
     expect(response.body).toContain("missing_receipt");
     expect(repository.lastExportAudit).toMatchObject({
       reportKind: "warning_review"
+    });
+  });
+
+  it("returns a downloadable accounting review package for an owner", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/review-package.json"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("application/json");
+    expect(response.headers["content-disposition"]).toContain("maiks-money-review-package-");
+    expect(response.headers["x-maiks-money-package-transactions"]).toBe("1");
+    expect(response.body).toContain("\"ledgerCsv\"");
+    expect(response.body).toContain("\"warningsCsv\"");
+    expect(response.body).toContain("\"receiptIndex\"");
+    expect(repository.lastExportAudit).toMatchObject({
+      reportKind: "tax_review_export",
+      fileReference: expect.stringMatching(/^maiks-money-review-package-/)
     });
   });
 

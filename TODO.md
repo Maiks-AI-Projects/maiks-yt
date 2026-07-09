@@ -420,6 +420,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-07-09 Phase C11 adds owner-only accounting warning resolution using the existing `money_accounting_warnings` table. Resolving a derived warning suppresses that specific target/kind from list/export/report warnings without deleting ledger rows or adding a new migration.
   - 2026-07-09 Phase C12 adds an owner-only accounting warning review CSV export for unresolved filtered warnings, recorded in `money_report_exports` as `warning_review`.
   - 2026-07-09 Phase C13 adds owner-only private receipt evidence upload/download for manual ledger entries using ignored server-local `.private/money-receipts` storage and existing `future_upload` receipt references. No schema, public money, or provider behavior changed.
+  - 2026-07-09 Phase C14 adds an owner-only accounting review package JSON export that bundles the current filtered summary, ledger CSV text, warning CSV text, and receipt reference index into one private download with export audit checksum metadata.
 - [ ] Draft donation/support terms.
 - [ ] Draft refund/revocation wording.
 - [ ] Draft affiliate/sponsor disclosure.
@@ -439,7 +440,7 @@ Gate note: money remains design-only until Michael explicitly approves a money p
 - [ ] Add claimable platform-derived support.
 - [ ] Add transparent money trail.
 - [ ] Add private accounting/report export.
-  - First private accounting UI exists as ledger entry/list/summary. Phase C4 adds a manual CSV export button and audit row. Phase C5 adds receipt/reference metadata capture and CSV columns. Phase C6 adds non-destructive voiding for test mistakes. Phase C7 adds linked correction transactions. Phase C8 adds derived warning visibility and warning-count export metadata. Phase C9 adds accounting-date filtering for list/export. Phase C10 adds a JSON accounting summary report. Phase C11 adds warning resolution. Phase C12 adds warning-review CSV export. Phase C13 adds private receipt evidence upload/download for manual entries; richer formal report packages remain later slices.
+  - First private accounting UI exists as ledger entry/list/summary. Phase C4 adds a manual CSV export button and audit row. Phase C5 adds receipt/reference metadata capture and CSV columns. Phase C6 adds non-destructive voiding for test mistakes. Phase C7 adds linked correction transactions. Phase C8 adds derived warning visibility and warning-count export metadata. Phase C9 adds accounting-date filtering for list/export. Phase C10 adds a JSON accounting summary report. Phase C11 adds warning resolution. Phase C12 adds warning-review CSV export. Phase C13 adds private receipt evidence upload/download for manual entries. Phase C14 adds a bundled private accounting review package export; richer XLSX/PDF packages remain later slices.
 - [ ] Add public withdrawals.
 - [ ] Add spending records.
 - [ ] Add project archives.

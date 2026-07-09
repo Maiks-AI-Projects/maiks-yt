@@ -22,6 +22,8 @@ import type {
   MoneyAdminMutationResult,
   MoneyAdminReceiptDownloadResult,
   MoneyAdminReceiptUploadResult,
+  MoneyAdminReviewPackageExportResult,
+  MoneyAdminReviewPackagePayload,
   MoneyAdminReportBucket,
   MoneyAdminRepository,
   MoneyAdminWarningExportResult,
@@ -472,6 +474,114 @@ const sortBuckets = (buckets: Map<string, MoneyAdminReportBucket>): readonly Mon
     || left.key.localeCompare(right.key)
   );
 
+const getReceiptUploadId = (privateReference: string): string | null => {
+  const match = /^money-upload:([a-f0-9-]{36}):/u.exec(privateReference);
+
+  return match?.[1] ?? null;
+};
+
+const buildReceiptIndex = (
+  transactions: readonly MoneyLedgerTransaction[]
+): MoneyAdminReviewPackagePayload["receiptIndex"] =>
+  transactions.flatMap((transaction) =>
+    transaction.lines.flatMap((line) =>
+      line.receiptReference
+        ? [{
+          transactionId: transaction.id,
+          lineId: line.id,
+          referenceType: line.receiptReference.referenceType,
+          storageKind: line.receiptReference.storageKind,
+          label: line.receiptReference.label,
+          privateReference: line.receiptReference.privateReference,
+          uploadId: getReceiptUploadId(line.receiptReference.privateReference)
+        }]
+        : []
+    )
+  );
+
+const buildAccountingSummary = (input: {
+  transactions: readonly MoneyLedgerTransaction[];
+  warnings: readonly MoneyAccountingWarning[];
+  filters: MoneyAdminLedgerFilters;
+  generatedAt: string;
+}) => {
+  const warningCounts = countWarningsByKind(input.warnings);
+  const period = getReportPeriod(input.transactions);
+  const byTransactionType = new Map<string, MoneyAdminReportBucket>();
+  const byMoneyMode = new Map<string, MoneyAdminReportBucket>();
+  const byCategory = new Map<string, MoneyAdminReportBucket>();
+  const bySourceProvider = new Map<string, MoneyAdminReportBucket>();
+  let lineCount = 0;
+  let realInMinor = 0;
+  let realOutMinor = 0;
+  let allInMinor = 0;
+  let allOutMinor = 0;
+  let realPostedTransactions = 0;
+  let draftTransactions = 0;
+  let voidedTransactions = 0;
+
+  for (const transaction of input.transactions) {
+    if (transaction.postingStatus === "voided") {
+      voidedTransactions += 1;
+    } else if (transaction.postingStatus === "draft") {
+      draftTransactions += 1;
+    } else if (transaction.moneyMode === "real") {
+      realPostedTransactions += 1;
+    }
+
+    for (const line of transaction.lines) {
+      lineCount += 1;
+      addLineToBucket(byTransactionType, transaction.transactionType, line);
+      addLineToBucket(byMoneyMode, transaction.moneyMode, line);
+      addLineToBucket(byCategory, line.categoryKey ?? "uncategorized", line);
+      addLineToBucket(bySourceProvider, transaction.sourceProvider ?? "none", line);
+
+      if (line.direction === "in") {
+        allInMinor += line.amountMinor;
+        if (transaction.moneyMode === "real" && transaction.postingStatus !== "voided") {
+          realInMinor += line.amountMinor;
+        }
+      } else if (line.direction === "out") {
+        allOutMinor += line.amountMinor;
+        if (transaction.moneyMode === "real" && transaction.postingStatus !== "voided") {
+          realOutMinor += line.amountMinor;
+        }
+      }
+    }
+  }
+
+  return {
+    generatedAt: input.generatedAt,
+    period: {
+      accountingFrom: input.filters.accountingFrom,
+      accountingTo: input.filters.accountingTo,
+      effectiveStart: period.periodStart,
+      effectiveEnd: period.periodEnd
+    },
+    counts: {
+      transactions: input.transactions.length,
+      lines: lineCount,
+      warnings: input.warnings.length,
+      realPostedTransactions,
+      draftTransactions,
+      voidedTransactions
+    },
+    totals: {
+      realInMinor,
+      realOutMinor,
+      realRemainderMinor: realInMinor - realOutMinor,
+      allInMinor,
+      allOutMinor,
+      allRemainderMinor: allInMinor - allOutMinor
+    },
+    warningCounts,
+    byTransactionType: sortBuckets(byTransactionType),
+    byMoneyMode: sortBuckets(byMoneyMode),
+    byCategory: sortBuckets(byCategory),
+    bySourceProvider: sortBuckets(bySourceProvider)
+  };
+};
+
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
 
@@ -585,50 +695,13 @@ export class MoneyAdminService {
     const generatedAt = new Date().toISOString();
     const resolvedWarnings = await this.repository.listResolvedWarnings(getWarningTargetIds(transactions));
     const warnings = filterResolvedWarnings(buildAccountingWarnings(transactions), resolvedWarnings);
-    const warningCounts = countWarningsByKind(warnings);
     const period = getReportPeriod(transactions);
-    const byTransactionType = new Map<string, MoneyAdminReportBucket>();
-    const byMoneyMode = new Map<string, MoneyAdminReportBucket>();
-    const byCategory = new Map<string, MoneyAdminReportBucket>();
-    const bySourceProvider = new Map<string, MoneyAdminReportBucket>();
-    let lineCount = 0;
-    let realInMinor = 0;
-    let realOutMinor = 0;
-    let allInMinor = 0;
-    let allOutMinor = 0;
-    let realPostedTransactions = 0;
-    let draftTransactions = 0;
-    let voidedTransactions = 0;
-
-    for (const transaction of transactions) {
-      if (transaction.postingStatus === "voided") {
-        voidedTransactions += 1;
-      } else if (transaction.postingStatus === "draft") {
-        draftTransactions += 1;
-      } else if (transaction.moneyMode === "real") {
-        realPostedTransactions += 1;
-      }
-
-      for (const line of transaction.lines) {
-        lineCount += 1;
-        addLineToBucket(byTransactionType, transaction.transactionType, line);
-        addLineToBucket(byMoneyMode, transaction.moneyMode, line);
-        addLineToBucket(byCategory, line.categoryKey ?? "uncategorized", line);
-        addLineToBucket(bySourceProvider, transaction.sourceProvider ?? "none", line);
-
-        if (line.direction === "in") {
-          allInMinor += line.amountMinor;
-          if (transaction.moneyMode === "real" && transaction.postingStatus !== "voided") {
-            realInMinor += line.amountMinor;
-          }
-        } else if (line.direction === "out") {
-          allOutMinor += line.amountMinor;
-          if (transaction.moneyMode === "real" && transaction.postingStatus !== "voided") {
-            realOutMinor += line.amountMinor;
-          }
-        }
-      }
-    }
+    const report = buildAccountingSummary({
+      transactions,
+      warnings,
+      filters,
+      generatedAt
+    });
 
     await this.repository.recordReportExport({
       reportKind: "accounting_summary",
@@ -640,7 +713,7 @@ export class MoneyAdminService {
         accountingFrom: filters.accountingFrom,
         accountingTo: filters.accountingTo
       },
-      warningCounts,
+      warningCounts: report.warningCounts,
       fileKind: "none",
       fileReference: null,
       fileChecksum: null,
@@ -649,36 +722,7 @@ export class MoneyAdminService {
 
     return {
       ok: true,
-      report: {
-        generatedAt,
-        period: {
-          accountingFrom: filters.accountingFrom,
-          accountingTo: filters.accountingTo,
-          effectiveStart: period.periodStart,
-          effectiveEnd: period.periodEnd
-        },
-        counts: {
-          transactions: transactions.length,
-          lines: lineCount,
-          warnings: warnings.length,
-          realPostedTransactions,
-          draftTransactions,
-          voidedTransactions
-        },
-        totals: {
-          realInMinor,
-          realOutMinor,
-          realRemainderMinor: realInMinor - realOutMinor,
-          allInMinor,
-          allOutMinor,
-          allRemainderMinor: allInMinor - allOutMinor
-        },
-        warningCounts,
-        byTransactionType: sortBuckets(byTransactionType),
-        byMoneyMode: sortBuckets(byMoneyMode),
-        byCategory: sortBuckets(byCategory),
-        bySourceProvider: sortBuckets(bySourceProvider)
-      }
+      report
     };
   }
 
@@ -735,6 +779,97 @@ export class MoneyAdminService {
         csv,
         warningCount: warnings.length,
         generatedAt
+      }
+    };
+  }
+
+  public async exportReviewPackageJson(input: {
+    authUserId: string;
+    filters?: Partial<MoneyAdminLedgerFilters>;
+  }): Promise<MoneyAdminReviewPackageExportResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const filters = normalizeLedgerFilters(input.filters);
+
+    if (!filters) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const transactions = await this.repository.listTransactions(filters);
+    const generatedAt = new Date().toISOString();
+    const resolvedWarnings = await this.repository.listResolvedWarnings(getWarningTargetIds(transactions));
+    const warnings = filterResolvedWarnings(buildAccountingWarnings(transactions), resolvedWarnings);
+    const { csv: ledgerCsv, lineCount } = buildLedgerCsv(transactions);
+    const warningsCsv = buildWarningCsv(warnings);
+    const receiptIndex = buildReceiptIndex(transactions);
+    const summary = buildAccountingSummary({
+      transactions,
+      warnings,
+      filters,
+      generatedAt
+    });
+    const payload: MoneyAdminReviewPackagePayload = {
+      manifest: {
+        generatedAt,
+        accountingFrom: filters.accountingFrom,
+        accountingTo: filters.accountingTo,
+        transactionCount: transactions.length,
+        lineCount,
+        warningCount: warnings.length,
+        receiptReferenceCount: receiptIndex.length,
+        includes: [
+          "summary",
+          "ledgerCsv",
+          "warningsCsv",
+          "receiptIndex"
+        ],
+        note: "Private accounting review aid only. This is not official tax advice or an official filing."
+      },
+      summary,
+      ledgerCsv,
+      warningsCsv,
+      receiptIndex
+    };
+    const json = `${JSON.stringify(payload, null, 2)}\n`;
+    const checksum = createHash("sha256").update(json).digest("hex");
+    const filename = `maiks-money-review-package-${generatedAt.slice(0, 10)}.json`;
+    const period = getReportPeriod(transactions);
+
+    await this.repository.recordReportExport({
+      reportKind: "tax_review_export",
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+      filters: {
+        export: "manual-accounting-review-package-json",
+        transactionLimit: 100,
+        accountingFrom: filters.accountingFrom,
+        accountingTo: filters.accountingTo
+      },
+      warningCounts: summary.warningCounts,
+      fileKind: "none",
+      fileReference: filename,
+      fileChecksum: checksum,
+      generatedByUserId: actor.domainUserId
+    });
+
+    return {
+      ok: true,
+      export: {
+        filename,
+        contentType: "application/json; charset=utf-8",
+        json,
+        generatedAt,
+        transactionCount: transactions.length,
+        lineCount,
+        warningCount: warnings.length,
+        receiptReferenceCount: receiptIndex.length
       }
     };
   }

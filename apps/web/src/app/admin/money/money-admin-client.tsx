@@ -580,6 +580,43 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const exportReviewPackageJson = async (): Promise<void> => {
+    setBusy(true);
+    setMessage("Preparing private accounting review package...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/review-package.json${buildLedgerQuery()}`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        const payload = await parseJson<{ ok: false; reason?: string }>(response);
+        setMessage(getFailureMessage(response, payload?.reason));
+        return;
+      }
+
+      const report = await response.text();
+      const filename = response.headers
+        .get("content-disposition")
+        ?.match(/filename="([^"]+)"/)?.[1] ?? "maiks-money-review-package.json";
+      const url = URL.createObjectURL(new Blob([report], { type: "application/json;charset=utf-8" }));
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("Private accounting review package downloaded.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money review package export failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const exportWarningsCsv = async (): Promise<void> => {
     setBusy(true);
     setMessage("Preparing accounting warnings CSV export...");
@@ -753,6 +790,9 @@ const MoneyAdminClient = (): React.ReactNode => {
           <p>Manual income, cost, fee, payout, and correction tracking before public payment behavior exists.</p>
         </div>
         <div className="admin-inline-actions">
+          <button type="button" onClick={() => void exportReviewPackageJson()} disabled={busy || loadState !== "ready"}>
+            Export Package
+          </button>
           <button type="button" onClick={() => void exportSummaryJson()} disabled={busy || loadState !== "ready"}>
             Export Summary
           </button>
