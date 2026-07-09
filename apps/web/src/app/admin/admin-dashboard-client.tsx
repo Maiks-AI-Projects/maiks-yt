@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { captureDevAuthTokenFromUrl } from "../dev-auth-token";
+import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken } from "../dev-auth-token";
 
 type AdminDashboardItem = {
   href: string;
@@ -14,6 +14,51 @@ type AdminDashboardGroup = {
   title: string;
   items: readonly AdminDashboardItem[];
 };
+
+type DashboardStatusTone = "loading" | "ok" | "warn" | "bad";
+
+type DashboardStatusCard = {
+  key: string;
+  label: string;
+  value: string;
+  detail: string;
+  tone: DashboardStatusTone;
+};
+
+type NotificationListResponse =
+  | {
+    ok: true;
+    unreadCount: number;
+    criticalUnreadCount: number;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type ProviderIntakeHealthResponse =
+  | {
+    ok: true;
+    entries: Array<{
+      status: "healthy" | "stale" | "missing";
+    }>;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type SessionListResponse =
+  | {
+    ok: true;
+    sessions: readonly unknown[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const groups: readonly AdminDashboardGroup[] = [
   {
@@ -98,17 +143,174 @@ const getDevAuthQuery = (): string => {
     return "";
   }
 
-  const token = window.sessionStorage.getItem("maiks-dev-auth-token");
+  const token = getDevAuthToken();
 
   return token ? `?devAuthToken=${encodeURIComponent(token)}` : "";
 };
 
+const loadingCards = (): readonly DashboardStatusCard[] => [
+  {
+    key: "api",
+    label: "API",
+    value: "Checking",
+    detail: "Waiting for API health.",
+    tone: "loading"
+  },
+  {
+    key: "database",
+    label: "Database",
+    value: "Checking",
+    detail: "Waiting for database health.",
+    tone: "loading"
+  },
+  {
+    key: "notifications",
+    label: "Notifications",
+    value: "Checking",
+    detail: "Waiting for notification counts.",
+    tone: "loading"
+  },
+  {
+    key: "provider-intake",
+    label: "Provider Intake",
+    value: "Checking",
+    detail: "Waiting for provider intake health.",
+    tone: "loading"
+  },
+  {
+    key: "sessions",
+    label: "Sessions",
+    value: "Checking",
+    detail: "Waiting for session-admin access.",
+    tone: "loading"
+  }
+];
+
+const readJson = async <Payload,>(path: string, authenticated = false): Promise<{
+  status: number;
+  payload: Payload | null;
+}> => {
+  const init: RequestInit = {
+    credentials: "include"
+  };
+
+  if (authenticated) {
+    init.headers = createApiHeaders();
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, init);
+
+  try {
+    return {
+      status: response.status,
+      payload: await response.json() as Payload
+    };
+  } catch {
+    return {
+      status: response.status,
+      payload: null
+    };
+  }
+};
+
+const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
+  const [
+    api,
+    database,
+    notifications,
+    intakeHealth,
+    sessions
+  ] = await Promise.allSettled([
+    readJson<{ ok?: boolean; surface?: string }>("/health"),
+    readJson<{ ok?: boolean; database?: string }>("/health/database"),
+    readJson<NotificationListResponse>("/admin/notifications?limit=5", true),
+    readJson<ProviderIntakeHealthResponse>("/admin/connections/intake/health", true),
+    readJson<SessionListResponse>("/admin/sessions", true)
+  ]);
+  const getFulfilled = <Payload,>(result: PromiseSettledResult<{
+    status: number;
+    payload: Payload | null;
+  }>) => result.status === "fulfilled" ? result.value : null;
+  const apiResult = getFulfilled(api);
+  const databaseResult = getFulfilled(database);
+  const notificationResult = getFulfilled(notifications);
+  const intakeResult = getFulfilled(intakeHealth);
+  const sessionResult = getFulfilled(sessions);
+  const intakeEntries = intakeResult?.payload?.ok ? intakeResult.payload.entries : [];
+  const staleOrMissing = intakeEntries.filter((entry) => entry.status !== "healthy").length;
+  const criticalUnread = notificationResult?.payload?.ok ? notificationResult.payload.criticalUnreadCount : 0;
+  const unread = notificationResult?.payload?.ok ? notificationResult.payload.unreadCount : 0;
+
+  return [
+    {
+      key: "api",
+      label: "API",
+      value: apiResult?.payload?.ok ? "Online" : "Problem",
+      detail: apiResult?.payload?.ok ? `Surface: ${apiResult.payload.surface ?? "api"}` : `HTTP ${apiResult?.status ?? "failed"}`,
+      tone: apiResult?.payload?.ok ? "ok" : "bad"
+    },
+    {
+      key: "database",
+      label: "Database",
+      value: databaseResult?.payload?.ok ? "Online" : "Problem",
+      detail: databaseResult?.payload?.ok ? `Driver: ${databaseResult.payload.database ?? "connected"}` : `HTTP ${databaseResult?.status ?? "failed"}`,
+      tone: databaseResult?.payload?.ok ? "ok" : "bad"
+    },
+    {
+      key: "notifications",
+      label: "Notifications",
+      value: notificationResult?.payload?.ok ? `${unread} unread` : "Unavailable",
+      detail: notificationResult?.payload?.ok
+        ? `${criticalUnread} critical unread.`
+        : `HTTP ${notificationResult?.status ?? "failed"}`,
+      tone: !notificationResult?.payload?.ok ? "bad" : criticalUnread > 0 ? "bad" : unread > 0 ? "warn" : "ok"
+    },
+    {
+      key: "provider-intake",
+      label: "Provider Intake",
+      value: intakeResult?.payload?.ok ? `${intakeEntries.length - staleOrMissing}/${intakeEntries.length} healthy` : "Unavailable",
+      detail: intakeResult?.payload?.ok
+        ? `${staleOrMissing} stale or missing mechanisms.`
+        : `HTTP ${intakeResult?.status ?? "failed"}`,
+      tone: !intakeResult?.payload?.ok ? "bad" : staleOrMissing > 0 ? "warn" : "ok"
+    },
+    {
+      key: "sessions",
+      label: "Sessions",
+      value: sessionResult?.payload?.ok ? `${sessionResult.payload.sessions.length} listed` : "Unavailable",
+      detail: sessionResult?.payload?.ok ? "Owner session admin is reachable." : `HTTP ${sessionResult?.status ?? "failed"}`,
+      tone: sessionResult?.payload?.ok ? "ok" : "bad"
+    }
+  ];
+};
+
 const AdminDashboardClient = (): React.ReactNode => {
   const [devAuthQuery, setDevAuthQuery] = useState("");
+  const [statusCards, setStatusCards] = useState<readonly DashboardStatusCard[]>(() => loadingCards());
+  const [statusMessage, setStatusMessage] = useState("Loading dashboard status...");
+
+  const refreshStatus = async (): Promise<void> => {
+    setStatusCards(loadingCards());
+    setStatusMessage("Loading dashboard status...");
+
+    try {
+      setStatusCards(await loadStatusCards());
+      setStatusMessage("Dashboard status loaded.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "Dashboard status failed.");
+      setStatusCards((cards) => cards.map((card) => ({
+        ...card,
+        value: "Failed",
+        detail: "Status check failed.",
+        tone: "bad"
+      })));
+    }
+  };
 
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     setDevAuthQuery(getDevAuthQuery());
+    void refreshStatus();
   }, []);
 
   return (
@@ -119,7 +321,30 @@ const AdminDashboardClient = (): React.ReactNode => {
           <h1>Admin Dashboard</h1>
           <p>Quick links for testing and operating the current dev build.</p>
         </div>
+        <div className="admin-inline-actions">
+          <button type="button" onClick={() => void refreshStatus()}>
+            Refresh status
+          </button>
+        </div>
       </header>
+
+      <section className="project-admin-panel">
+        <div className="project-admin-panel-heading">
+          <div>
+            <h2>Testing Status</h2>
+            <p>{statusMessage}</p>
+          </div>
+        </div>
+        <div className="admin-dashboard-status-grid">
+          {statusCards.map((card) => (
+            <article className={`admin-dashboard-status-card ${card.tone}`} key={card.key}>
+              <span>{card.label}</span>
+              <strong>{card.value}</strong>
+              <p>{card.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <div className="project-admin-grid">
         {groups.map((group) => (

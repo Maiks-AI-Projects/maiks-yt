@@ -180,6 +180,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added owner-only bulk revoke for `/admin/sessions` so Michael can keep the current real browser session while clearing other Better Auth sessions; dev-token pseudo sessions cannot trigger bulk revoke.
 - Added `/admin` as a grouped testing dashboard linking to current admin surfaces and preserving `devAuthToken` query strings during coordinator smoke.
 - Added `/admin` to the recurring dev smoke runner, raising the healthy dry-run count to 12 checks.
+- Added live `/admin` testing status cards for API health, database health, unread/critical notifications, provider intake health, and session-admin reachability. The dashboard now reads the dev auth token from the shared local storage helper instead of stale session storage.
 
 ## Current Task
 
@@ -199,7 +200,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 8. Backup/export planning now has `reports/backup-restore-runbook.md` for dev/staging inventory and manual restore drills. Production backup automation remains blocked on retention, encryption, key ownership, and restore authority decisions.
 9. Before any future `dev` to `main` or production release, use the refreshed `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 10. Session review/revoke is available for owner testing on `/admin/sessions`, including a "revoke others" action that preserves the current real browser session. Future hardening can add deeper audit logging if testing shows the need.
-11. `/admin` now provides a testing dashboard for the growing admin surface list and is covered by `pnpm dev:smoke:notify`. Future polish can add live status badges, but the first version is intentionally just navigation.
+11. `/admin` now provides a testing dashboard for the growing admin surface list and is covered by `pnpm dev:smoke:notify`. It also shows live status cards for API/database health, notifications, provider intake, and session-admin reachability when opened with owner auth.
 
 ## Known State
 

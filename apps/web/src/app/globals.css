@@ -1239,6 +1239,54 @@ button:disabled {
   text-decoration: none;
 }
 
+.admin-dashboard-status-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.admin-dashboard-status-card {
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+}
+
+.admin-dashboard-status-card span {
+  color: #4b5966;
+  font-size: 0.85rem;
+}
+
+.admin-dashboard-status-card strong {
+  color: #102131;
+  font-size: 1.05rem;
+}
+
+.admin-dashboard-status-card p {
+  color: #4b5966;
+  margin: 0;
+}
+
+.admin-dashboard-status-card.loading {
+  background: #f6f8fb;
+}
+
+.admin-dashboard-status-card.ok {
+  background: #edf8f0;
+  border-color: #9bcfa9;
+}
+
+.admin-dashboard-status-card.warn {
+  background: #fff7e5;
+  border-color: #e5bf68;
+}
+
+.admin-dashboard-status-card.bad {
+  background: #fff0f0;
+  border-color: #e59a9a;
+}
+
 .project-admin-header p:not(.eyebrow),
 .project-admin-state p,
 .project-admin-panel p,

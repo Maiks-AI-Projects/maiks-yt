@@ -92,6 +92,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Add admin dashboard for testing navigation.
   - 2026-07-09 added `/admin` as a grouped dashboard for current admin/testing surfaces. It preserves `devAuthToken` in links during coordinator smoke so owner-token testing can move between admin pages without copying tokens repeatedly.
   - 2026-07-09 added `/admin` to `pnpm dev:smoke:notify`, bringing the recurring smoke runner to 12 checks and covering the new testing dashboard route with the same text/page retry behavior.
+  - 2026-07-09 follow-up added live testing status cards for API health, database health, unread/critical notifications, provider intake health, and session-admin reachability. The dashboard now reads the dev auth token from the shared local storage helper used by admin tooling.
 - [x] Add owner session review and revoke surface.
   - 2026-07-09 added owner-only `/admin/sessions` plus API list/revoke routes over Better Auth sessions. The surface shows session timing, IP, and user-agent without exposing session tokens, and revokes by deleting selected session rows.
   - 2026-07-09 follow-up added a protected "revoke other sessions" action that keeps the current real browser session and deletes other Better Auth session rows. Dev-token pseudo sessions are rejected for bulk revoke so smoke tests cannot accidentally clear every browser session.
