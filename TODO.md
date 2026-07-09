@@ -89,6 +89,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Require login after URL token for privileged control/admin pages.
 - [x] Add owner/admin token management surface for creating, rotating, revoking, and copying scoped overlay/control URLs.
   - 2026-06-21 reviewed, deployed to dev, and dev-smoked with fresh private overlay/control URLs written to ignored `reports/usable-urls.md`; list responses keep token hashes/raw values hidden, create/rotate return raw URLs once, and revoked tokens stop validating through `/access/url-token/validate`.
+- [x] Add admin dashboard for testing navigation.
+  - 2026-07-09 added `/admin` as a grouped dashboard for current admin/testing surfaces. It preserves `devAuthToken` in links during coordinator smoke so owner-token testing can move between admin pages without copying tokens repeatedly.
 - [x] Add owner session review and revoke surface.
   - 2026-07-09 added owner-only `/admin/sessions` plus API list/revoke routes over Better Auth sessions. The surface shows session timing, IP, and user-agent without exposing session tokens, and revokes by deleting selected session rows.
   - 2026-07-09 follow-up added a protected "revoke other sessions" action that keeps the current real browser session and deletes other Better Auth session rows. Dev-token pseudo sessions are rejected for bulk revoke so smoke tests cannot accidentally clear every browser session.

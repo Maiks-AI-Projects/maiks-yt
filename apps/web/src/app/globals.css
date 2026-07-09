@@ -1234,6 +1234,11 @@ button:disabled {
   gap: 0.5rem;
 }
 
+.admin-dashboard-link {
+  color: inherit;
+  text-decoration: none;
+}
+
 .project-admin-header p:not(.eyebrow),
 .project-admin-state p,
 .project-admin-panel p,

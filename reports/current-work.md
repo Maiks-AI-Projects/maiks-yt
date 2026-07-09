@@ -178,6 +178,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Started the provider integrations admin client split by moving its large response/type block, shared display helpers, and read-only provider status/boundary section into focused files. The rendered UI and API behavior are unchanged.
 - Added owner-only session review/revoke foundation for testing and compromise response: `/admin/sessions` lists Better Auth sessions with timing, IP, and user-agent without exposing tokens, and can revoke selected session rows.
 - Added owner-only bulk revoke for `/admin/sessions` so Michael can keep the current real browser session while clearing other Better Auth sessions; dev-token pseudo sessions cannot trigger bulk revoke.
+- Added `/admin` as a grouped testing dashboard linking to current admin surfaces and preserving `devAuthToken` query strings during coordinator smoke.
 
 ## Current Task
 
@@ -197,6 +198,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 8. Backup/export planning now has `reports/backup-restore-runbook.md` for dev/staging inventory and manual restore drills. Production backup automation remains blocked on retention, encryption, key ownership, and restore authority decisions.
 9. Before any future `dev` to `main` or production release, use the refreshed `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 10. Session review/revoke is available for owner testing on `/admin/sessions`, including a "revoke others" action that preserves the current real browser session. Future hardening can add deeper audit logging if testing shows the need.
+11. `/admin` now provides a testing dashboard for the growing admin surface list. Future polish can add live status badges, but the first version is intentionally just navigation.
 
 ## Known State
 

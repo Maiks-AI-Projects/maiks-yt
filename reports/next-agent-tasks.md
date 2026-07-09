@@ -48,6 +48,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Large-file split planning now lives in `reports/large-file-split-proposal.md`. The most urgent hotspots are `apps/api/src/main.ts` and `apps/control-panel/src/main.tsx`; start with behavior-preserving API streamer-chat extraction before broader cleanup.
 - Dev coordinator smoke can use deployed `POST /dev/testing/owner-token`. It is production-disabled, secret-protected, selects an existing linked owner wildcard user, writes only a hash to `dev_auth_tokens`, returns the raw token/login URL once, and caps TTL to 1-15 minutes. Smoke confirmed missing secret returns `403`, a minted token can access owner-gated provider status, no mint secret/raw token appears in that response, and the DB stores a 64-character hash. This is for testing normal owner-gated pages/APIs without keeping long-lived tokens in context.
 - Session admin foundation is deployed-ready: owner-only `/admin/sessions` can list Better Auth sessions with safe metadata, revoke selected rows, and revoke all other real browser sessions while preserving the current one. It intentionally does not expose session tokens. Future follow-up can add explicit audit history if needed.
+- Testing navigation note: `/admin` now groups the active admin surfaces and preserves `devAuthToken` in links during smoke testing. Future follow-up can add live status/count badges after the dashboard proves useful.
 
 ## Phase 6A: Provider Integration Foundation (Completed On Dev)
 
