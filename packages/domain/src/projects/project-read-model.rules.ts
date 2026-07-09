@@ -1,10 +1,12 @@
 import type {
   ProjectReadItemSource,
+  ProjectReadItemLinkSource,
   ProjectReadMilestoneSource,
   ProjectReadModelSource,
   ProjectReadUpdateSource,
   PublicProjectDetail,
   PublicProjectItem,
+  PublicProjectItemLink,
   PublicProjectMilestone,
   PublicProjectStatus,
   PublicProjectUpdate,
@@ -102,9 +104,28 @@ const createPublicProjectItem = (
       }
       : {}),
     ...(item.description ? { description: item.description } : {}),
+    links: item.links.map(toPublicProjectItemLink),
     children
   };
 };
+
+const toPublicProjectItemLink = (
+  link: ProjectReadItemLinkSource
+): PublicProjectItemLink => ({
+  id: link.id,
+  provider: link.provider,
+  url: link.url,
+  label: link.label,
+  relationship: link.relationship,
+  ...(link.lastSeenMinorAmount !== undefined
+    && link.lastSeenMinorAmount !== null
+    && link.currencyCode
+    ? {
+      lastSeenMinorAmount: link.lastSeenMinorAmount,
+      currencyCode: link.currencyCode
+    }
+    : {})
+});
 
 const buildProjectItemTree = (
   items: readonly ProjectReadItemSource[],

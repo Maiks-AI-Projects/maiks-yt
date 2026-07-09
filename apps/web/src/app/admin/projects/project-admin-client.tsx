@@ -22,6 +22,7 @@ import {
 } from "./project-admin-layout-panels";
 import {
   apiBaseUrl,
+  defaultItemLinkForm,
   defaultItemForm,
   defaultMilestoneForm,
   defaultProjectForm,
@@ -33,6 +34,7 @@ import {
   toAdminUpdatePayload,
   toUpdateForm,
   type AdminProjectsResponse,
+  type ItemLinkFormState,
   type ItemFormState,
   type LoadState,
   type MilestoneFormState,
@@ -52,6 +54,7 @@ const ProjectAdminClient = (): React.ReactNode => {
   const [projectForm, setProjectForm] = useState<ProjectFormState>(defaultProjectForm);
   const [milestoneForm, setMilestoneForm] = useState<MilestoneFormState>(defaultMilestoneForm);
   const [itemForm, setItemForm] = useState<ItemFormState>(defaultItemForm);
+  const [itemLinkForm, setItemLinkForm] = useState<ItemLinkFormState>(defaultItemLinkForm);
   const [selectedUpdateId, setSelectedUpdateId] = useState<string>("");
   const [updateForm, setUpdateForm] = useState<UpdateFormState>(defaultUpdateForm);
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -90,6 +93,12 @@ const ProjectAdminClient = (): React.ReactNode => {
     setSelectedProjectId(project.id);
     setProjectForm(createProjectEditForms(project).projectForm);
     setUpdateForm(createProjectEditForms(project).updateForm);
+    setItemLinkForm((current) => ({
+      ...current,
+      itemId: project.items.some((item) => item.id === current.itemId)
+        ? current.itemId
+        : project.items[0]?.id ?? ""
+    }));
   }, []);
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
     try {
@@ -118,6 +127,10 @@ const ProjectAdminClient = (): React.ReactNode => {
         setProjectForm(nextForms.projectForm);
         setMilestoneForm(nextForms.milestoneForm);
         setItemForm(nextForms.itemForm);
+        setItemLinkForm({
+          ...defaultItemLinkForm,
+          itemId: firstProject?.items[0]?.id ?? ""
+        });
         setUpdateForm(nextForms.updateForm);
         setLoadState("ready");
         setMessage(payload.projects.length === 0 ? "No projects exist yet." : "Project admin loaded.");
@@ -165,6 +178,10 @@ const ProjectAdminClient = (): React.ReactNode => {
       setProjectForm(nextForms.projectForm);
       setMilestoneForm(nextForms.milestoneForm);
       setItemForm(nextForms.itemForm);
+      setItemLinkForm({
+        ...defaultItemLinkForm,
+        itemId: project.items[0]?.id ?? ""
+      });
       setSelectedUpdateId("");
       setUpdateForm(nextForms.updateForm);
     }
@@ -299,6 +316,40 @@ const ProjectAdminClient = (): React.ReactNode => {
       setItemForm({
         ...defaultItemForm,
         sortOrder: updated.items.length + 1
+      });
+      setItemLinkForm((current) => ({
+        ...current,
+        itemId: updated.items[0]?.id ?? ""
+      }));
+    }
+  };
+  const createItemLink = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    if (!selectedProject) {
+      setMessage("Choose a project before adding an item link.");
+      return;
+    }
+
+    if (!itemLinkForm.itemId) {
+      setMessage("Choose an item before adding a link.");
+      return;
+    }
+
+    const updated = await runMutation("Creating item link", `/admin/projects/${encodeURIComponent(selectedProject.id)}/items/${encodeURIComponent(itemLinkForm.itemId)}/links`, {
+      method: "POST",
+      body: {
+        provider: itemLinkForm.provider,
+        url: itemLinkForm.url,
+        label: itemLinkForm.label,
+        relationship: itemLinkForm.relationship
+      }
+    });
+
+    if (updated) {
+      setItemLinkForm({
+        ...defaultItemLinkForm,
+        itemId: updated.items[0]?.id ?? ""
       });
     }
   };
@@ -441,6 +492,7 @@ const ProjectAdminClient = (): React.ReactNode => {
               setProjectForm(defaultProjectForm);
               setSelectedUpdateId("");
               setUpdateForm(defaultUpdateForm);
+              setItemLinkForm(defaultItemLinkForm);
             }}
             onSelectProject={selectProject}
           />
@@ -497,9 +549,12 @@ const ProjectAdminClient = (): React.ReactNode => {
                   createItem={createItem}
                   itemForm={itemForm}
                   itemParentOptions={itemParentOptions}
+                  itemLinkForm={itemLinkForm}
                   reorderItems={reorderItems}
                   selectedProject={selectedProject}
+                  createItemLink={createItemLink}
                   setItemForm={setItemForm}
+                  setItemLinkForm={setItemLinkForm}
                   updateItemStatus={updateItemStatus}
                 />
               </>

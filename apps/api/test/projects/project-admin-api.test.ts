@@ -9,6 +9,7 @@ import { ProjectAdminService } from "../../src/projects/project-admin.service.js
 import type {
   ProjectAdminActor,
   ProjectAdminItemInput,
+  ProjectAdminItemLinkInput,
   ProjectAdminMilestoneInput,
   ProjectAdminProjectInput,
   ProjectAdminProjectUpdateInput,
@@ -45,6 +46,7 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
   public lastProjectUpdate: ProjectAdminProjectUpdateInput | null = null;
   public lastCreatedMilestone: ProjectAdminMilestoneInput | null = null;
   public lastCreatedItem: ProjectAdminItemInput | null = null;
+  public lastCreatedItemLink: ProjectAdminItemLinkInput | null = null;
   public lastCreatedUpdate: ProjectAdminUpdateInput | null = null;
   public lastUpdateUpdate: ProjectAdminUpdateUpdateInput | null = null;
   public lastMilestoneReorder: readonly string[] | null = null;
@@ -158,7 +160,8 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
         ...project.items,
         {
           id: "item-created",
-          ...input
+          ...input,
+          links: []
         }
       ]
     };
@@ -178,6 +181,37 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
     }
 
     return structuredClone(project);
+  }
+
+  public async createItemLink(projectId: string, itemId: string, input: ProjectAdminItemLinkInput) {
+    const project = this.projects.get(projectId);
+
+    if (!project) {
+      return "project-not-found" as const;
+    }
+
+    if (!project.items.some((item) => item.id === itemId)) {
+      return "item-not-found" as const;
+    }
+
+    this.lastCreatedItemLink = structuredClone(input);
+    const updated = {
+      ...project,
+      items: project.items.map((item) => item.id === itemId
+        ? {
+          ...item,
+          links: [
+            ...item.links,
+            {
+              id: "item-link-created",
+              ...input
+            }
+          ]
+        }
+        : item)
+    };
+    this.projects.set(projectId, updated);
+    return structuredClone(updated);
   }
 
   public async reorderItems(projectId: string, input: { orderedIds: readonly string[] }) {
@@ -362,6 +396,24 @@ describe("ProjectAdminService", () => {
       sortOrder: 1
     });
 
+    await expect(service.createItemLink({
+      authUserId: "auth-user",
+      projectId: "project",
+      itemId: "item-created",
+      link: {
+        provider: "manual",
+        url: "https://example.com/wishlist/item",
+        label: "Wishlist entry",
+        relationship: "wishlist-entry"
+      }
+    })).resolves.toMatchObject({ ok: true });
+    expect(repository.lastCreatedItemLink).toEqual({
+      provider: "manual",
+      url: "https://example.com/wishlist/item",
+      label: "Wishlist entry",
+      relationship: "wishlist-entry"
+    });
+
     await expect(service.reorderMilestones({
       authUserId: "auth-user",
       projectId: "project",
@@ -536,6 +588,7 @@ describe("Project admin route boundary", () => {
           reorderMilestones: async () => testCase.result,
           createItem: async () => testCase.result,
           updateItem: async () => testCase.result,
+          createItemLink: async () => testCase.result,
           reorderItems: async () => testCase.result,
           createUpdate: async () => testCase.result,
           updateUpdate: async () => testCase.result

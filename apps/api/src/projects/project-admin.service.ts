@@ -1,5 +1,6 @@
 import type {
   ProjectAdminItemInput,
+  ProjectAdminItemLinkInput,
   ProjectAdminItemUpdateInput,
   ProjectAdminListResult,
   ProjectAdminMilestoneInput,
@@ -14,6 +15,7 @@ import type {
 } from "./project-admin.types.js";
 import type {
   ProjectAdminItemInput as DomainProjectAdminItemInput,
+  ProjectAdminItemLinkInput as DomainProjectAdminItemLinkInput,
   ProjectAdminMilestoneInput as DomainProjectAdminMilestoneInput,
   ProjectAdminProjectInput as DomainProjectAdminProjectInput,
   ProjectAdminUpdateInput as DomainProjectAdminUpdateInput
@@ -21,6 +23,7 @@ import type {
 import {
   canManageProjects,
   isValidProjectAdminItemInput,
+  isValidProjectAdminItemLinkInput,
   isValidProjectAdminMilestoneInput,
   isValidProjectAdminProjectInput,
   isValidProjectAdminUpdateInput
@@ -96,6 +99,15 @@ const toDomainItemInput = (
   estimatedMinorAmount: input.estimatedMinorAmount ?? fallback.estimatedMinorAmount ?? null,
   currencyCode: input.currencyCode ?? fallback.currencyCode ?? null,
   sortOrder: input.sortOrder ?? fallback.sortOrder
+});
+
+const toDomainItemLinkInput = (
+  input: ProjectAdminItemLinkInput
+): DomainProjectAdminItemLinkInput => ({
+  provider: input.provider,
+  url: input.url,
+  label: input.label,
+  relationship: input.relationship
 });
 
 const toDomainUpdateInput = (
@@ -340,6 +352,28 @@ export class ProjectAdminService {
     return this.mapProjectMutationResult(await this.repository.updateItem(input.projectId, input.itemId, input.item));
   }
 
+  public async createItemLink(input: {
+    authUserId: string;
+    projectId: string;
+    itemId: string;
+    link: ProjectAdminItemLinkInput;
+  }): Promise<ProjectAdminMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    if (!isValidProjectAdminItemLinkInput(toDomainItemLinkInput(input.link))) {
+      return {
+        ok: false,
+        reason: "project_admin_invalid_input"
+      };
+    }
+
+    return this.mapProjectMutationResult(await this.repository.createItemLink(input.projectId, input.itemId, input.link));
+  }
+
   public async reorderItems(input: {
     authUserId: string;
     projectId: string;
@@ -469,6 +503,7 @@ export class ProjectAdminService {
       | Awaited<ReturnType<ProjectAdminRepository["reorderMilestones"]>>
       | Awaited<ReturnType<ProjectAdminRepository["createItem"]>>
       | Awaited<ReturnType<ProjectAdminRepository["updateItem"]>>
+      | Awaited<ReturnType<ProjectAdminRepository["createItemLink"]>>
       | Awaited<ReturnType<ProjectAdminRepository["reorderItems"]>>
       | Awaited<ReturnType<ProjectAdminRepository["createUpdate"]>>
       | Awaited<ReturnType<ProjectAdminRepository["updateUpdate"]>>

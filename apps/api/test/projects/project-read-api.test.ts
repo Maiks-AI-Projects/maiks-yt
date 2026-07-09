@@ -99,7 +99,8 @@ describe("public project read API", () => {
             kind: "task",
             status: "active",
             quantity: 1,
-            sortOrder: 1
+            sortOrder: 1,
+            links: []
           }
         ],
         updates: [

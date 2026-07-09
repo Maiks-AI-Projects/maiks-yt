@@ -3,7 +3,9 @@ import type {
   MilestoneStatus,
   ProjectCategory,
   ProjectItemKind,
+  ProjectItemLinkRelationship,
   ProjectItemStatus,
+  ProjectReadItemLinkSource,
   ProjectReadItemSource,
   ProjectReadMilestoneSource,
   ProjectReadModelSource,
@@ -50,6 +52,17 @@ type ItemRow = {
   sortOrder: number;
 };
 
+type ItemLinkRow = {
+  id: string;
+  projectItemId: string;
+  provider: string;
+  url: string;
+  label: string;
+  relationship: ProjectItemLinkRelationship;
+  lastSeenMinorAmount?: number | null;
+  currencyCode?: string | null;
+};
+
 type UpdateRow = {
   id: string;
   projectId: string;
@@ -91,7 +104,10 @@ const mapMilestone = (row: MilestoneRow): ProjectReadMilestoneSource => ({
   sortOrder: row.sortOrder
 });
 
-const mapItem = (row: ItemRow): ProjectReadItemSource => ({
+const mapItem = (
+  row: ItemRow,
+  links: readonly ProjectReadItemLinkSource[]
+): ProjectReadItemSource => ({
   id: row.id,
   ...(row.parentItemId ? { parentItemId: row.parentItemId } : {}),
   title: row.title,
@@ -101,7 +117,18 @@ const mapItem = (row: ItemRow): ProjectReadItemSource => ({
   quantity: row.quantity,
   estimatedMinorAmount: row.estimatedMinorAmount ?? null,
   currencyCode: row.currencyCode ?? null,
-  sortOrder: row.sortOrder
+  sortOrder: row.sortOrder,
+  links
+});
+
+const mapItemLink = (row: ItemLinkRow): ProjectReadItemLinkSource => ({
+  id: row.id,
+  provider: row.provider,
+  url: row.url,
+  label: row.label,
+  relationship: row.relationship,
+  lastSeenMinorAmount: row.lastSeenMinorAmount ?? null,
+  currencyCode: row.currencyCode ?? null
 });
 
 const mapUpdate = (row: UpdateRow): ProjectReadUpdateSource => ({
@@ -208,13 +235,56 @@ const loadItemsByProjectId = async (
     return groupedItems;
   }
 
-  for (const row of rows as ItemRow[]) {
+  const itemRows = rows as ItemRow[];
+  const itemLinksByItemId = await loadItemLinksByItemId(pool, itemRows.map((row) => row.id));
+
+  for (const row of itemRows) {
     const items = groupedItems.get(row.projectId) ?? [];
-    items.push(mapItem(row));
+    items.push(mapItem(row, itemLinksByItemId.get(row.id) ?? []));
     groupedItems.set(row.projectId, items);
   }
 
   return groupedItems;
+};
+
+const loadItemLinksByItemId = async (
+  pool: Pick<DatabasePool, "execute">,
+  itemIds: readonly string[]
+): Promise<Map<string, ProjectReadItemLinkSource[]>> => {
+  if (itemIds.length === 0) {
+    return new Map();
+  }
+
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        id,
+        project_item_id AS projectItemId,
+        provider,
+        url,
+        label,
+        relationship,
+        last_seen_minor_amount AS lastSeenMinorAmount,
+        currency_code AS currencyCode
+      FROM project_item_links
+      WHERE project_item_id IN (${itemIds.map(() => "?").join(", ")})
+      ORDER BY relationship, label
+    `,
+    [...itemIds]
+  );
+  const groupedLinks = new Map<string, ProjectReadItemLinkSource[]>();
+
+  if (!Array.isArray(rows)) {
+    return groupedLinks;
+  }
+
+  for (const row of rows as ItemLinkRow[]) {
+    const links = groupedLinks.get(row.projectItemId) ?? [];
+    links.push(mapItemLink(row));
+    groupedLinks.set(row.projectItemId, links);
+  }
+
+  return groupedLinks;
 };
 
 const loadUpdatesByProjectId = async (

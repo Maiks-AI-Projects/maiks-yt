@@ -37,6 +37,16 @@ const ProjectItemList = ({
           {item.description ? <p>{item.description}</p> : null}
           {item.quantity > 1 ? <small>Quantity: {item.quantity}</small> : null}
           {formatEstimate(item) ? <small>Estimate: {formatEstimate(item)}</small> : null}
+          {item.links.length > 0 ? (
+            <p>
+              {item.links.map((link, index) => (
+                <span key={link.id}>
+                  {index > 0 ? " / " : null}
+                  <a href={link.url} rel="noreferrer" target="_blank">{link.label}</a>
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
         {item.children.length > 0 ? <ProjectItemList items={item.children} /> : null}
       </li>

@@ -1,6 +1,6 @@
 import type { MilestoneStatus } from "./milestone.types.js";
 import type { ProjectCategory } from "./project-category.types.js";
-import type { ProjectItemKind, ProjectItemStatus } from "./project-item.types.js";
+import type { ProjectItemKind, ProjectItemLinkRelationship, ProjectItemStatus } from "./project-item.types.js";
 import type { PublicProjectDetail } from "./project-read-model.types.js";
 import type { ProjectReadModelSource } from "./project-read-model.types.js";
 import type { ProjectUpdateStatus } from "./project-update.types.js";
@@ -51,6 +51,13 @@ export type ProjectAdminItemInput = {
 };
 
 export type ProjectAdminItemUpdateInput = Partial<ProjectAdminItemInput>;
+
+export type ProjectAdminItemLinkInput = {
+  provider: string;
+  url: string;
+  label: string;
+  relationship: ProjectItemLinkRelationship;
+};
 
 export type ProjectAdminUpdateInput = {
   title: string;

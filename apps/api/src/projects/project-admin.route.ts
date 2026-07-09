@@ -24,6 +24,7 @@ type ProjectAdminRouteDependencies = {
     | "reorderMilestones"
     | "createItem"
     | "updateItem"
+    | "createItemLink"
     | "reorderItems"
     | "createUpdate"
     | "updateUpdate"
@@ -111,6 +112,13 @@ const itemUpdatePayloadSchema = itemPayloadSchema.partial().refine(
   "at_least_one_item_field_required"
 );
 
+const itemLinkPayloadSchema = z.object({
+  provider: z.string().trim().min(1).max(80),
+  url: z.string().trim().url().max(1_024),
+  label: z.string().trim().min(1).max(191),
+  relationship: z.enum(["store-product", "wishlist-entry", "reference", "receipt"])
+}).strict();
+
 const reorderPayloadSchema = z.object({
   orderedIds: z.array(z.string().trim().min(1).max(191)).min(1)
 }).strict();
@@ -165,6 +173,7 @@ export const registerProjectAdminRoutes = (
     | "reorderMilestones"
     | "createItem"
     | "updateItem"
+    | "createItemLink"
     | "reorderItems"
     | "createUpdate"
     | "updateUpdate"
@@ -468,6 +477,44 @@ export const registerProjectAdminRoutes = (
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Project admin item update failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "project_admin_unavailable"
+      };
+    }
+  });
+
+  server.post<{ Params: { id: string; itemId: string } }>("/admin/projects/:id/items/:itemId/links", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "project_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = itemParamsSchema.safeParse(request.params);
+    const parsedBody = itemLinkPayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "project_admin_invalid_input"
+      };
+    }
+
+    try {
+      return sendAdminMutationResult(await getService().createItemLink({
+        authUserId: session.user.id,
+        projectId: parsedParams.data.id,
+        itemId: parsedParams.data.itemId,
+        link: parsedBody.data
+      }), reply);
+    } catch (error) {
+      server.log.warn({ err: error }, "Project admin item link create failed.");
       reply.code(503);
       return {
         ok: false,

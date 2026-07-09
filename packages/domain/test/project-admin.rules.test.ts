@@ -4,6 +4,7 @@ import {
   buildProjectAdminPublicPreview,
   canManageProjects,
   isValidProjectAdminItemInput,
+  isValidProjectAdminItemLinkInput,
   isValidProjectAdminMilestoneInput,
   isValidProjectAdminProjectInput,
   isValidProjectAdminUpdateInput,
@@ -69,6 +70,12 @@ describe("project admin validation", () => {
       currencyCode: "EUR",
       sortOrder: 1
     })).toBe(true);
+    expect(isValidProjectAdminItemLinkInput({
+      provider: "manual",
+      url: "https://example.com/wishlist/item",
+      label: "Wishlist entry",
+      relationship: "wishlist-entry"
+    })).toBe(true);
     expect(isValidProjectAdminUpdateInput({
       title: "Manual update",
       summary: "Short public summary.",
@@ -102,6 +109,12 @@ describe("project admin validation", () => {
       status: "planned",
       quantity: 0,
       sortOrder: 0
+    })).toBe(false);
+    expect(isValidProjectAdminItemLinkInput({
+      provider: "manual",
+      url: "javascript:alert(1)",
+      label: "Bad link",
+      relationship: "wishlist-entry"
     })).toBe(false);
     expect(isValidProjectAdminItemInput({
       title: "Missing currency",
@@ -159,7 +172,8 @@ describe("project admin public preview", () => {
           kind: "task",
           status: "planned",
           quantity: 1,
-          sortOrder: 1
+          sortOrder: 1,
+          links: []
         },
         {
           id: "removed",
@@ -167,7 +181,8 @@ describe("project admin public preview", () => {
           kind: "task",
           status: "removed",
           quantity: 1,
-          sortOrder: 2
+          sortOrder: 2,
+          links: []
         }
       ],
       updates: [

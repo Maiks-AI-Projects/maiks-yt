@@ -11,11 +11,13 @@ import { formatProjectLabel } from "../../projects/project-read-data";
 import {
   defaultUpdateForm,
   formatProjectEstimate,
+  itemLinkRelationships,
   itemKinds,
   itemStatuses,
   milestoneStatuses,
   updateStatuses,
   type ItemFormState,
+  type ItemLinkFormState,
   type MilestoneFormState,
   type UpdateFormState
 } from "./project-admin-client.service";
@@ -175,22 +177,28 @@ export const MilestonesPanel = ({
 type ItemsPanelProps = {
   busyAction: string | null;
   createItem: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  createItemLink: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   itemForm: ItemFormState;
+  itemLinkForm: ItemLinkFormState;
   itemParentOptions: Array<{ id: string; label: string }>;
   reorderItems: () => Promise<void>;
   selectedProject: ProjectReadModelSource;
   setItemForm: React.Dispatch<React.SetStateAction<ItemFormState>>;
+  setItemLinkForm: React.Dispatch<React.SetStateAction<ItemLinkFormState>>;
   updateItemStatus: (itemId: string, status: ProjectItemStatus) => Promise<void>;
 };
 
 export const ItemsPanel = ({
   busyAction,
   createItem,
+  createItemLink,
   itemForm,
+  itemLinkForm,
   itemParentOptions,
   reorderItems,
   selectedProject,
   setItemForm,
+  setItemLinkForm,
   updateItemStatus
 }: ItemsPanelProps): React.ReactNode => (
   <section className="project-admin-panel">
@@ -214,6 +222,11 @@ export const ItemsPanel = ({
                 <span>{formatProjectLabel(item.kind)} / {formatProjectLabel(item.status)} / Qty {item.quantity} / Order {item.sortOrder}</span>
                 {formatProjectEstimate(item.estimatedMinorAmount, item.currencyCode) ? (
                   <p>Estimate: {formatProjectEstimate(item.estimatedMinorAmount, item.currencyCode)}</p>
+                ) : null}
+                {item.links.length > 0 ? (
+                  <p>
+                    Links: {item.links.map((link) => link.label).join(", ")}
+                  </p>
                 ) : null}
                 {item.description ? <p>{item.description}</p> : null}
               </div>
@@ -242,6 +255,19 @@ export const ItemsPanel = ({
       <input type="number" min={0} value={itemForm.sortOrder} onChange={(event) => setItemForm((current) => ({ ...current, sortOrder: event.target.valueAsNumber || 0 }))} aria-label="Item sort order" />
       <textarea value={itemForm.description} onChange={(event) => setItemForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" maxLength={2000} rows={2} />
       <button type="submit" disabled={busyAction !== null}>Add Item</button>
+    </form>
+    <form className="project-admin-inline-form" onSubmit={(event) => void createItemLink(event)}>
+      <select value={itemLinkForm.itemId} onChange={(event) => setItemLinkForm((current) => ({ ...current, itemId: event.target.value }))} aria-label="Linked item">
+        <option value="">Choose item</option>
+        {selectedProject.items.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+      </select>
+      <select value={itemLinkForm.relationship} onChange={(event) => setItemLinkForm((current) => ({ ...current, relationship: event.target.value as ItemLinkFormState["relationship"] }))}>
+        {itemLinkRelationships.map((relationship) => <option key={relationship} value={relationship}>{formatProjectLabel(relationship)}</option>)}
+      </select>
+      <input value={itemLinkForm.provider} onChange={(event) => setItemLinkForm((current) => ({ ...current, provider: event.target.value }))} placeholder="Provider" required maxLength={80} />
+      <input value={itemLinkForm.label} onChange={(event) => setItemLinkForm((current) => ({ ...current, label: event.target.value }))} placeholder="Link label" required maxLength={191} />
+      <input value={itemLinkForm.url} onChange={(event) => setItemLinkForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://..." required maxLength={1024} />
+      <button type="submit" disabled={busyAction !== null || selectedProject.items.length === 0}>Add Link</button>
     </form>
   </section>
 );

@@ -1,4 +1,4 @@
-import type { ProjectCategory, ProjectItemKind, ProjectItemStatus, ProjectReadModelSource, ProjectReadUpdateSource, ProjectStatus, ProjectUpdateStatus, ProjectType, MilestoneStatus } from "@maiks-yt/domain/projects";
+import type { ProjectCategory, ProjectItemKind, ProjectItemLinkRelationship, ProjectItemStatus, ProjectReadModelSource, ProjectReadUpdateSource, ProjectStatus, ProjectUpdateStatus, ProjectType, MilestoneStatus } from "@maiks-yt/domain/projects";
 import { buildProjectAdminPublicPreview } from "@maiks-yt/domain/projects";
 
 export type AdminProjectsResponse =
@@ -52,6 +52,14 @@ export type ItemFormState = {
   sortOrder: number;
 };
 
+export type ItemLinkFormState = {
+  itemId: string;
+  provider: string;
+  url: string;
+  label: string;
+  relationship: ProjectItemLinkRelationship;
+};
+
 export type UpdateFormState = {
   title: string;
   summary: string;
@@ -91,6 +99,7 @@ export const projectStatuses = ["planning", "active", "completed", "mothballed",
 export const milestoneStatuses = ["planned", "active", "completed", "cancelled"] satisfies MilestoneStatus[];
 export const itemKinds = ["product", "service", "subscription", "task", "wishlist", "other"] satisfies ProjectItemKind[];
 export const itemStatuses = ["planned", "active", "acquired", "completed", "removed"] satisfies ProjectItemStatus[];
+export const itemLinkRelationships = ["wishlist-entry", "store-product", "reference", "receipt"] satisfies ProjectItemLinkRelationship[];
 export const updateStatuses = ["draft", "published"] satisfies ProjectUpdateStatus[];
 
 export const defaultProjectForm: ProjectFormState = {
@@ -120,6 +129,14 @@ export const defaultItemForm: ItemFormState = {
   estimatedAmountMajor: "",
   currencyCode: "EUR",
   sortOrder: 1
+};
+
+export const defaultItemLinkForm: ItemLinkFormState = {
+  itemId: "",
+  provider: "manual",
+  url: "",
+  label: "",
+  relationship: "wishlist-entry"
 };
 
 export const defaultUpdateForm: UpdateFormState = {

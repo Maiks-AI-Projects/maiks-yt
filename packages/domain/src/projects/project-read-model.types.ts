@@ -1,6 +1,6 @@
 import type { MilestoneStatus } from "./milestone.types.js";
 import type { ProjectCategory } from "./project-category.types.js";
-import type { ProjectItemKind, ProjectItemStatus } from "./project-item.types.js";
+import type { ProjectItemKind, ProjectItemLinkRelationship, ProjectItemStatus } from "./project-item.types.js";
 import type { ProjectUpdateStatus } from "./project-update.types.js";
 import type { ProjectStatus, ProjectType } from "./project.types.js";
 
@@ -25,6 +25,17 @@ export type ProjectReadItemSource = {
   estimatedMinorAmount?: number | null;
   currencyCode?: string | null;
   sortOrder: number;
+  links: readonly ProjectReadItemLinkSource[];
+};
+
+export type ProjectReadItemLinkSource = {
+  id: string;
+  provider: string;
+  url: string;
+  label: string;
+  relationship: ProjectItemLinkRelationship;
+  lastSeenMinorAmount?: number | null;
+  currencyCode?: string | null;
 };
 
 export type ProjectReadUpdateSource = {
@@ -70,7 +81,18 @@ export type PublicProjectItem = {
   estimatedMinorAmount?: number;
   currencyCode?: string;
   description?: string;
+  links: readonly PublicProjectItemLink[];
   children: readonly PublicProjectItem[];
+};
+
+export type PublicProjectItemLink = {
+  id: string;
+  provider: string;
+  url: string;
+  label: string;
+  relationship: ProjectItemLinkRelationship;
+  lastSeenMinorAmount?: number;
+  currencyCode?: string;
 };
 
 export type PublicProjectUpdate = {

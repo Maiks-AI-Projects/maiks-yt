@@ -77,7 +77,8 @@ describe("project public read models", () => {
           kind: "task",
           status: "removed",
           quantity: 1,
-          sortOrder: 1
+          sortOrder: 1,
+          links: []
         },
         {
           id: "parent",
@@ -87,7 +88,16 @@ describe("project public read models", () => {
           quantity: 1,
           estimatedMinorAmount: 12345,
           currencyCode: "EUR",
-          sortOrder: 2
+          sortOrder: 2,
+          links: [
+            {
+              id: "wishlist-link",
+              provider: "manual",
+              url: "https://example.com/wishlist/item",
+              label: "Wishlist entry",
+              relationship: "wishlist-entry"
+            }
+          ]
         },
         {
           id: "child",
@@ -96,7 +106,8 @@ describe("project public read models", () => {
           kind: "task",
           status: "planned",
           quantity: 1,
-          sortOrder: 1
+          sortOrder: 1,
+          links: []
         }
       ]
     }));
@@ -111,6 +122,7 @@ describe("project public read models", () => {
     expect(detail?.items[0]?.id).toBe("parent");
     expect(detail?.items[0]?.estimatedMinorAmount).toBe(12345);
     expect(detail?.items[0]?.currencyCode).toBe("EUR");
+    expect(detail?.items[0]?.links[0]?.label).toBe("Wishlist entry");
     expect(detail?.items[0]?.children[0]?.id).toBe("child");
     expect(detail?.itemCount).toBe(2);
   });

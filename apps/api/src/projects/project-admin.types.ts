@@ -2,6 +2,7 @@ import type {
   MilestoneStatus,
   ProjectCategory,
   ProjectItemKind,
+  ProjectItemLinkRelationship,
   ProjectItemStatus,
   ProjectReadModelSource,
   ProjectStatus,
@@ -72,6 +73,13 @@ export type ProjectAdminItemUpdateInput = {
   sortOrder?: number | undefined;
 };
 
+export type ProjectAdminItemLinkInput = {
+  provider: string;
+  url: string;
+  label: string;
+  relationship: ProjectItemLinkRelationship;
+};
+
 export type ProjectAdminUpdateInput = {
   title: string;
   summary?: string | null | undefined;
@@ -121,6 +129,7 @@ export type ProjectAdminMutationResult =
       | "project_not_found"
       | "project_milestone_not_found"
       | "project_item_not_found"
+      | "project_item_link_not_found"
       | "project_update_not_found"
       | "project_item_parent_not_found"
       | "project_admin_invalid_input"
@@ -137,6 +146,7 @@ export interface ProjectAdminRepository {
   reorderMilestones(projectId: string, input: ProjectAdminReorderInput): Promise<ProjectReadModelSource | "project-not-found" | "milestone-not-found">;
   createItem(projectId: string, input: ProjectAdminItemInput): Promise<ProjectReadModelSource | "project-not-found" | "parent-not-found">;
   updateItem(projectId: string, itemId: string, input: ProjectAdminItemUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found" | "parent-not-found">;
+  createItemLink(projectId: string, itemId: string, input: ProjectAdminItemLinkInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found">;
   reorderItems(projectId: string, input: ProjectAdminReorderInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found">;
   createUpdate(projectId: string, input: ProjectAdminUpdateInput): Promise<ProjectReadModelSource | "project-not-found">;
   updateUpdate(projectId: string, updateId: string, input: ProjectAdminUpdateUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "update-not-found">;

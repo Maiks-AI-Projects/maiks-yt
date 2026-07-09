@@ -517,6 +517,34 @@ export const createProjectAdminRepository = (
     return await updateItemFields(pool, projectId, itemId, input);
   },
 
+  async createItemLink(projectId, itemId, input) {
+    if (!await projectExists(pool, projectId)) {
+      return "project-not-found";
+    }
+
+    if (!await itemExistsInProject(pool, projectId, itemId)) {
+      return "item-not-found";
+    }
+
+    await pool.execute(
+      `
+        INSERT INTO project_item_links
+          (id, project_item_id, provider, url, label, relationship, last_seen_minor_amount, currency_code)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)
+      `,
+      [
+        randomUUID(),
+        itemId,
+        input.provider.trim(),
+        input.url.trim(),
+        input.label.trim(),
+        input.relationship
+      ]
+    );
+
+    return await assertReadProject(pool, projectId);
+  },
+
   async reorderItems(projectId, input) {
     if (!await projectExists(pool, projectId)) {
       return "project-not-found";

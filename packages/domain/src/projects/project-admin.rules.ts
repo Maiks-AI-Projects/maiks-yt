@@ -1,6 +1,7 @@
 import type {
   ProjectAdminCapability,
   ProjectAdminItemInput,
+  ProjectAdminItemLinkInput,
   ProjectAdminMilestoneInput,
   ProjectAdminProjectInput,
   ProjectAdminPublicPreviewResult,
@@ -15,6 +16,9 @@ export const projectAdminDescriptionMaxLength = 2_000;
 export const projectAdminUpdateSummaryMaxLength = 280;
 export const projectAdminUpdateBodyMaxLength = 10_000;
 export const projectAdminEstimateMinorAmountMax = 2_147_483_647;
+export const projectAdminItemLinkProviderMaxLength = 80;
+export const projectAdminItemLinkUrlMaxLength = 1_024;
+export const projectAdminItemLinkLabelMaxLength = 191;
 
 const projectSlugPattern = /^[a-z0-9][a-z0-9-]{0,190}$/;
 const currencyCodePattern = /^[A-Z]{3}$/;
@@ -63,6 +67,27 @@ export const isValidProjectAdminItemInput = (
   && isValidEstimate(input.estimatedMinorAmount ?? null, input.currencyCode ?? null)
   && Number.isInteger(input.sortOrder)
   && input.sortOrder >= 0;
+
+export const isValidProjectAdminItemLinkInput = (
+  input: ProjectAdminItemLinkInput
+): boolean =>
+  isValidProjectAdminText(input.provider, projectAdminItemLinkProviderMaxLength)
+  && isValidProjectAdminText(input.label, projectAdminItemLinkLabelMaxLength)
+  && isValidProjectAdminItemLinkUrl(input.url)
+  && ["store-product", "wishlist-entry", "reference", "receipt"].includes(input.relationship);
+
+const isValidProjectAdminItemLinkUrl = (value: string): boolean => {
+  if (value.trim().length === 0 || value.trim().length > projectAdminItemLinkUrlMaxLength) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+};
 
 const isValidEstimate = (
   estimatedMinorAmount: number | null,
