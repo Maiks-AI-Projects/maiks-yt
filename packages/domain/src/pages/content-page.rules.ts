@@ -32,6 +32,7 @@ const reservedPathPrefixes = [
   "/affiliates",
   "/api",
   "/auth",
+  "/community-rules",
   "/context",
   "/dev",
   "/gemini-lab",

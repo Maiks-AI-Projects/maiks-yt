@@ -323,6 +323,14 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     url: http.makeUrl(config.webUrl, "/games"),
     scanInjection: true
   }),
+  checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    http,
+    name: "community rules",
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    url: http.makeUrl(config.webUrl, "/community-rules"),
+    scanInjection: true
+  }),
   checkJsonEndpoint({
     http,
     name: "public games API",

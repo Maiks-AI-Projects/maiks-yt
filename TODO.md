@@ -351,6 +351,7 @@ Gate note: AI public output must start in a private draft/shadow mode before any
   - 2026-06-29 Phase 5I added, deployed, migrated, and dev-smoked fake/local hide and temporary mute commands writing active rows into `moderation_active_states`, plus a read-only active fake/local moderation summary in `/admin/live-helper`. Dev smoke confirmed hidden fake/local messages disappear from streamer chat snapshots, temporary local mutes suppress matching fake/local messages, `/admin/live-helper` returns the active `message_hidden` and `author_muted` rows, and the dev DB rows are fake-local/test/simulated/resettable with `providerAction: false`. Warn, note, and noop commands remain audit-only. Live suppression still uses the in-memory runtime cache for immediate fake/local behavior. No provider enforcement, destructive actions, durable provider state, money/support authority, AI decisions, auth changes, secrets, or production behavior was added.
 - [x] Define community rules.
   - 2026-06-29 Phase 5J completed a docs/design/schema-gate pass for community rules and moderation policy boundaries. The draft rules cover respect/harassment, stream disruption, identity abuse, support or money-adjacent abuse, privacy, and serious legal/platform escalation. These are design notes only, not a published policy page or production promise.
+  - 2026-07-10 added a public `/community-rules` dev-draft page from the reviewed design wording and reserved the route from Page Creator ownership. It is still draft wording for testing, not final production policy.
 - [x] Build warning/strike model.
   - 2026-06-29 Phase 5J chose the safest manual-first ladder: internal note, human-reviewed warning, human-reviewed strike, active restriction, and owner-reviewed ban. Three active strikes should trigger owner review rather than an automatic ban. Helpers may monitor, add notes, draft proposed warnings, and run fake/local drills through narrow grants, but owner/admin/auth/money/secrets/provider authority remains out of scope.
 - [ ] Add automatic warning system.
@@ -359,7 +360,8 @@ Gate note: AI public output must start in a private draft/shadow mode before any
 - [ ] Add moderation audit history.
   - 2026-06-29 Phase 5J kept `moderation_audit_logs` as append-only action history and `moderation_active_states` as current effect. A minimal future schema, if approved, would add `community_policy_versions`, `community_rule_definitions`, and `moderation_strikes`; no migration was generated.
 - [ ] Decide default quick mute duration.
-- [ ] Add abuse policy page, including police-report warning for serious abuse.
+- [x] Add abuse policy page, including police-report warning for serious abuse.
+  - 2026-07-10 first draft is live as `/community-rules` for dev testing. Final production wording, policy-version records, strike records, and appeal workflow remain future work.
 - [ ] Add offensive display name handling.
 - [ ] Add malicious linking/claiming handling.
 

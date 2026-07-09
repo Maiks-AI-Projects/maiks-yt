@@ -17,6 +17,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Chose one shared, always-loaded master overlay instead of separate preloaded scene overlays.
 - Centralized typed public Creator Hub links, including honest unavailable states for unpublished destinations.
 - Added public personal context, accountability/history, and affiliate disclosure page foundations.
+- Added a public `/community-rules` draft page for dev testing and reserved the route from Page Creator ownership.
 - Added typed Action Panel view and decision capabilities with owner wildcard support.
 - Added decision-kind-aware approve, reject, and defer transition rules with bounded optional notes.
 - Aligned Action Panel persistence with the domain contract while preserving legacy provenance fields.
