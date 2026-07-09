@@ -153,6 +153,8 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       ["admin-connections", "/admin/connections", "Connections"],
       ["admin-games", "/admin/games", "Game"],
       ["admin-money", "/admin/money", "Money"],
+      ["admin-pages", "/admin/pages", "Page Creator"],
+      ["admin-projects", "/admin/projects", "Project"],
       ["admin-provider-integrations", "/admin/provider-integrations", "Provider"]
     ]) {
       surfaces.push({
