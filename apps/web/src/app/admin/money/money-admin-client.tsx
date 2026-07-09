@@ -404,6 +404,43 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const exportSummaryJson = async (): Promise<void> => {
+    setBusy(true);
+    setMessage("Preparing private money summary report...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/report.json${buildLedgerQuery()}`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        const payload = await parseJson<{ ok: false; reason?: string }>(response);
+        setMessage(getFailureMessage(response, payload?.reason));
+        return;
+      }
+
+      const report = await response.text();
+      const filename = response.headers
+        .get("content-disposition")
+        ?.match(/filename="([^"]+)"/)?.[1] ?? "maiks-money-summary.json";
+      const url = URL.createObjectURL(new Blob([report], { type: "application/json;charset=utf-8" }));
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("Private money summary report downloaded.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money summary report failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const voidTransaction = async (transaction: MoneyLedgerTransaction): Promise<void> => {
     const reason = window.prompt("Why should this private money entry be voided?");
 
@@ -471,6 +508,9 @@ const MoneyAdminClient = (): React.ReactNode => {
           <p>Manual income, cost, fee, payout, and correction tracking before public payment behavior exists.</p>
         </div>
         <div className="admin-inline-actions">
+          <button type="button" onClick={() => void exportSummaryJson()} disabled={busy || loadState !== "ready"}>
+            Export Summary
+          </button>
           <button type="button" onClick={() => void exportLedgerCsv()} disabled={busy || loadState !== "ready"}>
             Export CSV
           </button>

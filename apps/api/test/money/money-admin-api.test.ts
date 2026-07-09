@@ -283,6 +283,87 @@ describe("MoneyAdminService", () => {
     });
   });
 
+  it("builds a private JSON accounting summary and records an audit row", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "cost-transaction",
+      transactionType: "cost",
+      moneyMode: "real",
+      sourceProvider: "kofi",
+      lines: [
+        {
+          id: "cost-line",
+          transactionId: "cost-transaction",
+          lineKind: "cost",
+          direction: "out",
+          amountMinor: 500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: null,
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.buildJsonReport({ authUserId: "auth-user" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      report: {
+        counts: {
+          transactions: 2,
+          lines: 2,
+          warnings: 2,
+          realPostedTransactions: 2
+        },
+        totals: {
+          realInMinor: 12345,
+          realOutMinor: 500,
+          realRemainderMinor: 11845,
+          allInMinor: 12345,
+          allOutMinor: 500,
+          allRemainderMinor: 11845
+        },
+        warningCounts: {
+          missing_category: 1,
+          missing_receipt: 1
+        },
+        byCategory: expect.arrayContaining([
+          expect.objectContaining({
+            key: "uncategorized",
+            outMinor: 500,
+            lineCount: 1
+          })
+        ]),
+        bySourceProvider: expect.arrayContaining([
+          expect.objectContaining({
+            key: "kofi",
+            outMinor: 500
+          })
+        ])
+      }
+    });
+    expect(repository.lastExportAudit).toMatchObject({
+      reportKind: "accounting_summary",
+      fileKind: "none",
+      fileReference: null,
+      fileChecksum: null,
+      warningCounts: {
+        missing_category: 1,
+        missing_receipt: 1
+      },
+      generatedByUserId: "domain-user"
+    });
+  });
+
   it("surfaces derived accounting warnings on ledger listing", async () => {
     const repository = new FakeMoneyAdminRepository();
     repository.transactions.push(createTransaction({
@@ -558,6 +639,42 @@ describe("MoneyAdminService", () => {
       reason: "money_admin_forbidden"
     });
     expect(repository.exportAuditCount).toBe(0);
+  });
+
+  it("exports a JSON report for an owner", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/report.json"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain("application/json");
+    expect(response.headers["content-disposition"]).toMatch(/maiks-money-summary-\d{4}-\d{2}-\d{2}\.json/);
+    expect(response.headers["x-maiks-money-report-transactions"]).toBe("1");
+    expect(response.json()).toMatchObject({
+      counts: {
+        transactions: 1,
+        lines: 1
+      },
+      totals: {
+        realInMinor: 12345,
+        realOutMinor: 0
+      }
+    });
   });
 
   it("requires an auth session before voiding entries", async () => {

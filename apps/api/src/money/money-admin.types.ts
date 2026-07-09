@@ -48,10 +48,59 @@ export type MoneyAdminCsvExport = {
   generatedAt: string;
 };
 
+export type MoneyAdminReportBucket = {
+  key: string;
+  inMinor: number;
+  outMinor: number;
+  neutralMinor: number;
+  lineCount: number;
+};
+
+export type MoneyAdminJsonReport = {
+  generatedAt: string;
+  period: {
+    accountingFrom: string | null;
+    accountingTo: string | null;
+    effectiveStart: string;
+    effectiveEnd: string;
+  };
+  counts: {
+    transactions: number;
+    lines: number;
+    warnings: number;
+    realPostedTransactions: number;
+    draftTransactions: number;
+    voidedTransactions: number;
+  };
+  totals: {
+    realInMinor: number;
+    realOutMinor: number;
+    realRemainderMinor: number;
+    allInMinor: number;
+    allOutMinor: number;
+    allRemainderMinor: number;
+  };
+  warningCounts: Record<string, number>;
+  byTransactionType: readonly MoneyAdminReportBucket[];
+  byMoneyMode: readonly MoneyAdminReportBucket[];
+  byCategory: readonly MoneyAdminReportBucket[];
+  bySourceProvider: readonly MoneyAdminReportBucket[];
+};
+
 export type MoneyAdminExportResult =
   | {
     ok: true;
     export: MoneyAdminCsvExport;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
+export type MoneyAdminJsonReportResult =
+  | {
+    ok: true;
+    report: MoneyAdminJsonReport;
   }
   | {
     ok: false;
@@ -63,14 +112,14 @@ export interface MoneyAdminRepository {
   listTransactions(filters: MoneyAdminLedgerFilters): Promise<readonly MoneyLedgerTransaction[]>;
   getTransaction(id: string): Promise<MoneyLedgerTransaction | null>;
   recordReportExport(input: {
-    reportKind: "tax_review_export";
+    reportKind: "accounting_summary" | "tax_review_export";
     periodStart: string;
     periodEnd: string;
     filters: Record<string, unknown>;
     warningCounts: Record<string, number>;
-    fileKind: "csv";
-    fileReference: string;
-    fileChecksum: string;
+    fileKind: "csv" | "none";
+    fileReference: string | null;
+    fileChecksum: string | null;
     generatedByUserId: string;
   }): Promise<void>;
   voidTransaction(input: {

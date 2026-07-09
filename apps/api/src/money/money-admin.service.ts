@@ -14,9 +14,11 @@ import type {
 
 import type {
   MoneyAdminExportResult,
+  MoneyAdminJsonReportResult,
   MoneyAdminLedgerFilters,
   MoneyAdminListResult,
   MoneyAdminMutationResult,
+  MoneyAdminReportBucket,
   MoneyAdminRepository
 } from "./money-admin.types.js";
 
@@ -311,6 +313,37 @@ const countWarningsByKind = (
   return counts;
 };
 
+const addLineToBucket = (
+  buckets: Map<string, MoneyAdminReportBucket>,
+  key: string,
+  line: MoneyLedgerLine
+): void => {
+  const bucket = buckets.get(key) ?? {
+    key,
+    inMinor: 0,
+    outMinor: 0,
+    neutralMinor: 0,
+    lineCount: 0
+  };
+
+  if (line.direction === "in") {
+    bucket.inMinor += line.amountMinor;
+  } else if (line.direction === "out") {
+    bucket.outMinor += line.amountMinor;
+  } else {
+    bucket.neutralMinor += line.amountMinor;
+  }
+
+  bucket.lineCount += 1;
+  buckets.set(key, bucket);
+};
+
+const sortBuckets = (buckets: Map<string, MoneyAdminReportBucket>): readonly MoneyAdminReportBucket[] =>
+  [...buckets.values()].sort((left, right) =>
+    (right.inMinor + right.outMinor + right.neutralMinor) - (left.inMinor + left.outMinor + left.neutralMinor)
+    || left.key.localeCompare(right.key)
+  );
+
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
 
@@ -395,6 +428,125 @@ export class MoneyAdminService {
         transactionCount: transactions.length,
         lineCount,
         generatedAt
+      }
+    };
+  }
+
+  public async buildJsonReport(input: {
+    authUserId: string;
+    filters?: Partial<MoneyAdminLedgerFilters>;
+  }): Promise<MoneyAdminJsonReportResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const filters = normalizeLedgerFilters(input.filters);
+
+    if (!filters) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const transactions = await this.repository.listTransactions(filters);
+    const generatedAt = new Date().toISOString();
+    const warnings = buildAccountingWarnings(transactions);
+    const warningCounts = countWarningsByKind(warnings);
+    const period = getReportPeriod(transactions);
+    const byTransactionType = new Map<string, MoneyAdminReportBucket>();
+    const byMoneyMode = new Map<string, MoneyAdminReportBucket>();
+    const byCategory = new Map<string, MoneyAdminReportBucket>();
+    const bySourceProvider = new Map<string, MoneyAdminReportBucket>();
+    let lineCount = 0;
+    let realInMinor = 0;
+    let realOutMinor = 0;
+    let allInMinor = 0;
+    let allOutMinor = 0;
+    let realPostedTransactions = 0;
+    let draftTransactions = 0;
+    let voidedTransactions = 0;
+
+    for (const transaction of transactions) {
+      if (transaction.postingStatus === "voided") {
+        voidedTransactions += 1;
+      } else if (transaction.postingStatus === "draft") {
+        draftTransactions += 1;
+      } else if (transaction.moneyMode === "real") {
+        realPostedTransactions += 1;
+      }
+
+      for (const line of transaction.lines) {
+        lineCount += 1;
+        addLineToBucket(byTransactionType, transaction.transactionType, line);
+        addLineToBucket(byMoneyMode, transaction.moneyMode, line);
+        addLineToBucket(byCategory, line.categoryKey ?? "uncategorized", line);
+        addLineToBucket(bySourceProvider, transaction.sourceProvider ?? "none", line);
+
+        if (line.direction === "in") {
+          allInMinor += line.amountMinor;
+          if (transaction.moneyMode === "real" && transaction.postingStatus !== "voided") {
+            realInMinor += line.amountMinor;
+          }
+        } else if (line.direction === "out") {
+          allOutMinor += line.amountMinor;
+          if (transaction.moneyMode === "real" && transaction.postingStatus !== "voided") {
+            realOutMinor += line.amountMinor;
+          }
+        }
+      }
+    }
+
+    await this.repository.recordReportExport({
+      reportKind: "accounting_summary",
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+      filters: {
+        export: "manual-accounting-json-summary",
+        transactionLimit: 100,
+        accountingFrom: filters.accountingFrom,
+        accountingTo: filters.accountingTo
+      },
+      warningCounts,
+      fileKind: "none",
+      fileReference: null,
+      fileChecksum: null,
+      generatedByUserId: actor.domainUserId
+    });
+
+    return {
+      ok: true,
+      report: {
+        generatedAt,
+        period: {
+          accountingFrom: filters.accountingFrom,
+          accountingTo: filters.accountingTo,
+          effectiveStart: period.periodStart,
+          effectiveEnd: period.periodEnd
+        },
+        counts: {
+          transactions: transactions.length,
+          lines: lineCount,
+          warnings: warnings.length,
+          realPostedTransactions,
+          draftTransactions,
+          voidedTransactions
+        },
+        totals: {
+          realInMinor,
+          realOutMinor,
+          realRemainderMinor: realInMinor - realOutMinor,
+          allInMinor,
+          allOutMinor,
+          allRemainderMinor: allInMinor - allOutMinor
+        },
+        warningCounts,
+        byTransactionType: sortBuckets(byTransactionType),
+        byMoneyMode: sortBuckets(byMoneyMode),
+        byCategory: sortBuckets(byCategory),
+        bySourceProvider: sortBuckets(bySourceProvider)
       }
     };
   }
