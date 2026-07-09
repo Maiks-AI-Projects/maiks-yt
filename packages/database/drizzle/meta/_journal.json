@@ -162,6 +162,13 @@
       "when": 1783182856784,
       "tag": "0022_living_rage",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1783627187895,
+      "tag": "0023_slimy_harpoon",
+      "breakpoints": true
     }
   ]
 }

@@ -401,6 +401,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [ ] Decide whether to use double-entry bookkeeping.
 - [ ] Design profit-aware income/cost reporting with dated fee and split rules.
   - 2026-07-09 Phase C1 added `reports/money-accounting-stage-plan.md`, defining a private/admin-first ledger/report/export path plus a generated-migration-only Phase C2 target. Public payment/donation/support behavior remains gated.
+  - 2026-07-09 Phase C2 generated migration `0023_slimy_harpoon.sql` for private money ledger transactions/lines, dated rule versions, receipt references, report export audit, and accounting warnings. Runtime admin entry/report screens are next; public payments/support remain gated.
 - [ ] Draft donation/support terms.
 - [ ] Draft refund/revocation wording.
 - [ ] Draft affiliate/sponsor disclosure.
@@ -412,6 +413,7 @@ Gate note: money remains design-only until Michael explicitly approves a money p
 ## 16. Later Money Features
 
 - [ ] Build immutable ledger.
+  - 2026-07-09 Phase C2 generated the private ledger schema foundation; coordinator review/apply on dev is needed before runtime manual entry screens.
 - [ ] Add direct donations.
 - [ ] Add credits and restricted credits.
 - [ ] Add stream goal auto-allocation.

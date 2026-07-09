@@ -5,3 +5,4 @@ export * from "./database-access.schema.js";
 export * from "./database-projects.schema.js";
 export * from "./database-streaming.schema.js";
 export * from "./database-events.schema.js";
+export * from "./database-money.schema.js";
