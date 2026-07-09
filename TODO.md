@@ -370,6 +370,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-06-27 added owner-device push subscription persistence, notification-only service-worker delivery, and warning/critical push dispatch for durable notification rows. 2026-06-28 owner-device smoke confirmed Michael receives notifications from the installed app/browser path.
 - [x] Add recurring dev smoke notification runner.
   - 2026-06-28 added `pnpm dev:smoke:notify`, a conservative read-only smoke runner for `api-dev`, database health, `web-dev`, `/tools/notifications`, the notification service worker, `overlay-dev`, and `control-dev`. It posts warning/critical rows through `DEV_NOTIFICATION_POST_SECRET`, bounds duplicate identical failures with a cooldown, and can send one recovery note after failures clear.
+  - 2026-07-09 added text/page retry knobs to `pnpm dev:smoke:notify` so web/tool/control/overlay/chat/moderation route checks can tolerate first-hit Next/Vite cold compilation on the HDD-backed dev folder, while API/database JSON checks remain single-shot.
   - 2026-06-30 follow-up: cron was confirmed firing at the scheduled times, but healthy runs remain intentionally quiet. Only failures and recovery-after-failure should notify.
 - [x] Define initial safe cache rule: no private data caching; static assets only until an explicit encrypted/offline design exists.
 - [x] Keep local tokenized URL reference files ignored by git.

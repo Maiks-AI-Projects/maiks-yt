@@ -10,6 +10,8 @@ export const defaultConfig = {
   stateFile: "/tmp/maiks-yt-dev-smoke-state.json",
   duplicateCooldownMs: 12 * 60 * 60 * 1000,
   timeoutMs: 30_000,
+  textEndpointAttempts: 3,
+  textEndpointRetryDelayMs: 5_000,
   dryRun: false,
   forceNotify: false,
   notifyRecovery: true,
@@ -27,6 +29,9 @@ Options:
   --state-file <path>               State file for duplicate/recovery tracking.
   --duplicate-cooldown-minutes <n>  Cooldown for identical failure alerts.
   --timeout-ms <n>                  Per-request timeout.
+  --text-endpoint-attempts <n>      Attempts for text/page checks that may cold-compile.
+  --text-endpoint-retry-delay-ms <n>
+                                      Delay between text/page check attempts.
   --api-url <url>                   API base URL.
   --web-url <url>                   Web base URL.
   --overlay-url <url>               Overlay base URL.
@@ -72,6 +77,16 @@ export const parseConfig = (args) => ({
     defaultConfig.duplicateCooldownMs / 60_000
   ) * 60_000,
   timeoutMs: parseNumberOption(args, "--timeout-ms", defaultConfig.timeoutMs),
+  textEndpointAttempts: parseNumberOption(
+    args,
+    "--text-endpoint-attempts",
+    defaultConfig.textEndpointAttempts
+  ),
+  textEndpointRetryDelayMs: parseNumberOption(
+    args,
+    "--text-endpoint-retry-delay-ms",
+    defaultConfig.textEndpointRetryDelayMs
+  ),
   dryRun: args.includes("--dry-run"),
   forceNotify: args.includes("--force-notify"),
   notifyRecovery: !args.includes("--no-recovery-notice"),

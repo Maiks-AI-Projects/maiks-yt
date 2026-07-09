@@ -37,7 +37,11 @@ const checkJsonEndpoint = async ({ http, name, url, validate, critical = false }
   }
 };
 
-const checkTextEndpoint = async ({ http, name, url, scanInjection = false, rejectNavbar = false, critical = false }) => {
+const sleep = (delayMs) => new Promise((resolve) => {
+  setTimeout(resolve, delayMs);
+});
+
+const checkTextEndpointOnce = async ({ http, name, url, scanInjection = false, rejectNavbar = false, critical = false }) => {
   try {
     const result = await http.readText(url);
 
@@ -85,6 +89,37 @@ const checkTextEndpoint = async ({ http, name, url, scanInjection = false, rejec
       message: `${name} failed: ${error instanceof Error ? error.message : String(error)}.`
     };
   }
+};
+
+const checkTextEndpoint = async ({
+  attempts = 1,
+  retryDelayMs = 0,
+  ...input
+}) => {
+  let lastResult;
+  const boundedAttempts = Math.max(1, Math.trunc(attempts));
+
+  for (let attempt = 1; attempt <= boundedAttempts; attempt += 1) {
+    lastResult = await checkTextEndpointOnce(input);
+
+    if (lastResult.ok) {
+      return attempt === 1
+        ? lastResult
+        : {
+          ...lastResult,
+          message: `${lastResult.message} Passed on attempt ${attempt}.`
+        };
+    }
+
+    if (attempt < boundedAttempts) {
+      await sleep(retryDelayMs);
+    }
+  }
+
+  return {
+    ...lastResult,
+    message: `${lastResult?.message ?? `${input.name} failed.`} Retried ${boundedAttempts} time(s).`
+  };
 };
 
 const checkProviderIntakeHealth = async ({ config, getDevOwnerToken, http }) => {
@@ -239,46 +274,60 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
       : "database health returned an unexpected payload."
   }),
   checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
     http,
     name: "web home",
+    retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.webUrl, "/"),
     scanInjection: true,
     critical: true
   }),
   checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
     http,
     name: "notification tool",
+    retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.webUrl, "/tools/notifications"),
     scanInjection: true,
     rejectNavbar: true
   }),
   checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
     http,
     name: "notification service worker",
+    retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.webUrl, "/notification-service-worker.js"),
     scanInjection: true
   }),
   checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
     http,
     name: "overlay reachability",
+    retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.overlayUrl, "/"),
     scanInjection: true
   }),
   checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
     http,
     name: "control reachability",
+    retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.controlUrl, "/"),
     scanInjection: true
   }),
   checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
     http,
     name: "chat window reachability",
+    retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.controlUrl, "/chat"),
     scanInjection: true
   }),
   checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
     http,
     name: "moderation window reachability",
+    retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.controlUrl, "/moderation"),
     scanInjection: true
   }),
