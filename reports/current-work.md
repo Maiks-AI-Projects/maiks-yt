@@ -185,6 +185,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added the first Game Library runtime slice for review: typed domain game-library rules, owner-gated `/admin/games` API/UI, public read-only `/games` API/page, an `/admin` dashboard link, Page Creator route reservation for `/games`, and recurring smoke checks for the new public/admin routes. Public suggestion intake, gifted-game handling, provider/store sync, money behavior, and schedule-link UI remain separate scopes.
 - Added the schedule-to-game linking runtime slice on dev: schedule domain/API responses now include typed game links, owner-gated `/admin/schedule/:id/games` can replace a stream's game focus links, `/admin/schedule` has a first single-game focus editor, and public `/schedule` renders linked games only when the linked game is public. No migration, provider/store sync, public suggestions, gifted-game handling, money behavior, or external schedule sync was added.
 - Added public game suggestion intake and owner review on dev: public `/games` can submit private pending suggestions, `POST /games/suggestions` requires no account, `/admin/games` shows pending suggestions, and owner review can accept, maybe-later, or reject with an optional linked existing game. No public suggestion feed, gifted-game handling, provider/store sync, or money behavior was added.
+- Added a follow-up admin shortcut so a pending suggestion can create a private game record and be accepted/linked in one action from `/admin/games`.
 
 ## Current Task
 

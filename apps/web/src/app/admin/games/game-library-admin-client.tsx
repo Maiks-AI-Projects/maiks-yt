@@ -294,7 +294,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
       method: "POST" | "PATCH";
       body: Record<string, unknown>;
     }
-  ): Promise<void> => {
+  ): Promise<GameLibrarySource | null> => {
     setBusyAction(label);
     setMessage(`${label}...`);
 
@@ -313,14 +313,16 @@ const GameLibraryAdminClient = (): React.ReactNode => {
         replaceGame(payload.game);
         setLoadState("ready");
         setMessage(`${label} saved.`);
-        return;
+        return payload.game;
       }
 
       const reason = payload?.ok === false ? payload.reason : undefined;
       setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
       setMessage(getFailureMessage(response, reason));
+      return null;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : `${label} failed.`);
+      return null;
     } finally {
       setBusyAction(null);
     }
@@ -328,8 +330,9 @@ const GameLibraryAdminClient = (): React.ReactNode => {
 
   const reviewSuggestion = async (
     suggestionId: string,
-    status: Exclude<GameSuggestionStatus, "pending">
-  ): Promise<void> => {
+    status: Exclude<GameSuggestionStatus, "pending">,
+    override?: Partial<SuggestionReviewState>
+  ): Promise<GameSuggestionSource | null> => {
     setBusyAction(`Reviewing ${suggestionId}`);
     setMessage("Reviewing game suggestion...");
 
@@ -342,8 +345,8 @@ const GameLibraryAdminClient = (): React.ReactNode => {
         credentials: "include",
         body: JSON.stringify({
           status,
-          linkedGameId: suggestionReview.linkedGameId || null,
-          reviewerNote: suggestionReview.reviewerNote.trim() || null
+          linkedGameId: (override?.linkedGameId ?? suggestionReview.linkedGameId) || null,
+          reviewerNote: (override?.reviewerNote ?? suggestionReview.reviewerNote.trim()) || null
         })
       });
       const payload = await parseJson<AdminSuggestionMutationResponse>(response);
@@ -354,14 +357,16 @@ const GameLibraryAdminClient = (): React.ReactNode => {
         )));
         setSuggestionReview(defaultSuggestionReviewState);
         setMessage("Game suggestion reviewed.");
-        return;
+        return payload.suggestion;
       }
 
       setMessage(payload?.ok === false && payload.reason === "game_suggestion_invalid_input"
         ? "Check the suggestion review fields."
         : `Game suggestion review failed with ${response.status}.`);
+      return null;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Game suggestion review failed.");
+      return null;
     } finally {
       setBusyAction(null);
     }
@@ -403,6 +408,30 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     await runGameMutation("Creating game", "/admin/games", {
       method: "POST",
       body: payload
+    });
+  };
+
+  const createPrivateGameFromSuggestion = async (suggestion: GameSuggestionSource): Promise<void> => {
+    const draft = suggestionToGameForm(suggestion);
+    const issue = getLocalFormIssue(draft);
+
+    if (issue) {
+      setMessage(issue);
+      return;
+    }
+
+    const game = await runGameMutation("Creating private game from suggestion", "/admin/games", {
+      method: "POST",
+      body: toPayload(draft)
+    });
+
+    if (!game) {
+      return;
+    }
+
+    await reviewSuggestion(suggestion.id, "accepted", {
+      linkedGameId: game.id,
+      reviewerNote: suggestionReview.reviewerNote.trim() || `Created private game from suggestion: ${suggestion.title}`
     });
   };
 
@@ -506,6 +535,9 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                         </label>
                       </div>
                       <div className="project-admin-actions">
+                        <button type="button" onClick={() => void createPrivateGameFromSuggestion(suggestion)} disabled={busyAction !== null}>
+                          Create Private Game
+                        </button>
                         <button type="button" className="secondary-action" onClick={() => draftGameFromSuggestion(suggestion)} disabled={busyAction !== null}>
                           Draft Game
                         </button>
