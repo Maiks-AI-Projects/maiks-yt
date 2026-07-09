@@ -39,6 +39,18 @@ export type MoneyAdminMutationResult =
       | "money_admin_not_found";
   };
 
+export type MoneyAdminWarningResolveResult =
+  | {
+    ok: true;
+  }
+  | {
+    ok: false;
+    reason:
+      | "money_admin_user_unlinked"
+      | "money_admin_forbidden"
+      | "money_admin_invalid_input";
+  };
+
 export type MoneyAdminCsvExport = {
   filename: string;
   contentType: "text/csv; charset=utf-8";
@@ -110,7 +122,18 @@ export type MoneyAdminJsonReportResult =
 export interface MoneyAdminRepository {
   resolveActor(authUserId: string): Promise<MoneyAdminActor | null>;
   listTransactions(filters: MoneyAdminLedgerFilters): Promise<readonly MoneyLedgerTransaction[]>;
+  listResolvedWarnings(targetIds: readonly string[]): Promise<readonly {
+    targetKind: MoneyAccountingWarning["targetKind"];
+    targetId: string;
+    warningKind: MoneyAccountingWarning["warningKind"];
+  }[]>;
   getTransaction(id: string): Promise<MoneyLedgerTransaction | null>;
+  resolveWarning(input: {
+    targetKind: MoneyAccountingWarning["targetKind"];
+    targetId: string;
+    warningKind: MoneyAccountingWarning["warningKind"];
+    actorUserId: string;
+  }): Promise<void>;
   recordReportExport(input: {
     reportKind: "accounting_summary" | "tax_review_export";
     periodStart: string;

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
 import type {
+  MoneyAccountingWarning,
   MoneyDirection,
   MoneyLedgerLine,
   MoneyLedgerLineKind,
@@ -62,6 +63,12 @@ type MoneyLineRow = {
   receiptCreatedAt?: Date | string | null;
   notesPrivate?: string | null;
   createdAt: Date | string;
+};
+
+type MoneyResolvedWarningRow = {
+  targetKind: MoneyAccountingWarning["targetKind"];
+  targetId: string;
+  warningKind: MoneyAccountingWarning["warningKind"];
 };
 
 const toIsoString = (value: Date | string): string =>
@@ -327,6 +334,74 @@ export const createMoneyAdminRepository = (
 
   async getTransaction(id) {
     return await getTransaction(pool, id);
+  },
+
+  async listResolvedWarnings(targetIds) {
+    if (targetIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = targetIds.map(() => "?").join(", ");
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          target_kind AS targetKind,
+          target_id AS targetId,
+          warning_kind AS warningKind
+        FROM money_accounting_warnings
+        WHERE status = 'resolved'
+          AND target_id IN (${placeholders})
+      `,
+      [...targetIds]
+    );
+
+    return Array.isArray(rows) ? rows as MoneyResolvedWarningRow[] : [];
+  },
+
+  async resolveWarning(input) {
+    const [result] = await pool.execute(
+      `
+        UPDATE money_accounting_warnings
+        SET
+          status = 'resolved',
+          resolved_by_user_id = ?,
+          resolved_at = CURRENT_TIMESTAMP
+        WHERE target_kind = ?
+          AND target_id = ?
+          AND warning_kind = ?
+      `,
+      [
+        input.actorUserId,
+        input.targetKind,
+        input.targetId,
+        input.warningKind
+      ]
+    );
+    const affectedRows = typeof result === "object"
+      && result !== null
+      && "affectedRows" in result
+      && typeof result.affectedRows === "number"
+      ? result.affectedRows
+      : 0;
+
+    if (affectedRows > 0) {
+      return;
+    }
+
+    await pool.execute(
+      `
+        INSERT INTO money_accounting_warnings
+          (id, target_kind, target_id, warning_kind, severity, status, resolved_by_user_id, resolved_at)
+        VALUES (?, ?, ?, ?, 'warning', 'resolved', ?, CURRENT_TIMESTAMP)
+      `,
+      [
+        randomUUID(),
+        input.targetKind,
+        input.targetId,
+        input.warningKind,
+        input.actorUserId
+      ]
+    );
   },
 
   async createTransaction(input) {

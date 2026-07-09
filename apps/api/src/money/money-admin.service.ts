@@ -19,7 +19,8 @@ import type {
   MoneyAdminListResult,
   MoneyAdminMutationResult,
   MoneyAdminReportBucket,
-  MoneyAdminRepository
+  MoneyAdminRepository,
+  MoneyAdminWarningResolveResult
 } from "./money-admin.types.js";
 
 const parsePermissionArray = (value: unknown): unknown[] => {
@@ -313,6 +314,33 @@ const countWarningsByKind = (
   return counts;
 };
 
+const warningKey = (warning: Pick<MoneyAccountingWarning, "targetKind" | "targetId" | "warningKind">): string =>
+  `${warning.targetKind}:${warning.targetId}:${warning.warningKind}`;
+
+const getWarningTargetIds = (
+  transactions: readonly MoneyLedgerTransaction[]
+): readonly string[] => {
+  const targetIds = new Set<string>();
+
+  for (const transaction of transactions) {
+    targetIds.add(transaction.id);
+    for (const line of transaction.lines) {
+      targetIds.add(line.id);
+    }
+  }
+
+  return [...targetIds];
+};
+
+const filterResolvedWarnings = (
+  warnings: readonly MoneyAccountingWarning[],
+  resolvedWarnings: readonly Pick<MoneyAccountingWarning, "targetKind" | "targetId" | "warningKind">[]
+): readonly MoneyAccountingWarning[] => {
+  const resolvedKeys = new Set(resolvedWarnings.map(warningKey));
+
+  return warnings.filter((warning) => !resolvedKeys.has(warningKey(warning)));
+};
+
 const addLineToBucket = (
   buckets: Map<string, MoneyAdminReportBucket>,
   key: string,
@@ -367,11 +395,12 @@ export class MoneyAdminService {
     }
 
     const transactions = await this.repository.listTransactions(filters);
+    const resolvedWarnings = await this.repository.listResolvedWarnings(getWarningTargetIds(transactions));
 
     return {
       ok: true,
       transactions,
-      warnings: buildAccountingWarnings(transactions)
+      warnings: filterResolvedWarnings(buildAccountingWarnings(transactions), resolvedWarnings)
     };
   }
 
@@ -396,7 +425,8 @@ export class MoneyAdminService {
 
     const transactions = await this.repository.listTransactions(filters);
     const generatedAt = new Date().toISOString();
-    const warnings = buildAccountingWarnings(transactions);
+    const resolvedWarnings = await this.repository.listResolvedWarnings(getWarningTargetIds(transactions));
+    const warnings = filterResolvedWarnings(buildAccountingWarnings(transactions), resolvedWarnings);
     const { csv, lineCount } = buildLedgerCsv(transactions);
     const checksum = createHash("sha256").update(csv).digest("hex");
     const filename = `maiks-money-ledger-${generatedAt.slice(0, 10)}.csv`;
@@ -453,7 +483,8 @@ export class MoneyAdminService {
 
     const transactions = await this.repository.listTransactions(filters);
     const generatedAt = new Date().toISOString();
-    const warnings = buildAccountingWarnings(transactions);
+    const resolvedWarnings = await this.repository.listResolvedWarnings(getWarningTargetIds(transactions));
+    const warnings = filterResolvedWarnings(buildAccountingWarnings(transactions), resolvedWarnings);
     const warningCounts = countWarningsByKind(warnings);
     const period = getReportPeriod(transactions);
     const byTransactionType = new Map<string, MoneyAdminReportBucket>();
@@ -587,6 +618,39 @@ export class MoneyAdminService {
         ...transaction,
         actorUserId: actor.domainUserId
       })
+    };
+  }
+
+  public async resolveWarning(input: {
+    authUserId: string;
+    targetKind: MoneyAccountingWarning["targetKind"];
+    targetId: string;
+    warningKind: MoneyAccountingWarning["warningKind"];
+  }): Promise<MoneyAdminWarningResolveResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const targetId = normalizeNullableText(input.targetId, 36);
+
+    if (!targetId) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    await this.repository.resolveWarning({
+      targetKind: input.targetKind,
+      targetId,
+      warningKind: input.warningKind,
+      actorUserId: actor.domainUserId
+    });
+
+    return {
+      ok: true
     };
   }
 

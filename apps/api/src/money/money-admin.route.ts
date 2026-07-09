@@ -1,5 +1,6 @@
 import type { DatabasePool } from "@maiks-yt/database";
 import {
+  moneyAccountingWarningKinds,
   moneyDirections,
   moneyLedgerLineKinds,
   moneyModes,
@@ -27,7 +28,7 @@ type MoneyAdminAuthSession = {
 type MoneyAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MoneyAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "voidTransaction">;
+  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "resolveWarning" | "voidTransaction">;
 };
 
 const nullableText = (maxLength: number) =>
@@ -70,6 +71,12 @@ const moneyVoidPayloadSchema = z.object({
   reason: z.string().trim().min(1).max(500)
 }).strict();
 
+const moneyWarningResolvePayloadSchema = z.object({
+  targetKind: z.enum(["transaction", "line", "rule", "report"]),
+  targetId: z.string().trim().min(1).max(36),
+  warningKind: z.enum(moneyAccountingWarningKinds)
+}).strict();
+
 const moneyLedgerFilterQuerySchema = z.object({
   accountingFrom: z.string().trim().datetime({ offset: true }).optional(),
   accountingTo: z.string().trim().datetime({ offset: true }).optional()
@@ -98,7 +105,7 @@ export const registerMoneyAdminRoutes = (
   server: FastifyInstance,
   dependencies: MoneyAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "voidTransaction"> =>
+  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "resolveWarning" | "voidTransaction"> =>
     dependencies.createService?.()
     ?? new MoneyAdminService(createMoneyAdminRepository(dependencies.getDatabasePool()));
 
@@ -314,6 +321,49 @@ export const registerMoneyAdminRoutes = (
       );
     } catch (error) {
       server.log.warn({ err: error }, "Money transaction create failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/money/warnings/resolve", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = moneyWarningResolvePayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().resolveWarning({
+        authUserId: session.user.id,
+        targetKind: parsedBody.data.targetKind,
+        targetId: parsedBody.data.targetId,
+        warningKind: parsedBody.data.warningKind
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money warning resolve failed.");
       reply.code(503);
       return {
         ok: false,

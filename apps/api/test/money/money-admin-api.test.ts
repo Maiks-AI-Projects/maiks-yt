@@ -1,4 +1,8 @@
-import type { MoneyLedgerTransaction, MoneyLedgerTransactionInput } from "@maiks-yt/domain";
+import type {
+  MoneyAccountingWarning,
+  MoneyLedgerTransaction,
+  MoneyLedgerTransactionInput
+} from "@maiks-yt/domain";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -56,6 +60,7 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     rolePermissionValues: [["*"]]
   };
   public readonly transactions: MoneyLedgerTransaction[] = [createTransaction()];
+  public readonly resolvedWarnings: Array<Pick<MoneyAccountingWarning, "targetKind" | "targetId" | "warningKind">> = [];
   public exportAuditCount = 0;
   public lastExportAudit: Parameters<MoneyAdminRepository["recordReportExport"]>[0] | null = null;
 
@@ -76,6 +81,18 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     const transaction = this.transactions.find((candidate) => candidate.id === id);
 
     return transaction ? structuredClone(transaction) : null;
+  }
+
+  public async listResolvedWarnings(): Promise<readonly Pick<MoneyAccountingWarning, "targetKind" | "targetId" | "warningKind">[]> {
+    return structuredClone(this.resolvedWarnings);
+  }
+
+  public async resolveWarning(input: Parameters<MoneyAdminRepository["resolveWarning"]>[0]): Promise<void> {
+    this.resolvedWarnings.push({
+      targetKind: input.targetKind,
+      targetId: input.targetId,
+      warningKind: input.warningKind
+    });
   }
 
   public async createTransaction(input: MoneyLedgerTransactionInput & {
@@ -438,6 +455,62 @@ describe("MoneyAdminService", () => {
     ]));
   });
 
+  it("marks derived accounting warnings resolved and suppresses them from later lists", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "warning-transaction",
+      transactionType: "cost",
+      lines: [
+        {
+          id: "warning-line",
+          transactionId: "warning-transaction",
+          lineKind: "cost",
+          direction: "out",
+          amountMinor: 500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: null,
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.resolveWarning({
+      authUserId: "auth-user",
+      targetKind: "line",
+      targetId: "warning-line",
+      warningKind: "missing_category"
+    })).resolves.toEqual({
+      ok: true
+    });
+
+    await expect(service.listTransactions({ authUserId: "auth-user" })).resolves.toMatchObject({
+      ok: true,
+      warnings: [
+        expect.objectContaining({
+          targetId: "warning-line",
+          warningKind: "missing_receipt"
+        })
+      ]
+    });
+    const listResult = await service.listTransactions({ authUserId: "auth-user" });
+
+    expect(listResult.ok && listResult.warnings).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        targetId: "warning-line",
+        warningKind: "missing_category"
+      })
+    ]));
+  });
+
   it("creates manual entries with private receipt references", async () => {
     const repository = new FakeMoneyAdminRepository();
     const service = new MoneyAdminService(repository);
@@ -675,6 +748,44 @@ describe("MoneyAdminService", () => {
         realOutMinor: 0
       }
     });
+  });
+
+  it("resolves accounting warnings for an owner", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/warnings/resolve",
+      payload: {
+        targetKind: "line",
+        targetId: "line-1",
+        warningKind: "missing_category"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true
+    });
+    expect(repository.resolvedWarnings).toEqual([
+      {
+        targetKind: "line",
+        targetId: "line-1",
+        warningKind: "missing_category"
+      }
+    ]);
   });
 
   it("requires an auth session before voiding entries", async () => {

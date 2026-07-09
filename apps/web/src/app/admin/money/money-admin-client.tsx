@@ -37,6 +37,15 @@ type MoneyMutationResponse =
     reason: string;
   };
 
+type MoneyOkResponse =
+  | {
+    ok: true;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 type MoneyFormState = {
@@ -477,6 +486,38 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const resolveWarning = async (warning: MoneyAccountingWarning): Promise<void> => {
+    setBusy(true);
+    setMessage("Resolving accounting warning...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/warnings/resolve`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          targetKind: warning.targetKind,
+          targetId: warning.targetId,
+          warningKind: warning.warningKind
+        })
+      });
+      const payload = await parseJson<MoneyOkResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        await loadLedger();
+        setMessage("Accounting warning marked resolved.");
+        return;
+      }
+
+      const failureReason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, failureReason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money warning resolution failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const startCorrection = (transaction: MoneyLedgerTransaction): void => {
     setForm((current) => ({
       ...current,
@@ -777,6 +818,9 @@ const MoneyAdminClient = (): React.ReactNode => {
                       <span>{warning.severity} · {warning.targetKind}</span>
                     </div>
                     <p>{warning.message}</p>
+                    <button type="button" onClick={() => void resolveWarning(warning)} disabled={busy}>
+                      Mark resolved
+                    </button>
                   </article>
                 ))}
               </div>
