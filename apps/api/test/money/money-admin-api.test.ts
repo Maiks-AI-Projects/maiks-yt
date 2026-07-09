@@ -41,6 +41,7 @@ const createTransaction = (overrides: Partial<MoneyLedgerTransaction> = {}): Mon
       projectItemId: null,
       ruleVersionId: null,
       receiptReferenceId: null,
+      receiptReference: null,
       notesPrivate: "Line note with comma",
       createdAt: "2026-07-09T10:05:00.000Z"
     }
@@ -81,7 +82,15 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
         id: `created-line-${index}`,
         transactionId: "created-transaction",
         ruleVersionId: null,
-        receiptReferenceId: null,
+        receiptReferenceId: line.receiptReference ? `receipt-${index}` : null,
+        receiptReference: line.receiptReference
+          ? {
+            id: `receipt-${index}`,
+            ...line.receiptReference,
+            createdByUserId: input.actorUserId,
+            createdAt: "2026-07-09T11:00:00.000Z"
+          }
+          : null,
         createdAt: "2026-07-09T11:00:00.000Z"
       }))
     });
@@ -120,6 +129,63 @@ describe("MoneyAdminService", () => {
       fileReference: expect.stringMatching(/^maiks-money-ledger-\d{4}-\d{2}-\d{2}\.csv$/),
       fileChecksum: expect.stringMatching(/^[a-f0-9]{64}$/),
       generatedByUserId: "domain-user"
+    });
+  });
+
+  it("creates manual entries with private receipt references", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.createTransaction({
+      authUserId: "auth-user",
+      transaction: {
+        transactionType: "cost",
+        moneyMode: "real",
+        sourceKind: "manual",
+        sourceProvider: "manual",
+        postingStatus: "draft",
+        occurredAt: "2026-07-09T12:00:00.000Z",
+        accountingAt: "2026-07-09T12:00:00.000Z",
+        correctsTransactionId: null,
+        correctionReason: null,
+        notesPrivate: null,
+        lines: [
+          {
+            lineKind: "cost",
+            direction: "out",
+            amountMinor: 999,
+            currency: "EUR",
+            valueSource: "eur",
+            isEstimate: false,
+            categoryKey: "hosting",
+            projectId: null,
+            projectItemId: null,
+            receiptReference: {
+              referenceType: "invoice",
+              storageKind: "external_url",
+              label: " Hosting invoice ",
+              privateReference: " https://example.test/invoice "
+            },
+            notesPrivate: null
+          }
+        ]
+      }
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      transaction: {
+        lines: [
+          {
+            receiptReference: {
+              referenceType: "invoice",
+              storageKind: "external_url",
+              label: "Hosting invoice",
+              privateReference: "https://example.test/invoice"
+            }
+          }
+        ]
+      }
     });
   });
 

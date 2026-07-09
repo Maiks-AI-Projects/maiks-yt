@@ -9,6 +9,9 @@ import type {
   MoneyMode,
   MoneyPostingStatus,
   MoneyProvider,
+  MoneyReceiptReference,
+  MoneyReceiptReferenceType,
+  MoneyReceiptStorageKind,
   MoneySourceKind,
   MoneyTransactionType,
   MoneyValueSource
@@ -51,6 +54,12 @@ type MoneyLineRow = {
   projectItemId?: string | null;
   ruleVersionId?: string | null;
   receiptReferenceId?: string | null;
+  receiptReferenceType?: MoneyReceiptReferenceType | null;
+  receiptStorageKind?: MoneyReceiptStorageKind | null;
+  receiptLabel?: string | null;
+  receiptPrivateReference?: string | null;
+  receiptCreatedByUserId?: string | null;
+  receiptCreatedAt?: Date | string | null;
   notesPrivate?: string | null;
   createdAt: Date | string;
 };
@@ -63,6 +72,22 @@ const toSqlTimestamp = (value: string): string =>
 
 const toJsonString = (value: unknown): string =>
   JSON.stringify(value);
+
+const mapReceiptReference = (row: MoneyLineRow): MoneyReceiptReference | null => {
+  if (!row.receiptReferenceId || !row.receiptReferenceType || !row.receiptStorageKind || !row.receiptLabel || !row.receiptPrivateReference || !row.receiptCreatedAt) {
+    return null;
+  }
+
+  return {
+    id: row.receiptReferenceId,
+    referenceType: row.receiptReferenceType,
+    storageKind: row.receiptStorageKind,
+    label: row.receiptLabel,
+    privateReference: row.receiptPrivateReference,
+    createdByUserId: row.receiptCreatedByUserId ?? null,
+    createdAt: toIsoString(row.receiptCreatedAt)
+  };
+};
 
 const mapLine = (row: MoneyLineRow): MoneyLedgerLine => ({
   id: row.id,
@@ -78,6 +103,7 @@ const mapLine = (row: MoneyLineRow): MoneyLedgerLine => ({
   projectItemId: row.projectItemId ?? null,
   ruleVersionId: row.ruleVersionId ?? null,
   receiptReferenceId: row.receiptReferenceId ?? null,
+  receiptReference: mapReceiptReference(row),
   notesPrivate: row.notesPrivate ?? null,
   createdAt: toIsoString(row.createdAt)
 });
@@ -125,21 +151,27 @@ const selectTransactionFields = `
 `;
 
 const selectLineFields = `
-  id,
-  transaction_id AS transactionId,
-  line_kind AS lineKind,
-  direction,
-  amount_minor AS amountMinor,
-  currency,
-  value_source AS valueSource,
-  is_estimate AS isEstimate,
-  category_key AS categoryKey,
-  project_id AS projectId,
-  project_item_id AS projectItemId,
-  rule_version_id AS ruleVersionId,
-  receipt_reference_id AS receiptReferenceId,
-  notes_private AS notesPrivate,
-  created_at AS createdAt
+  money_ledger_lines.id,
+  money_ledger_lines.transaction_id AS transactionId,
+  money_ledger_lines.line_kind AS lineKind,
+  money_ledger_lines.direction,
+  money_ledger_lines.amount_minor AS amountMinor,
+  money_ledger_lines.currency,
+  money_ledger_lines.value_source AS valueSource,
+  money_ledger_lines.is_estimate AS isEstimate,
+  money_ledger_lines.category_key AS categoryKey,
+  money_ledger_lines.project_id AS projectId,
+  money_ledger_lines.project_item_id AS projectItemId,
+  money_ledger_lines.rule_version_id AS ruleVersionId,
+  money_ledger_lines.receipt_reference_id AS receiptReferenceId,
+  money_receipt_references.reference_type AS receiptReferenceType,
+  money_receipt_references.storage_kind AS receiptStorageKind,
+  money_receipt_references.label AS receiptLabel,
+  money_receipt_references.private_reference AS receiptPrivateReference,
+  money_receipt_references.created_by_user_id AS receiptCreatedByUserId,
+  money_receipt_references.created_at AS receiptCreatedAt,
+  money_ledger_lines.notes_private AS notesPrivate,
+  money_ledger_lines.created_at AS createdAt
 `;
 
 const resolveActor = async (
@@ -204,8 +236,9 @@ const readTransaction = async (
     `
       SELECT ${selectLineFields}
       FROM money_ledger_lines
+      LEFT JOIN money_receipt_references ON money_receipt_references.id = money_ledger_lines.receipt_reference_id
       WHERE transaction_id = ?
-      ORDER BY created_at, id
+      ORDER BY money_ledger_lines.created_at, money_ledger_lines.id
     `,
     [id]
   );
@@ -244,8 +277,9 @@ export const createMoneyAdminRepository = (
       `
         SELECT ${selectLineFields}
         FROM money_ledger_lines
+        LEFT JOIN money_receipt_references ON money_receipt_references.id = money_ledger_lines.receipt_reference_id
         WHERE transaction_id IN (${placeholders})
-        ORDER BY created_at, id
+        ORDER BY money_ledger_lines.created_at, money_ledger_lines.id
       `,
       transactionIds
     );
@@ -290,12 +324,32 @@ export const createMoneyAdminRepository = (
       );
 
       for (const line of input.lines) {
+        const receiptReferenceId = line.receiptReference ? randomUUID() : null;
+
+        if (line.receiptReference && receiptReferenceId) {
+          await connection.execute(
+            `
+              INSERT INTO money_receipt_references
+                (id, reference_type, storage_kind, label, private_reference, created_by_user_id)
+              VALUES (?, ?, ?, ?, ?, ?)
+            `,
+            [
+              receiptReferenceId,
+              line.receiptReference.referenceType,
+              line.receiptReference.storageKind,
+              line.receiptReference.label,
+              line.receiptReference.privateReference,
+              input.actorUserId
+            ]
+          );
+        }
+
         await connection.execute(
           `
             INSERT INTO money_ledger_lines
               (id, transaction_id, line_kind, direction, amount_minor, currency, value_source, is_estimate,
-                category_key, project_id, project_item_id, notes_private)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                category_key, project_id, project_item_id, receipt_reference_id, notes_private)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             randomUUID(),
@@ -309,6 +363,7 @@ export const createMoneyAdminRepository = (
             line.categoryKey,
             line.projectId,
             line.projectItemId,
+            receiptReferenceId,
             line.notesPrivate
           ]
         );

@@ -86,6 +86,33 @@ export const moneyValueSources = [
 
 export type MoneyValueSource = typeof moneyValueSources[number];
 
+export const moneyReceiptReferenceTypes = [
+  "receipt",
+  "invoice",
+  "provider_statement",
+  "bank_statement",
+  "note"
+] as const;
+
+export type MoneyReceiptReferenceType = typeof moneyReceiptReferenceTypes[number];
+
+export const moneyReceiptStorageKinds = ["external_url", "local_reference", "future_upload"] as const;
+
+export type MoneyReceiptStorageKind = typeof moneyReceiptStorageKinds[number];
+
+export type MoneyReceiptReferenceInput = {
+  referenceType: MoneyReceiptReferenceType;
+  storageKind: MoneyReceiptStorageKind;
+  label: string;
+  privateReference: string;
+};
+
+export type MoneyReceiptReference = MoneyReceiptReferenceInput & {
+  id: string;
+  createdByUserId: string | null;
+  createdAt: string;
+};
+
 export type MoneyLedgerLineInput = {
   lineKind: MoneyLedgerLineKind;
   direction: MoneyDirection;
@@ -96,6 +123,7 @@ export type MoneyLedgerLineInput = {
   categoryKey: string | null;
   projectId: string | null;
   projectItemId: string | null;
+  receiptReference: MoneyReceiptReferenceInput | null;
   notesPrivate: string | null;
 };
 
@@ -118,6 +146,7 @@ export type MoneyLedgerLine = MoneyLedgerLineInput & {
   transactionId: string;
   ruleVersionId: string | null;
   receiptReferenceId: string | null;
+  receiptReference: MoneyReceiptReference | null;
   createdAt: string;
 };
 

@@ -75,6 +75,14 @@ const normalizeInput = (input: MoneyLedgerTransactionInput): MoneyLedgerTransact
     categoryKey: normalizeNullableText(line.categoryKey, 80),
     projectId: normalizeNullableText(line.projectId, 36),
     projectItemId: normalizeNullableText(line.projectItemId, 36),
+    receiptReference: line.receiptReference
+      ? {
+        referenceType: line.receiptReference.referenceType,
+        storageKind: line.receiptReference.storageKind,
+        label: line.receiptReference.label.trim().slice(0, 191),
+        privateReference: line.receiptReference.privateReference.trim().slice(0, 1_024)
+      }
+      : null,
     notesPrivate: normalizeNullableText(line.notesPrivate, 2_000)
   }))
 });
@@ -99,6 +107,10 @@ const csvHeaders = [
   "category_key",
   "project_id",
   "project_item_id",
+  "receipt_reference_type",
+  "receipt_storage_kind",
+  "receipt_label",
+  "receipt_private_reference",
   "corrects_transaction_id",
   "correction_reason",
   "transaction_notes_private",
@@ -177,6 +189,10 @@ const buildLedgerCsv = (transactions: readonly MoneyLedgerTransaction[]): {
         line.categoryKey,
         line.projectId,
         line.projectItemId,
+        line.receiptReference?.referenceType ?? null,
+        line.receiptReference?.storageKind ?? null,
+        line.receiptReference?.label ?? null,
+        line.receiptReference?.privateReference ?? null,
         transaction.correctsTransactionId,
         transaction.correctionReason,
         transaction.notesPrivate,

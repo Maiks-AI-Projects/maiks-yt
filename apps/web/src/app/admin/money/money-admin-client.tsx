@@ -7,6 +7,8 @@ import type {
   MoneyLedgerTransaction,
   MoneyMode,
   MoneyPostingStatus,
+  MoneyReceiptReferenceType,
+  MoneyReceiptStorageKind,
   MoneyTransactionType,
   MoneyValueSource
 } from "@maiks-yt/domain";
@@ -48,6 +50,10 @@ type MoneyFormState = {
   valueSource: MoneyValueSource;
   isEstimate: boolean;
   categoryKey: string;
+  receiptReferenceType: MoneyReceiptReferenceType;
+  receiptStorageKind: MoneyReceiptStorageKind;
+  receiptLabel: string;
+  receiptPrivateReference: string;
   notesPrivate: string;
 };
 
@@ -72,6 +78,10 @@ const defaultForm = (): MoneyFormState => ({
   valueSource: "eur",
   isEstimate: false,
   categoryKey: "manual",
+  receiptReferenceType: "receipt",
+  receiptStorageKind: "external_url",
+  receiptLabel: "",
+  receiptPrivateReference: "",
   notesPrivate: ""
 });
 
@@ -238,6 +248,17 @@ const MoneyAdminClient = (): React.ReactNode => {
     setBusy(true);
     setMessage("Saving private money entry...");
 
+    const receiptLabel = form.receiptLabel.trim();
+    const receiptPrivateReference = form.receiptPrivateReference.trim();
+    const receiptReference = receiptLabel || receiptPrivateReference
+      ? {
+        referenceType: form.receiptReferenceType,
+        storageKind: form.receiptStorageKind,
+        label: receiptLabel || "Private reference",
+        privateReference: receiptPrivateReference || receiptLabel
+      }
+      : null;
+
     try {
       const response = await fetch(`${apiBaseUrl}/admin/money/transactions`, {
         method: "POST",
@@ -265,6 +286,7 @@ const MoneyAdminClient = (): React.ReactNode => {
               categoryKey: form.categoryKey.trim() || null,
               projectId: null,
               projectItemId: null,
+              receiptReference,
               notesPrivate: form.notesPrivate.trim() || null
             }
           ]
@@ -460,6 +482,55 @@ const MoneyAdminClient = (): React.ReactNode => {
                 placeholder="hosting, payout, support"
               />
             </label>
+            <label>
+              Receipt type
+              <select
+                value={form.receiptReferenceType}
+                onChange={(event) => setForm((current) => ({
+                  ...current,
+                  receiptReferenceType: event.target.value as MoneyReceiptReferenceType
+                }))}
+              >
+                <option value="receipt">Receipt</option>
+                <option value="invoice">Invoice</option>
+                <option value="provider_statement">Provider statement</option>
+                <option value="bank_statement">Bank statement</option>
+                <option value="note">Note</option>
+              </select>
+            </label>
+            <label>
+              Receipt storage
+              <select
+                value={form.receiptStorageKind}
+                onChange={(event) => setForm((current) => ({
+                  ...current,
+                  receiptStorageKind: event.target.value as MoneyReceiptStorageKind
+                }))}
+              >
+                <option value="external_url">External URL</option>
+                <option value="local_reference">Local reference</option>
+                <option value="future_upload">Future upload</option>
+              </select>
+            </label>
+            <label>
+              Receipt label
+              <input
+                value={form.receiptLabel}
+                onChange={(event) => setForm((current) => ({ ...current, receiptLabel: event.target.value }))}
+                placeholder="Ko-fi payout July, hosting invoice"
+              />
+            </label>
+            <label>
+              Private receipt reference
+              <input
+                value={form.receiptPrivateReference}
+                onChange={(event) => setForm((current) => ({
+                  ...current,
+                  receiptPrivateReference: event.target.value
+                }))}
+                placeholder="URL, invoice number, local folder path"
+              />
+            </label>
             <label className="checkbox-row">
               <input
                 type="checkbox"
@@ -496,11 +567,20 @@ const MoneyAdminClient = (): React.ReactNode => {
                     <span>{transaction.moneyMode} · {transaction.postingStatus} · {formatDate(transaction.accountingAt)}</span>
                   </div>
                   {transaction.lines.map((line) => (
-                    <p key={line.id}>
-                      {line.direction} {formatAmount(line.amountMinor, line.currency)} · {line.lineKind.replaceAll("_", " ")}
-                      {line.categoryKey ? ` · ${line.categoryKey}` : ""}
-                      {line.isEstimate ? " · estimate" : ""}
-                    </p>
+                    <div key={line.id}>
+                      <p>
+                        {line.direction} {formatAmount(line.amountMinor, line.currency)} · {line.lineKind.replaceAll("_", " ")}
+                        {line.categoryKey ? ` · ${line.categoryKey}` : ""}
+                        {line.isEstimate ? " · estimate" : ""}
+                      </p>
+                      {line.receiptReference ? (
+                        <p>
+                          Receipt: {line.receiptReference.label}
+                          {" "}
+                          ({line.receiptReference.referenceType.replaceAll("_", " ")})
+                        </p>
+                      ) : null}
+                    </div>
                   ))}
                   {transaction.notesPrivate ? <p>{transaction.notesPrivate}</p> : null}
                 </article>

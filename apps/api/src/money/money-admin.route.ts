@@ -5,6 +5,8 @@ import {
   moneyModes,
   moneyPostingStatuses,
   moneyProviders,
+  moneyReceiptReferenceTypes,
+  moneyReceiptStorageKinds,
   moneySourceKinds,
   moneyTransactionTypes,
   moneyValueSources
@@ -41,6 +43,12 @@ const moneyLedgerLinePayloadSchema = z.object({
   categoryKey: nullableText(80),
   projectId: nullableText(36),
   projectItemId: nullableText(36),
+  receiptReference: z.object({
+    referenceType: z.enum(moneyReceiptReferenceTypes),
+    storageKind: z.enum(moneyReceiptStorageKinds),
+    label: z.string().trim().min(1).max(191),
+    privateReference: z.string().trim().min(1).max(1_024)
+  }).strict().nullable().optional(),
   notesPrivate: nullableText(2_000)
 }).strict();
 
@@ -200,6 +208,7 @@ export const registerMoneyAdminRoutes = (
               categoryKey: line.categoryKey ?? null,
               projectId: line.projectId ?? null,
               projectItemId: line.projectItemId ?? null,
+              receiptReference: line.receiptReference ?? null,
               notesPrivate: line.notesPrivate ?? null
             }))
           }

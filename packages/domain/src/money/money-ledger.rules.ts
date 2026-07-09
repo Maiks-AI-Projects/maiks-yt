@@ -1,6 +1,7 @@
 import type {
   MoneyLedgerCapability,
   MoneyLedgerLineInput,
+  MoneyReceiptReferenceInput,
   MoneyLedgerTransactionInput,
   MoneyMode,
   MoneyValueSource
@@ -9,6 +10,8 @@ import type {
 export const moneyPrivateNoteMaxLength = 2_000;
 export const moneyCorrectionReasonMaxLength = 500;
 export const moneyCategoryKeyMaxLength = 80;
+export const moneyReceiptLabelMaxLength = 191;
+export const moneyReceiptReferenceMaxLength = 1_024;
 
 const estimateValueSources = new Set<MoneyValueSource>([
   "twitch_bits_estimate",
@@ -35,6 +38,15 @@ const isValidNullableText = (value: string | null, maxLength: number): boolean =
 const isValidNullableId = (value: string | null): boolean =>
   value === null || (value.trim().length > 0 && value.trim().length <= 191);
 
+const isValidReceiptReferenceInput = (value: MoneyReceiptReferenceInput | null): boolean =>
+  value === null
+  || (
+    value.label.trim().length > 0
+    && value.label.trim().length <= moneyReceiptLabelMaxLength
+    && value.privateReference.trim().length > 0
+    && value.privateReference.trim().length <= moneyReceiptReferenceMaxLength
+  );
+
 const isValidLineInput = (line: MoneyLedgerLineInput): boolean =>
   Number.isSafeInteger(line.amountMinor)
   && line.amountMinor >= 0
@@ -43,6 +55,7 @@ const isValidLineInput = (line: MoneyLedgerLineInput): boolean =>
   && isValidNullableText(line.categoryKey, moneyCategoryKeyMaxLength)
   && isValidNullableId(line.projectId)
   && isValidNullableId(line.projectItemId)
+  && isValidReceiptReferenceInput(line.receiptReference)
   && isValidNullableText(line.notesPrivate, moneyPrivateNoteMaxLength);
 
 export const normalizeMoneyMode = (value: MoneyMode): MoneyMode => value;
