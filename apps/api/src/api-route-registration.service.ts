@@ -41,6 +41,7 @@ import {
 import type { ProviderEventIntakeLogService } from "./provider-integrations/index.js";
 import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./projects/index.js";
 import { registerRealtimeSpikeRoutes } from "./realtime/index.js";
+import { registerSessionAdminRoutes } from "./sessions/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
 import {
   InMemoryFakeLocalModerationRuntime,
@@ -165,6 +166,10 @@ export const registerApplicationRoutes = ({
     getDatabasePool
   });
   registerMoneyAdminRoutes(server, {
+    getAuthSession,
+    getDatabasePool
+  });
+  registerSessionAdminRoutes(server, {
     getAuthSession,
     getDatabasePool
   });

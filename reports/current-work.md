@@ -176,6 +176,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Split the oversized `scripts/dev-smoke-notify.mjs` into focused `scripts/dev-smoke/` modules for config, HTTP, owner-token minting, checks, notifications, and state. This is behavior-preserving and keeps future unattended smoke additions easier to review.
 - Added retry defaults/options for text/page checks in `pnpm dev:smoke:notify` so cold first-hit web/tool/control/overlay/chat/moderation compiles on the HDD-backed dev folder do not create false alerts; API/database JSON checks still run once and fail fast.
 - Started the provider integrations admin client split by moving its large response/type block, shared display helpers, and read-only provider status/boundary section into focused files. The rendered UI and API behavior are unchanged.
+- Added owner-only session review/revoke foundation for testing and compromise response: `/admin/sessions` lists Better Auth sessions with timing, IP, and user-agent without exposing tokens, and can revoke selected session rows.
 
 ## Current Task
 
@@ -194,6 +195,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 7. Phase 2 Page Creator runtime is live on dev; Phase D1 adds local admin validation copy before save/update. Future page work can add delete/archive, richer blocks, route migration of selected code-owned pages, or later host/subdomain routing only after separate review.
 8. Backup/export planning now has `reports/backup-restore-runbook.md` for dev/staging inventory and manual restore drills. Production backup automation remains blocked on retention, encryption, key ownership, and restore authority decisions.
 9. Before any future `dev` to `main` or production release, use the refreshed `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
+10. Session review/revoke is available for owner testing on `/admin/sessions`; future hardening can add current-session protection copy, bulk revoke, and deeper audit logging if testing shows the need.
 
 ## Known State
 
