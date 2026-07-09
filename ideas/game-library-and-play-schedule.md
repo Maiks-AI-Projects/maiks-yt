@@ -121,7 +121,7 @@ Gifted games may involve money/value, refunds, platform terms, public expectatio
 
 ## Schema Gate Result
 
-2026-07-09: the first persistence slice was generated as `packages/database/drizzle/0024_overjoyed_wrecker.sql`.
+2026-07-09: the first persistence slice was generated and dev-applied as `packages/database/drizzle/0024_overjoyed_wrecker.sql`.
 
 The migration creates:
 
