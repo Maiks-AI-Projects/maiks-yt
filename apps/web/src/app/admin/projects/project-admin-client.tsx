@@ -220,6 +220,20 @@ const ProjectAdminClient = (): React.ReactNode => {
       }
     });
   };
+  const archiveProject = async (): Promise<void> => {
+    if (!selectedProject) {
+      setMessage("Choose a project before archiving.");
+      return;
+    }
+
+    await runMutation("Archiving project", `/admin/projects/${encodeURIComponent(selectedProject.id)}`, {
+      method: "PATCH",
+      body: {
+        isPublic: false,
+        status: "mothballed"
+      }
+    });
+  };
   const createMilestone = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
@@ -414,6 +428,7 @@ const ProjectAdminClient = (): React.ReactNode => {
             <VisibilityPanel
               selectedProject={selectedProject}
               busyAction={busyAction}
+              onArchiveProject={() => void archiveProject()}
               onSaveVisibility={(isPublic) => void saveVisibility(isPublic)}
             />
 

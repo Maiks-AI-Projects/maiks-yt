@@ -84,12 +84,14 @@ export const ProjectSidebar = ({
 type VisibilityPanelProps = {
   selectedProject: ProjectReadModelSource | null;
   busyAction: string | null;
+  onArchiveProject: () => void;
   onSaveVisibility: (isPublic: boolean) => void;
 };
 
 export const VisibilityPanel = ({
   selectedProject,
   busyAction,
+  onArchiveProject,
   onSaveVisibility
 }: VisibilityPanelProps): React.ReactNode => (
   <section className="project-admin-panel visibility-panel">
@@ -112,6 +114,9 @@ export const VisibilityPanel = ({
         ) : null}
         <button type="button" className="secondary-action" onClick={() => onSaveVisibility(false)} disabled={busyAction !== null || !selectedProject.isPublic}>
           Make Private
+        </button>
+        <button type="button" className="secondary-action" onClick={onArchiveProject} disabled={busyAction !== null || (!selectedProject.isPublic && selectedProject.status === "mothballed")}>
+          Archive
         </button>
         <button type="button" onClick={() => onSaveVisibility(true)} disabled={busyAction !== null || selectedProject.isPublic}>
           Publish

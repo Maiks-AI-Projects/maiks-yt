@@ -455,7 +455,8 @@ Gate note: money remains design-only until Michael explicitly approves a money p
   - First private accounting UI exists as ledger entry/list/summary. Phase C4 adds a manual CSV export button and audit row. Phase C5 adds receipt/reference metadata capture and CSV columns. Phase C6 adds non-destructive voiding for test mistakes. Phase C7 adds linked correction transactions. Phase C8 adds derived warning visibility and warning-count export metadata. Phase C9 adds accounting-date filtering for list/export. Phase C10 adds a JSON accounting summary report. Phase C11 adds warning resolution. Phase C12 adds warning-review CSV export. Phase C13 adds private receipt evidence upload/download for manual entries. Phase C14 adds a bundled private accounting review package export; richer XLSX/PDF packages remain later slices.
 - [ ] Add public withdrawals.
 - [ ] Add spending records.
-- [ ] Add project archives.
+- [x] Add project archives.
+  - 2026-07-10 added a no-schema `/admin/projects` archive shortcut that marks a project private and `mothballed`. It is reversible through the normal project status/visibility editor and does not delete records or add money/provider wishlist behavior.
 - [ ] Add product price tracking.
 - [ ] Add external wishlist provider integrations.
 
