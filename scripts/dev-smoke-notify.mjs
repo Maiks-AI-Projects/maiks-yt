@@ -9,6 +9,8 @@ const defaultConfig = {
   overlayUrl: "https://overlay-dev.maiks.yt",
   controlUrl: "https://control-dev.maiks.yt",
   notificationPath: "/dev/notifications",
+  ownerTokenPath: "/dev/testing/owner-token",
+  providerIntakeHealthPath: "/admin/connections/intake/health",
   stateFile: "/tmp/maiks-yt-dev-smoke-state.json",
   duplicateCooldownMs: 12 * 60 * 60 * 1000,
   timeoutMs: 30_000,
@@ -104,10 +106,12 @@ const fetchWithTimeout = async (url, options = {}) => {
   return response;
 };
 
-const readJson = async (url) => {
+const readJson = async (url, options = {}) => {
   const response = await fetchWithTimeout(url, {
+    ...options,
     headers: {
-      Accept: "application/json"
+      Accept: "application/json",
+      ...options.headers
     }
   });
   const body = await response.text();
@@ -126,6 +130,58 @@ const readJson = async (url) => {
     ok: response.ok,
     status: response.status,
     url
+  };
+};
+
+const getDevTestingSecret = () =>
+  process.env.DEV_OWNER_TOKEN_MINT_SECRET
+  ?? process.env.DEV_TEST_AUTH_MINT_SECRET
+  ?? process.env.DEV_NOTIFICATION_POST_SECRET
+  ?? null;
+
+const mintDevOwnerToken = async () => {
+  const secret = getDevTestingSecret();
+
+  if (!secret) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "No dev testing secret is available for owner-gated smoke checks."
+    };
+  }
+
+  const response = await fetchWithTimeout(makeUrl(config.apiUrl, config.ownerTokenPath), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Dev-Testing-Secret": secret
+    },
+    body: JSON.stringify({
+      label: "dev-smoke-provider-intake-health",
+      path: "/admin/connections",
+      ttlMinutes: 5
+    })
+  });
+  const body = await response.text();
+
+  let parsed;
+
+  try {
+    parsed = body ? JSON.parse(body) : null;
+  } catch {
+    parsed = null;
+  }
+
+  if (!response.ok || parsed?.ok !== true || typeof parsed.token !== "string") {
+    return {
+      ok: false,
+      reason: `Owner token mint returned HTTP ${response.status}.`
+    };
+  }
+
+  return {
+    ok: true,
+    token: parsed.token
   };
 };
 
@@ -236,6 +292,76 @@ const checkTextEndpoint = async ({ name, url, scanInjection = false, rejectNavba
   }
 };
 
+const checkProviderIntakeHealth = async () => {
+  try {
+    const minted = await mintDevOwnerToken();
+
+    if (minted.skipped) {
+      return {
+        ok: true,
+        name: "provider intake health",
+        message: `provider intake health skipped: ${minted.reason}`
+      };
+    }
+
+    if (!minted.ok) {
+      return {
+        ok: false,
+        critical: false,
+        name: "provider intake health",
+        message: `provider intake health could not mint an owner token: ${minted.reason}`
+      };
+    }
+
+    const result = await readJson(makeUrl(config.apiUrl, config.providerIntakeHealthPath), {
+      headers: {
+        Authorization: `Bearer ${minted.token}`
+      }
+    });
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        critical: false,
+        name: "provider intake health",
+        message: `provider intake health returned HTTP ${result.status}.`
+      };
+    }
+
+    if (
+      result.json?.ok !== true
+      || result.json?.readOnly !== true
+      || !Array.isArray(result.json?.entries)
+      || result.json.entries.length < 7
+      || result.json.entries.some((entry) =>
+        typeof entry?.provider !== "string"
+        || typeof entry?.mechanism !== "string"
+        || !["healthy", "stale", "missing"].includes(entry?.status)
+      )
+    ) {
+      return {
+        ok: false,
+        critical: false,
+        name: "provider intake health",
+        message: "provider intake health returned an unexpected payload."
+      };
+    }
+
+    return {
+      ok: true,
+      name: "provider intake health",
+      message: "provider intake health passed."
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      critical: false,
+      name: "provider intake health",
+      message: `provider intake health failed: ${error instanceof Error ? error.message : String(error)}.`
+    };
+  }
+};
+
 const runChecks = async () => Promise.all([
   checkJsonEndpoint({
     name: "api health",
@@ -279,7 +405,8 @@ const runChecks = async () => Promise.all([
     name: "control reachability",
     url: makeUrl(config.controlUrl, "/"),
     scanInjection: true
-  })
+  }),
+  checkProviderIntakeHealth()
 ]);
 
 const readState = async () => {
