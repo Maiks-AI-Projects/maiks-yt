@@ -34,6 +34,16 @@ type AdminPageMutationResponse =
     reason: string;
   };
 
+type AdminPageDeleteResponse =
+  | {
+    ok: true;
+    deletedPageId: string;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 type PageFormState = {
@@ -136,6 +146,10 @@ const getFailureMessage = (response: Response, reason?: string): string => {
 
   if (reason === "content_page_path_conflict") {
     return "That path is already owned by another page record.";
+  }
+
+  if (reason === "content_page_public_delete_blocked") {
+    return "Unpublish this page before deleting it.";
   }
 
   if (reason === "content_page_invalid_input") {
@@ -394,6 +408,51 @@ const ContentPageAdminClient = (): React.ReactNode => {
     });
   };
 
+  const deleteSelectedPage = async (): Promise<void> => {
+    if (!selectedPage) {
+      setMessage("Choose a page before deleting.");
+      return;
+    }
+
+    if (selectedPage.status === "published" && selectedPage.visibility === "public") {
+      setMessage("Unpublish this page before deleting it.");
+      return;
+    }
+
+    setBusyAction("Deleting page");
+    setMessage("Deleting page...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/pages/${encodeURIComponent(selectedPage.id)}`, {
+        method: "DELETE",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<AdminPageDeleteResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        const nextPages = sortPages(pages.filter((page) => page.id !== payload.deletedPageId));
+        const nextPage = nextPages[0] ?? null;
+
+        setPages(nextPages);
+        setSelectedId(nextPage?.id ?? "");
+        setPageForm(nextPage ? toPageForm(nextPage) : defaultPageForm);
+        setSavedPreview(null);
+        setLoadState("ready");
+        setMessage(nextPage ? "Page deleted." : "Page deleted. No manual pages exist yet.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
+      setMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Deleting page failed.");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const visiblePages = sortPages(pages);
   const previewPage = savedPreview ?? {
     ...selectedPage,
@@ -481,6 +540,9 @@ const ContentPageAdminClient = (): React.ReactNode => {
                   ) : null}
                   <button type="button" className="secondary-action" onClick={() => void unpublishSelectedPage()} disabled={busyAction !== null || selectedPage.status === "draft"}>
                     Unpublish
+                  </button>
+                  <button type="button" className="secondary-action danger-action" onClick={() => void deleteSelectedPage()} disabled={busyAction !== null || (selectedPage.status === "published" && selectedPage.visibility === "public")}>
+                    Delete Draft
                   </button>
                   <button type="button" onClick={() => void publishSelectedPage()} disabled={busyAction !== null || selectedPage.status === "published" || !previewIsCurrent}>
                     Publish

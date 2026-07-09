@@ -325,6 +325,28 @@ export const createContentPageRepository = (
     return await assertReadPage(pool, id);
   },
 
+  async deletePage(id) {
+    const [result] = await pool.execute(
+      `
+        DELETE FROM content_pages
+        WHERE id = ?
+          AND NOT (status = 'published' AND visibility = 'public')
+      `,
+      [id]
+    );
+
+    if (typeof result === "object"
+      && result !== null
+      && "affectedRows" in result
+      && result.affectedRows > 0) {
+      return "deleted";
+    }
+
+    const existing = await readPage(pool, id);
+
+    return existing ? "public-page" : "not-found";
+  },
+
   async findPublicPagesByPath(normalizedPath) {
     const [rows] = await pool.execute(
       `

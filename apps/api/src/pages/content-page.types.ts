@@ -39,6 +39,20 @@ export type ContentPageAdminMutationResult =
       | "content_page_path_conflict";
   };
 
+export type ContentPageAdminDeleteResult =
+  | {
+    ok: true;
+    deletedPageId: string;
+  }
+  | {
+    ok: false;
+    reason:
+      | "content_page_admin_user_unlinked"
+      | "content_page_admin_forbidden"
+      | "content_page_not_found"
+      | "content_page_public_delete_blocked";
+  };
+
 export type ContentPagePreviewResult =
   | {
     ok: true;
@@ -76,5 +90,6 @@ export interface ContentPageRepository {
   }): Promise<ContentPageSource | "not-found" | "path-conflict">;
   publishPage(id: string, actorUserId: string): Promise<ContentPageSource | "not-found">;
   unpublishPage(id: string, actorUserId: string): Promise<ContentPageSource | "not-found">;
+  deletePage(id: string): Promise<"deleted" | "not-found" | "public-page">;
   findPublicPagesByPath(normalizedPath: string): Promise<readonly ContentPageSource[]>;
 }

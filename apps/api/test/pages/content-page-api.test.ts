@@ -145,6 +145,21 @@ class FakeContentPageRepository implements ContentPageRepository {
     return structuredClone(next);
   }
 
+  public async deletePage(id: string): Promise<"deleted" | "not-found" | "public-page"> {
+    const existing = this.pages.get(id);
+
+    if (!existing) {
+      return "not-found";
+    }
+
+    if (existing.status === "published" && existing.visibility === "public") {
+      return "public-page";
+    }
+
+    this.pages.delete(id);
+    return "deleted";
+  }
+
   public async findPublicPagesByPath(normalizedPath: string): Promise<readonly ContentPageSource[]> {
     return [...this.pages.values()]
       .filter((page) =>
@@ -289,6 +304,32 @@ describe("ContentPageService", () => {
         publishedAt: null
       }
     });
+
+    await expect(service.deletePage({
+      authUserId: "auth-user",
+      pageId: "draft"
+    })).resolves.toEqual({
+      ok: true,
+      deletedPageId: "draft"
+    });
+  });
+
+  it("blocks deleting public pages until they are unpublished", async () => {
+    const repository = new FakeContentPageRepository();
+    repository.pages.set("public", createPage("public", {
+      status: "published",
+      visibility: "public",
+      publishedAt: "2026-06-28T10:00:00.000Z"
+    }));
+    const service = new ContentPageService(repository);
+
+    await expect(service.deletePage({
+      authUserId: "auth-user",
+      pageId: "public"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "content_page_public_delete_blocked"
+    });
   });
 
   it("fails closed for reserved public routes and ambiguous matches", async () => {
@@ -364,7 +405,7 @@ describe("content page route boundary", () => {
     await forbiddenServer.close();
   });
 
-  it("maps create, preview, publish, unpublish, and public read responses", async () => {
+  it("maps create, preview, publish, unpublish, delete, and public read responses", async () => {
     const repository = new FakeContentPageRepository();
     const server = Fastify();
     registerContentPageRoutes(server, {
@@ -452,6 +493,16 @@ describe("content page route boundary", () => {
         status: "draft",
         visibility: "hidden"
       }
+    });
+
+    const deleteResponse = await server.inject({
+      method: "DELETE",
+      url: `/admin/pages/${pageId}`
+    });
+    expect(deleteResponse.statusCode).toBe(200);
+    expect(deleteResponse.json()).toEqual({
+      ok: true,
+      deletedPageId: pageId
     });
 
     await server.close();

@@ -8,6 +8,7 @@ import type { ContentPageAdminInput } from "@maiks-yt/domain/pages";
 
 import type {
   ContentPageAdminActor,
+  ContentPageAdminDeleteResult,
   ContentPageAdminListResult,
   ContentPageAdminMutationResult,
   ContentPagePreviewResult,
@@ -304,6 +305,38 @@ export class ContentPageService {
     return {
       ok: true,
       page: result
+    };
+  }
+
+  public async deletePage(input: {
+    authUserId: string;
+    pageId: string;
+  }): Promise<ContentPageAdminDeleteResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const result = await this.repository.deletePage(input.pageId);
+
+    if (result === "not-found") {
+      return {
+        ok: false,
+        reason: "content_page_not_found"
+      };
+    }
+
+    if (result === "public-page") {
+      return {
+        ok: false,
+        reason: "content_page_public_delete_blocked"
+      };
+    }
+
+    return {
+      ok: true,
+      deletedPageId: input.pageId
     };
   }
 

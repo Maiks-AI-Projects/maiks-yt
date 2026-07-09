@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ContentPageService } from "./content-page.service.js";
 import { createContentPageRepository } from "./content-page-store.service.js";
 import type {
+  ContentPageAdminDeleteResult,
   ContentPageAdminMutationResult,
   ContentPagePreviewResult,
   PublicContentPageResult
@@ -25,6 +26,7 @@ type ContentPageRouteDependencies = {
     | "updatePage"
     | "publishPage"
     | "unpublishPage"
+    | "deletePage"
     | "previewPage"
     | "getPublicPageByPath"
   >;
@@ -73,6 +75,25 @@ const sendAdminMutationResult = (
   return result;
 };
 
+const sendAdminDeleteResult = (
+  result: ContentPageAdminDeleteResult,
+  reply: FastifyReply
+) => {
+  if (result.ok) {
+    return result;
+  }
+
+  const statusCode = result.reason === "content_page_admin_user_unlinked"
+    || result.reason === "content_page_admin_forbidden"
+    ? 403
+    : result.reason === "content_page_public_delete_blocked"
+      ? 409
+      : 404;
+
+  reply.code(statusCode);
+  return result;
+};
+
 const sendPreviewResult = (
   result: ContentPagePreviewResult,
   reply: FastifyReply
@@ -107,6 +128,7 @@ export const registerContentPageRoutes = (
     | "updatePage"
     | "publishPage"
     | "unpublishPage"
+    | "deletePage"
     | "previewPage"
     | "getPublicPageByPath"
   > =>
@@ -327,6 +349,41 @@ export const registerContentPageRoutes = (
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Content page admin unpublish failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "content_page_admin_unavailable"
+      };
+    }
+  });
+
+  server.delete<{ Params: { id: string } }>("/admin/pages/:id", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "content_page_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = pageIdParamsSchema.safeParse(request.params);
+
+    if (!parsedParams.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "content_page_invalid_input"
+      };
+    }
+
+    try {
+      return sendAdminDeleteResult(await getService().deletePage({
+        authUserId: session.user.id,
+        pageId: parsedParams.data.id
+      }), reply);
+    } catch (error) {
+      server.log.warn({ err: error }, "Content page admin delete failed.");
       reply.code(503);
       return {
         ok: false,
