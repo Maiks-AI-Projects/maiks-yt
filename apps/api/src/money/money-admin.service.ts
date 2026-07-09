@@ -1,4 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import {
   canManageMoneyLedger,
@@ -18,11 +20,34 @@ import type {
   MoneyAdminLedgerFilters,
   MoneyAdminListResult,
   MoneyAdminMutationResult,
+  MoneyAdminReceiptDownloadResult,
+  MoneyAdminReceiptUploadResult,
   MoneyAdminReportBucket,
   MoneyAdminRepository,
   MoneyAdminWarningExportResult,
   MoneyAdminWarningResolveResult
 } from "./money-admin.types.js";
+
+const receiptUploadMaxBytes = 5 * 1024 * 1024;
+const receiptUploadStorageDir = path.resolve(process.cwd(), ".private", "money-receipts");
+const allowedReceiptContentTypes = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "text/csv",
+  "text/plain"
+]);
+
+type ReceiptUploadMetadata = {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  checksum: string;
+  uploadedAt: string;
+  uploadedByUserId: string;
+};
 
 const parsePermissionArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -58,6 +83,54 @@ const normalizeMoneyPermissions = (rolePermissionValues: readonly unknown[]): st
 const normalizeNullableText = (value: string | null | undefined, maxLength: number): string | null => {
   const trimmed = value?.trim() ?? "";
   return trimmed.length > 0 ? trimmed.slice(0, maxLength) : null;
+};
+
+const normalizeReceiptFilename = (value: string): string => {
+  const cleaned = value
+    .trim()
+    .replaceAll("\\", "/")
+    .split("/")
+    .pop()
+    ?.replace(/[^A-Za-z0-9._ -]/g, "_")
+    .replace(/\s+/g, " ")
+    .slice(0, 120)
+    .trim();
+
+  return cleaned && cleaned !== "." && cleaned !== ".." ? cleaned : "receipt-upload";
+};
+
+const getReceiptUploadPaths = (id: string): {
+  filePath: string;
+  metadataPath: string;
+} => {
+  const safeId = id.replace(/[^a-f0-9-]/g, "");
+
+  return {
+    filePath: path.join(receiptUploadStorageDir, `${safeId}.bin`),
+    metadataPath: path.join(receiptUploadStorageDir, `${safeId}.json`)
+  };
+};
+
+const parseReceiptUploadMetadata = (value: unknown): ReceiptUploadMetadata | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const metadata = value as Record<string, unknown>;
+
+  if (
+    typeof metadata.id !== "string"
+    || typeof metadata.filename !== "string"
+    || typeof metadata.contentType !== "string"
+    || typeof metadata.sizeBytes !== "number"
+    || typeof metadata.checksum !== "string"
+    || typeof metadata.uploadedAt !== "string"
+    || typeof metadata.uploadedByUserId !== "string"
+  ) {
+    return null;
+  }
+
+  return metadata as ReceiptUploadMetadata;
 };
 
 const normalizeCurrency = (value: string | null | undefined): string | null => {
@@ -664,6 +737,126 @@ export class MoneyAdminService {
         generatedAt
       }
     };
+  }
+
+  public async uploadReceiptEvidence(input: {
+    authUserId: string;
+    filename: string;
+    contentType: string;
+    dataBase64: string;
+    label?: string | null;
+  }): Promise<MoneyAdminReceiptUploadResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const contentType = input.contentType.trim().toLowerCase();
+
+    if (!allowedReceiptContentTypes.has(contentType) || input.dataBase64.trim().length === 0) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const bytes = Buffer.from(input.dataBase64, "base64");
+    const normalizedBase64 = bytes.toString("base64").replace(/=+$/u, "");
+    const providedBase64 = input.dataBase64.trim().replace(/=+$/u, "");
+
+    if (bytes.length === 0 || bytes.length > receiptUploadMaxBytes || normalizedBase64 !== providedBase64) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const id = randomUUID();
+    const filename = normalizeReceiptFilename(input.filename);
+    const checksum = createHash("sha256").update(bytes).digest("hex");
+    const uploadedAt = new Date().toISOString();
+    const metadata: ReceiptUploadMetadata = {
+      id,
+      filename,
+      contentType,
+      sizeBytes: bytes.length,
+      checksum,
+      uploadedAt,
+      uploadedByUserId: actor.domainUserId
+    };
+    const paths = getReceiptUploadPaths(id);
+
+    await mkdir(receiptUploadStorageDir, { recursive: true, mode: 0o700 });
+    await writeFile(paths.filePath, bytes, { mode: 0o600 });
+    await writeFile(paths.metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, { mode: 0o600 });
+
+    return {
+      ok: true,
+      upload: {
+        id,
+        filename,
+        contentType,
+        sizeBytes: bytes.length,
+        checksum,
+        reference: {
+          referenceType: "receipt",
+          storageKind: "future_upload",
+          label: normalizeNullableText(input.label, 191) ?? filename,
+          privateReference: `money-upload:${id}:${filename}`
+        }
+      }
+    };
+  }
+
+  public async downloadReceiptEvidence(input: {
+    authUserId: string;
+    uploadId: string;
+  }): Promise<MoneyAdminReceiptDownloadResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    if (!/^[a-f0-9-]{36}$/u.test(input.uploadId)) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const paths = getReceiptUploadPaths(input.uploadId);
+
+    try {
+      const [metadataRaw, bytes] = await Promise.all([
+        readFile(paths.metadataPath, "utf8"),
+        readFile(paths.filePath)
+      ]);
+      const parsed = parseReceiptUploadMetadata(JSON.parse(metadataRaw) as unknown);
+
+      if (!parsed || parsed.id !== input.uploadId || parsed.sizeBytes !== bytes.length) {
+        return {
+          ok: false,
+          reason: "money_admin_not_found"
+        };
+      }
+
+      return {
+        ok: true,
+        download: {
+          filename: parsed.filename,
+          contentType: parsed.contentType,
+          sizeBytes: parsed.sizeBytes,
+          bytes
+        }
+      };
+    } catch {
+      return {
+        ok: false,
+        reason: "money_admin_not_found"
+      };
+    }
   }
 
   public async createTransaction(input: {

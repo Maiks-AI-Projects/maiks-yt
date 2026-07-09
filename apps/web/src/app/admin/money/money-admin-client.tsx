@@ -46,6 +46,28 @@ type MoneyOkResponse =
     reason: string;
   };
 
+type MoneyReceiptUploadResponse =
+  | {
+    ok: true;
+    upload: {
+      id: string;
+      filename: string;
+      contentType: string;
+      sizeBytes: number;
+      checksum: string;
+      reference: {
+        referenceType: MoneyReceiptReferenceType;
+        storageKind: MoneyReceiptStorageKind;
+        label: string;
+        privateReference: string;
+      };
+    };
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 type MoneyFormState = {
@@ -177,6 +199,64 @@ const toIsoFromLocalInput = (value: string): string =>
 const toIsoFromDateInput = (value: string): string | null =>
   value ? new Date(`${value}T00:00:00`).toISOString() : null;
 
+const readFileAsBase64 = async (file: File): Promise<string> =>
+  await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.addEventListener("load", () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const base64 = result.split(",", 2)[1];
+
+      if (base64) {
+        resolve(base64);
+      } else {
+        reject(new Error("Could not read receipt file."));
+      }
+    });
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("Could not read receipt file.")));
+    reader.readAsDataURL(file);
+  });
+
+const getReceiptUploadId = (privateReference: string): string | null => {
+  const match = /^money-upload:([a-f0-9-]{36}):/u.exec(privateReference);
+
+  return match?.[1] ?? null;
+};
+
+const inferReceiptContentType = (file: File): string => {
+  if (file.type) {
+    return file.type;
+  }
+
+  const lowerName = file.name.toLowerCase();
+
+  if (lowerName.endsWith(".pdf")) {
+    return "application/pdf";
+  }
+
+  if (lowerName.endsWith(".png")) {
+    return "image/png";
+  }
+
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+
+  if (lowerName.endsWith(".webp")) {
+    return "image/webp";
+  }
+
+  if (lowerName.endsWith(".csv")) {
+    return "text/csv";
+  }
+
+  if (lowerName.endsWith(".txt")) {
+    return "text/plain";
+  }
+
+  return "application/octet-stream";
+};
+
 const getFailureMessage = (response: Response, reason?: string): string => {
   if (response.status === 401 || reason === "not_authenticated") {
     return "Sign in before managing the private money ledger.";
@@ -217,6 +297,7 @@ const MoneyAdminClient = (): React.ReactNode => {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading private money ledger...");
   const [busy, setBusy] = useState(false);
+  const [receiptUploading, setReceiptUploading] = useState(false);
 
   const totals = useMemo(() => {
     const realLines = transactions.flatMap((transaction) =>
@@ -373,6 +454,55 @@ const MoneyAdminClient = (): React.ReactNode => {
       setMessage(error instanceof Error ? error.message : "Money ledger save failed.");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const uploadReceiptFile = async (file: File | null): Promise<void> => {
+    if (!file) {
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("Receipt uploads are limited to 5 MB.");
+      return;
+    }
+
+    setReceiptUploading(true);
+    setMessage("Uploading private receipt evidence...");
+
+    try {
+      const dataBase64 = await readFileAsBase64(file);
+      const response = await fetch(`${apiBaseUrl}/admin/money/receipts/upload`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: inferReceiptContentType(file),
+          dataBase64,
+          label: form.receiptLabel.trim() || file.name
+        })
+      });
+      const payload = await parseJson<MoneyReceiptUploadResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setForm((current) => ({
+          ...current,
+          receiptReferenceType: payload.upload.reference.referenceType,
+          receiptStorageKind: payload.upload.reference.storageKind,
+          receiptLabel: payload.upload.reference.label,
+          receiptPrivateReference: payload.upload.reference.privateReference
+        }));
+        setMessage(`Private receipt uploaded: ${payload.upload.filename}. Save the entry to attach it.`);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Receipt upload failed.");
+    } finally {
+      setReceiptUploading(false);
     }
   };
 
@@ -550,6 +680,43 @@ const MoneyAdminClient = (): React.ReactNode => {
       setMessage(getFailureMessage(response, failureReason));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Money warning resolution failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadReceiptFile = async (uploadId: string): Promise<void> => {
+    setBusy(true);
+    setMessage("Opening private receipt evidence...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/receipts/${uploadId}`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        const payload = await parseJson<{ ok: false; reason?: string }>(response);
+        setMessage(getFailureMessage(response, payload?.reason));
+        return;
+      }
+
+      const blob = await response.blob();
+      const filename = response.headers
+        .get("content-disposition")
+        ?.match(/filename="([^"]+)"/)?.[1] ?? "receipt-evidence";
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("Private receipt evidence downloaded.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Receipt download failed.");
     } finally {
       setBusy(false);
     }
@@ -778,6 +945,19 @@ const MoneyAdminClient = (): React.ReactNode => {
               />
             </label>
             <label>
+              Upload receipt file
+              <input
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.csv,.txt,application/pdf,image/png,image/jpeg,image/webp,text/csv,text/plain"
+                disabled={receiptUploading || busy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  event.target.value = "";
+                  void uploadReceiptFile(file);
+                }}
+              />
+            </label>
+            <label>
               Private receipt reference
               <input
                 value={form.receiptPrivateReference}
@@ -896,6 +1076,24 @@ const MoneyAdminClient = (): React.ReactNode => {
                           Receipt: {line.receiptReference.label}
                           {" "}
                           ({line.receiptReference.referenceType.replaceAll("_", " ")})
+                          {getReceiptUploadId(line.receiptReference.privateReference) ? (
+                            <>
+                              {" "}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const uploadId = getReceiptUploadId(line.receiptReference?.privateReference ?? "");
+
+                                  if (uploadId) {
+                                    void downloadReceiptFile(uploadId);
+                                  }
+                                }}
+                                disabled={busy}
+                              >
+                                Open file
+                              </button>
+                            </>
+                          ) : null}
                         </p>
                       ) : null}
                     </div>

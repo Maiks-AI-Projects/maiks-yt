@@ -1,7 +1,8 @@
 import type {
   MoneyAccountingWarning,
   MoneyLedgerTransaction,
-  MoneyLedgerTransactionInput
+  MoneyLedgerTransactionInput,
+  MoneyReceiptReferenceInput
 } from "@maiks-yt/domain";
 
 export type MoneyAdminActor = {
@@ -68,6 +69,22 @@ export type MoneyAdminWarningCsvExport = {
   generatedAt: string;
 };
 
+export type MoneyAdminReceiptUpload = {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  checksum: string;
+  reference: MoneyReceiptReferenceInput;
+};
+
+export type MoneyAdminReceiptDownload = {
+  filename: string;
+  contentType: string;
+  sizeBytes: number;
+  bytes: Buffer;
+};
+
 export type MoneyAdminReportBucket = {
   key: string;
   inMinor: number;
@@ -125,6 +142,26 @@ export type MoneyAdminWarningExportResult =
   | {
     ok: false;
     reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
+export type MoneyAdminReceiptUploadResult =
+  | {
+    ok: true;
+    upload: MoneyAdminReceiptUpload;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
+export type MoneyAdminReceiptDownloadResult =
+  | {
+    ok: true;
+    download: MoneyAdminReceiptDownload;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input" | "money_admin_not_found";
   };
 
 export type MoneyAdminJsonReportResult =

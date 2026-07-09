@@ -3,8 +3,9 @@ import type {
   MoneyLedgerTransaction,
   MoneyLedgerTransactionInput
 } from "@maiks-yt/domain";
+import { rm } from "node:fs/promises";
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { registerMoneyAdminRoutes } from "../../src/money/money-admin.route.js";
 import { MoneyAdminService } from "../../src/money/money-admin.service.js";
@@ -13,6 +14,10 @@ import type {
   MoneyAdminLedgerFilters,
   MoneyAdminRepository
 } from "../../src/money/money-admin.types.js";
+
+afterEach(async () => {
+  await rm(".private", { force: true, recursive: true });
+});
 
 const createTransaction = (overrides: Partial<MoneyLedgerTransaction> = {}): MoneyLedgerTransaction => ({
   id: "transaction-1",
@@ -354,6 +359,69 @@ describe("MoneyAdminService", () => {
         missing_receipt: 1
       },
       generatedByUserId: "domain-user"
+    });
+  });
+
+  it("uploads private receipt evidence as a future-upload reference", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.uploadReceiptEvidence({
+      authUserId: "auth-user",
+      filename: "../Hosting Invoice #1.pdf",
+      contentType: "application/pdf",
+      dataBase64: Buffer.from("%PDF receipt evidence").toString("base64"),
+      label: "Hosting invoice"
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      upload: {
+        filename: "Hosting Invoice _1.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 21,
+        checksum: expect.stringMatching(/^[a-f0-9]{64}$/),
+        reference: {
+          referenceType: "receipt",
+          storageKind: "future_upload",
+          label: "Hosting invoice",
+          privateReference: expect.stringMatching(/^money-upload:[a-f0-9-]{36}:Hosting Invoice _1\.pdf$/)
+        }
+      }
+    });
+
+    if (!result.ok) {
+      throw new Error("upload failed");
+    }
+
+    const download = await service.downloadReceiptEvidence({
+      authUserId: "auth-user",
+      uploadId: result.upload.id
+    });
+
+    expect(download).toMatchObject({
+      ok: true,
+      download: {
+        filename: "Hosting Invoice _1.pdf",
+        contentType: "application/pdf",
+        sizeBytes: 21
+      }
+    });
+    expect(download.ok ? download.download.bytes.toString("utf8") : "").toBe("%PDF receipt evidence");
+  });
+
+  it("rejects unsupported private receipt uploads", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.uploadReceiptEvidence({
+      authUserId: "auth-user",
+      filename: "receipt.exe",
+      contentType: "application/x-msdownload",
+      dataBase64: Buffer.from("not a receipt").toString("base64")
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
     });
   });
 
@@ -1007,6 +1075,91 @@ describe("Money admin route boundary", () => {
     expect(response.body).toContain("missing_receipt");
     expect(repository.lastExportAudit).toMatchObject({
       reportKind: "warning_review"
+    });
+  });
+
+  it("uploads and downloads private receipt evidence for an owner", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const uploadResponse = await server.inject({
+      method: "POST",
+      url: "/admin/money/receipts/upload",
+      payload: {
+        filename: "receipt.txt",
+        contentType: "text/plain",
+        dataBase64: Buffer.from("private receipt").toString("base64")
+      }
+    });
+
+    expect(uploadResponse.statusCode).toBe(200);
+    const uploadPayload = uploadResponse.json<{
+      ok: true;
+      upload: {
+        id: string;
+        reference: {
+          storageKind: string;
+          privateReference: string;
+        };
+      };
+    }>();
+    expect(uploadPayload).toMatchObject({
+      ok: true,
+      upload: {
+        reference: {
+          storageKind: "future_upload",
+          privateReference: expect.stringMatching(/^money-upload:/)
+        }
+      }
+    });
+
+    const downloadResponse = await server.inject({
+      method: "GET",
+      url: `/admin/money/receipts/${uploadPayload.upload.id}`
+    });
+
+    expect(downloadResponse.statusCode).toBe(200);
+    expect(downloadResponse.headers["content-type"]).toContain("text/plain");
+    expect(downloadResponse.headers["content-disposition"]).toContain("receipt.txt");
+    expect(downloadResponse.body).toBe("private receipt");
+  });
+
+  it("does not allow unauthenticated receipt upload", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/receipts/upload",
+      payload: {
+        filename: "receipt.txt",
+        contentType: "text/plain",
+        dataBase64: Buffer.from("private receipt").toString("base64")
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
     });
   });
 

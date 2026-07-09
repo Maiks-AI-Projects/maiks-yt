@@ -28,7 +28,7 @@ type MoneyAdminAuthSession = {
 type MoneyAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MoneyAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "resolveWarning" | "voidTransaction">;
+  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "uploadReceiptEvidence" | "downloadReceiptEvidence" | "resolveWarning" | "voidTransaction">;
 };
 
 const nullableText = (maxLength: number) =>
@@ -77,6 +77,17 @@ const moneyWarningResolvePayloadSchema = z.object({
   warningKind: z.enum(moneyAccountingWarningKinds)
 }).strict();
 
+const moneyReceiptUploadPayloadSchema = z.object({
+  filename: z.string().trim().min(1).max(191),
+  contentType: z.string().trim().min(1).max(191),
+  dataBase64: z.string().trim().min(1).max(7_000_000),
+  label: z.string().trim().max(191).nullable().optional()
+}).strict();
+
+const moneyReceiptParamsSchema = z.object({
+  id: z.string().trim().uuid()
+}).strict();
+
 const moneyLedgerFilterQuerySchema = z.object({
   accountingFrom: z.string().trim().datetime({ offset: true }).optional(),
   accountingTo: z.string().trim().datetime({ offset: true }).optional()
@@ -105,7 +116,7 @@ export const registerMoneyAdminRoutes = (
   server: FastifyInstance,
   dependencies: MoneyAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "resolveWarning" | "voidTransaction"> =>
+  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "uploadReceiptEvidence" | "downloadReceiptEvidence" | "resolveWarning" | "voidTransaction"> =>
     dependencies.createService?.()
     ?? new MoneyAdminService(createMoneyAdminRepository(dependencies.getDatabasePool()));
 
@@ -319,6 +330,97 @@ export const registerMoneyAdminRoutes = (
       return result.export.csv;
     } catch (error) {
       server.log.warn({ err: error }, "Money warning CSV export failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/money/receipts/upload", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = moneyReceiptUploadPayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().uploadReceiptEvidence({
+        authUserId: session.user.id,
+        filename: parsedBody.data.filename,
+        contentType: parsedBody.data.contentType,
+        dataBase64: parsedBody.data.dataBase64,
+        label: parsedBody.data.label ?? null
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money receipt upload failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.get("/admin/money/receipts/:id", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = moneyReceiptParamsSchema.safeParse(request.params);
+
+    if (!parsedParams.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().downloadReceiptEvidence({
+        authUserId: session.user.id,
+        uploadId: parsedParams.data.id
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_not_found" ? 404 : result.reason === "money_admin_invalid_input" ? 400 : 403);
+        return result;
+      }
+
+      reply
+        .header("content-type", result.download.contentType)
+        .header("content-disposition", `attachment; filename="${result.download.filename}"`)
+        .header("content-length", String(result.download.sizeBytes));
+
+      return result.download.bytes;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money receipt download failed.");
       reply.code(503);
       return {
         ok: false,
