@@ -27,7 +27,7 @@ type MoneyAdminAuthSession = {
 type MoneyAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MoneyAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv">;
+  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "voidTransaction">;
 };
 
 const nullableText = (maxLength: number) =>
@@ -66,6 +66,10 @@ const moneyTransactionPayloadSchema = z.object({
   lines: z.array(moneyLedgerLinePayloadSchema).min(1).max(20)
 }).strict();
 
+const moneyVoidPayloadSchema = z.object({
+  reason: z.string().trim().min(1).max(500)
+}).strict();
+
 const sendMutationResult = (
   result: MoneyAdminMutationResult,
   reply: FastifyReply
@@ -74,10 +78,12 @@ const sendMutationResult = (
     return result;
   }
 
-  const statusCode = result.reason === "money_admin_user_unlinked"
-    || result.reason === "money_admin_forbidden"
-    ? 403
-    : 400;
+  const statusCode = result.reason === "money_admin_not_found"
+    ? 404
+    : result.reason === "money_admin_user_unlinked"
+      || result.reason === "money_admin_forbidden"
+      ? 403
+      : 400;
 
   reply.code(statusCode);
   return result;
@@ -87,7 +93,7 @@ export const registerMoneyAdminRoutes = (
   server: FastifyInstance,
   dependencies: MoneyAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv"> =>
+  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "voidTransaction"> =>
     dependencies.createService?.()
     ?? new MoneyAdminService(createMoneyAdminRepository(dependencies.getDatabasePool()));
 
@@ -217,6 +223,48 @@ export const registerMoneyAdminRoutes = (
       );
     } catch (error) {
       server.log.warn({ err: error }, "Money transaction create failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/money/transactions/:id/void", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const params = z.object({
+      id: z.string().trim().min(1).max(36)
+    }).safeParse(request.params);
+    const parsedBody = moneyVoidPayloadSchema.safeParse(request.body);
+
+    if (!params.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      return sendMutationResult(
+        await getService().voidTransaction({
+          authUserId: session.user.id,
+          id: params.data.id,
+          reason: parsedBody.data.reason
+        }),
+        reply
+      );
+    } catch (error) {
+      server.log.warn({ err: error }, "Money transaction void failed.");
       reply.code(503);
       return {
         ok: false,

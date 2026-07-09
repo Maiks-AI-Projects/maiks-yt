@@ -156,6 +156,10 @@ const getFailureMessage = (response: Response, reason?: string): string => {
     return "The money entry has invalid or missing fields.";
   }
 
+  if (reason === "money_admin_not_found") {
+    return "That money entry could not be found.";
+  }
+
   return `Money ledger request failed with ${response.status}.`;
 };
 
@@ -180,7 +184,7 @@ const MoneyAdminClient = (): React.ReactNode => {
 
   const totals = useMemo(() => {
     const realLines = transactions.flatMap((transaction) =>
-      transaction.moneyMode === "real" ? transaction.lines : []
+      transaction.moneyMode === "real" && transaction.postingStatus !== "voided" ? transaction.lines : []
     );
     const incomeMinor = realLines
       .filter((line) => line.direction === "in")
@@ -342,6 +346,46 @@ const MoneyAdminClient = (): React.ReactNode => {
       setMessage("Private money CSV export downloaded.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Money CSV export failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const voidTransaction = async (transaction: MoneyLedgerTransaction): Promise<void> => {
+    const reason = window.prompt("Why should this private money entry be voided?");
+
+    if (!reason?.trim()) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("Voiding private money entry...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/transactions/${transaction.id}/void`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          reason: reason.trim()
+        })
+      });
+      const payload = await parseJson<MoneyMutationResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setTransactions((current) =>
+          current.map((currentTransaction) =>
+            currentTransaction.id === payload.transaction.id ? payload.transaction : currentTransaction
+          )
+        );
+        setMessage("Private money entry voided.");
+        return;
+      }
+
+      const failureReason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, failureReason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money entry void failed.");
     } finally {
       setBusy(false);
     }
@@ -566,6 +610,11 @@ const MoneyAdminClient = (): React.ReactNode => {
                     <strong>{transactionTypeLabels[transaction.transactionType]}</strong>
                     <span>{transaction.moneyMode} · {transaction.postingStatus} · {formatDate(transaction.accountingAt)}</span>
                   </div>
+                  {transaction.postingStatus !== "voided" ? (
+                    <button type="button" onClick={() => void voidTransaction(transaction)} disabled={busy}>
+                      Void entry
+                    </button>
+                  ) : null}
                   {transaction.lines.map((line) => (
                     <div key={line.id}>
                       <p>

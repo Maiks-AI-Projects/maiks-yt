@@ -28,7 +28,8 @@ export type MoneyAdminMutationResult =
     reason:
       | "money_admin_user_unlinked"
       | "money_admin_forbidden"
-      | "money_admin_invalid_input";
+      | "money_admin_invalid_input"
+      | "money_admin_not_found";
   };
 
 export type MoneyAdminCsvExport = {
@@ -64,6 +65,11 @@ export interface MoneyAdminRepository {
     fileChecksum: string;
     generatedByUserId: string;
   }): Promise<void>;
+  voidTransaction(input: {
+    id: string;
+    reason: string;
+    actorUserId: string;
+  }): Promise<MoneyLedgerTransaction | null>;
   createTransaction(input: MoneyLedgerTransactionInput & {
     actorUserId: string;
   }): Promise<MoneyLedgerTransaction>;

@@ -99,6 +99,26 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     return structuredClone(transaction);
   }
 
+  public async voidTransaction(input: Parameters<MoneyAdminRepository["voidTransaction"]>[0]): Promise<MoneyLedgerTransaction | null> {
+    const index = this.transactions.findIndex((transaction) => transaction.id === input.id);
+
+    if (index < 0) {
+      return null;
+    }
+
+    const current = this.transactions[index];
+    const voidNote = `[voided] ${input.reason}`;
+    const updated = {
+      ...current,
+      postingStatus: "voided" as const,
+      notesPrivate: current.notesPrivate ? `${current.notesPrivate}\n${voidNote}` : voidNote,
+      updatedAt: "2026-07-09T12:30:00.000Z"
+    };
+    this.transactions[index] = updated;
+
+    return structuredClone(updated);
+  }
+
   public async recordReportExport(input: Parameters<MoneyAdminRepository["recordReportExport"]>[0]): Promise<void> {
     this.exportAuditCount += 1;
     this.lastExportAudit = structuredClone(input);
@@ -189,6 +209,57 @@ describe("MoneyAdminService", () => {
     });
   });
 
+  it("voids entries instead of deleting them", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.voidTransaction({
+      authUserId: "auth-user",
+      id: "transaction-1",
+      reason: "Wrong amount entered"
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      transaction: {
+        id: "transaction-1",
+        postingStatus: "voided",
+        notesPrivate: expect.stringContaining("Wrong amount entered")
+      }
+    });
+    await expect(service.listTransactions({ authUserId: "auth-user" })).resolves.toMatchObject({
+      ok: true,
+      transactions: [
+        {
+          id: "transaction-1",
+          postingStatus: "voided"
+        }
+      ]
+    });
+  });
+
+  it("rejects empty void reasons and unknown transactions", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.voidTransaction({
+      authUserId: "auth-user",
+      id: "transaction-1",
+      reason: " "
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
+    await expect(service.voidTransaction({
+      authUserId: "auth-user",
+      id: "missing",
+      reason: "Wrong row"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_not_found"
+    });
+  });
+
   it("denies CSV export without money permissions", async () => {
     const repository = new FakeMoneyAdminRepository();
     const service = new MoneyAdminService(repository);
@@ -203,6 +274,64 @@ describe("MoneyAdminService", () => {
       reason: "money_admin_forbidden"
     });
     expect(repository.exportAuditCount).toBe(0);
+  });
+
+  it("requires an auth session before voiding entries", async () => {
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      }
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/transactions/transaction-1/void",
+      payload: {
+        reason: "Mistake"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+  });
+
+  it("voids entries for an owner", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/transactions/transaction-1/void",
+      payload: {
+        reason: "Mistake during testing"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      transaction: {
+        id: "transaction-1",
+        postingStatus: "voided",
+        notesPrivate: expect.stringContaining("Mistake during testing")
+      }
+    });
   });
 });
 

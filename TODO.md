@@ -405,6 +405,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-07-09 Phase C3 adds owner-only `/admin/money` plus `GET /admin/money/ledger` and `POST /admin/money/transactions` for manual private income/cost/fee/payout-style entries. This is manual ledger testing only, not public payment behavior.
   - 2026-07-09 Phase C4 adds owner-only CSV export for the current private ledger list and records each export in `money_report_exports` with checksum/count metadata. This is private reporting support only, not provider settlement or public money behavior.
   - 2026-07-09 Phase C5 adds optional private receipt/reference capture to manual ledger entries using the existing `money_receipt_references` table and includes receipt reference columns in CSV export. This is URL/reference metadata only, not file upload/storage.
+  - 2026-07-09 Phase C6 adds owner-only voiding for private money entries so testing mistakes can be marked `voided` without deletion. Ledger summary totals ignore voided real entries, while CSV export still includes them for audit visibility.
 - [ ] Draft donation/support terms.
 - [ ] Draft refund/revocation wording.
 - [ ] Draft affiliate/sponsor disclosure.
@@ -424,7 +425,7 @@ Gate note: money remains design-only until Michael explicitly approves a money p
 - [ ] Add claimable platform-derived support.
 - [ ] Add transparent money trail.
 - [ ] Add private accounting/report export.
-  - First private accounting UI exists as ledger entry/list/summary. Phase C4 adds a manual CSV export button and audit row. Phase C5 adds receipt/reference metadata capture and CSV columns; richer period filters, file uploads, warnings, and formal report packages remain later slices.
+  - First private accounting UI exists as ledger entry/list/summary. Phase C4 adds a manual CSV export button and audit row. Phase C5 adds receipt/reference metadata capture and CSV columns. Phase C6 adds non-destructive voiding for test mistakes; richer period filters, file uploads, warnings, and formal report packages remain later slices.
 - [ ] Add public withdrawals.
 - [ ] Add spending records.
 - [ ] Add project archives.
