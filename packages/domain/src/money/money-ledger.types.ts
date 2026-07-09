@@ -160,4 +160,33 @@ export type MoneyLedgerTransaction = Omit<MoneyLedgerTransactionInput, "lines"> 
   lines: readonly MoneyLedgerLine[];
 };
 
+export const moneyAccountingWarningKinds = [
+  "unmapped_source",
+  "missing_fee",
+  "missing_category",
+  "missing_receipt",
+  "missing_allocation",
+  "rule_gap",
+  "estimate_unconfirmed",
+  "mixed_money_mode",
+  "provider_payout_missing",
+  "correction_needed"
+] as const;
+
+export type MoneyAccountingWarningKind = typeof moneyAccountingWarningKinds[number];
+
+export const moneyAccountingWarningSeverities = ["info", "warning", "blocking"] as const;
+
+export type MoneyAccountingWarningSeverity = typeof moneyAccountingWarningSeverities[number];
+
+export type MoneyAccountingWarning = {
+  id: string;
+  targetKind: "transaction" | "line" | "rule" | "report";
+  targetId: string;
+  warningKind: MoneyAccountingWarningKind;
+  severity: MoneyAccountingWarningSeverity;
+  status: "open";
+  message: string;
+};
+
 export type MoneyLedgerCapability = "*" | "money:manage";

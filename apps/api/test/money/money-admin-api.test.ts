@@ -134,6 +134,30 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
 describe("MoneyAdminService", () => {
   it("exports private ledger lines as CSV and records an audit row", async () => {
     const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "warning-transaction",
+      transactionType: "cost",
+      lines: [
+        {
+          id: "warning-line",
+          transactionId: "warning-transaction",
+          lineKind: "cost",
+          direction: "out",
+          amountMinor: 500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: null,
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
     const service = new MoneyAdminService(repository);
 
     const result = await service.exportLedgerCsv({ authUserId: "auth-user" });
@@ -142,8 +166,8 @@ describe("MoneyAdminService", () => {
       ok: true,
       export: {
         contentType: "text/csv; charset=utf-8",
-        transactionCount: 1,
-        lineCount: 1
+        transactionCount: 2,
+        lineCount: 2
       }
     });
     expect(result.ok && result.export.csv).toContain("transaction_id,line_id,transaction_type");
@@ -154,8 +178,86 @@ describe("MoneyAdminService", () => {
       fileKind: "csv",
       fileReference: expect.stringMatching(/^maiks-money-ledger-\d{4}-\d{2}-\d{2}\.csv$/),
       fileChecksum: expect.stringMatching(/^[a-f0-9]{64}$/),
+      warningCounts: {
+        missing_category: 1,
+        missing_receipt: 1
+      },
       generatedByUserId: "domain-user"
     });
+  });
+
+  it("surfaces derived accounting warnings on ledger listing", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.push(createTransaction({
+      id: "posted-estimate",
+      postingStatus: "posted",
+      lines: [
+        {
+          id: "posted-estimate-line",
+          transactionId: "posted-estimate",
+          lineKind: "gross_income",
+          direction: "in",
+          amountMinor: 500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: true,
+          categoryKey: null,
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    repository.transactions.push(createTransaction({
+      id: "voided-warning-candidate",
+      postingStatus: "voided",
+      lines: [
+        {
+          id: "voided-warning-line",
+          transactionId: "voided-warning-candidate",
+          lineKind: "cost",
+          direction: "out",
+          amountMinor: 500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: null,
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.listTransactions({ authUserId: "auth-user" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      warnings: expect.arrayContaining([
+        expect.objectContaining({
+          targetId: "posted-estimate-line",
+          warningKind: "missing_category"
+        }),
+        expect.objectContaining({
+          targetId: "posted-estimate-line",
+          warningKind: "estimate_unconfirmed"
+        })
+      ])
+    });
+    expect(result.ok && result.warnings).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        targetId: "voided-warning-line"
+      })
+    ]));
   });
 
   it("creates manual entries with private receipt references", async () => {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
+  MoneyAccountingWarning,
   MoneyDirection,
   MoneyLedgerLineKind,
   MoneyLedgerTransaction,
@@ -19,6 +20,7 @@ type MoneyLedgerResponse =
   | {
     ok: true;
     transactions: readonly MoneyLedgerTransaction[];
+    warnings: readonly MoneyAccountingWarning[];
   }
   | {
     ok: false;
@@ -181,6 +183,7 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
 
 const MoneyAdminClient = (): React.ReactNode => {
   const [transactions, setTransactions] = useState<readonly MoneyLedgerTransaction[]>([]);
+  const [warnings, setWarnings] = useState<readonly MoneyAccountingWarning[]>([]);
   const [form, setForm] = useState<MoneyFormState>(() => defaultForm());
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading private money ledger...");
@@ -225,15 +228,18 @@ const MoneyAdminClient = (): React.ReactNode => {
 
       if (response.ok && payload?.ok) {
         setTransactions(payload.transactions);
+        setWarnings(payload.warnings);
         setLoadState("ready");
         setMessage(payload.transactions.length === 0 ? "No private money entries yet." : "Private money ledger loaded.");
         return;
       }
 
       const reason = payload?.ok === false ? payload.reason : undefined;
+      setWarnings([]);
       setLoadState(getLoadStateForFailure(response, reason));
       setMessage(getFailureMessage(response, reason));
     } catch (error) {
+      setWarnings([]);
       setLoadState("failed");
       setMessage(error instanceof Error ? error.message : "Money ledger request failed.");
     }
@@ -308,7 +314,7 @@ const MoneyAdminClient = (): React.ReactNode => {
       const payload = await parseJson<MoneyMutationResponse>(response);
 
       if (response.ok && payload?.ok) {
-        setTransactions((current) => [payload.transaction, ...current]);
+        await loadLedger();
         setForm(defaultForm());
         setMessage("Private money entry saved.");
         return;
@@ -382,11 +388,7 @@ const MoneyAdminClient = (): React.ReactNode => {
       const payload = await parseJson<MoneyMutationResponse>(response);
 
       if (response.ok && payload?.ok) {
-        setTransactions((current) =>
-          current.map((currentTransaction) =>
-            currentTransaction.id === payload.transaction.id ? payload.transaction : currentTransaction
-          )
-        );
+        await loadLedger();
         setMessage("Private money entry voided.");
         return;
       }
@@ -652,7 +654,22 @@ const MoneyAdminClient = (): React.ReactNode => {
               <div><strong>{formatAmount(totals.incomeMinor, "EUR")}</strong><span>Real in</span></div>
               <div><strong>{formatAmount(totals.outMinor, "EUR")}</strong><span>Real out</span></div>
               <div><strong>{formatAmount(totals.remainderMinor, "EUR")}</strong><span>Remainder</span></div>
+              <div><strong>{warnings.length}</strong><span>Open warnings</span></div>
             </div>
+            {warnings.length > 0 ? (
+              <div className="admin-list">
+                <h3>Accounting Warnings</h3>
+                {warnings.map((warning) => (
+                  <article className="admin-list-item" key={warning.id}>
+                    <div>
+                      <strong>{warning.warningKind.replaceAll("_", " ")}</strong>
+                      <span>{warning.severity} · {warning.targetKind}</span>
+                    </div>
+                    <p>{warning.message}</p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
             <div className="admin-list">
               {transactions.length === 0 ? (
                 <p>No entries yet.</p>

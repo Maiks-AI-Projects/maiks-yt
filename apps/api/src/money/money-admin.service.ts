@@ -4,7 +4,13 @@ import {
   canManageMoneyLedger,
   isValidMoneyLedgerTransactionInput
 } from "@maiks-yt/domain";
-import type { MoneyLedgerTransaction, MoneyLedgerTransactionInput } from "@maiks-yt/domain";
+import type {
+  MoneyAccountingWarning,
+  MoneyAccountingWarningKind,
+  MoneyLedgerLine,
+  MoneyLedgerTransaction,
+  MoneyLedgerTransactionInput
+} from "@maiks-yt/domain";
 
 import type {
   MoneyAdminExportResult,
@@ -209,6 +215,80 @@ const buildLedgerCsv = (transactions: readonly MoneyLedgerTransaction[]): {
   };
 };
 
+const warningId = (
+  warningKind: MoneyAccountingWarningKind,
+  targetId: string
+): string =>
+  `derived:${warningKind}:${targetId}`;
+
+const lineNeedsReceipt = (line: MoneyLedgerLine): boolean =>
+  line.direction === "out"
+  && ["cost", "provider_fee", "payout_fee", "transaction_cost", "platform_split"].includes(line.lineKind);
+
+const buildAccountingWarnings = (
+  transactions: readonly MoneyLedgerTransaction[]
+): readonly MoneyAccountingWarning[] => {
+  const warnings: MoneyAccountingWarning[] = [];
+
+  for (const transaction of transactions) {
+    if (transaction.postingStatus === "voided") {
+      continue;
+    }
+
+    for (const line of transaction.lines) {
+      if (line.direction !== "neutral" && !line.categoryKey) {
+        warnings.push({
+          id: warningId("missing_category", line.id),
+          targetKind: "line",
+          targetId: line.id,
+          warningKind: "missing_category",
+          severity: "warning",
+          status: "open",
+          message: "Ledger line has no category, which makes reporting harder."
+        });
+      }
+
+      if (transaction.moneyMode === "real" && lineNeedsReceipt(line) && !line.receiptReference) {
+        warnings.push({
+          id: warningId("missing_receipt", line.id),
+          targetKind: "line",
+          targetId: line.id,
+          warningKind: "missing_receipt",
+          severity: "warning",
+          status: "open",
+          message: "Real outgoing money line has no receipt, invoice, statement, or private reference."
+        });
+      }
+
+      if (transaction.moneyMode === "real" && transaction.postingStatus === "posted" && line.isEstimate) {
+        warnings.push({
+          id: warningId("estimate_unconfirmed", line.id),
+          targetKind: "line",
+          targetId: line.id,
+          warningKind: "estimate_unconfirmed",
+          severity: "info",
+          status: "open",
+          message: "Posted real ledger line is still marked as an estimate."
+        });
+      }
+    }
+  }
+
+  return warnings;
+};
+
+const countWarningsByKind = (
+  warnings: readonly MoneyAccountingWarning[]
+): Record<string, number> => {
+  const counts: Record<string, number> = {};
+
+  for (const warning of warnings) {
+    counts[warning.warningKind] = (counts[warning.warningKind] ?? 0) + 1;
+  }
+
+  return counts;
+};
+
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
 
@@ -219,9 +299,12 @@ export class MoneyAdminService {
       return actor;
     }
 
+    const transactions = await this.repository.listTransactions();
+
     return {
       ok: true,
-      transactions: await this.repository.listTransactions()
+      transactions,
+      warnings: buildAccountingWarnings(transactions)
     };
   }
 
@@ -234,6 +317,7 @@ export class MoneyAdminService {
 
     const transactions = await this.repository.listTransactions();
     const generatedAt = new Date().toISOString();
+    const warnings = buildAccountingWarnings(transactions);
     const { csv, lineCount } = buildLedgerCsv(transactions);
     const checksum = createHash("sha256").update(csv).digest("hex");
     const filename = `maiks-money-ledger-${generatedAt.slice(0, 10)}.csv`;
@@ -247,7 +331,7 @@ export class MoneyAdminService {
         export: "manual-ledger-csv",
         transactionLimit: 100
       },
-      warningCounts: {},
+      warningCounts: countWarningsByKind(warnings),
       fileKind: "csv",
       fileReference: filename,
       fileChecksum: checksum,

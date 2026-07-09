@@ -1,4 +1,5 @@
 import type {
+  MoneyAccountingWarning,
   MoneyLedgerTransaction,
   MoneyLedgerTransactionInput
 } from "@maiks-yt/domain";
@@ -12,6 +13,7 @@ export type MoneyAdminListResult =
   | {
     ok: true;
     transactions: readonly MoneyLedgerTransaction[];
+    warnings: readonly MoneyAccountingWarning[];
   }
   | {
     ok: false;
