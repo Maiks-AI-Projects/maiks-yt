@@ -4,8 +4,24 @@ import type {
   ProviderEventIntakeAdminActor,
   ProviderEventIntakeAdminFilters,
   ProviderEventIntakeAdminRepository,
-  ProviderEventIntakeAdminResult
+  ProviderEventIntakeAdminResult,
+  ProviderEventIntakeHealthEntry,
+  ProviderEventIntakeHealthMechanism,
+  ProviderEventIntakeHealthResult,
+  ProviderEventIntakeHealthRow
 } from "./provider-event-intake-admin.types.js";
+
+const staleAfterMinutes = 60 * 24 * 7;
+
+const trackedMechanisms = [
+  { label: "Twitch EventSub", mechanism: "twitch-eventsub", provider: "twitch" },
+  { label: "Twitch Chat", mechanism: "twitch-irc", provider: "twitch" },
+  { label: "YouTube Live Chat", mechanism: "youtube-live-chat", provider: "youtube" },
+  { label: "YouTube Activities", mechanism: "youtube-activity", provider: "youtube" },
+  { label: "YouTube PubSub", mechanism: "youtube-pubsub", provider: "youtube" },
+  { label: "Discord Gateway", mechanism: "discord-gateway", provider: "discord" },
+  { label: "Discord Webhooks", mechanism: "discord-webhook", provider: "discord" }
+] satisfies readonly ProviderEventIntakeHealthMechanism[];
 
 const canViewProviderEventIntake = (actor: ProviderEventIntakeAdminActor): boolean =>
   normalizeProviderIntegrationPermissions(actor.rolePermissionValues).includes("*");
@@ -22,6 +38,36 @@ const normalizeFilters = (
   processingStatus: filters.processingStatus ?? "any",
   provider: filters.provider ?? "any"
 });
+
+const healthKey = (row: Pick<ProviderEventIntakeHealthRow, "mechanism" | "provider">): string =>
+  `${row.provider}:${row.mechanism}`;
+
+const projectHealth = (
+  rows: readonly ProviderEventIntakeHealthRow[],
+  now: Date
+): ProviderEventIntakeHealthEntry[] => {
+  const rowsByMechanism = new Map(rows.map((row) => [healthKey(row), row]));
+  const staleAfterMs = staleAfterMinutes * 60 * 1000;
+
+  return trackedMechanisms.map((mechanism) => {
+    const row = rowsByMechanism.get(healthKey(mechanism));
+    const lastReceivedAt = row?.lastReceivedAt ?? null;
+    const lastReceivedMs = lastReceivedAt ? new Date(lastReceivedAt).getTime() : Number.NaN;
+    const status = !row || !lastReceivedAt || Number.isNaN(lastReceivedMs)
+      ? "missing"
+      : now.getTime() - lastReceivedMs > staleAfterMs
+        ? "stale"
+        : "healthy";
+
+    return {
+      ...mechanism,
+      lastProviderEventName: row?.lastProviderEventName ?? null,
+      lastReceivedAt,
+      rowCount: row?.rowCount ?? 0,
+      status
+    };
+  });
+};
 
 export class ProviderEventIntakeAdminService {
   public constructor(private readonly repository: ProviderEventIntakeAdminRepository) {}
@@ -53,6 +99,37 @@ export class ProviderEventIntakeAdminService {
       ok: true,
       readOnly: true,
       rows: await this.repository.listRecent(filters)
+    };
+  }
+
+  public async getHealth(input: {
+    authUserId: string;
+    now?: Date;
+  }): Promise<ProviderEventIntakeHealthResult> {
+    const actor = await this.repository.resolveActor(input.authUserId);
+
+    if (!actor) {
+      return {
+        ok: false,
+        reason: "provider_event_intake_user_unlinked"
+      };
+    }
+
+    if (!canViewProviderEventIntake(actor)) {
+      return {
+        ok: false,
+        reason: "provider_event_intake_forbidden"
+      };
+    }
+
+    const now = input.now ?? new Date();
+
+    return {
+      entries: projectHealth(await this.repository.listHealthRows(), now),
+      generatedAt: now.toISOString(),
+      ok: true,
+      readOnly: true,
+      staleAfterMinutes
     };
   }
 }

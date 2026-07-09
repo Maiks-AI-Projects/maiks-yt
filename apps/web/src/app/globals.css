@@ -1489,6 +1489,53 @@ button:disabled {
   gap: 0.65rem;
 }
 
+.connections-intake-health-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  margin-bottom: 1rem;
+}
+
+.connections-intake-health-card {
+  background: #f8fafc;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.75rem;
+}
+
+.connections-intake-health-card > div:first-child {
+  align-items: center;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.connections-intake-health-card small,
+.connections-intake-health-card > span {
+  color: #4b5966;
+}
+
+.service-dot {
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 0.72rem;
+  width: 0.72rem;
+}
+
+.service-dot.connected {
+  background: #16a34a;
+}
+
+.service-dot.disconnected {
+  background: #dc2626;
+}
+
+.service-dot.warning {
+  background: #f59e0b;
+}
+
 .connections-intake-row {
   background: #f8fafc;
   border: 1px solid #d8e0e8;

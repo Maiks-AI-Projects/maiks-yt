@@ -7,7 +7,8 @@ import type {
   NormalizedProviderEventIntakeAdminFilters,
   ProviderEventIntakeAdminActor,
   ProviderEventIntakeAdminRepository,
-  ProviderEventIntakeAdminResult
+  ProviderEventIntakeAdminResult,
+  ProviderEventIntakeHealthResult
 } from "../../src/provider-integrations/provider-event-intake-admin.types.js";
 
 class FakeProviderEventIntakeRepository implements ProviderEventIntakeAdminRepository {
@@ -19,6 +20,22 @@ class FakeProviderEventIntakeRepository implements ProviderEventIntakeAdminRepos
 
   public async resolveActor(): Promise<ProviderEventIntakeAdminActor | null> {
     return this.actor;
+  }
+
+  public async listHealthRows() {
+    return [{
+      lastProviderEventName: "PRIVMSG",
+      lastReceivedAt: "2026-07-04T16:00:01.000Z",
+      mechanism: "twitch-irc" as const,
+      provider: "twitch" as const,
+      rowCount: 4
+    }, {
+      lastProviderEventName: "upload",
+      lastReceivedAt: "2026-06-20T16:00:01.000Z",
+      mechanism: "youtube-activity" as const,
+      provider: "youtube" as const,
+      rowCount: 1
+    }];
   }
 
   public async listRecent(filters: NormalizedProviderEventIntakeAdminFilters) {
@@ -79,6 +96,45 @@ describe("ProviderEventIntakeAdminService", () => {
     });
   });
 
+  it("projects intake health for tracked provider mechanisms", async () => {
+    const repository = new FakeProviderEventIntakeRepository();
+    const service = new ProviderEventIntakeAdminService(repository);
+
+    const result = await service.getHealth({
+      authUserId: "auth-owner",
+      now: new Date("2026-07-05T16:00:01.000Z")
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      readOnly: true,
+      staleAfterMinutes: 10080
+    });
+    expect(result.ok ? result.entries : []).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        label: "Twitch Chat",
+        lastProviderEventName: "PRIVMSG",
+        mechanism: "twitch-irc",
+        provider: "twitch",
+        rowCount: 4,
+        status: "healthy"
+      }),
+      expect.objectContaining({
+        label: "YouTube Activities",
+        mechanism: "youtube-activity",
+        provider: "youtube",
+        status: "stale"
+      }),
+      expect.objectContaining({
+        label: "Discord Webhooks",
+        mechanism: "discord-webhook",
+        provider: "discord",
+        rowCount: 0,
+        status: "missing"
+      })
+    ]));
+  });
+
   it("denies unlinked and non-owner users", async () => {
     const repository = new FakeProviderEventIntakeRepository();
     const service = new ProviderEventIntakeAdminService(repository);
@@ -126,6 +182,9 @@ describe("provider event intake admin routes", () => {
   it("passes parsed filters to the service", async () => {
     const server = Fastify();
     const service = {
+      getHealth: async (): Promise<ProviderEventIntakeHealthResult> => {
+        throw new Error("health service should not be used");
+      },
       listRecent: async (): Promise<ProviderEventIntakeAdminResult> => ({
         filters: {
           authOrTokenShaped: null,
@@ -178,6 +237,9 @@ describe("provider event intake admin routes", () => {
         throw new Error("database should not be used");
       },
       createService: () => ({
+        getHealth: async () => {
+          throw new Error("service should not be used");
+        },
         listRecent: async () => {
           throw new Error("service should not be used");
         }
@@ -193,6 +255,53 @@ describe("provider event intake admin routes", () => {
     expect(response.json()).toEqual({
       ok: false,
       reason: "provider_event_intake_invalid_input"
+    });
+  });
+
+  it("returns provider intake health for owners", async () => {
+    const server = Fastify();
+    const service = {
+      getHealth: async (): Promise<ProviderEventIntakeHealthResult> => ({
+        entries: [{
+          label: "Twitch Chat",
+          lastProviderEventName: "PRIVMSG",
+          lastReceivedAt: "2026-07-04T16:00:01.000Z",
+          mechanism: "twitch-irc",
+          provider: "twitch",
+          rowCount: 4,
+          status: "healthy"
+        }],
+        generatedAt: "2026-07-05T16:00:01.000Z",
+        ok: true,
+        readOnly: true,
+        staleAfterMinutes: 10080
+      }),
+      listRecent: async (): Promise<ProviderEventIntakeAdminResult> => {
+        throw new Error("list service should not be used");
+      }
+    };
+
+    registerProviderEventIntakeAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => service
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/connections/intake/health"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      entries: [{
+        mechanism: "twitch-irc",
+        status: "healthy"
+      }],
+      ok: true,
+      readOnly: true
     });
   });
 });

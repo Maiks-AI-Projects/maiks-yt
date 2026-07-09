@@ -27,11 +27,36 @@ type ProviderEventIntakeRow = {
   receivedAt: string;
 };
 
+type ProviderIntakeHealthStatus = "healthy" | "stale" | "missing";
+
+type ProviderIntakeHealthEntry = {
+  provider: Provider;
+  mechanism: string;
+  label: string;
+  lastProviderEventName: string | null;
+  lastReceivedAt: string | null;
+  rowCount: number;
+  status: ProviderIntakeHealthStatus;
+};
+
 type IntakeResponse =
   | {
     ok: true;
     readOnly: true;
     rows: ProviderEventIntakeRow[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type IntakeHealthResponse =
+  | {
+    ok: true;
+    readOnly: true;
+    generatedAt: string;
+    staleAfterMinutes: number;
+    entries: ProviderIntakeHealthEntry[];
   }
   | {
     ok: false;
@@ -78,6 +103,7 @@ const getFailureState = (response: Response, reason?: string): LoadState => {
 
 const ProviderIntakeRecentClient = (): React.ReactNode => {
   const [filter, setFilter] = useState<Provider | "any">("any");
+  const [healthEntries, setHealthEntries] = useState<ProviderIntakeHealthEntry[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [rows, setRows] = useState<ProviderEventIntakeRow[]>([]);
 
@@ -100,12 +126,27 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
   const loadRows = useCallback(async () => {
     setLoadState("loading");
     try {
-      const response = await fetch(requestUrl, {
-        cache: "no-store",
-        credentials: "include",
-        headers: createApiHeaders()
-      });
+      const headers = createApiHeaders();
+      const [healthResponse, response] = await Promise.all([
+        fetch(`${apiBaseUrl}/admin/connections/intake/health`, {
+          cache: "no-store",
+          credentials: "include",
+          headers
+        }),
+        fetch(requestUrl, {
+          cache: "no-store",
+          credentials: "include",
+          headers
+        })
+      ]);
+      const healthPayload = await healthResponse.json() as IntakeHealthResponse;
       const payload = await response.json() as IntakeResponse;
+
+      if (!healthResponse.ok || !healthPayload.ok) {
+        setHealthEntries([]);
+      } else {
+        setHealthEntries(healthPayload.entries);
+      }
 
       if (!response.ok || !payload.ok) {
         setRows([]);
@@ -116,6 +157,7 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
       setRows([...payload.rows]);
       setLoadState("ready");
     } catch {
+      setHealthEntries([]);
       setRows([]);
       setLoadState("failed");
     }
@@ -129,8 +171,8 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
     <section className="project-admin-panel connections-intake-panel">
       <div className="project-admin-panel-heading">
         <div>
-          <h2>Recently Received Events</h2>
-          <p>Pre-routing provider intake rows. This panel is read-only.</p>
+          <h2>Provider Intake Health</h2>
+          <p>Latest received rows by intake mechanism. Quiet mechanisms are not routed anywhere automatically.</p>
         </div>
         <div className="connections-intake-controls">
           <select
@@ -148,6 +190,26 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
           </button>
         </div>
       </div>
+
+      {healthEntries.length > 0 ? (
+        <div className="connections-intake-health-grid">
+          {healthEntries.map((entry) => (
+            <article className="connections-intake-health-card" key={`${entry.provider}:${entry.mechanism}`}>
+              <div>
+                <span className={`service-dot ${entry.status === "healthy" ? "connected" : entry.status === "stale" ? "warning" : "disconnected"}`} aria-hidden="true" />
+                <strong>{entry.label}</strong>
+              </div>
+              <span>{entry.status}</span>
+              <small>
+                {entry.lastReceivedAt
+                  ? `${entry.lastProviderEventName ?? "event"} - ${formatDate(entry.lastReceivedAt)}`
+                  : "No rows captured"}
+              </small>
+              <small>{entry.rowCount} stored row{entry.rowCount === 1 ? "" : "s"}</small>
+            </article>
+          ))}
+        </div>
+      ) : null}
 
       {loadState === "loading" ? (
         <p className="form-note">Loading recent intake rows...</p>

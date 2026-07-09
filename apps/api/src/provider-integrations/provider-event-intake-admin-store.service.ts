@@ -4,7 +4,8 @@ import type {
   ProviderEventIntakeAdminActor,
   NormalizedProviderEventIntakeAdminFilters,
   ProviderEventIntakeAdminRepository,
-  ProviderEventIntakeAdminRow
+  ProviderEventIntakeAdminRow,
+  ProviderEventIntakeHealthRow
 } from "./provider-event-intake-admin.types.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
@@ -55,6 +56,17 @@ const mapRow = (row: IntakeRow): ProviderEventIntakeAdminRow => ({
   occurredAt: toIsoString(row.occurredAt),
   receivedAt: toIsoString(row.receivedAt) ?? new Date(0).toISOString(),
   redactedPayloadPreview: parsePayloadPreview(row.redactedPayloadPreview)
+});
+
+const mapHealthRow = (
+  row: Omit<ProviderEventIntakeHealthRow, "lastReceivedAt" | "rowCount"> & {
+    lastReceivedAt: Date | string | null;
+    rowCount: number | string;
+  }
+): ProviderEventIntakeHealthRow => ({
+  ...row,
+  lastReceivedAt: toIsoString(row.lastReceivedAt),
+  rowCount: Number(row.rowCount)
 });
 
 const resolveActor = async (
@@ -136,6 +148,39 @@ const buildWhere = (filters: NormalizedProviderEventIntakeAdminFilters): {
 export const createProviderEventIntakeAdminRepository = (
   pool: QueryExecutor
 ): ProviderEventIntakeAdminRepository => ({
+  async listHealthRows() {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          summary.provider,
+          summary.mechanism,
+          summary.rowCount,
+          summary.lastReceivedAt,
+          (
+            SELECT latest.provider_event_name
+            FROM provider_event_intake_logs latest
+            WHERE latest.provider = summary.provider
+              AND latest.mechanism = summary.mechanism
+            ORDER BY latest.received_at DESC, latest.id DESC
+            LIMIT 1
+          ) AS lastProviderEventName
+        FROM (
+          SELECT
+            provider,
+            mechanism,
+            COUNT(*) AS rowCount,
+            MAX(received_at) AS lastReceivedAt
+          FROM provider_event_intake_logs
+          GROUP BY provider, mechanism
+        ) summary
+        ORDER BY summary.provider, summary.mechanism
+      `
+    );
+
+    return Array.isArray(rows)
+      ? (rows as Array<Parameters<typeof mapHealthRow>[0]>).map(mapHealthRow)
+      : [];
+  },
   async listRecent(filters) {
     const where = buildWhere(filters);
     const [rows] = await pool.execute(

@@ -18,7 +18,7 @@ type ProviderEventIntakeAdminAuthSession = {
 type ProviderEventIntakeAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<ProviderEventIntakeAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<ProviderEventIntakeAdminService, "listRecent">;
+  createService?: () => Pick<ProviderEventIntakeAdminService, "getHealth" | "listRecent">;
 };
 
 const optionalBooleanQuery = z.preprocess((value) => {
@@ -88,11 +88,41 @@ export const registerProviderEventIntakeAdminRoutes = (
   server: FastifyInstance,
   dependencies: ProviderEventIntakeAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<ProviderEventIntakeAdminService, "listRecent"> =>
+  const getService = (): Pick<ProviderEventIntakeAdminService, "getHealth" | "listRecent"> =>
     dependencies.createService?.()
     ?? new ProviderEventIntakeAdminService(
       createProviderEventIntakeAdminRepository(dependencies.getDatabasePool())
     );
+
+  server.get("/admin/connections/intake/health", async (request, reply) => {
+    const session = await getSession(server, dependencies, request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "provider_event_intake_unavailable" : "not_authenticated"
+      };
+    }
+
+    try {
+      const result = await getService().getHealth({
+        authUserId: session.user.id
+      });
+
+      if (!result.ok) {
+        reply.code(403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Provider event intake health failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "provider_event_intake_unavailable"
+      };
+    }
+  });
 
   server.get("/admin/connections/intake", async (request, reply) => {
     const session = await getSession(server, dependencies, request, reply);

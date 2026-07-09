@@ -63,7 +63,31 @@ export type ProviderEventIntakeAdminRow = {
   receivedAt: string;
 };
 
+export type ProviderEventIntakeHealthStatus = "healthy" | "stale" | "missing";
+
+export type ProviderEventIntakeHealthMechanism = {
+  provider: ProviderEventPlatform;
+  mechanism: ProviderEventMechanism;
+  label: string;
+};
+
+export type ProviderEventIntakeHealthRow = {
+  provider: ProviderEventPlatform;
+  mechanism: ProviderEventMechanism;
+  lastProviderEventName: string | null;
+  lastReceivedAt: string | null;
+  rowCount: number;
+};
+
+export type ProviderEventIntakeHealthEntry = ProviderEventIntakeHealthMechanism & {
+  lastProviderEventName: string | null;
+  lastReceivedAt: string | null;
+  rowCount: number;
+  status: ProviderEventIntakeHealthStatus;
+};
+
 export type ProviderEventIntakeAdminRepository = {
+  listHealthRows(): Promise<ProviderEventIntakeHealthRow[]>;
   listRecent(filters: NormalizedProviderEventIntakeAdminFilters): Promise<ProviderEventIntakeAdminRow[]>;
   resolveActor(authUserId: string): Promise<ProviderEventIntakeAdminActor | null>;
 };
@@ -74,6 +98,19 @@ export type ProviderEventIntakeAdminResult =
     readOnly: true;
     filters: NormalizedProviderEventIntakeAdminFilters;
     rows: ProviderEventIntakeAdminRow[];
+  }
+  | {
+    ok: false;
+    reason: "provider_event_intake_user_unlinked" | "provider_event_intake_forbidden";
+  };
+
+export type ProviderEventIntakeHealthResult =
+  | {
+    ok: true;
+    readOnly: true;
+    generatedAt: string;
+    staleAfterMinutes: number;
+    entries: ProviderEventIntakeHealthEntry[];
   }
   | {
     ok: false;
