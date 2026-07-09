@@ -138,6 +138,43 @@ const currentMonthFilters = (): MoneyFilterState => {
   };
 };
 
+const entryPresets = [
+  {
+    label: "Income",
+    transactionType: "income",
+    lineKind: "gross_income",
+    direction: "in",
+    categoryKey: "manual-income"
+  },
+  {
+    label: "Spending",
+    transactionType: "cost",
+    lineKind: "cost",
+    direction: "out",
+    categoryKey: "manual-cost"
+  },
+  {
+    label: "Fee",
+    transactionType: "fee",
+    lineKind: "transaction_cost",
+    direction: "out",
+    categoryKey: "manual-fee"
+  },
+  {
+    label: "Payout",
+    transactionType: "payout",
+    lineKind: "payout",
+    direction: "out",
+    categoryKey: "manual-payout"
+  }
+] satisfies Array<{
+  label: string;
+  transactionType: MoneyTransactionType;
+  lineKind: MoneyLedgerLineKind;
+  direction: MoneyDirection;
+  categoryKey: string;
+}>;
+
 const transactionTypeLabels: Record<MoneyTransactionType, string> = {
   income: "Income",
   fee: "Fee",
@@ -377,6 +414,22 @@ const MoneyAdminClient = (): React.ReactNode => {
     captureDevAuthTokenFromUrl();
     void loadLedger();
   }, [loadLedger]);
+
+  const applyEntryPreset = (preset: typeof entryPresets[number]): void => {
+    setForm((current) => ({
+      ...current,
+      transactionType: preset.transactionType,
+      lineKind: preset.lineKind,
+      direction: preset.direction,
+      categoryKey: preset.categoryKey,
+      valueSource: "eur",
+      currency: current.currency || "EUR",
+      isEstimate: false,
+      correctsTransactionId: "",
+      correctionReason: ""
+    }));
+    setMessage(`${preset.label} preset applied.`);
+  };
 
   const createTransaction = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
@@ -814,6 +867,13 @@ const MoneyAdminClient = (): React.ReactNode => {
         <div className="project-admin-grid">
           <form className="project-admin-form" onSubmit={(event) => void createTransaction(event)}>
             <h2>Add Manual Entry</h2>
+            <div className="admin-inline-actions" aria-label="Entry presets">
+              {entryPresets.map((preset) => (
+                <button key={preset.label} type="button" className="secondary-action" onClick={() => applyEntryPreset(preset)} disabled={busy}>
+                  {preset.label}
+                </button>
+              ))}
+            </div>
             <label>
               Type
               <select
