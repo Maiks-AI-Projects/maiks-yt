@@ -140,6 +140,11 @@ const suggestionToGameForm = (suggestion: GameSuggestionSource): GameFormState =
   sortOrder: 0
 });
 
+const suggestionToGiftedGameForm = (suggestion: GameSuggestionSource): GameFormState => ({
+  ...suggestionToGameForm(suggestion),
+  ownershipStatus: "gifted"
+});
+
 const getLocalFormIssue = (form: GameFormState): string | null => {
   const title = form.title.trim();
   const slug = form.slug.trim() || createGameSlugFromTitle(title);
@@ -411,8 +416,15 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     });
   };
 
-  const createPrivateGameFromSuggestion = async (suggestion: GameSuggestionSource): Promise<void> => {
-    const draft = suggestionToGameForm(suggestion);
+  const createPrivateGameFromSuggestion = async (
+    suggestion: GameSuggestionSource,
+    options: {
+      gifted?: boolean;
+    } = {}
+  ): Promise<void> => {
+    const draft = options.gifted
+      ? suggestionToGiftedGameForm(suggestion)
+      : suggestionToGameForm(suggestion);
     const issue = getLocalFormIssue(draft);
 
     if (issue) {
@@ -420,10 +432,14 @@ const GameLibraryAdminClient = (): React.ReactNode => {
       return;
     }
 
-    const game = await runGameMutation("Creating private game from suggestion", "/admin/games", {
-      method: "POST",
-      body: toPayload(draft)
-    });
+    const game = await runGameMutation(
+      options.gifted ? "Creating private gifted game from suggestion" : "Creating private game from suggestion",
+      "/admin/games",
+      {
+        method: "POST",
+        body: toPayload(draft)
+      }
+    );
 
     if (!game) {
       return;
@@ -431,7 +447,10 @@ const GameLibraryAdminClient = (): React.ReactNode => {
 
     await reviewSuggestion(suggestion.id, "accepted", {
       linkedGameId: game.id,
-      reviewerNote: suggestionReview.reviewerNote.trim() || `Created private game from suggestion: ${suggestion.title}`
+      reviewerNote: suggestionReview.reviewerNote.trim()
+        || (options.gifted
+          ? `Created private gifted game from suggestion: ${suggestion.title}`
+          : `Created private game from suggestion: ${suggestion.title}`)
     });
   };
 
@@ -538,6 +557,9 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                         <button type="button" onClick={() => void createPrivateGameFromSuggestion(suggestion)} disabled={busyAction !== null}>
                           Create Private Game
                         </button>
+                        <button type="button" className="secondary-action" onClick={() => void createPrivateGameFromSuggestion(suggestion, { gifted: true })} disabled={busyAction !== null}>
+                          Create Gifted Game
+                        </button>
                         <button type="button" className="secondary-action" onClick={() => draftGameFromSuggestion(suggestion)} disabled={busyAction !== null}>
                           Draft Game
                         </button>
@@ -635,7 +657,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
 
             <section className="project-admin-panel project-admin-note">
               <h2>Later</h2>
-              <p>Gifted-game handling, provider/store sync, auto category updates, money behavior, and external wishlist automation stay outside this first runtime slice.</p>
+              <p>Gifted games can be marked from suggestions now. Gift giver details, key/redeem state, provider/store sync, auto category updates, money behavior, and external wishlist automation stay outside this first runtime slice.</p>
             </section>
           </section>
         </div>
