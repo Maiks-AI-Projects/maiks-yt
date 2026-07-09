@@ -249,6 +249,21 @@ const readTransaction = async (
   );
 };
 
+const getTransaction = async (
+  executor: QueryExecutor,
+  id: string
+): Promise<MoneyLedgerTransaction | null> => {
+  try {
+    return await readTransaction(executor, id);
+  } catch (error) {
+    if (error instanceof Error && error.message === "money_transaction_reread_failed") {
+      return null;
+    }
+
+    throw error;
+  }
+};
+
 export const createMoneyAdminRepository = (
   pool: DatabasePool
 ): MoneyAdminRepository => ({
@@ -292,6 +307,10 @@ export const createMoneyAdminRepository = (
     return transactions.map((transaction) =>
       mapTransaction(transaction, linesByTransaction.get(transaction.id) ?? [])
     );
+  },
+
+  async getTransaction(id) {
+    return await getTransaction(pool, id);
   },
 
   async createTransaction(input) {

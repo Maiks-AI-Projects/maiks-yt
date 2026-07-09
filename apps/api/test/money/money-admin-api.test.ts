@@ -66,6 +66,12 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     return structuredClone(this.transactions);
   }
 
+  public async getTransaction(id: string): Promise<MoneyLedgerTransaction | null> {
+    const transaction = this.transactions.find((candidate) => candidate.id === id);
+
+    return transaction ? structuredClone(transaction) : null;
+  }
+
   public async createTransaction(input: MoneyLedgerTransactionInput & {
     actorUserId: string;
   }): Promise<MoneyLedgerTransaction> {
@@ -235,6 +241,85 @@ describe("MoneyAdminService", () => {
           postingStatus: "voided"
         }
       ]
+    });
+  });
+
+  it("creates correction entries only for existing transactions", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.createTransaction({
+      authUserId: "auth-user",
+      transaction: {
+        transactionType: "correction",
+        moneyMode: "real",
+        sourceKind: "correction",
+        sourceProvider: null,
+        postingStatus: "draft",
+        occurredAt: "2026-07-09T12:00:00.000Z",
+        accountingAt: "2026-07-09T12:00:00.000Z",
+        correctsTransactionId: "transaction-1",
+        correctionReason: "Missing platform fee",
+        notesPrivate: null,
+        lines: [
+          {
+            lineKind: "correction_delta",
+            direction: "out",
+            amountMinor: 123,
+            currency: "EUR",
+            valueSource: "eur",
+            isEstimate: false,
+            categoryKey: "correction",
+            projectId: null,
+            projectItemId: null,
+            receiptReference: null,
+            notesPrivate: null
+          }
+        ]
+      }
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      transaction: {
+        transactionType: "correction",
+        correctsTransactionId: "transaction-1",
+        correctionReason: "Missing platform fee"
+      }
+    });
+
+    await expect(service.createTransaction({
+      authUserId: "auth-user",
+      transaction: {
+        transactionType: "correction",
+        moneyMode: "real",
+        sourceKind: "correction",
+        sourceProvider: null,
+        postingStatus: "draft",
+        occurredAt: "2026-07-09T12:00:00.000Z",
+        accountingAt: "2026-07-09T12:00:00.000Z",
+        correctsTransactionId: "missing",
+        correctionReason: "Missing row",
+        notesPrivate: null,
+        lines: [
+          {
+            lineKind: "correction_delta",
+            direction: "out",
+            amountMinor: 123,
+            currency: "EUR",
+            valueSource: "eur",
+            isEstimate: false,
+            categoryKey: "correction",
+            projectId: null,
+            projectItemId: null,
+            receiptReference: null,
+            notesPrivate: null
+          }
+        ]
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_not_found"
     });
   });
 

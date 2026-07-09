@@ -286,6 +286,17 @@ export class MoneyAdminService {
       };
     }
 
+    if (transaction.transactionType === "correction") {
+      const correctedTransaction = await this.repository.getTransaction(transaction.correctsTransactionId ?? "");
+
+      if (!correctedTransaction) {
+        return {
+          ok: false,
+          reason: "money_admin_not_found"
+        };
+      }
+    }
+
     return {
       ok: true,
       transaction: await this.repository.createTransaction({

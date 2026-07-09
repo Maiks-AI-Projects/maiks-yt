@@ -54,6 +54,8 @@ type MoneyFormState = {
   receiptStorageKind: MoneyReceiptStorageKind;
   receiptLabel: string;
   receiptPrivateReference: string;
+  correctsTransactionId: string;
+  correctionReason: string;
   notesPrivate: string;
 };
 
@@ -82,6 +84,8 @@ const defaultForm = (): MoneyFormState => ({
   receiptStorageKind: "external_url",
   receiptLabel: "",
   receiptPrivateReference: "",
+  correctsTransactionId: "",
+  correctionReason: "",
   notesPrivate: ""
 });
 
@@ -249,6 +253,11 @@ const MoneyAdminClient = (): React.ReactNode => {
       return;
     }
 
+    if (form.transactionType === "correction" && (!form.correctsTransactionId || !form.correctionReason.trim())) {
+      setMessage("Correction entries need a target entry and a reason.");
+      return;
+    }
+
     setBusy(true);
     setMessage("Saving private money entry...");
 
@@ -271,13 +280,13 @@ const MoneyAdminClient = (): React.ReactNode => {
         body: JSON.stringify({
           transactionType: form.transactionType,
           moneyMode: form.moneyMode,
-          sourceKind: "manual",
-          sourceProvider: "manual",
+          sourceKind: form.transactionType === "correction" ? "correction" : "manual",
+          sourceProvider: form.transactionType === "correction" ? null : "manual",
           postingStatus: form.postingStatus,
           occurredAt: toIsoFromLocalInput(form.occurredAt),
           accountingAt: toIsoFromLocalInput(form.accountingAt),
-          correctsTransactionId: null,
-          correctionReason: null,
+          correctsTransactionId: form.transactionType === "correction" ? form.correctsTransactionId : null,
+          correctionReason: form.transactionType === "correction" ? form.correctionReason.trim() : null,
           notesPrivate: form.notesPrivate.trim() || null,
           lines: [
             {
@@ -391,6 +400,28 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const startCorrection = (transaction: MoneyLedgerTransaction): void => {
+    setForm((current) => ({
+      ...current,
+      transactionType: "correction",
+      moneyMode: transaction.moneyMode,
+      postingStatus: "draft",
+      occurredAt: nowLocalInputValue(),
+      accountingAt: nowLocalInputValue(),
+      lineKind: "correction_delta",
+      direction: "out",
+      amountMajor: "",
+      currency: "EUR",
+      valueSource: "eur",
+      isEstimate: false,
+      categoryKey: "correction",
+      correctsTransactionId: transaction.id,
+      correctionReason: `Correction for ${transactionTypeLabels[transaction.transactionType]} from ${formatDate(transaction.accountingAt)}`,
+      notesPrivate: current.notesPrivate
+    }));
+    setMessage("Correction draft started. Enter the delta amount and save it.");
+  };
+
   return (
     <section className="project-admin-shell">
       <header className="project-admin-header">
@@ -421,7 +452,9 @@ const MoneyAdminClient = (): React.ReactNode => {
                 value={form.transactionType}
                 onChange={(event) => setForm((current) => ({
                   ...current,
-                  transactionType: event.target.value as MoneyTransactionType
+                  transactionType: event.target.value as MoneyTransactionType,
+                  correctsTransactionId: event.target.value === "correction" ? current.correctsTransactionId : "",
+                  correctionReason: event.target.value === "correction" ? current.correctionReason : ""
                 }))}
               >
                 {Object.entries(transactionTypeLabels).map(([value, label]) => (
@@ -526,6 +559,25 @@ const MoneyAdminClient = (): React.ReactNode => {
                 placeholder="hosting, payout, support"
               />
             </label>
+            {form.transactionType === "correction" ? (
+              <>
+                <label>
+                  Corrects entry
+                  <input value={form.correctsTransactionId} readOnly />
+                </label>
+                <label>
+                  Correction reason
+                  <textarea
+                    value={form.correctionReason}
+                    onChange={(event) => setForm((current) => ({
+                      ...current,
+                      correctionReason: event.target.value
+                    }))}
+                    rows={3}
+                  />
+                </label>
+              </>
+            ) : null}
             <label>
               Receipt type
               <select
@@ -611,9 +663,14 @@ const MoneyAdminClient = (): React.ReactNode => {
                     <span>{transaction.moneyMode} · {transaction.postingStatus} · {formatDate(transaction.accountingAt)}</span>
                   </div>
                   {transaction.postingStatus !== "voided" ? (
-                    <button type="button" onClick={() => void voidTransaction(transaction)} disabled={busy}>
-                      Void entry
-                    </button>
+                    <div className="admin-inline-actions">
+                      <button type="button" onClick={() => startCorrection(transaction)} disabled={busy}>
+                        Correct entry
+                      </button>
+                      <button type="button" onClick={() => void voidTransaction(transaction)} disabled={busy}>
+                        Void entry
+                      </button>
+                    </div>
                   ) : null}
                   {transaction.lines.map((line) => (
                     <div key={line.id}>

@@ -54,6 +54,7 @@ export type MoneyAdminExportResult =
 export interface MoneyAdminRepository {
   resolveActor(authUserId: string): Promise<MoneyAdminActor | null>;
   listTransactions(): Promise<readonly MoneyLedgerTransaction[]>;
+  getTransaction(id: string): Promise<MoneyLedgerTransaction | null>;
   recordReportExport(input: {
     reportKind: "tax_review_export";
     periodStart: string;
