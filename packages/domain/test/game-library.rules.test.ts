@@ -5,8 +5,12 @@ import {
   canManageGameLibrary,
   createGameSlugFromTitle,
   gameLibraryManageCapability,
+  isValidGameSuggestionReviewInput,
   isValidGameLibraryAdminInput,
+  isValidPublicGameSuggestionInput,
+  normalizeGameSuggestionReviewInput,
   normalizeGameSlug,
+  normalizePublicGameSuggestionInput,
   type GameLibrarySource
 } from "../src/games/index.js";
 
@@ -36,6 +40,61 @@ describe("game library permissions", () => {
     expect(canManageGameLibrary(["*"])).toBe(true);
     expect(canManageGameLibrary([gameLibraryManageCapability])).toBe(true);
     expect(canManageGameLibrary(["page-creator:manage"])).toBe(false);
+  });
+});
+
+describe("game suggestion validation", () => {
+  it("normalizes and accepts public suggestion input", () => {
+    expect(normalizePublicGameSuggestionInput({
+      title: "  Factorio  ",
+      platformLabel: " PC ",
+      reason: "  Automation classic  ",
+      tags: [" Automation ", "automation", "Factory"],
+      suggestedByName: " Viewer "
+    })).toEqual({
+      title: "Factorio",
+      platformLabel: "PC",
+      storeUrl: null,
+      reason: "Automation classic",
+      tags: ["automation", "factory"],
+      suggestedByName: "Viewer"
+    });
+    expect(isValidPublicGameSuggestionInput({
+      title: "Factorio",
+      platformLabel: "PC",
+      storeUrl: "https://example.com/factorio",
+      reason: "Automation classic",
+      tags: ["automation"],
+      suggestedByName: "Viewer"
+    })).toBe(true);
+  });
+
+  it("bounds public suggestions and owner reviews", () => {
+    expect(isValidPublicGameSuggestionInput({
+      title: "",
+      tags: []
+    })).toBe(false);
+    expect(isValidPublicGameSuggestionInput({
+      title: "Bad",
+      storeUrl: "javascript:alert(1)"
+    })).toBe(false);
+    expect(normalizeGameSuggestionReviewInput({
+      status: "accepted",
+      reviewerNote: "  Added to the list  ",
+      linkedGameId: " game-1 "
+    })).toEqual({
+      status: "accepted",
+      reviewerNote: "Added to the list",
+      linkedGameId: "game-1"
+    });
+    expect(isValidGameSuggestionReviewInput({
+      status: "accepted",
+      reviewerNote: "Added to the list",
+      linkedGameId: "game-1"
+    })).toBe(true);
+    expect(isValidGameSuggestionReviewInput({
+      status: "pending" as never
+    })).toBe(false);
   });
 });
 

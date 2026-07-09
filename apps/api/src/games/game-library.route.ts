@@ -23,6 +23,8 @@ type GameLibraryRouteDependencies = {
     | "createGame"
     | "updateGame"
     | "listPublicGames"
+    | "createSuggestion"
+    | "reviewSuggestion"
   >;
 };
 
@@ -49,6 +51,21 @@ const gameUpdatePayloadSchema = gamePayloadSchema.partial().refine(
   (value) => Object.keys(value).length > 0,
   "at_least_one_game_field_required"
 );
+
+const gameSuggestionPayloadSchema = z.object({
+  title: z.string().trim().min(1).max(191),
+  platformLabel: z.string().trim().max(120).nullable().optional(),
+  storeUrl: z.string().trim().max(1024).nullable().optional(),
+  reason: z.string().trim().max(1000).nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(8).optional(),
+  suggestedByName: z.string().trim().max(191).nullable().optional()
+}).strict();
+
+const gameSuggestionReviewPayloadSchema = z.object({
+  status: z.enum(["accepted", "maybe-later", "rejected", "duplicate", "already-played"]),
+  reviewerNote: z.string().trim().max(1000).nullable().optional(),
+  linkedGameId: z.string().trim().min(1).max(36).nullable().optional()
+}).strict();
 
 const sendAdminMutationResult = (
   result: GameLibraryAdminMutationResult,
@@ -80,6 +97,8 @@ export const registerGameLibraryRoutes = (
     | "createGame"
     | "updateGame"
     | "listPublicGames"
+    | "createSuggestion"
+    | "reviewSuggestion"
   > =>
     dependencies.createService?.()
     ?? new GameLibraryService(createGameLibraryRepository(dependencies.getDatabasePool()));
@@ -121,6 +140,53 @@ export const registerGameLibraryRoutes = (
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Game library admin list failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "game_library_admin_unavailable"
+      };
+    }
+  });
+
+  server.patch<{ Params: { id: string } }>("/admin/games/suggestions/:id", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "game_library_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = gameIdParamsSchema.safeParse(request.params);
+    const parsedBody = gameSuggestionReviewPayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "game_suggestion_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().reviewSuggestion({
+        authUserId: session.user.id,
+        suggestionId: parsedParams.data.id,
+        review: parsedBody.data
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "game_suggestion_invalid_input"
+          ? 400
+          : result.reason === "game_suggestion_not_found"
+            ? 404
+            : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Game suggestion review failed.");
       reply.code(503);
       return {
         ok: false,
@@ -206,6 +272,35 @@ export const registerGameLibraryRoutes = (
       return await getService().listPublicGames();
     } catch (error) {
       server.log.warn({ err: error }, "Game library public list failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "game_library_unavailable"
+      };
+    }
+  });
+
+  server.post("/games/suggestions", async (request, reply) => {
+    const parsedBody = gameSuggestionPayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "game_suggestion_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().createSuggestion(parsedBody.data);
+
+      if (!result.ok) {
+        reply.code(400);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Game suggestion create failed.");
       reply.code(503);
       return {
         ok: false,

@@ -5,6 +5,8 @@ import type {
   GameInterestStatus,
   GameLibrarySource,
   GameOwnershipStatus,
+  GameSuggestionSource,
+  GameSuggestionStatus,
   GameVisibility
 } from "@maiks-yt/domain/games";
 
@@ -37,6 +39,25 @@ type GameLibraryRow = {
   updatedAt: Date | string;
 };
 
+type GameSuggestionRow = {
+  id: string;
+  title: string;
+  platformLabel?: string | null;
+  storeUrl?: string | null;
+  reason?: string | null;
+  tags?: unknown;
+  suggestedByUserId?: string | null;
+  suggestedByName?: string | null;
+  status: GameSuggestionStatus;
+  linkedGameId?: string | null;
+  reviewerUserId?: string | null;
+  reviewerNote?: string | null;
+  reviewedAt?: Date | string | null;
+  isPublic?: boolean | number;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
 const toIsoString = (value: Date | string): string =>
   value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 
@@ -60,6 +81,44 @@ const mapGame = (row: GameLibraryRow): GameLibrarySource => ({
   updatedAt: toIsoString(row.updatedAt)
 });
 
+const parseTags = (value: unknown): readonly string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((tag): tag is string => typeof tag === "string");
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed)
+        ? parsed.filter((tag): tag is string => typeof tag === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+};
+
+const mapSuggestion = (row: GameSuggestionRow): GameSuggestionSource => ({
+  id: row.id,
+  title: row.title,
+  platformLabel: row.platformLabel ?? null,
+  storeUrl: row.storeUrl ?? null,
+  reason: row.reason ?? null,
+  tags: parseTags(row.tags),
+  suggestedByUserId: row.suggestedByUserId ?? null,
+  suggestedByName: row.suggestedByName ?? null,
+  status: row.status,
+  linkedGameId: row.linkedGameId ?? null,
+  reviewerUserId: row.reviewerUserId ?? null,
+  reviewerNote: row.reviewerNote ?? null,
+  reviewedAt: row.reviewedAt ? toIsoString(row.reviewedAt) : null,
+  isPublic: row.isPublic === true || row.isPublic === 1,
+  createdAt: toIsoString(row.createdAt),
+  updatedAt: toIsoString(row.updatedAt)
+});
+
 const selectGameFields = `
   id,
   slug,
@@ -76,6 +135,25 @@ const selectGameFields = `
   sort_order AS sortOrder,
   created_by_user_id AS createdByUserId,
   updated_by_user_id AS updatedByUserId,
+  created_at AS createdAt,
+  updated_at AS updatedAt
+`;
+
+const selectSuggestionFields = `
+  id,
+  title,
+  platform_label AS platformLabel,
+  store_url AS storeUrl,
+  reason,
+  tags,
+  suggested_by_user_id AS suggestedByUserId,
+  suggested_by_name AS suggestedByName,
+  status,
+  linked_game_id AS linkedGameId,
+  reviewer_user_id AS reviewerUserId,
+  reviewer_note AS reviewerNote,
+  reviewed_at AS reviewedAt,
+  is_public AS isPublic,
   created_at AS createdAt,
   updated_at AS updatedAt
 `;
@@ -271,6 +349,20 @@ export const createGameLibraryRepository = (
     return Array.isArray(rows) ? (rows as GameLibraryRow[]).map(mapGame) : [];
   },
 
+  async listSuggestions() {
+    const [rows] = await pool.execute(
+      `
+        SELECT ${selectSuggestionFields}
+        FROM game_suggestions
+        ORDER BY
+          CASE WHEN status = 'pending' THEN 0 ELSE 1 END,
+          created_at DESC
+      `
+    );
+
+    return Array.isArray(rows) ? (rows as GameSuggestionRow[]).map(mapSuggestion) : [];
+  },
+
   async getGame(id) {
     return await readGame(pool, id);
   },
@@ -329,5 +421,99 @@ export const createGameLibraryRepository = (
     );
 
     return Array.isArray(rows) ? (rows as GameLibraryRow[]).map(mapGame) : [];
+  },
+
+  async createSuggestion(input) {
+    const id = randomUUID();
+    await pool.execute(
+      `
+        INSERT INTO game_suggestions
+          (id, title, platform_label, store_url, reason, tags, suggested_by_name, status, is_public)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0)
+      `,
+      [
+        id,
+        input.title.trim(),
+        normalizedOptionalText(input.platformLabel),
+        normalizedOptionalText(input.storeUrl),
+        normalizedOptionalText(input.reason),
+        JSON.stringify(input.tags ?? []),
+        normalizedOptionalText(input.suggestedByName)
+      ]
+    );
+
+    const [rows] = await pool.execute(
+      `
+        SELECT ${selectSuggestionFields}
+        FROM game_suggestions
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error("game_suggestion_mutation_reread_failed");
+    }
+
+    return mapSuggestion(rows[0] as GameSuggestionRow);
+  },
+
+  async reviewSuggestion(id, input) {
+    if (input.linkedGameId) {
+      const [gameRows] = await pool.execute(
+        "SELECT id FROM game_library_entries WHERE id = ? LIMIT 1",
+        [input.linkedGameId]
+      );
+
+      if (!Array.isArray(gameRows) || gameRows.length === 0) {
+        return "invalid-game";
+      }
+    }
+
+    const [result] = await pool.execute(
+      `
+        UPDATE game_suggestions
+        SET
+          status = ?,
+          linked_game_id = ?,
+          reviewer_user_id = ?,
+          reviewer_note = ?,
+          reviewed_at = NOW(),
+          is_public = 0,
+          updated_at = NOW()
+        WHERE id = ?
+      `,
+      [
+        input.status,
+        input.linkedGameId ?? null,
+        input.reviewerUserId,
+        normalizedOptionalText(input.reviewerNote),
+        id
+      ]
+    );
+
+    if (typeof result === "object"
+      && result !== null
+      && "affectedRows" in result
+      && result.affectedRows === 0) {
+      return "not-found";
+    }
+
+    const [rows] = await pool.execute(
+      `
+        SELECT ${selectSuggestionFields}
+        FROM game_suggestions
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [id]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error("game_suggestion_mutation_reread_failed");
+    }
+
+    return mapSuggestion(rows[0] as GameSuggestionRow);
   }
 });

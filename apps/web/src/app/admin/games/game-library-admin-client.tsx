@@ -13,6 +13,8 @@ import type {
   GameInterestStatus,
   GameLibrarySource,
   GameOwnershipStatus,
+  GameSuggestionSource,
+  GameSuggestionStatus,
   GameVisibility
 } from "@maiks-yt/domain/games";
 
@@ -22,6 +24,7 @@ type AdminGamesResponse =
   | {
     ok: true;
     games: readonly GameLibrarySource[];
+    suggestions: readonly GameSuggestionSource[];
   }
   | {
     ok: false;
@@ -32,6 +35,16 @@ type AdminGameMutationResponse =
   | {
     ok: true;
     game: GameLibrarySource;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type AdminSuggestionMutationResponse =
+  | {
+    ok: true;
+    suggestion: GameSuggestionSource;
   }
   | {
     ok: false;
@@ -55,6 +68,11 @@ type GameFormState = {
   sortOrder: number;
 };
 
+type SuggestionReviewState = {
+  linkedGameId: string;
+  reviewerNote: string;
+};
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const defaultGameForm: GameFormState = {
@@ -70,6 +88,11 @@ const defaultGameForm: GameFormState = {
   categoryLabel: "",
   visibility: "private",
   sortOrder: 0
+};
+
+const defaultSuggestionReviewState: SuggestionReviewState = {
+  linkedGameId: "",
+  reviewerNote: ""
 };
 
 const toGameForm = (game: GameLibrarySource): GameFormState => ({
@@ -177,8 +200,10 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
 
 const GameLibraryAdminClient = (): React.ReactNode => {
   const [games, setGames] = useState<readonly GameLibrarySource[]>([]);
+  const [suggestions, setSuggestions] = useState<readonly GameSuggestionSource[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [gameForm, setGameForm] = useState<GameFormState>(defaultGameForm);
+  const [suggestionReview, setSuggestionReview] = useState<SuggestionReviewState>(defaultSuggestionReviewState);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading Game Library...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -225,6 +250,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
         const firstGame = orderedGames[0] ?? null;
 
         setGames(orderedGames);
+        setSuggestions(payload.suggestions);
         setSelectedId(firstGame?.id ?? "");
         setGameForm(firstGame ? toGameForm(firstGame) : defaultGameForm);
         setLoadState("ready");
@@ -285,6 +311,47 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     }
   };
 
+  const reviewSuggestion = async (
+    suggestionId: string,
+    status: Exclude<GameSuggestionStatus, "pending">
+  ): Promise<void> => {
+    setBusyAction(`Reviewing ${suggestionId}`);
+    setMessage("Reviewing game suggestion...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/games/suggestions/${encodeURIComponent(suggestionId)}`, {
+        method: "PATCH",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        credentials: "include",
+        body: JSON.stringify({
+          status,
+          linkedGameId: suggestionReview.linkedGameId || null,
+          reviewerNote: suggestionReview.reviewerNote.trim() || null
+        })
+      });
+      const payload = await parseJson<AdminSuggestionMutationResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setSuggestions((current) => current.map((suggestion) => (
+          suggestion.id === payload.suggestion.id ? payload.suggestion : suggestion
+        )));
+        setSuggestionReview(defaultSuggestionReviewState);
+        setMessage("Game suggestion reviewed.");
+        return;
+      }
+
+      setMessage(payload?.ok === false && payload.reason === "game_suggestion_invalid_input"
+        ? "Check the suggestion review fields."
+        : `Game suggestion review failed with ${response.status}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Game suggestion review failed.");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const selectGame = (id: string): void => {
     const game = games.find((candidate) => candidate.id === id);
 
@@ -325,6 +392,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   };
 
   const visibleGames = sortGames(games);
+  const pendingSuggestions = suggestions.filter((suggestion) => suggestion.status === "pending");
 
   return (
     <>
@@ -375,6 +443,60 @@ const GameLibraryAdminClient = (): React.ReactNode => {
           </aside>
 
           <section className="project-admin-workspace" aria-label="Game editor">
+            <section className="project-admin-panel">
+              <div className="project-admin-panel-heading">
+                <h2>Suggestions</h2>
+                <span>{pendingSuggestions.length} pending</span>
+              </div>
+              {pendingSuggestions.length === 0 ? (
+                <p>No pending game suggestions.</p>
+              ) : (
+                <div className="project-admin-selector">
+                  {pendingSuggestions.map((suggestion) => (
+                    <article className="project-admin-state" key={suggestion.id}>
+                      <h3>{suggestion.title}</h3>
+                      <p>
+                        {[suggestion.platformLabel, suggestion.suggestedByName].filter(Boolean).join(" / ") || "Viewer suggestion"}
+                      </p>
+                      {suggestion.reason ? <p>{suggestion.reason}</p> : null}
+                      {suggestion.storeUrl ? (
+                        <a href={suggestion.storeUrl} rel="noreferrer" target="_blank">
+                          Store Page
+                        </a>
+                      ) : null}
+                      {suggestion.tags.length > 0 ? <p>{suggestion.tags.join(", ")}</p> : null}
+                      <div className="project-admin-form-grid">
+                        <label>
+                          Link Existing Game
+                          <select value={suggestionReview.linkedGameId} onChange={(event) => setSuggestionReview((current) => ({ ...current, linkedGameId: event.target.value }))}>
+                            <option value="">No linked game</option>
+                            {visibleGames.map((game) => (
+                              <option key={game.id} value={game.id}>{game.title}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Review Note
+                          <input value={suggestionReview.reviewerNote} onChange={(event) => setSuggestionReview((current) => ({ ...current, reviewerNote: event.target.value }))} maxLength={1000} />
+                        </label>
+                      </div>
+                      <div className="project-admin-actions">
+                        <button type="button" onClick={() => void reviewSuggestion(suggestion.id, "accepted")} disabled={busyAction !== null}>
+                          Accept
+                        </button>
+                        <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(suggestion.id, "maybe-later")} disabled={busyAction !== null}>
+                          Maybe Later
+                        </button>
+                        <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(suggestion.id, "rejected")} disabled={busyAction !== null}>
+                          Reject
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <form className="project-admin-panel project-admin-form" onSubmit={(event) => void saveGame(event)}>
               <div className="project-admin-panel-heading">
                 <h2>{selectedGame ? "Game Details" : "Create Game"}</h2>
@@ -453,7 +575,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
 
             <section className="project-admin-panel project-admin-note">
               <h2>Later</h2>
-              <p>Public suggestions, gifted-game handling, provider/store sync, auto category updates, money behavior, and external wishlist automation stay outside this first runtime slice.</p>
+              <p>Gifted-game handling, provider/store sync, auto category updates, money behavior, and external wishlist automation stay outside this first runtime slice.</p>
             </section>
           </section>
         </div>

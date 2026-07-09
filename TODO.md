@@ -263,6 +263,7 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
   - 2026-07-09 generated and dev-applied `0024_overjoyed_wrecker.sql` for game library persistence: owner-curated game records, private/reviewed suggestions, and links from games to existing stream schedule entries. Runtime admin/public pages, public suggestions, gifted-game handling, provider/store sync, money behavior, and scheduling provider sync remain separate scopes.
   - 2026-07-10 added first runtime Game Library slice: owner-gated `/admin/games`, public read-only `/games`, public `GET /games`, admin dashboard link, and recurring smoke coverage. Public suggestions, gifted-game handling, provider/store sync, money behavior, and schedule-link UI remain separate scopes.
   - 2026-07-10 added schedule-to-game linking runtime on dev: owner-gated `/admin/schedule/:id/games`, a single-game focus editor in `/admin/schedule`, public `/schedule` game focus rendering for public linked games only, and no new migration/provider sync/money behavior.
+  - 2026-07-10 added public game suggestion intake and owner review locally for deployment: `POST /games/suggestions` creates private pending suggestions, `/admin/games` lists pending suggestions, and owner review can accept/maybe/reject without public suggestion feeds, gifted-game handling, provider/store sync, or money behavior.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.
 

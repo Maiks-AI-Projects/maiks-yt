@@ -2,11 +2,14 @@ import {
   gameInterestStatuses,
   gameLibraryManageCapability,
   gameOwnershipStatuses,
+  gameSuggestionStatuses,
   gameVisibilities,
   type GameLibraryAdminInput,
   type GameLibraryCapability,
   type GameLibrarySource,
+  type GameSuggestionReviewInput,
   type GameSlugValidationResult,
+  type PublicGameSuggestionInput,
   type PublicGameLibraryEntry
 } from "./game-library.types.js";
 
@@ -18,6 +21,11 @@ export const gameStoreUrlMaxLength = 1024;
 export const gameStreamFitNoteMaxLength = 500;
 export const gameCategoryLabelMaxLength = 120;
 export const gameContentWarningsMaxLength = 2000;
+export const gameSuggestionReasonMaxLength = 1000;
+export const gameSuggestionNameMaxLength = 191;
+export const gameSuggestionReviewerNoteMaxLength = 1000;
+export const gameSuggestionMaxTags = 8;
+export const gameSuggestionTagMaxLength = 40;
 export const gameSortOrderMin = -10_000;
 export const gameSortOrderMax = 10_000;
 
@@ -94,6 +102,15 @@ const isValidOptionalUrl = (value: unknown): boolean => {
   }
 };
 
+const normalizeOptionalText = (value: string | null | undefined): string | null =>
+  value?.trim() || null;
+
+const normalizeSuggestionTags = (tags: readonly string[] | undefined): readonly string[] =>
+  [...new Set((tags ?? [])
+    .map((tag) => tag.trim().toLowerCase())
+    .filter((tag) => tag.length > 0))]
+    .slice(0, gameSuggestionMaxTags);
+
 const isValidSortOrder = (value: unknown): boolean =>
   value === undefined
   || (typeof value === "number" && Number.isInteger(value) && value >= gameSortOrderMin && value <= gameSortOrderMax);
@@ -114,6 +131,46 @@ export const isValidGameLibraryAdminInput = (input: GameLibraryAdminInput): bool
     && gameVisibilities.includes(input.visibility)
     && isValidSortOrder(input.sortOrder);
 };
+
+export const normalizePublicGameSuggestionInput = (
+  input: PublicGameSuggestionInput
+): PublicGameSuggestionInput => ({
+  title: input.title.trim(),
+  platformLabel: normalizeOptionalText(input.platformLabel),
+  storeUrl: normalizeOptionalText(input.storeUrl),
+  reason: normalizeOptionalText(input.reason),
+  tags: normalizeSuggestionTags(input.tags),
+  suggestedByName: normalizeOptionalText(input.suggestedByName)
+});
+
+export const isValidPublicGameSuggestionInput = (
+  input: PublicGameSuggestionInput
+): boolean =>
+  isValidRequiredText(input.title, gameTitleMaxLength)
+  && isValidOptionalText(input.platformLabel, gamePlatformLabelMaxLength)
+  && isValidOptionalUrl(input.storeUrl)
+  && isValidOptionalText(input.reason, gameSuggestionReasonMaxLength)
+  && isValidOptionalText(input.suggestedByName, gameSuggestionNameMaxLength)
+  && (input.tags ?? []).length <= gameSuggestionMaxTags
+  && (input.tags ?? []).every((tag) => tag.trim().length > 0 && tag.trim().length <= gameSuggestionTagMaxLength);
+
+export const normalizeGameSuggestionReviewInput = (
+  input: GameSuggestionReviewInput
+): GameSuggestionReviewInput => ({
+  status: input.status,
+  reviewerNote: normalizeOptionalText(input.reviewerNote),
+  linkedGameId: normalizeOptionalText(input.linkedGameId)
+});
+
+export const isValidGameSuggestionReviewInput = (
+  input: GameSuggestionReviewInput
+): boolean =>
+  gameSuggestionStatuses.includes(input.status)
+  && (input.status as string) !== "pending"
+  && isValidOptionalText(input.reviewerNote, gameSuggestionReviewerNoteMaxLength)
+  && (input.linkedGameId === undefined
+    || input.linkedGameId === null
+    || (typeof input.linkedGameId === "string" && input.linkedGameId.trim().length > 0 && input.linkedGameId.trim().length <= 36));
 
 export const buildPublicGameLibraryEntry = (entry: GameLibrarySource): PublicGameLibraryEntry | null => {
   if (entry.visibility !== "public") {

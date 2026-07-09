@@ -3,9 +3,15 @@ import {
   canManageGameLibrary,
   createGameSlugFromTitle,
   isValidGameLibraryAdminInput,
+  isValidGameSuggestionReviewInput,
+  isValidPublicGameSuggestionInput,
+  normalizeGameSuggestionReviewInput,
   normalizeGameSlug,
+  normalizePublicGameSuggestionInput,
   type GameLibraryAdminInput,
-  type GameLibraryAdminUpdateInput
+  type GameLibraryAdminUpdateInput,
+  type GameSuggestionReviewInput,
+  type PublicGameSuggestionInput
 } from "@maiks-yt/domain/games";
 
 import type {
@@ -14,6 +20,8 @@ import type {
   GameLibraryAdminMutationResult,
   GameLibraryRepository,
   GameLibraryUpdateInput,
+  GameSuggestionReviewResult,
+  PublicGameSuggestionCreateResult,
   PublicGameLibraryListResult
 } from "./game-library.types.js";
 
@@ -111,7 +119,8 @@ export class GameLibraryService {
 
     return {
       ok: true,
-      games: await this.repository.listGames()
+      games: await this.repository.listGames(),
+      suggestions: await this.repository.listSuggestions()
     };
   }
 
@@ -245,6 +254,63 @@ export class GameLibraryService {
         .map(buildPublicGameLibraryEntry)
         .filter((game): game is NonNullable<typeof game> => game !== null)
     };
+  }
+
+  public async createSuggestion(input: PublicGameSuggestionInput): Promise<PublicGameSuggestionCreateResult> {
+    const suggestion = normalizePublicGameSuggestionInput(input);
+
+    if (!isValidPublicGameSuggestionInput(suggestion)) {
+      return {
+        ok: false,
+        reason: "game_suggestion_invalid_input"
+      };
+    }
+
+    return {
+      ok: true,
+      suggestion: await this.repository.createSuggestion(suggestion)
+    };
+  }
+
+  public async reviewSuggestion(input: {
+    authUserId: string;
+    suggestionId: string;
+    review: GameSuggestionReviewInput;
+  }): Promise<GameSuggestionReviewResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const review = normalizeGameSuggestionReviewInput(input.review);
+
+    if (!isValidGameSuggestionReviewInput(review)) {
+      return {
+        ok: false,
+        reason: "game_suggestion_invalid_input"
+      };
+    }
+
+    const result = await this.repository.reviewSuggestion(input.suggestionId, {
+      ...review,
+      reviewerUserId: actor.domainUserId
+    });
+
+    return result === "not-found"
+      ? {
+        ok: false,
+        reason: "game_suggestion_not_found"
+      }
+      : result === "invalid-game"
+        ? {
+          ok: false,
+          reason: "game_suggestion_invalid_input"
+        }
+        : {
+          ok: true,
+          suggestion: result
+        };
   }
 
   private async requireActor(authUserId: string): Promise<{

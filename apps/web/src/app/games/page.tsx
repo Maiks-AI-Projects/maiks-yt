@@ -1,5 +1,7 @@
 import type { PublicGameLibraryEntry } from "@maiks-yt/domain/games";
 
+import GameSuggestionForm from "./game-suggestion-form";
+
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -87,6 +89,8 @@ const GamesPage = async (): Promise<React.ReactNode> => {
             ))}
           </section>
         )}
+
+        <GameSuggestionForm />
       </article>
     </main>
   );

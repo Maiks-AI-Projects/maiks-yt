@@ -6,6 +6,8 @@ export type GameInterestStatus = typeof gameInterestStatuses[number];
 
 export const gameVisibilities = ["private", "public"] as const;
 export type GameVisibility = typeof gameVisibilities[number];
+export const gameSuggestionStatuses = ["pending", "accepted", "maybe-later", "rejected", "duplicate", "already-played"] as const;
+export type GameSuggestionStatus = typeof gameSuggestionStatuses[number];
 
 export const gameLibraryManageCapability = "game-library:manage" as const;
 
@@ -61,6 +63,40 @@ export type PublicGameLibraryEntry = {
   contentWarnings: string | null;
   categoryLabel: string | null;
   updatedAt: string;
+};
+
+export type GameSuggestionSource = {
+  id: string;
+  title: string;
+  platformLabel: string | null;
+  storeUrl: string | null;
+  reason: string | null;
+  tags: readonly string[];
+  suggestedByUserId: string | null;
+  suggestedByName: string | null;
+  status: GameSuggestionStatus;
+  linkedGameId: string | null;
+  reviewerUserId: string | null;
+  reviewerNote: string | null;
+  reviewedAt: string | null;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PublicGameSuggestionInput = {
+  title: string;
+  platformLabel?: string | null | undefined;
+  storeUrl?: string | null | undefined;
+  reason?: string | null | undefined;
+  tags?: readonly string[] | undefined;
+  suggestedByName?: string | null | undefined;
+};
+
+export type GameSuggestionReviewInput = {
+  status: Exclude<GameSuggestionStatus, "pending">;
+  reviewerNote?: string | null | undefined;
+  linkedGameId?: string | null | undefined;
 };
 
 export type GameSlugValidationResult =

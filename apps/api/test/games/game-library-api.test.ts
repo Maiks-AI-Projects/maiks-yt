@@ -1,4 +1,9 @@
-import type { GameLibrarySource } from "@maiks-yt/domain/games";
+import type {
+  GameLibrarySource,
+  GameSuggestionReviewInput,
+  GameSuggestionSource,
+  PublicGameSuggestionInput
+} from "@maiks-yt/domain/games";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -35,12 +40,36 @@ const createGame = (
   ...overrides
 });
 
+const createSuggestion = (
+  id: string,
+  overrides: Partial<GameSuggestionSource> = {}
+): GameSuggestionSource => ({
+  id,
+  title: `Suggestion ${id}`,
+  platformLabel: "PC",
+  storeUrl: "https://example.com/suggested-game",
+  reason: "Looks good for stream.",
+  tags: ["automation"],
+  suggestedByUserId: null,
+  suggestedByName: "Viewer",
+  status: "pending",
+  linkedGameId: null,
+  reviewerUserId: null,
+  reviewerNote: null,
+  reviewedAt: null,
+  isPublic: false,
+  createdAt: "2026-07-09T20:00:00.000Z",
+  updatedAt: "2026-07-09T20:00:00.000Z",
+  ...overrides
+});
+
 class FakeGameLibraryRepository implements GameLibraryRepository {
   public actor: GameLibraryAdminActor | null = {
     domainUserId: "domain-user",
     rolePermissionValues: [["*"]]
   };
   public readonly games = new Map<string, GameLibrarySource>();
+  public readonly suggestions = new Map<string, GameSuggestionSource>();
 
   public async resolveActor(): Promise<GameLibraryAdminActor | null> {
     return this.actor ? structuredClone(this.actor) : null;
@@ -48,6 +77,10 @@ class FakeGameLibraryRepository implements GameLibraryRepository {
 
   public async listGames(): Promise<readonly GameLibrarySource[]> {
     return [...this.games.values()].map((game) => structuredClone(game));
+  }
+
+  public async listSuggestions(): Promise<readonly GameSuggestionSource[]> {
+    return [...this.suggestions.values()].map((suggestion) => structuredClone(suggestion));
   }
 
   public async getGame(id: string): Promise<GameLibrarySource | null> {
@@ -125,6 +158,45 @@ class FakeGameLibraryRepository implements GameLibraryRepository {
       .filter((game) => game.visibility === "public")
       .map((game) => structuredClone(game));
   }
+
+  public async createSuggestion(input: PublicGameSuggestionInput): Promise<GameSuggestionSource> {
+    const suggestion = createSuggestion(`suggestion-${this.suggestions.size + 1}`, {
+      title: input.title,
+      platformLabel: input.platformLabel ?? null,
+      storeUrl: input.storeUrl ?? null,
+      reason: input.reason ?? null,
+      tags: input.tags ?? [],
+      suggestedByName: input.suggestedByName ?? null
+    });
+    this.suggestions.set(suggestion.id, suggestion);
+    return structuredClone(suggestion);
+  }
+
+  public async reviewSuggestion(id: string, input: GameSuggestionReviewInput & {
+    reviewerUserId: string;
+  }): Promise<GameSuggestionSource | "not-found" | "invalid-game"> {
+    const suggestion = this.suggestions.get(id);
+
+    if (!suggestion) {
+      return "not-found";
+    }
+
+    if (input.linkedGameId && !this.games.has(input.linkedGameId)) {
+      return "invalid-game";
+    }
+
+    const next = {
+      ...suggestion,
+      status: input.status,
+      linkedGameId: input.linkedGameId ?? null,
+      reviewerUserId: input.reviewerUserId,
+      reviewerNote: input.reviewerNote ?? null,
+      reviewedAt: "2026-07-09T21:00:00.000Z",
+      updatedAt: "2026-07-09T21:00:00.000Z"
+    } satisfies GameSuggestionSource;
+    this.suggestions.set(id, next);
+    return structuredClone(next);
+  }
 }
 
 describe("GameLibraryService", () => {
@@ -133,7 +205,8 @@ describe("GameLibraryService", () => {
     const service = new GameLibraryService(repository);
 
     await expect(service.listGames({ authUserId: "auth-user" })).resolves.toMatchObject({
-      ok: true
+      ok: true,
+      suggestions: []
     });
 
     repository.actor = {
@@ -154,6 +227,58 @@ describe("GameLibraryService", () => {
       game: {
         slug: "satisfactory",
         visibility: "public"
+      }
+    });
+  });
+
+  it("accepts public game suggestions as private pending records", async () => {
+    const repository = new FakeGameLibraryRepository();
+    const service = new GameLibraryService(repository);
+
+    await expect(service.createSuggestion({
+      title: "Factorio",
+      platformLabel: "PC",
+      reason: "Automation classic.",
+      tags: ["automation"],
+      suggestedByName: "Viewer"
+    })).resolves.toMatchObject({
+      ok: true,
+      suggestion: {
+        title: "Factorio",
+        status: "pending",
+        isPublic: false
+      }
+    });
+
+    await expect(service.createSuggestion({
+      title: "",
+      tags: []
+    })).resolves.toEqual({
+      ok: false,
+      reason: "game_suggestion_invalid_input"
+    });
+  });
+
+  it("allows owners to review suggestions", async () => {
+    const repository = new FakeGameLibraryRepository();
+    repository.suggestions.set("suggestion-1", createSuggestion("suggestion-1"));
+    repository.games.set("game-1", createGame("game-1"));
+    const service = new GameLibraryService(repository);
+
+    await expect(service.reviewSuggestion({
+      authUserId: "auth-user",
+      suggestionId: "suggestion-1",
+      review: {
+        status: "accepted",
+        reviewerNote: "Added to library.",
+        linkedGameId: "game-1"
+      }
+    })).resolves.toMatchObject({
+      ok: true,
+      suggestion: {
+        status: "accepted",
+        linkedGameId: "game-1",
+        reviewerUserId: "domain-user"
       }
     });
   });
@@ -289,6 +414,7 @@ describe("game library routes", () => {
         }
       ]
     });
+    await server.close();
   });
 
   it("maps create and update responses", async () => {
@@ -333,5 +459,82 @@ describe("game library routes", () => {
         sortOrder: 5
       }
     });
+    await server.close();
+  });
+
+  it("accepts public suggestions and protects suggestion review", async () => {
+    const repository = new FakeGameLibraryRepository();
+    repository.games.set("game-1", createGame("game-1"));
+    const service = new GameLibraryService(repository);
+    const publicServer = Fastify();
+
+    registerGameLibraryRoutes(publicServer, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("not used");
+      },
+      createService: () => service
+    });
+
+    const suggestionResponse = await publicServer.inject({
+      method: "POST",
+      url: "/games/suggestions",
+      payload: {
+        title: "Factorio",
+        platformLabel: "PC",
+        reason: "Automation classic.",
+        tags: ["automation"],
+        suggestedByName: "Viewer"
+      }
+    });
+    expect(suggestionResponse.statusCode).toBe(200);
+    expect(suggestionResponse.json()).toMatchObject({
+      ok: true,
+      suggestion: {
+        title: "Factorio",
+        status: "pending",
+        isPublic: false
+      }
+    });
+    const suggestionId = suggestionResponse.json<{ suggestion: GameSuggestionSource }>().suggestion.id;
+
+    const unauthenticatedReviewResponse = await publicServer.inject({
+      method: "PATCH",
+      url: `/admin/games/suggestions/${suggestionId}`,
+      payload: {
+        status: "accepted"
+      }
+    });
+    expect(unauthenticatedReviewResponse.statusCode).toBe(401);
+    await publicServer.close();
+
+    const adminServer = Fastify();
+    registerGameLibraryRoutes(adminServer, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("not used");
+      },
+      createService: () => service
+    });
+
+    const reviewResponse = await adminServer.inject({
+      method: "PATCH",
+      url: `/admin/games/suggestions/${suggestionId}`,
+      payload: {
+        status: "accepted",
+        reviewerNote: "Added to the list.",
+        linkedGameId: "game-1"
+      }
+    });
+    expect(reviewResponse.statusCode).toBe(200);
+    expect(reviewResponse.json()).toMatchObject({
+      ok: true,
+      suggestion: {
+        status: "accepted",
+        linkedGameId: "game-1",
+        reviewerUserId: "domain-user"
+      }
+    });
+    await adminServer.close();
   });
 });
