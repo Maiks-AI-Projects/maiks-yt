@@ -1,12 +1,17 @@
 import {
   canManageStreamSchedule,
   isValidStreamScheduleCancellationInput,
+  isValidStreamScheduleGameLinkInputs,
   isValidStreamScheduleInput,
   isValidStreamScheduleUpdateInput,
+  normalizeStreamScheduleGameLinkInputs,
   normalizeStreamScheduleInput,
   normalizeStreamScheduleUpdateInput
 } from "@maiks-yt/domain/schedule";
-import type { StreamScheduleInput } from "@maiks-yt/domain/schedule";
+import type {
+  StreamScheduleGameLinkInput,
+  StreamScheduleInput
+} from "@maiks-yt/domain/schedule";
 
 import type {
   StreamScheduleAdminListResult,
@@ -68,7 +73,8 @@ export class StreamScheduleService {
     return {
       ok: true,
       streams: await this.repository.listAdminStreams(),
-      projectOptions: await this.repository.listProjectOptions()
+      projectOptions: await this.repository.listProjectOptions(),
+      gameOptions: await this.repository.listGameOptions()
     };
   }
 
@@ -184,6 +190,48 @@ export class StreamScheduleService {
         ok: true,
         stream: result
       };
+  }
+
+  public async replaceStreamGameLinks(input: {
+    authUserId: string;
+    id: string;
+    links: readonly StreamScheduleGameLinkInput[];
+  }): Promise<StreamScheduleMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const links = normalizeStreamScheduleGameLinkInputs(input.links);
+
+    if (!isValidStreamScheduleGameLinkInputs(links)) {
+      return {
+        ok: false,
+        reason: "stream_schedule_invalid_input"
+      };
+    }
+
+    const result = await this.repository.replaceGameLinks({
+      streamId: input.id,
+      links,
+      actorUserId: actor.domainUserId
+    });
+
+    return result === "not-found"
+      ? {
+        ok: false,
+        reason: "stream_schedule_not_found"
+      }
+      : result === "invalid-game"
+        ? {
+          ok: false,
+          reason: "stream_schedule_invalid_input"
+        }
+        : {
+          ok: true,
+          stream: result
+        };
   }
 
   private async requireActor(authUserId: string): Promise<{

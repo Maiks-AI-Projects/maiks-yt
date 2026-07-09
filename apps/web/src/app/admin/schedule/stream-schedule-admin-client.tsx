@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   StreamScheduleCancellationReasonCode,
   StreamScheduleEntry,
+  StreamScheduleGameOption,
   StreamScheduleProjectOption,
   StreamScheduleStatus,
   StreamScheduleVisibility
@@ -21,6 +22,7 @@ type AdminScheduleResponse =
     ok: true;
     streams: readonly StreamScheduleEntry[];
     projectOptions: readonly StreamScheduleProjectOption[];
+    gameOptions: readonly StreamScheduleGameOption[];
   }
   | {
     ok: false;
@@ -59,6 +61,11 @@ type CancellationFormState = {
   cancellationReason: string;
 };
 
+type GameLinkFormState = {
+  gameId: string;
+  publicNote: string;
+};
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const visibilities = ["draft", "public", "private"] satisfies StreamScheduleVisibility[];
@@ -92,6 +99,11 @@ const defaultCancellationForm: CancellationFormState = {
   cancellationReason: ""
 };
 
+const defaultGameLinkForm: GameLinkFormState = {
+  gameId: "",
+  publicNote: ""
+};
+
 const toDateTimeLocal = (value: string | null): string => {
   if (!value) {
     return "";
@@ -119,6 +131,15 @@ const toScheduleForm = (stream: StreamScheduleEntry): ScheduleFormState => ({
   visibility: stream.visibility,
   status: stream.status
 });
+
+const toGameLinkForm = (stream: StreamScheduleEntry): GameLinkFormState => {
+  const firstLink = stream.gameLinks[0] ?? null;
+
+  return {
+    gameId: firstLink?.gameId ?? "",
+    publicNote: firstLink?.publicNote ?? ""
+  };
+};
 
 const getFailureMessage = (response: Response, reason?: string): string => {
   if (response.status === 401 || reason === "not_authenticated") {
@@ -155,9 +176,11 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
 const StreamScheduleAdminClient = (): React.ReactNode => {
   const [streams, setStreams] = useState<readonly StreamScheduleEntry[]>([]);
   const [projectOptions, setProjectOptions] = useState<readonly StreamScheduleProjectOption[]>([]);
+  const [gameOptions, setGameOptions] = useState<readonly StreamScheduleGameOption[]>([]);
   const [selectedStreamId, setSelectedStreamId] = useState<string>("");
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(defaultScheduleForm);
   const [cancellationForm, setCancellationForm] = useState<CancellationFormState>(defaultCancellationForm);
+  const [gameLinkForm, setGameLinkForm] = useState<GameLinkFormState>(defaultGameLinkForm);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading stream schedule admin...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -178,6 +201,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     });
     setSelectedStreamId(stream.id);
     setScheduleForm(toScheduleForm(stream));
+    setGameLinkForm(toGameLinkForm(stream));
     setCancellationForm({
       cancellationReasonCode: stream.cancellationReasonCode ?? "energy",
       cancellationReason: stream.cancellationReason ?? ""
@@ -206,9 +230,11 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       if (response.ok && payload?.ok) {
         setStreams(payload.streams);
         setProjectOptions(payload.projectOptions);
+        setGameOptions(payload.gameOptions);
         const firstStream = payload.streams[0] ?? null;
         setSelectedStreamId(firstStream?.id ?? "");
         setScheduleForm(firstStream ? toScheduleForm(firstStream) : defaultScheduleForm);
+        setGameLinkForm(firstStream ? toGameLinkForm(firstStream) : defaultGameLinkForm);
         setCancellationForm(firstStream ? {
           cancellationReasonCode: firstStream.cancellationReasonCode ?? "energy",
           cancellationReason: firstStream.cancellationReason ?? ""
@@ -236,7 +262,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     label: string,
     path: string,
     options: {
-      method: "POST" | "PATCH";
+      method: "POST" | "PATCH" | "PUT";
       body: Record<string, unknown>;
     }
   ): Promise<StreamScheduleEntry | null> => {
@@ -279,6 +305,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     setSelectedStreamId(streamId);
     if (stream) {
       setScheduleForm(toScheduleForm(stream));
+      setGameLinkForm(toGameLinkForm(stream));
       setCancellationForm({
         cancellationReasonCode: stream.cancellationReasonCode ?? "energy",
         cancellationReason: stream.cancellationReason ?? ""
@@ -336,6 +363,31 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     });
   };
 
+  const saveGameLink = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    if (!selectedStream) {
+      setMessage("Choose a scheduled stream before linking a game.");
+      return;
+    }
+
+    await runMutation("Saving game focus", `/admin/schedule/${encodeURIComponent(selectedStream.id)}/games`, {
+      method: "PUT",
+      body: {
+        links: gameLinkForm.gameId
+          ? [
+            {
+              gameId: gameLinkForm.gameId,
+              relationship: "planned",
+              publicNote: gameLinkForm.publicNote.trim() || null,
+              sortOrder: 0
+            }
+          ]
+          : []
+      }
+    });
+  };
+
   return (
     <>
       <header className="project-admin-header">
@@ -365,6 +417,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
                 setSelectedStreamId("");
                 setScheduleForm(defaultScheduleForm);
                 setCancellationForm(defaultCancellationForm);
+                setGameLinkForm(defaultGameLinkForm);
               }}>
                 New
               </button>
@@ -479,6 +532,34 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
             </form>
 
             {selectedStream ? (
+              <form className="project-admin-panel project-admin-form schedule-admin-form" onSubmit={(event) => void saveGameLink(event)}>
+                <div className="project-admin-panel-heading">
+                  <h2>Game Focus</h2>
+                  <button type="submit" disabled={busyAction !== null}>
+                    {busyAction === "Saving game focus" ? "Saving..." : "Save Game"}
+                  </button>
+                </div>
+                <div className="project-admin-form-grid">
+                  <label>
+                    Game
+                    <select value={gameLinkForm.gameId} onChange={(event) => setGameLinkForm((current) => ({ ...current, gameId: event.target.value }))}>
+                      <option value="">No linked game</option>
+                      {gameOptions.map((game) => (
+                        <option key={game.id} value={game.id}>
+                          {game.title}{game.platformLabel ? ` / ${game.platformLabel}` : ""}{game.visibility === "private" ? " (private)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Public Game Note
+                    <textarea value={gameLinkForm.publicNote} onChange={(event) => setGameLinkForm((current) => ({ ...current, publicNote: event.target.value }))} maxLength={280} rows={2} />
+                  </label>
+                </div>
+              </form>
+            ) : null}
+
+            {selectedStream ? (
               <form className="project-admin-panel project-admin-form schedule-cancel-form" onSubmit={(event) => void cancelStream(event)}>
                 <div className="project-admin-panel-heading">
                   <h2>Cancellation</h2>
@@ -512,6 +593,9 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
                   ) : null}
                   {selectedStream.focusProject ? (
                     <p>Stream focus: {selectedStream.focusLabel || selectedStream.focusProject.title}</p>
+                  ) : null}
+                  {selectedStream.gameLinks.length > 0 ? (
+                    <p>Game focus: {selectedStream.gameLinks.map((game) => game.title).join(", ")}</p>
                   ) : null}
                 </div>
               ) : (

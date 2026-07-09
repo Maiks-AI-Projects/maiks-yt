@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   canManageStreamSchedule,
   isValidStreamScheduleCancellationInput,
+  isValidStreamScheduleGameLinkInputs,
   isValidStreamScheduleInput,
   isValidStreamScheduleUpdateInput,
+  normalizeStreamScheduleGameLinkInputs,
   normalizeStreamScheduleInput,
   type StreamScheduleInput
 } from "../src/schedule/index.js";
@@ -97,6 +99,48 @@ describe("stream schedule rules", () => {
       title: "Updated stream title"
     })).toBe(true);
     expect(isValidStreamScheduleUpdateInput({})).toBe(false);
+  });
+
+  it("normalizes and bounds stream game links", () => {
+    expect(normalizeStreamScheduleGameLinkInputs([
+      {
+        gameId: " game-1 ",
+        relationship: "planned",
+        publicNote: "  Fresh run  "
+      }
+    ])).toEqual([
+      {
+        gameId: "game-1",
+        relationship: "planned",
+        publicNote: "Fresh run",
+        sortOrder: 0
+      }
+    ]);
+    expect(isValidStreamScheduleGameLinkInputs([
+      {
+        gameId: "game-1",
+        relationship: "planned",
+        publicNote: "Fresh run",
+        sortOrder: 0
+      }
+    ])).toBe(true);
+    expect(isValidStreamScheduleGameLinkInputs([
+      {
+        gameId: "game-1",
+        relationship: "planned"
+      },
+      {
+        gameId: "game-1",
+        relationship: "current"
+      }
+    ])).toBe(false);
+    expect(isValidStreamScheduleGameLinkInputs([
+      {
+        gameId: "game-1",
+        relationship: "planned",
+        publicNote: "x".repeat(281)
+      }
+    ])).toBe(false);
   });
 
   it("allows owner wildcard and schedule-specific permissions", () => {

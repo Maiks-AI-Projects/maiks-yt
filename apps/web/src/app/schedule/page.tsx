@@ -57,6 +57,17 @@ const SchedulePage = async (): Promise<React.ReactNode> => {
                   {stream.focusNote ? <span>{stream.focusNote}</span> : null}
                 </div>
               ) : null}
+              {stream.gameLinks.length > 0 ? (
+                <div className="schedule-focus">
+                  <strong>Game focus</strong>
+                  {stream.gameLinks.map((game) => (
+                    <span key={game.id}>
+                      {game.title}{game.platformLabel ? ` / ${game.platformLabel}` : ""}
+                      {game.publicNote ? ` - ${game.publicNote}` : ""}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               {stream.status === "cancelled" ? (
                 <div className="schedule-cancellation" role="status">
                   <strong>Cancelled</strong>

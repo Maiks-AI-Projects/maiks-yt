@@ -21,6 +21,7 @@ type StreamScheduleRouteDependencies = {
     | "createStream"
     | "updateStream"
     | "cancelStream"
+    | "replaceStreamGameLinks"
   >;
 };
 
@@ -55,6 +56,15 @@ const cancellationPayloadSchema = z.object({
   cancellationReason: z.string().trim().min(1).max(500)
 }).strict();
 
+const gameLinksPayloadSchema = z.object({
+  links: z.array(z.object({
+    gameId: z.string().trim().min(1).max(36),
+    relationship: z.enum(["planned", "current", "played", "completed-showcase"]),
+    publicNote: z.string().trim().max(280).nullable().optional(),
+    sortOrder: z.number().int().min(-10_000).max(10_000).optional()
+  }).strict()).max(12)
+}).strict();
+
 const sendMutationResult = (
   result: StreamScheduleMutationResult,
   reply: FastifyReply
@@ -84,6 +94,7 @@ export const registerStreamScheduleRoutes = (
     | "createStream"
     | "updateStream"
     | "cancelStream"
+    | "replaceStreamGameLinks"
   > =>
     dependencies.createService?.()
     ?? new StreamScheduleService(createStreamScheduleRepository(dependencies.getDatabasePool()));
@@ -246,6 +257,43 @@ export const registerStreamScheduleRoutes = (
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Stream schedule cancellation failed.");
+      reply.code(503);
+      return {
+        ok: false,
+      reason: "stream_schedule_unavailable"
+      };
+    }
+  });
+
+  server.put<{ Params: { id: string } }>("/admin/schedule/:id/games", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "stream_schedule_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = streamIdParamsSchema.safeParse(request.params);
+    const parsedBody = gameLinksPayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "stream_schedule_invalid_input"
+      };
+    }
+
+    try {
+      return sendMutationResult(await getService().replaceStreamGameLinks({
+        authUserId: session.user.id,
+        id: parsedParams.data.id,
+        links: parsedBody.data.links
+      }), reply);
+    } catch (error) {
+      server.log.warn({ err: error }, "Stream schedule game link update failed.");
       reply.code(503);
       return {
         ok: false,

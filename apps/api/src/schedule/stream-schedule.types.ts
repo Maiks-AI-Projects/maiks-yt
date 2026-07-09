@@ -1,6 +1,8 @@
 import type {
   StreamScheduleCancellationInput,
   StreamScheduleEntry,
+  StreamScheduleGameLinkInput,
+  StreamScheduleGameOption,
   StreamScheduleInput,
   StreamScheduleProjectOption,
   StreamScheduleUpdateInput
@@ -21,6 +23,7 @@ export type StreamScheduleAdminListResult =
     ok: true;
     streams: readonly StreamScheduleEntry[];
     projectOptions: readonly StreamScheduleProjectOption[];
+    gameOptions: readonly StreamScheduleGameOption[];
   }
   | {
     ok: false;
@@ -47,7 +50,13 @@ export interface StreamScheduleRepository {
   listPublicStreams(input: { now: Date }): Promise<readonly StreamScheduleEntry[]>;
   listAdminStreams(): Promise<readonly StreamScheduleEntry[]>;
   listProjectOptions(): Promise<readonly StreamScheduleProjectOption[]>;
+  listGameOptions(): Promise<readonly StreamScheduleGameOption[]>;
   createStream(input: StreamScheduleInput & { actorUserId: string }): Promise<StreamScheduleEntry>;
   updateStream(id: string, input: StreamScheduleUpdateInput): Promise<StreamScheduleEntry | "not-found">;
   cancelStream(id: string, input: StreamScheduleCancellationInput): Promise<StreamScheduleEntry | "not-found">;
+  replaceGameLinks(input: {
+    streamId: string;
+    links: readonly StreamScheduleGameLinkInput[];
+    actorUserId: string;
+  }): Promise<StreamScheduleEntry | "not-found" | "invalid-game">;
 }

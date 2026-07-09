@@ -1,3 +1,8 @@
+import type {
+  GameInterestStatus,
+  GameOwnershipStatus
+} from "../games/game-library.types.js";
+
 export const streamScheduleVisibilities = ["draft", "public", "private"] as const;
 export const streamScheduleStatuses = ["planned", "live", "completed", "cancelled"] as const;
 export const streamScheduleCancellationReasonCodes = [
@@ -8,10 +13,12 @@ export const streamScheduleCancellationReasonCodes = [
   "schedule-conflict",
   "other"
 ] as const;
+export const streamScheduleGameLinkRelationships = ["planned", "current", "played", "completed-showcase"] as const;
 
 export type StreamScheduleVisibility = typeof streamScheduleVisibilities[number];
 export type StreamScheduleStatus = typeof streamScheduleStatuses[number];
 export type StreamScheduleCancellationReasonCode = typeof streamScheduleCancellationReasonCodes[number];
+export type StreamScheduleGameLinkRelationship = typeof streamScheduleGameLinkRelationships[number];
 
 export type StreamScheduleEntry = {
   id: string;
@@ -26,6 +33,7 @@ export type StreamScheduleEntry = {
   focusLabel: string | null;
   focusNote: string | null;
   focusProject: StreamScheduleFocusProject | null;
+  gameLinks: readonly StreamScheduleGameLink[];
   visibility: StreamScheduleVisibility;
   status: StreamScheduleStatus;
   cancellationReasonCode: StreamScheduleCancellationReasonCode | null;
@@ -41,6 +49,36 @@ export type StreamScheduleFocusProject = {
 };
 
 export type StreamScheduleProjectOption = StreamScheduleFocusProject;
+
+export type StreamScheduleGameLink = {
+  id: string;
+  gameId: string;
+  slug: string;
+  title: string;
+  platformLabel: string | null;
+  ownershipStatus: GameOwnershipStatus;
+  interestStatus: GameInterestStatus;
+  relationship: StreamScheduleGameLinkRelationship;
+  publicNote: string | null;
+  sortOrder: number;
+};
+
+export type StreamScheduleGameOption = {
+  id: string;
+  slug: string;
+  title: string;
+  platformLabel: string | null;
+  ownershipStatus: GameOwnershipStatus;
+  interestStatus: GameInterestStatus;
+  visibility: "private" | "public";
+};
+
+export type StreamScheduleGameLinkInput = {
+  gameId: string;
+  relationship: StreamScheduleGameLinkRelationship;
+  publicNote?: string | null | undefined;
+  sortOrder?: number | undefined;
+};
 
 export type StreamScheduleInput = {
   title: string;

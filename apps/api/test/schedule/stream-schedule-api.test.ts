@@ -1,6 +1,7 @@
 import type {
   StreamScheduleCancellationInput,
   StreamScheduleEntry,
+  StreamScheduleGameLinkInput,
   StreamScheduleInput,
   StreamScheduleUpdateInput
 } from "@maiks-yt/domain/schedule";
@@ -27,6 +28,7 @@ const createStream = (overrides: Partial<StreamScheduleEntry> = {}): StreamSched
   focusLabel: null,
   focusNote: null,
   focusProject: null,
+  gameLinks: [],
   visibility: "public",
   status: "planned",
   cancellationReasonCode: null,
@@ -63,6 +65,7 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
   public lastCreated: (StreamScheduleInput & { actorUserId: string }) | null = null;
   public lastUpdated: StreamScheduleUpdateInput | null = null;
   public lastCancellation: StreamScheduleCancellationInput | null = null;
+  public lastGameLinks: readonly StreamScheduleGameLinkInput[] | null = null;
 
   public constructor() {
     this.streams.set("stream-1", createStream());
@@ -96,6 +99,29 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
         id: "project-1",
         slug: "maiks-yt-v2",
         title: "Maiks.yt V2"
+      }
+    ];
+  }
+
+  public async listGameOptions() {
+    return [
+      {
+        id: "game-1",
+        slug: "satisfactory",
+        title: "Satisfactory",
+        platformLabel: "PC",
+        ownershipStatus: "owned" as const,
+        interestStatus: "currently-playing" as const,
+        visibility: "public" as const
+      },
+      {
+        id: "private-game",
+        slug: "private-game",
+        title: "Private Game",
+        platformLabel: null,
+        ownershipStatus: "unknown" as const,
+        interestStatus: "interested" as const,
+        visibility: "private" as const
       }
     ];
   }
@@ -134,6 +160,40 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
       cancellationReasonCode: input.cancellationReasonCode,
       cancellationReason: input.cancellationReason
     });
+  }
+
+  public async replaceGameLinks(input: {
+    streamId: string;
+    links: readonly StreamScheduleGameLinkInput[];
+  }) {
+    const existing = this.streams.get(input.streamId);
+
+    if (!existing) {
+      return "not-found" as const;
+    }
+
+    if (input.links.some((link) => link.gameId === "missing-game")) {
+      return "invalid-game" as const;
+    }
+
+    this.lastGameLinks = structuredClone(input.links);
+    const stream = {
+      ...existing,
+      gameLinks: input.links.map((link, index) => ({
+        id: `game-link-${index}`,
+        gameId: link.gameId,
+        slug: link.gameId === "private-game" ? "private-game" : "satisfactory",
+        title: link.gameId === "private-game" ? "Private Game" : "Satisfactory",
+        platformLabel: link.gameId === "private-game" ? null : "PC",
+        ownershipStatus: link.gameId === "private-game" ? "unknown" as const : "owned" as const,
+        interestStatus: link.gameId === "private-game" ? "interested" as const : "currently-playing" as const,
+        relationship: link.relationship,
+        publicNote: link.publicNote ?? null,
+        sortOrder: link.sortOrder ?? index
+      }))
+    };
+    this.streams.set(input.streamId, stream);
+    return structuredClone(stream);
   }
 }
 
@@ -174,7 +234,8 @@ describe("StreamScheduleService", () => {
       domainUserId: "domain-user",
       rolePermissionValues: [JSON.stringify(["schedule:manage"])]
     };
-    await expect(service.listAdminStreams({ authUserId: "auth-user" })).resolves.toMatchObject({
+    const adminResult = await service.listAdminStreams({ authUserId: "auth-user" });
+    expect(adminResult).toMatchObject({
       ok: true,
       projectOptions: [
         {
@@ -183,6 +244,47 @@ describe("StreamScheduleService", () => {
         }
       ]
     });
+    expect(adminResult.ok ? adminResult.gameOptions : []).toContainEqual(expect.objectContaining({
+      id: "game-1",
+      slug: "satisfactory"
+    }));
+  });
+
+  it("replaces stream game links through an owner-gated mutation", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const service = new StreamScheduleService(repository);
+
+    await expect(service.replaceStreamGameLinks({
+      authUserId: "auth-user",
+      id: "stream-1",
+      links: [
+        {
+          gameId: " game-1 ",
+          relationship: "planned",
+          publicNote: "  Factory prep  "
+        }
+      ]
+    })).resolves.toMatchObject({
+      ok: true,
+      stream: {
+        id: "stream-1",
+        gameLinks: [
+          {
+            gameId: "game-1",
+            title: "Satisfactory",
+            publicNote: "Factory prep"
+          }
+        ]
+      }
+    });
+    expect(repository.lastGameLinks).toEqual([
+      {
+        gameId: "game-1",
+        relationship: "planned",
+        publicNote: "Factory prep",
+        sortOrder: 0
+      }
+    ]);
   });
 
   it("stores and clears manual stream focus fields through admin mutations", async () => {
@@ -406,6 +508,47 @@ describe("stream schedule route boundary", () => {
     expect(missingResponse.json()).toEqual({
       ok: false,
       reason: "stream_schedule_not_found"
+    });
+    await server.close();
+  });
+
+  it("updates schedule game links through the admin route", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const server = Fastify();
+    registerStreamScheduleRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new StreamScheduleService(repository)
+    });
+
+    const response = await server.inject({
+      method: "PUT",
+      url: "/admin/schedule/stream-1/games",
+      payload: {
+        links: [
+          {
+            gameId: "game-1",
+            relationship: "planned",
+            publicNote: "Factory prep"
+          }
+        ]
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      stream: {
+        gameLinks: [
+          {
+            gameId: "game-1",
+            slug: "satisfactory",
+            publicNote: "Factory prep"
+          }
+        ]
+      }
     });
     await server.close();
   });

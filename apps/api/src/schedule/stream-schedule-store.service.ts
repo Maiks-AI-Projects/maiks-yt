@@ -5,6 +5,9 @@ import type {
   StreamScheduleCancellationInput,
   StreamScheduleCancellationReasonCode,
   StreamScheduleEntry,
+  StreamScheduleGameLink,
+  StreamScheduleGameLinkRelationship,
+  StreamScheduleGameOption,
   StreamScheduleProjectOption,
   StreamScheduleInput,
   StreamScheduleStatus,
@@ -43,7 +46,26 @@ type StreamScheduleRow = {
   updatedAt: Date;
 };
 
-const mapStream = (row: StreamScheduleRow): StreamScheduleEntry => ({
+type StreamScheduleGameLinkRow = {
+  id: string;
+  gameId: string;
+  scheduleEntryId: string;
+  slug: string;
+  title: string;
+  platformLabel?: string | null;
+  ownershipStatus: StreamScheduleGameLink["ownershipStatus"];
+  interestStatus: StreamScheduleGameLink["interestStatus"];
+  relationship: StreamScheduleGameLinkRelationship;
+  publicNote?: string | null;
+  sortOrder: number;
+};
+
+type StreamScheduleGameOptionRow = StreamScheduleGameOption;
+
+const mapStream = (
+  row: StreamScheduleRow,
+  gameLinks: readonly StreamScheduleGameLink[] = []
+): StreamScheduleEntry => ({
   id: row.id,
   title: row.title,
   description: row.description ?? null,
@@ -62,12 +84,26 @@ const mapStream = (row: StreamScheduleRow): StreamScheduleEntry => ({
       title: row.focusProjectTitle
     }
     : null,
+  gameLinks,
   visibility: row.visibility,
   status: row.status,
   cancellationReasonCode: row.cancellationReasonCode ?? null,
   cancellationReason: row.cancellationReason ?? null,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString()
+});
+
+const mapGameLink = (row: StreamScheduleGameLinkRow): StreamScheduleGameLink => ({
+  id: row.id,
+  gameId: row.gameId,
+  slug: row.slug,
+  title: row.title,
+  platformLabel: row.platformLabel ?? null,
+  ownershipStatus: row.ownershipStatus,
+  interestStatus: row.interestStatus,
+  relationship: row.relationship,
+  publicNote: row.publicNote ?? null,
+  sortOrder: row.sortOrder
 });
 
 const selectStreamFields = `
@@ -127,9 +163,76 @@ const readStream = async (
     [id]
   );
 
-  return Array.isArray(rows) && rows.length > 0
-    ? mapStream(rows[0] as StreamScheduleRow)
-    : null;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return null;
+  }
+
+  const linksByStreamId = await readGameLinksForStreams(executor, [id], false);
+  return mapStream(rows[0] as StreamScheduleRow, linksByStreamId.get(id) ?? []);
+};
+
+const readGameLinksForStreams = async (
+  executor: QueryExecutor,
+  streamIds: readonly string[],
+  publicOnly: boolean
+): Promise<Map<string, StreamScheduleGameLink[]>> => {
+  const uniqueStreamIds = [...new Set(streamIds)].filter((id) => id.length > 0);
+  const linksByStreamId = new Map<string, StreamScheduleGameLink[]>();
+
+  if (uniqueStreamIds.length === 0) {
+    return linksByStreamId;
+  }
+
+  const placeholders = uniqueStreamIds.map(() => "?").join(", ");
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        game_schedule_links.id,
+        game_schedule_links.game_id AS gameId,
+        game_schedule_links.schedule_entry_id AS scheduleEntryId,
+        game_library_entries.slug,
+        game_library_entries.title,
+        game_library_entries.platform_label AS platformLabel,
+        game_library_entries.ownership_status AS ownershipStatus,
+        game_library_entries.interest_status AS interestStatus,
+        game_schedule_links.relationship,
+        game_schedule_links.public_note AS publicNote,
+        game_schedule_links.sort_order AS sortOrder
+      FROM game_schedule_links
+      INNER JOIN game_library_entries
+        ON game_library_entries.id = game_schedule_links.game_id
+        ${publicOnly ? "AND game_library_entries.visibility = 'public'" : ""}
+      WHERE game_schedule_links.schedule_entry_id IN (${placeholders})
+      ORDER BY game_schedule_links.sort_order, game_library_entries.title
+    `,
+    uniqueStreamIds
+  );
+
+  if (!Array.isArray(rows)) {
+    return linksByStreamId;
+  }
+
+  for (const row of rows as StreamScheduleGameLinkRow[]) {
+    const currentLinks = linksByStreamId.get(row.scheduleEntryId) ?? [];
+    currentLinks.push(mapGameLink(row));
+    linksByStreamId.set(row.scheduleEntryId, currentLinks);
+  }
+
+  return linksByStreamId;
+};
+
+const mapStreamsWithGameLinks = async (
+  executor: QueryExecutor,
+  rows: readonly StreamScheduleRow[],
+  publicOnly: boolean
+): Promise<StreamScheduleEntry[]> => {
+  const linksByStreamId = await readGameLinksForStreams(
+    executor,
+    rows.map((row) => row.id),
+    publicOnly
+  );
+
+  return rows.map((row) => mapStream(row, linksByStreamId.get(row.id) ?? []));
 };
 
 const resolveActor = async (
@@ -247,7 +350,7 @@ export const createStreamScheduleRepository = (
     );
 
     return Array.isArray(rows)
-      ? (rows as StreamScheduleRow[]).map(mapStream)
+      ? await mapStreamsWithGameLinks(pool, rows as StreamScheduleRow[], true)
       : [];
   },
 
@@ -261,7 +364,7 @@ export const createStreamScheduleRepository = (
     );
 
     return Array.isArray(rows)
-      ? (rows as StreamScheduleRow[]).map(mapStream)
+      ? await mapStreamsWithGameLinks(pool, rows as StreamScheduleRow[], false)
       : [];
   },
 
@@ -278,6 +381,27 @@ export const createStreamScheduleRepository = (
 
     return Array.isArray(rows)
       ? (rows as StreamScheduleProjectOption[])
+      : [];
+  },
+
+  async listGameOptions() {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          id,
+          slug,
+          title,
+          platform_label AS platformLabel,
+          ownership_status AS ownershipStatus,
+          interest_status AS interestStatus,
+          visibility
+        FROM game_library_entries
+        ORDER BY sort_order, title
+      `
+    );
+
+    return Array.isArray(rows)
+      ? (rows as StreamScheduleGameOptionRow[])
       : [];
   },
 
@@ -334,5 +458,62 @@ export const createStreamScheduleRepository = (
       cancellationReasonCode: input.cancellationReasonCode,
       cancellationReason: input.cancellationReason
     });
+  },
+
+  async replaceGameLinks(input) {
+    const stream = await readStream(pool, input.streamId);
+
+    if (!stream) {
+      return "not-found";
+    }
+
+    if (input.links.length > 0) {
+      const uniqueGameIds = [...new Set(input.links.map((link) => link.gameId))];
+      const placeholders = uniqueGameIds.map(() => "?").join(", ");
+      const [rows] = await pool.execute(
+        `
+          SELECT id
+          FROM game_library_entries
+          WHERE id IN (${placeholders})
+        `,
+        uniqueGameIds
+      );
+
+      if (!Array.isArray(rows) || rows.length !== uniqueGameIds.length) {
+        return "invalid-game";
+      }
+    }
+
+    await pool.execute(
+      "DELETE FROM game_schedule_links WHERE schedule_entry_id = ?",
+      [input.streamId]
+    );
+
+    for (const link of input.links) {
+      await pool.execute(
+        `
+          INSERT INTO game_schedule_links
+            (id, game_id, schedule_entry_id, relationship, public_note, sort_order, created_by_user_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          randomUUID(),
+          link.gameId,
+          input.streamId,
+          link.relationship,
+          link.publicNote ?? null,
+          link.sortOrder ?? 0,
+          input.actorUserId
+        ]
+      );
+    }
+
+    const updatedStream = await readStream(pool, input.streamId);
+
+    if (!updatedStream) {
+      throw new Error("stream_schedule_game_links_reread_failed");
+    }
+
+    return updatedStream;
   }
 });

@@ -1,10 +1,12 @@
 import type {
   StreamScheduleCancellationInput,
+  StreamScheduleGameLinkInput,
   StreamScheduleInput,
   StreamScheduleUpdateInput
 } from "./stream-schedule.types.js";
 import {
   streamScheduleCancellationReasonCodes,
+  streamScheduleGameLinkRelationships,
   streamScheduleStatuses,
   streamScheduleVisibilities
 } from "./stream-schedule.types.js";
@@ -15,6 +17,10 @@ export const streamScheduleKeyMaxLength = 80;
 export const streamScheduleCancellationReasonMaxLength = 500;
 export const streamScheduleFocusLabelMaxLength = 120;
 export const streamScheduleFocusNoteMaxLength = 280;
+export const streamScheduleGamePublicNoteMaxLength = 280;
+export const streamScheduleGameLinkSortOrderMin = -10_000;
+export const streamScheduleGameLinkSortOrderMax = 10_000;
+export const streamScheduleGameLinkMaxCount = 12;
 
 const streamScheduleKeyPattern = /^[a-z0-9][a-z0-9-]{0,79}$/;
 
@@ -42,6 +48,16 @@ const isValidOptionalProjectId = (value: unknown): boolean =>
   value === undefined
   || value === null
   || (typeof value === "string" && value.trim().length > 0 && value.trim().length <= 36);
+
+const isValidGameId = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0 && value.trim().length <= 36;
+
+const isValidGameSortOrder = (value: unknown): boolean =>
+  value === undefined
+  || (typeof value === "number"
+    && Number.isInteger(value)
+    && value >= streamScheduleGameLinkSortOrderMin
+    && value <= streamScheduleGameLinkSortOrderMax);
 
 const isValidWindow = (startsAt: string, endsAt?: string | null): boolean =>
   !endsAt || Date.parse(endsAt) > Date.parse(startsAt);
@@ -101,6 +117,30 @@ export const isValidStreamScheduleCancellationInput = (
   streamScheduleCancellationReasonCodes.includes(input.cancellationReasonCode)
   && isValidRequiredText(input.cancellationReason, streamScheduleCancellationReasonMaxLength);
 
+export const isValidStreamScheduleGameLinkInputs = (
+  inputs: readonly StreamScheduleGameLinkInput[]
+): boolean => {
+  if (inputs.length > streamScheduleGameLinkMaxCount) {
+    return false;
+  }
+
+  const gameIds = new Set<string>();
+
+  return inputs.every((input) => {
+    const gameId = input.gameId.trim();
+
+    if (!isValidGameId(input.gameId) || gameIds.has(gameId)) {
+      return false;
+    }
+
+    gameIds.add(gameId);
+
+    return streamScheduleGameLinkRelationships.includes(input.relationship)
+      && isValidOptionalText(input.publicNote, streamScheduleGamePublicNoteMaxLength)
+      && isValidGameSortOrder(input.sortOrder);
+  });
+};
+
 export const canManageStreamSchedule = (capabilities: readonly unknown[]): boolean =>
   capabilities.some((capability) => capability === "*" || capability === "schedule:manage");
 
@@ -132,3 +172,13 @@ export const normalizeStreamScheduleUpdateInput = (
   ...(input.focusNote === undefined ? {} : { focusNote: input.focusNote?.trim() || null }),
   ...(input.cancellationReason === undefined ? {} : { cancellationReason: input.cancellationReason?.trim() || null })
 });
+
+export const normalizeStreamScheduleGameLinkInputs = (
+  inputs: readonly StreamScheduleGameLinkInput[]
+): StreamScheduleGameLinkInput[] =>
+  inputs.map((input, index) => ({
+    gameId: input.gameId.trim(),
+    relationship: input.relationship,
+    publicNote: input.publicNote?.trim() || null,
+    sortOrder: input.sortOrder ?? index
+  }));
