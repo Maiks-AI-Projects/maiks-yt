@@ -20,6 +20,16 @@ Measured on 2026-07-03:
 
 The first two are the most urgent because they mix unrelated domains and are touched by many future chunks.
 
+Updated snapshot on 2026-07-09 after several behavior-preserving splits:
+
+- `apps/web/src/app/admin/provider-integrations/provider-integrations-status-client.tsx`: 1,382 lines
+- `scripts/dev-smoke-notify.mjs`: 635 lines
+- `apps/api/src/main.ts`: 447 lines
+- `apps/control-panel/src/main.tsx`: 216 lines
+- `apps/web/src/app/admin/connections/provider-intake-recent-client.tsx`: 257 lines
+
+The original API and control-panel hotspots have improved enough that the next practical split targets are now the provider integrations admin client and the dev smoke script. `apps/api/src/main.ts` should still stay small by moving any new route/runtime logic into domain folders instead of rebuilding the old central file.
+
 ## Principles
 
 - Split by runtime ownership, not by generic "utils" buckets.
@@ -119,6 +129,8 @@ Suggested approach:
 
 Move streamer chat message history, live WebSocket snapshot/broadcast, Twitch/Discord record functions, and token-gated chat status/reconnect endpoints out of `apps/api/src/main.ts`.
 
+Status: completed by later refactor work. Keep `apps/api/src/main.ts` small and do not add new runtime domains back into it.
+
 Checks:
 
 - `pnpm --filter @maiks-yt/api test -- provider-integrations fake-local-moderation`
@@ -157,6 +169,25 @@ Checks:
 
 - `pnpm --filter @maiks-yt/web typecheck`
 - `pnpm --filter @maiks-yt/web build`
+- `node scripts/check-architecture.mjs`
+- `git diff --check`
+
+### Chunk R5: Dev Smoke Script Split
+
+Move `scripts/dev-smoke-notify.mjs` into a small entrypoint plus focused modules under `scripts/dev-smoke/`.
+
+Suggested extraction:
+
+- `config.mjs`: defaults, CLI parsing, URL helpers.
+- `http.mjs`: timeout fetch, JSON/text readers, injection-marker scan.
+- `checks.mjs`: public health/page checks plus owner-gated provider health and YouTube activities heartbeat.
+- `notifications.mjs`: failure/recovery notification posting.
+- `state.mjs`: duplicate signature and recovery state file handling.
+
+Checks:
+
+- `node scripts/dev-smoke-notify.mjs --dry-run --fail-on-smoke-failure --state-file /tmp/maiks-smoke-split-test.json`
+- `pnpm check:review`
 - `node scripts/check-architecture.mjs`
 - `git diff --check`
 
