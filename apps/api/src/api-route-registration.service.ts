@@ -19,6 +19,7 @@ import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
+import { registerMoneyAdminRoutes } from "./money/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
 import { registerOverlayRoutes } from "./overlay/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
@@ -160,6 +161,10 @@ export const registerApplicationRoutes = ({
     getDatabasePool
   });
   registerModeratorAdminRoutes(server, {
+    getAuthSession,
+    getDatabasePool
+  });
+  registerMoneyAdminRoutes(server, {
     getAuthSession,
     getDatabasePool
   });
