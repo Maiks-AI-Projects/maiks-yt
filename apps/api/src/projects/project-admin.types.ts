@@ -55,6 +55,8 @@ export type ProjectAdminItemInput = {
   kind: ProjectItemKind;
   status: ProjectItemStatus;
   quantity: number;
+  estimatedMinorAmount?: number | null | undefined;
+  currencyCode?: string | null | undefined;
   sortOrder: number;
 };
 
@@ -65,6 +67,8 @@ export type ProjectAdminItemUpdateInput = {
   kind?: ProjectItemKind | undefined;
   status?: ProjectItemStatus | undefined;
   quantity?: number | undefined;
+  estimatedMinorAmount?: number | null | undefined;
+  currencyCode?: string | null | undefined;
   sortOrder?: number | undefined;
 };
 

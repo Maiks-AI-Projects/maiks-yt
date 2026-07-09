@@ -45,6 +45,8 @@ type ItemRow = {
   kind: ProjectItemKind;
   status: ProjectItemStatus;
   quantity: number;
+  estimatedMinorAmount?: number | null;
+  currencyCode?: string | null;
   sortOrder: number;
 };
 
@@ -97,6 +99,8 @@ const mapItem = (row: ItemRow): ProjectReadItemSource => ({
   kind: row.kind,
   status: row.status,
   quantity: row.quantity,
+  estimatedMinorAmount: row.estimatedMinorAmount ?? null,
+  currencyCode: row.currencyCode ?? null,
   sortOrder: row.sortOrder
 });
 
@@ -189,6 +193,8 @@ const loadItemsByProjectId = async (
         kind,
         status,
         quantity,
+        estimated_minor_amount AS estimatedMinorAmount,
+        currency_code AS currencyCode,
         sort_order AS sortOrder
       FROM project_items
       WHERE project_id IN (${projectIds.map(() => "?").join(", ")})

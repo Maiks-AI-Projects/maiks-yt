@@ -10,6 +10,7 @@ import type {
 import { formatProjectLabel } from "../../projects/project-read-data";
 import {
   defaultUpdateForm,
+  formatProjectEstimate,
   itemKinds,
   itemStatuses,
   milestoneStatuses,
@@ -211,6 +212,9 @@ export const ItemsPanel = ({
               <div>
                 <strong>{item.title}</strong>
                 <span>{formatProjectLabel(item.kind)} / {formatProjectLabel(item.status)} / Qty {item.quantity} / Order {item.sortOrder}</span>
+                {formatProjectEstimate(item.estimatedMinorAmount, item.currencyCode) ? (
+                  <p>Estimate: {formatProjectEstimate(item.estimatedMinorAmount, item.currencyCode)}</p>
+                ) : null}
                 {item.description ? <p>{item.description}</p> : null}
               </div>
               <select value={item.status} onChange={(event) => void updateItemStatus(item.id, event.target.value as ProjectItemStatus)} disabled={busyAction !== null}>
@@ -233,6 +237,8 @@ export const ItemsPanel = ({
         {itemParentOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
       </select>
       <input type="number" min={1} value={itemForm.quantity} onChange={(event) => setItemForm((current) => ({ ...current, quantity: event.target.valueAsNumber || 1 }))} aria-label="Item quantity" />
+      <input inputMode="decimal" value={itemForm.estimatedAmountMajor} onChange={(event) => setItemForm((current) => ({ ...current, estimatedAmountMajor: event.target.value }))} placeholder="Estimate 12.34" aria-label="Item price estimate" />
+      <input value={itemForm.currencyCode} onChange={(event) => setItemForm((current) => ({ ...current, currencyCode: event.target.value.toUpperCase().slice(0, 3) }))} maxLength={3} aria-label="Estimate currency" />
       <input type="number" min={0} value={itemForm.sortOrder} onChange={(event) => setItemForm((current) => ({ ...current, sortOrder: event.target.valueAsNumber || 0 }))} aria-label="Item sort order" />
       <textarea value={itemForm.description} onChange={(event) => setItemForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" maxLength={2000} rows={2} />
       <button type="submit" disabled={busyAction !== null}>Add Item</button>

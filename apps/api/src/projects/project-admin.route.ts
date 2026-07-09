@@ -101,6 +101,8 @@ const itemPayloadSchema = z.object({
   kind: z.enum(["product", "service", "subscription", "task", "wishlist", "other"]),
   status: z.enum(["planned", "active", "acquired", "completed", "removed"]),
   quantity: z.number().int().min(1).max(10_000),
+  estimatedMinorAmount: z.number().int().min(0).max(2_147_483_647).nullable().optional(),
+  currencyCode: z.string().trim().regex(/^[A-Z]{3}$/).nullable().optional(),
   sortOrder: z.number().int().min(0)
 }).strict();
 

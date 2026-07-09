@@ -29,6 +29,7 @@ import {
   flattenItemOptions,
   getFailureMessage,
   getLoadStateForFailure,
+  parseProjectEstimateMinor,
   toAdminUpdatePayload,
   toUpdateForm,
   type AdminProjectsResponse,
@@ -265,12 +266,32 @@ const ProjectAdminClient = (): React.ReactNode => {
       return;
     }
 
+    const estimatedMinorAmount = parseProjectEstimateMinor(itemForm.estimatedAmountMajor);
+
+    if (Number.isNaN(estimatedMinorAmount)) {
+      setMessage("Use a valid item estimate with up to two decimals.");
+      return;
+    }
+
+    const currencyCode = itemForm.currencyCode.trim().toUpperCase();
+
+    if (estimatedMinorAmount !== null && !/^[A-Z]{3}$/.test(currencyCode)) {
+      setMessage("Use a three-letter currency code for item estimates.");
+      return;
+    }
+
     const updated = await runMutation("Creating item", `/admin/projects/${encodeURIComponent(selectedProject.id)}/items`, {
       method: "POST",
       body: {
-        ...itemForm,
         parentItemId: itemForm.parentItemId || null,
-        description: itemForm.description.trim() || null
+        title: itemForm.title,
+        description: itemForm.description.trim() || null,
+        kind: itemForm.kind,
+        status: itemForm.status,
+        quantity: itemForm.quantity,
+        estimatedMinorAmount,
+        currencyCode: estimatedMinorAmount === null ? null : currencyCode,
+        sortOrder: itemForm.sortOrder
       }
     });
 

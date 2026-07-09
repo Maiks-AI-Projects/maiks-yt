@@ -47,6 +47,8 @@ export type ItemFormState = {
   kind: ProjectItemKind;
   status: ProjectItemStatus;
   quantity: number;
+  estimatedAmountMajor: string;
+  currencyCode: string;
   sortOrder: number;
 };
 
@@ -115,6 +117,8 @@ export const defaultItemForm: ItemFormState = {
   kind: "task",
   status: "planned",
   quantity: 1,
+  estimatedAmountMajor: "",
+  currencyCode: "EUR",
   sortOrder: 1
 };
 
@@ -197,6 +201,34 @@ export const toAdminUpdatePayload = (updateForm: UpdateFormState): Record<string
   sortOrder: updateForm.sortOrder
 });
 
+export const parseProjectEstimateMinor = (value: string): number | null => {
+  const normalized = value.trim().replace(",", ".");
+
+  if (normalized.length === 0) {
+    return null;
+  }
+
+  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) {
+    return Number.NaN;
+  }
+
+  return Math.round(Number.parseFloat(normalized) * 100);
+};
+
+export const formatProjectEstimate = (
+  estimatedMinorAmount: number | null | undefined,
+  currencyCode: string | null | undefined
+): string | null => {
+  if (estimatedMinorAmount === undefined || estimatedMinorAmount === null || !currencyCode) {
+    return null;
+  }
+
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: currencyCode
+  }).format(estimatedMinorAmount / 100);
+};
+
 export const getProjectPublicHref = (project: ProjectReadModelSource): string =>
   `/projects/${encodeURIComponent(project.slug)}`;
 
@@ -213,4 +245,3 @@ export const flattenItemOptions = (
       id: item.id,
       label: item.parentItemId ? `${item.title} (${item.parentItemId})` : item.title
     }));
-

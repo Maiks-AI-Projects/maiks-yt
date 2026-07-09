@@ -342,19 +342,23 @@ describe("ProjectAdminService", () => {
       projectId: "project",
       item: {
         title: "Manual task",
-        description: "No provider, estimate, donation, or funding fields.",
+        description: "Manual product estimate without provider sync or funding fields.",
         kind: "task",
         status: "planned",
         quantity: 1,
+        estimatedMinorAmount: 1299,
+        currencyCode: "EUR",
         sortOrder: 1
       }
     })).resolves.toMatchObject({ ok: true });
     expect(repository.lastCreatedItem).toEqual({
       title: "Manual task",
-      description: "No provider, estimate, donation, or funding fields.",
+      description: "Manual product estimate without provider sync or funding fields.",
       kind: "task",
       status: "planned",
       quantity: 1,
+      estimatedMinorAmount: 1299,
+      currencyCode: "EUR",
       sortOrder: 1
     });
 

@@ -85,6 +85,8 @@ describe("project public read models", () => {
           kind: "task",
           status: "active",
           quantity: 1,
+          estimatedMinorAmount: 12345,
+          currencyCode: "EUR",
           sortOrder: 2
         },
         {
@@ -107,6 +109,8 @@ describe("project public read models", () => {
     expect(detail?.nextMilestone?.id).toBe("active");
     expect(detail?.items).toHaveLength(1);
     expect(detail?.items[0]?.id).toBe("parent");
+    expect(detail?.items[0]?.estimatedMinorAmount).toBe(12345);
+    expect(detail?.items[0]?.currencyCode).toBe("EUR");
     expect(detail?.items[0]?.children[0]?.id).toBe("child");
     expect(detail?.itemCount).toBe(2);
   });

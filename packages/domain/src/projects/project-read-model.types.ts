@@ -22,6 +22,8 @@ export type ProjectReadItemSource = {
   kind: ProjectItemKind;
   status: ProjectItemStatus;
   quantity: number;
+  estimatedMinorAmount?: number | null;
+  currencyCode?: string | null;
   sortOrder: number;
 };
 
@@ -65,6 +67,8 @@ export type PublicProjectItem = {
   kind: ProjectItemKind;
   status: Exclude<ProjectItemStatus, "removed">;
   quantity: number;
+  estimatedMinorAmount?: number;
+  currencyCode?: string;
   description?: string;
   children: readonly PublicProjectItem[];
 };

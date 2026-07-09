@@ -14,8 +14,10 @@ export const projectAdminSummaryMaxLength = 2_000;
 export const projectAdminDescriptionMaxLength = 2_000;
 export const projectAdminUpdateSummaryMaxLength = 280;
 export const projectAdminUpdateBodyMaxLength = 10_000;
+export const projectAdminEstimateMinorAmountMax = 2_147_483_647;
 
 const projectSlugPattern = /^[a-z0-9][a-z0-9-]{0,190}$/;
+const currencyCodePattern = /^[A-Z]{3}$/;
 
 export const canManageProjects = (capabilities: readonly unknown[]): boolean =>
   capabilities.some((capability): capability is ProjectAdminCapability =>
@@ -58,8 +60,25 @@ export const isValidProjectAdminItemInput = (
   && isValidOptionalText(input.description, projectAdminDescriptionMaxLength)
   && Number.isInteger(input.quantity)
   && input.quantity >= 1
+  && isValidEstimate(input.estimatedMinorAmount ?? null, input.currencyCode ?? null)
   && Number.isInteger(input.sortOrder)
   && input.sortOrder >= 0;
+
+const isValidEstimate = (
+  estimatedMinorAmount: number | null,
+  currencyCode: string | null
+): boolean => {
+  if (estimatedMinorAmount === null && currencyCode === null) {
+    return true;
+  }
+
+  return typeof estimatedMinorAmount === "number"
+    && Number.isInteger(estimatedMinorAmount)
+    && estimatedMinorAmount >= 0
+    && estimatedMinorAmount <= projectAdminEstimateMinorAmountMax
+    && typeof currencyCode === "string"
+    && currencyCodePattern.test(currencyCode);
+};
 
 export const isValidProjectAdminUpdateInput = (
   input: ProjectAdminUpdateInput

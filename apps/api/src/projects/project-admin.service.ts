@@ -46,6 +46,8 @@ const validItemUpdateFallback = {
   kind: "task",
   status: "planned",
   quantity: 1,
+  estimatedMinorAmount: null,
+  currencyCode: null,
   sortOrder: 0
 } satisfies ProjectAdminItemInput;
 
@@ -91,6 +93,8 @@ const toDomainItemInput = (
   kind: input.kind ?? fallback.kind,
   status: input.status ?? fallback.status,
   quantity: input.quantity ?? fallback.quantity,
+  estimatedMinorAmount: input.estimatedMinorAmount ?? fallback.estimatedMinorAmount ?? null,
+  currencyCode: input.currencyCode ?? fallback.currencyCode ?? null,
   sortOrder: input.sortOrder ?? fallback.sortOrder
 });
 

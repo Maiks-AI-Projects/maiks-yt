@@ -65,6 +65,8 @@ describe("project admin validation", () => {
       kind: "task",
       status: "planned",
       quantity: 1,
+      estimatedMinorAmount: 1299,
+      currencyCode: "EUR",
       sortOrder: 1
     })).toBe(true);
     expect(isValidProjectAdminUpdateInput({
@@ -99,6 +101,24 @@ describe("project admin validation", () => {
       kind: "task",
       status: "planned",
       quantity: 0,
+      sortOrder: 0
+    })).toBe(false);
+    expect(isValidProjectAdminItemInput({
+      title: "Missing currency",
+      kind: "product",
+      status: "planned",
+      quantity: 1,
+      estimatedMinorAmount: 1299,
+      currencyCode: null,
+      sortOrder: 0
+    })).toBe(false);
+    expect(isValidProjectAdminItemInput({
+      title: "Bad currency",
+      kind: "product",
+      status: "planned",
+      quantity: 1,
+      estimatedMinorAmount: 1299,
+      currencyCode: "eur",
       sortOrder: 0
     })).toBe(false);
     expect(isValidProjectAdminUpdateInput({

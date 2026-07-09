@@ -458,7 +458,8 @@ Gate note: money remains design-only until Michael explicitly approves a money p
   - 2026-07-10 private `/admin/money` manual entries support cost/spending rows through the existing ledger. Added entry presets for income, spending, fee, and payout so testing uses the right type/line/direction/category without provider imports or public payment behavior.
 - [x] Add project archives.
   - 2026-07-10 added a no-schema `/admin/projects` archive shortcut that marks a project private and `mothballed`. It is reversible through the normal project status/visibility editor and does not delete records or add money/provider wishlist behavior.
-- [ ] Add product price tracking.
+- [x] Add product price tracking.
+  - 2026-07-10 wired existing project item estimate columns through domain/API/admin/public read models. `/admin/projects` can add manual item price estimates with currency, and public project details can show those estimates. Provider/store price sync and price history remain future explicit work.
 - [ ] Add external wishlist provider integrations.
 
 Gate note: later money features require an immutable ledger design, refund/revocation policy, audit/export plan, and provider decision before implementation. External wishlist/provider integrations are provider phases, not casual project-admin or schedule follow-ups.

@@ -45,6 +45,8 @@ export type ProjectAdminItemInput = {
   kind: ProjectItemKind;
   status: ProjectItemStatus;
   quantity: number;
+  estimatedMinorAmount?: number | null;
+  currencyCode?: string | null;
   sortOrder: number;
 };
 

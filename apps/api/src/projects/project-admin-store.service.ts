@@ -275,6 +275,14 @@ const updateItemFields = async (
     fields.push("quantity = ?");
     values.push(input.quantity);
   }
+  if (input.estimatedMinorAmount !== undefined) {
+    fields.push("estimated_minor_amount = ?");
+    values.push(input.estimatedMinorAmount);
+  }
+  if (input.currencyCode !== undefined) {
+    fields.push("currency_code = ?");
+    values.push(input.currencyCode);
+  }
   if (input.sortOrder !== undefined) {
     fields.push("sort_order = ?");
     values.push(input.sortOrder);
@@ -485,7 +493,7 @@ export const createProjectAdminRepository = (
       `
         INSERT INTO project_items
           (id, project_id, parent_item_id, title, description, kind, status, quantity, estimated_minor_amount, currency_code, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         randomUUID(),
@@ -496,6 +504,8 @@ export const createProjectAdminRepository = (
         input.kind,
         input.status,
         input.quantity,
+        input.estimatedMinorAmount ?? null,
+        input.currencyCode ?? null,
         input.sortOrder
       ]
     );

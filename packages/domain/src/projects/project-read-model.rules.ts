@@ -93,6 +93,14 @@ const createPublicProjectItem = (
     kind: item.kind,
     status: item.status,
     quantity: item.quantity,
+    ...(item.estimatedMinorAmount !== undefined
+      && item.estimatedMinorAmount !== null
+      && item.currencyCode
+      ? {
+        estimatedMinorAmount: item.estimatedMinorAmount,
+        currencyCode: item.currencyCode
+      }
+      : {}),
     ...(item.description ? { description: item.description } : {}),
     children
   };

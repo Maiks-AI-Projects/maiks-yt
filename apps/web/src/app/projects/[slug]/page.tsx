@@ -14,6 +14,14 @@ type ProjectPageProps = {
 
 export const dynamic = "force-dynamic";
 
+const formatEstimate = (item: PublicProjectItem): string | null =>
+  item.estimatedMinorAmount !== undefined && item.currencyCode
+    ? new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: item.currencyCode
+    }).format(item.estimatedMinorAmount / 100)
+    : null;
+
 const ProjectItemList = ({
   items
 }: {
@@ -28,6 +36,7 @@ const ProjectItemList = ({
           <em>{formatProjectLabel(item.status)}</em>
           {item.description ? <p>{item.description}</p> : null}
           {item.quantity > 1 ? <small>Quantity: {item.quantity}</small> : null}
+          {formatEstimate(item) ? <small>Estimate: {formatEstimate(item)}</small> : null}
         </div>
         {item.children.length > 0 ? <ProjectItemList items={item.children} /> : null}
       </li>
