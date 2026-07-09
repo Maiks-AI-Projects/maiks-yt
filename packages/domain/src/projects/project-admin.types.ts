@@ -59,6 +59,8 @@ export type ProjectAdminItemLinkInput = {
   relationship: ProjectItemLinkRelationship;
 };
 
+export type ProjectAdminItemLinkUpdateInput = Partial<ProjectAdminItemLinkInput>;
+
 export type ProjectAdminUpdateInput = {
   title: string;
   summary?: string | null;
@@ -109,6 +111,7 @@ export type ProjectAdminMutationResult =
       | "project_not_found"
       | "project_milestone_not_found"
       | "project_item_not_found"
+      | "project_item_link_not_found"
       | "project_update_not_found"
       | "project_item_parent_not_found"
       | "project_admin_invalid_input"

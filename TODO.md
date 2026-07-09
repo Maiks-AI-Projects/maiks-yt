@@ -108,6 +108,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Add active project/stream focus display.
 - [x] Add internal wishlist entries linked to project items.
   - 2026-07-10 wired existing project item links through domain/API/admin/public project views. `/admin/projects` can attach manual wishlist/store/reference/receipt links to project items, and public project details show those links. Provider wishlist integrations, link edit/delete, price sync, and price history remain future explicit work.
+  - 2026-07-10 follow-up added manual edit/remove controls for those project item links, so testing mistakes are reversible without direct database access. Provider wishlist integrations, price sync, and price history remain future explicit work.
 
 Note: Chunk 14 stopped at the migration gate. The existing public schedule table has no project/focus fields, while the older `stream_sessions.active_project_id` is not connected to the manual schedule/admin/public display flow. The smallest approved next slice is a generated migration that adds nullable manual focus fields to `stream_schedule_entries`, then exposes them in owner schedule admin and public schedule display without money, provider sync, announcements, AI, moderation, or support promises.
   - 2026-06-21 Chunk 14A generated migration `0010_lonely_whistler.sql`, applied it on dev, deployed commit `6cc3c0c`, and dev-smoked owner schedule focus editing plus public `/schedule` focus rendering.

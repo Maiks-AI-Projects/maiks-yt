@@ -1,6 +1,7 @@
 import type {
   ProjectAdminItemInput,
   ProjectAdminItemLinkInput,
+  ProjectAdminItemLinkUpdateInput,
   ProjectAdminItemUpdateInput,
   ProjectAdminListResult,
   ProjectAdminMilestoneInput,
@@ -16,6 +17,7 @@ import type {
 import type {
   ProjectAdminItemInput as DomainProjectAdminItemInput,
   ProjectAdminItemLinkInput as DomainProjectAdminItemLinkInput,
+  ProjectAdminItemLinkUpdateInput as DomainProjectAdminItemLinkUpdateInput,
   ProjectAdminMilestoneInput as DomainProjectAdminMilestoneInput,
   ProjectAdminProjectInput as DomainProjectAdminProjectInput,
   ProjectAdminUpdateInput as DomainProjectAdminUpdateInput
@@ -24,6 +26,7 @@ import {
   canManageProjects,
   isValidProjectAdminItemInput,
   isValidProjectAdminItemLinkInput,
+  isValidProjectAdminItemLinkUpdateInput,
   isValidProjectAdminMilestoneInput,
   isValidProjectAdminProjectInput,
   isValidProjectAdminUpdateInput
@@ -102,12 +105,21 @@ const toDomainItemInput = (
 });
 
 const toDomainItemLinkInput = (
-  input: ProjectAdminItemLinkInput
+  input: ProjectAdminItemLinkInput | ProjectAdminItemLinkUpdateInput
 ): DomainProjectAdminItemLinkInput => ({
-  provider: input.provider,
-  url: input.url,
-  label: input.label,
-  relationship: input.relationship
+  provider: input.provider ?? "manual",
+  url: input.url ?? "https://example.com",
+  label: input.label ?? "Link",
+  relationship: input.relationship ?? "reference"
+});
+
+const toDomainItemLinkUpdateInput = (
+  input: ProjectAdminItemLinkUpdateInput
+): DomainProjectAdminItemLinkUpdateInput => ({
+  ...(input.provider !== undefined ? { provider: input.provider } : {}),
+  ...(input.url !== undefined ? { url: input.url } : {}),
+  ...(input.label !== undefined ? { label: input.label } : {}),
+  ...(input.relationship !== undefined ? { relationship: input.relationship } : {})
 });
 
 const toDomainUpdateInput = (
@@ -374,6 +386,48 @@ export class ProjectAdminService {
     return this.mapProjectMutationResult(await this.repository.createItemLink(input.projectId, input.itemId, input.link));
   }
 
+  public async updateItemLink(input: {
+    authUserId: string;
+    projectId: string;
+    itemId: string;
+    linkId: string;
+    link: ProjectAdminItemLinkUpdateInput;
+  }): Promise<ProjectAdminMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    if (!isValidProjectAdminItemLinkUpdateInput(toDomainItemLinkUpdateInput(input.link))) {
+      return {
+        ok: false,
+        reason: "project_admin_invalid_input"
+      };
+    }
+
+    return this.mapProjectMutationResult(
+      await this.repository.updateItemLink(input.projectId, input.itemId, input.linkId, input.link)
+    );
+  }
+
+  public async deleteItemLink(input: {
+    authUserId: string;
+    projectId: string;
+    itemId: string;
+    linkId: string;
+  }): Promise<ProjectAdminMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    return this.mapProjectMutationResult(
+      await this.repository.deleteItemLink(input.projectId, input.itemId, input.linkId)
+    );
+  }
+
   public async reorderItems(input: {
     authUserId: string;
     projectId: string;
@@ -504,6 +558,8 @@ export class ProjectAdminService {
       | Awaited<ReturnType<ProjectAdminRepository["createItem"]>>
       | Awaited<ReturnType<ProjectAdminRepository["updateItem"]>>
       | Awaited<ReturnType<ProjectAdminRepository["createItemLink"]>>
+      | Awaited<ReturnType<ProjectAdminRepository["updateItemLink"]>>
+      | Awaited<ReturnType<ProjectAdminRepository["deleteItemLink"]>>
       | Awaited<ReturnType<ProjectAdminRepository["reorderItems"]>>
       | Awaited<ReturnType<ProjectAdminRepository["createUpdate"]>>
       | Awaited<ReturnType<ProjectAdminRepository["updateUpdate"]>>
@@ -520,6 +576,11 @@ export class ProjectAdminService {
         return {
           ok: false,
           reason: "project_item_not_found"
+        };
+      case "item-link-not-found":
+        return {
+          ok: false,
+          reason: "project_item_link_not_found"
         };
       case "milestone-not-found":
         return {

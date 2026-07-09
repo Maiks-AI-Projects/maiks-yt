@@ -84,6 +84,26 @@ const itemExistsInProject = async (
   return firstRow<{ id: string }>(rows) !== null;
 };
 
+const itemLinkExistsInProject = async (
+  executor: QueryExecutor,
+  projectId: string,
+  itemId: string,
+  linkId: string
+): Promise<boolean> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT project_item_links.id
+      FROM project_item_links
+      INNER JOIN project_items ON project_items.id = project_item_links.project_item_id
+      WHERE project_item_links.id = ? AND project_item_links.project_item_id = ? AND project_items.project_id = ?
+      LIMIT 1
+    `,
+    [linkId, itemId, projectId]
+  );
+
+  return firstRow<{ id: string }>(rows) !== null;
+};
+
 const updateExistsInProject = async (
   executor: QueryExecutor,
   projectId: string,
@@ -541,6 +561,72 @@ export const createProjectAdminRepository = (
         input.relationship
       ]
     );
+
+    return await assertReadProject(pool, projectId);
+  },
+
+  async updateItemLink(projectId, itemId, linkId, input) {
+    if (!await projectExists(pool, projectId)) {
+      return "project-not-found";
+    }
+
+    if (!await itemExistsInProject(pool, projectId, itemId)) {
+      return "item-not-found";
+    }
+
+    if (!await itemLinkExistsInProject(pool, projectId, itemId, linkId)) {
+      return "item-link-not-found";
+    }
+
+    await pool.execute(
+      `
+        UPDATE project_item_links
+        SET
+          provider = COALESCE(?, provider),
+          url = COALESCE(?, url),
+          label = COALESCE(?, label),
+          relationship = COALESCE(?, relationship),
+          updated_at = NOW()
+        WHERE id = ? AND project_item_id = ?
+      `,
+      [
+        input.provider?.trim() ?? null,
+        input.url?.trim() ?? null,
+        input.label?.trim() ?? null,
+        input.relationship ?? null,
+        linkId,
+        itemId
+      ]
+    );
+
+    return await assertReadProject(pool, projectId);
+  },
+
+  async deleteItemLink(projectId, itemId, linkId) {
+    if (!await projectExists(pool, projectId)) {
+      return "project-not-found";
+    }
+
+    if (!await itemExistsInProject(pool, projectId, itemId)) {
+      return "item-not-found";
+    }
+
+    const [result] = await pool.execute(
+      `
+        DELETE project_item_links
+        FROM project_item_links
+        INNER JOIN project_items ON project_items.id = project_item_links.project_item_id
+        WHERE project_item_links.id = ? AND project_item_links.project_item_id = ? AND project_items.project_id = ?
+      `,
+      [linkId, itemId, projectId]
+    );
+
+    if (typeof result === "object"
+      && result !== null
+      && "affectedRows" in result
+      && result.affectedRows === 0) {
+      return "item-link-not-found";
+    }
 
     return await assertReadProject(pool, projectId);
   },

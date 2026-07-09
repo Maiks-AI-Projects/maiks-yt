@@ -2,6 +2,7 @@ import type {
   MilestoneStatus,
   ProjectItemKind,
   ProjectItemStatus,
+  ProjectReadItemLinkSource,
   ProjectReadModelSource,
   ProjectReadUpdateSource,
   ProjectUpdateStatus
@@ -9,6 +10,7 @@ import type {
 
 import { formatProjectLabel } from "../../projects/project-read-data";
 import {
+  defaultItemLinkForm,
   defaultUpdateForm,
   formatProjectEstimate,
   itemLinkRelationships,
@@ -178,6 +180,8 @@ type ItemsPanelProps = {
   busyAction: string | null;
   createItem: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   createItemLink: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  deleteItemLink: (itemId: string, linkId: string) => Promise<void>;
+  editItemLink: (itemId: string, link: ProjectReadItemLinkSource) => void;
   itemForm: ItemFormState;
   itemLinkForm: ItemLinkFormState;
   itemParentOptions: Array<{ id: string; label: string }>;
@@ -192,6 +196,8 @@ export const ItemsPanel = ({
   busyAction,
   createItem,
   createItemLink,
+  deleteItemLink,
+  editItemLink,
   itemForm,
   itemLinkForm,
   itemParentOptions,
@@ -224,9 +230,20 @@ export const ItemsPanel = ({
                   <p>Estimate: {formatProjectEstimate(item.estimatedMinorAmount, item.currencyCode)}</p>
                 ) : null}
                 {item.links.length > 0 ? (
-                  <p>
-                    Links: {item.links.map((link) => link.label).join(", ")}
-                  </p>
+                  <div className="project-admin-link-list">
+                    {item.links.map((link) => (
+                      <span key={link.id}>
+                        <a href={link.url} target="_blank" rel="noreferrer">{link.label}</a>
+                        <small>{formatProjectLabel(link.relationship)} / {link.provider}</small>
+                        <button type="button" className="secondary-action" onClick={() => editItemLink(item.id, link)} disabled={busyAction !== null}>
+                          Edit
+                        </button>
+                        <button type="button" className="secondary-action danger-action" onClick={() => void deleteItemLink(item.id, link.id)} disabled={busyAction !== null}>
+                          Remove
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 ) : null}
                 {item.description ? <p>{item.description}</p> : null}
               </div>
@@ -267,7 +284,12 @@ export const ItemsPanel = ({
       <input value={itemLinkForm.provider} onChange={(event) => setItemLinkForm((current) => ({ ...current, provider: event.target.value }))} placeholder="Provider" required maxLength={80} />
       <input value={itemLinkForm.label} onChange={(event) => setItemLinkForm((current) => ({ ...current, label: event.target.value }))} placeholder="Link label" required maxLength={191} />
       <input value={itemLinkForm.url} onChange={(event) => setItemLinkForm((current) => ({ ...current, url: event.target.value }))} placeholder="https://..." required maxLength={1024} />
-      <button type="submit" disabled={busyAction !== null || selectedProject.items.length === 0}>Add Link</button>
+      <button type="submit" disabled={busyAction !== null || selectedProject.items.length === 0}>{itemLinkForm.linkId ? "Save Link" : "Add Link"}</button>
+      {itemLinkForm.linkId ? (
+        <button type="button" className="secondary-action" onClick={() => setItemLinkForm((current) => ({ ...defaultItemLinkForm, itemId: current.itemId }))} disabled={busyAction !== null}>
+          New Link
+        </button>
+      ) : null}
     </form>
   </section>
 );

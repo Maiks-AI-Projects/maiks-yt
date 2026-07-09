@@ -1451,6 +1451,27 @@ button:disabled {
   color: #4b5966;
 }
 
+.project-admin-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.project-admin-link-list span {
+  align-items: center;
+  background: #eef2f5;
+  border: 1px solid #d8e0e8;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.35rem 0.45rem;
+}
+
+.project-admin-link-list small {
+  color: #4b5966;
+}
+
 .project-admin-note {
   background: #eef2f5;
 }

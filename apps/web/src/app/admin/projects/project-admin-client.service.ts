@@ -54,6 +54,7 @@ export type ItemFormState = {
 
 export type ItemLinkFormState = {
   itemId: string;
+  linkId: string;
   provider: string;
   url: string;
   label: string;
@@ -133,6 +134,7 @@ export const defaultItemForm: ItemFormState = {
 
 export const defaultItemLinkForm: ItemLinkFormState = {
   itemId: "",
+  linkId: "",
   provider: "manual",
   url: "",
   label: "",

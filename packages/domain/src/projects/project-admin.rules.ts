@@ -2,6 +2,7 @@ import type {
   ProjectAdminCapability,
   ProjectAdminItemInput,
   ProjectAdminItemLinkInput,
+  ProjectAdminItemLinkUpdateInput,
   ProjectAdminMilestoneInput,
   ProjectAdminProjectInput,
   ProjectAdminPublicPreviewResult,
@@ -75,6 +76,17 @@ export const isValidProjectAdminItemLinkInput = (
   && isValidProjectAdminText(input.label, projectAdminItemLinkLabelMaxLength)
   && isValidProjectAdminItemLinkUrl(input.url)
   && ["store-product", "wishlist-entry", "reference", "receipt"].includes(input.relationship);
+
+export const isValidProjectAdminItemLinkUpdateInput = (
+  input: ProjectAdminItemLinkUpdateInput
+): boolean =>
+  Object.keys(input).length > 0
+  && isValidProjectAdminItemLinkInput({
+    provider: input.provider ?? "manual",
+    url: input.url ?? "https://example.com",
+    label: input.label ?? "Link",
+    relationship: input.relationship ?? "reference"
+  });
 
 const isValidProjectAdminItemLinkUrl = (value: string): boolean => {
   if (value.trim().length === 0 || value.trim().length > projectAdminItemLinkUrlMaxLength) {

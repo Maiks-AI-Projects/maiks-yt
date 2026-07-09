@@ -126,8 +126,8 @@ export const runProjectAdminMutation = async ({
 }: {
   label: string;
   path: string;
-  body: Record<string, unknown>;
-  method: "POST" | "PATCH";
+  body?: Record<string, unknown>;
+  method: "DELETE" | "POST" | "PATCH";
   replaceProject: (project: ProjectReadModelSource) => void;
   setBusyAction: (action: string | null) => void;
   setLoadState: (updater: (current: LoadState) => LoadState) => void;
@@ -139,11 +139,13 @@ export const runProjectAdminMutation = async ({
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       method,
-      headers: createApiHeaders({
-        "Content-Type": "application/json"
-      }),
+      headers: body
+        ? createApiHeaders({
+          "Content-Type": "application/json"
+        })
+        : createApiHeaders(),
       credentials: "include",
-      body: JSON.stringify(body)
+      ...(body ? { body: JSON.stringify(body) } : {})
     });
     const payload = await parseJson<AdminMutationResponse>(response);
 

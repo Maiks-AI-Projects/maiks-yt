@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   MilestoneStatus,
+  ProjectReadItemLinkSource,
   ProjectItemStatus,
   ProjectReadModelSource,
 } from "@maiks-yt/domain/projects";
@@ -154,15 +155,15 @@ const ProjectAdminClient = (): React.ReactNode => {
     label: string,
     path: string,
     options: {
-      method: "POST" | "PATCH";
-      body: Record<string, unknown>;
+      method: "DELETE" | "POST" | "PATCH";
+      body?: Record<string, unknown>;
     }
   ): Promise<ProjectReadModelSource | null> =>
     runProjectAdminMutation({
       label,
       path,
-      body: options.body,
       method: options.method,
+      ...(options.body ? { body: options.body } : {}),
       replaceProject,
       setBusyAction,
       setLoadState,
@@ -336,14 +337,43 @@ const ProjectAdminClient = (): React.ReactNode => {
       return;
     }
 
-    const updated = await runMutation("Creating item link", `/admin/projects/${encodeURIComponent(selectedProject.id)}/items/${encodeURIComponent(itemLinkForm.itemId)}/links`, {
-      method: "POST",
+    const linkPath = itemLinkForm.linkId
+      ? `/admin/projects/${encodeURIComponent(selectedProject.id)}/items/${encodeURIComponent(itemLinkForm.itemId)}/links/${encodeURIComponent(itemLinkForm.linkId)}`
+      : `/admin/projects/${encodeURIComponent(selectedProject.id)}/items/${encodeURIComponent(itemLinkForm.itemId)}/links`;
+    const updated = await runMutation(itemLinkForm.linkId ? "Saving item link" : "Creating item link", linkPath, {
+      method: itemLinkForm.linkId ? "PATCH" : "POST",
       body: {
         provider: itemLinkForm.provider,
         url: itemLinkForm.url,
         label: itemLinkForm.label,
         relationship: itemLinkForm.relationship
       }
+    });
+
+    if (updated) {
+      setItemLinkForm({
+        ...defaultItemLinkForm,
+        itemId: updated.items[0]?.id ?? ""
+      });
+    }
+  };
+  const editItemLink = (itemId: string, link: ProjectReadItemLinkSource): void => {
+    setItemLinkForm({
+      itemId,
+      linkId: link.id,
+      provider: link.provider,
+      url: link.url,
+      label: link.label,
+      relationship: link.relationship
+    });
+  };
+  const deleteItemLink = async (itemId: string, linkId: string): Promise<void> => {
+    if (!selectedProject) {
+      return;
+    }
+
+    const updated = await runMutation("Removing item link", `/admin/projects/${encodeURIComponent(selectedProject.id)}/items/${encodeURIComponent(itemId)}/links/${encodeURIComponent(linkId)}`, {
+      method: "DELETE"
     });
 
     if (updated) {
@@ -547,6 +577,8 @@ const ProjectAdminClient = (): React.ReactNode => {
                 <ItemsPanel
                   busyAction={busyAction}
                   createItem={createItem}
+                  deleteItemLink={deleteItemLink}
+                  editItemLink={editItemLink}
                   itemForm={itemForm}
                   itemParentOptions={itemParentOptions}
                   itemLinkForm={itemLinkForm}

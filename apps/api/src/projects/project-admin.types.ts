@@ -80,6 +80,13 @@ export type ProjectAdminItemLinkInput = {
   relationship: ProjectItemLinkRelationship;
 };
 
+export type ProjectAdminItemLinkUpdateInput = {
+  provider?: string | undefined;
+  url?: string | undefined;
+  label?: string | undefined;
+  relationship?: ProjectItemLinkRelationship | undefined;
+};
+
 export type ProjectAdminUpdateInput = {
   title: string;
   summary?: string | null | undefined;
@@ -147,6 +154,8 @@ export interface ProjectAdminRepository {
   createItem(projectId: string, input: ProjectAdminItemInput): Promise<ProjectReadModelSource | "project-not-found" | "parent-not-found">;
   updateItem(projectId: string, itemId: string, input: ProjectAdminItemUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found" | "parent-not-found">;
   createItemLink(projectId: string, itemId: string, input: ProjectAdminItemLinkInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found">;
+  updateItemLink(projectId: string, itemId: string, linkId: string, input: ProjectAdminItemLinkUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found" | "item-link-not-found">;
+  deleteItemLink(projectId: string, itemId: string, linkId: string): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found" | "item-link-not-found">;
   reorderItems(projectId: string, input: ProjectAdminReorderInput): Promise<ProjectReadModelSource | "project-not-found" | "item-not-found">;
   createUpdate(projectId: string, input: ProjectAdminUpdateInput): Promise<ProjectReadModelSource | "project-not-found">;
   updateUpdate(projectId: string, updateId: string, input: ProjectAdminUpdateUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "update-not-found">;

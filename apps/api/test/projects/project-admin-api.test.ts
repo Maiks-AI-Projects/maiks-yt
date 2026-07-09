@@ -10,6 +10,7 @@ import type {
   ProjectAdminActor,
   ProjectAdminItemInput,
   ProjectAdminItemLinkInput,
+  ProjectAdminItemLinkUpdateInput,
   ProjectAdminMilestoneInput,
   ProjectAdminProjectInput,
   ProjectAdminProjectUpdateInput,
@@ -47,6 +48,8 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
   public lastCreatedMilestone: ProjectAdminMilestoneInput | null = null;
   public lastCreatedItem: ProjectAdminItemInput | null = null;
   public lastCreatedItemLink: ProjectAdminItemLinkInput | null = null;
+  public lastUpdatedItemLink: ProjectAdminItemLinkUpdateInput | null = null;
+  public lastDeletedItemLink: { itemId: string; linkId: string } | null = null;
   public lastCreatedUpdate: ProjectAdminUpdateInput | null = null;
   public lastUpdateUpdate: ProjectAdminUpdateUpdateInput | null = null;
   public lastMilestoneReorder: readonly string[] | null = null;
@@ -209,6 +212,68 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
           ]
         }
         : item)
+    };
+    this.projects.set(projectId, updated);
+    return structuredClone(updated);
+  }
+
+  public async updateItemLink(projectId: string, itemId: string, linkId: string, input: ProjectAdminItemLinkUpdateInput) {
+    const project = this.projects.get(projectId);
+
+    if (!project) {
+      return "project-not-found" as const;
+    }
+
+    const item = project.items.find((candidate) => candidate.id === itemId);
+
+    if (!item) {
+      return "item-not-found" as const;
+    }
+
+    if (!item.links.some((link) => link.id === linkId)) {
+      return "item-link-not-found" as const;
+    }
+
+    this.lastUpdatedItemLink = structuredClone(input);
+    const updated = {
+      ...project,
+      items: project.items.map((candidate) => candidate.id === itemId
+        ? {
+          ...candidate,
+          links: candidate.links.map((link) => link.id === linkId ? { ...link, ...input } : link)
+        }
+        : candidate)
+    };
+    this.projects.set(projectId, updated);
+    return structuredClone(updated);
+  }
+
+  public async deleteItemLink(projectId: string, itemId: string, linkId: string) {
+    const project = this.projects.get(projectId);
+
+    if (!project) {
+      return "project-not-found" as const;
+    }
+
+    const item = project.items.find((candidate) => candidate.id === itemId);
+
+    if (!item) {
+      return "item-not-found" as const;
+    }
+
+    if (!item.links.some((link) => link.id === linkId)) {
+      return "item-link-not-found" as const;
+    }
+
+    this.lastDeletedItemLink = { itemId, linkId };
+    const updated = {
+      ...project,
+      items: project.items.map((candidate) => candidate.id === itemId
+        ? {
+          ...candidate,
+          links: candidate.links.filter((link) => link.id !== linkId)
+        }
+        : candidate)
     };
     this.projects.set(projectId, updated);
     return structuredClone(updated);
@@ -414,6 +479,32 @@ describe("ProjectAdminService", () => {
       relationship: "wishlist-entry"
     });
 
+    await expect(service.updateItemLink({
+      authUserId: "auth-user",
+      projectId: "project",
+      itemId: "item-created",
+      linkId: "item-link-created",
+      link: {
+        label: "Updated wishlist entry",
+        relationship: "store-product"
+      }
+    })).resolves.toMatchObject({ ok: true });
+    expect(repository.lastUpdatedItemLink).toEqual({
+      label: "Updated wishlist entry",
+      relationship: "store-product"
+    });
+
+    await expect(service.deleteItemLink({
+      authUserId: "auth-user",
+      projectId: "project",
+      itemId: "item-created",
+      linkId: "item-link-created"
+    })).resolves.toMatchObject({ ok: true });
+    expect(repository.lastDeletedItemLink).toEqual({
+      itemId: "item-created",
+      linkId: "item-link-created"
+    });
+
     await expect(service.reorderMilestones({
       authUserId: "auth-user",
       projectId: "project",
@@ -589,6 +680,8 @@ describe("Project admin route boundary", () => {
           createItem: async () => testCase.result,
           updateItem: async () => testCase.result,
           createItemLink: async () => testCase.result,
+          updateItemLink: async () => testCase.result,
+          deleteItemLink: async () => testCase.result,
           reorderItems: async () => testCase.result,
           createUpdate: async () => testCase.result,
           updateUpdate: async () => testCase.result
