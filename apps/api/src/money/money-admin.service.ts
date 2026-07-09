@@ -1,10 +1,13 @@
+import { createHash } from "node:crypto";
+
 import {
   canManageMoneyLedger,
   isValidMoneyLedgerTransactionInput
 } from "@maiks-yt/domain";
-import type { MoneyLedgerTransactionInput } from "@maiks-yt/domain";
+import type { MoneyLedgerTransaction, MoneyLedgerTransactionInput } from "@maiks-yt/domain";
 
 import type {
+  MoneyAdminExportResult,
   MoneyAdminListResult,
   MoneyAdminMutationResult,
   MoneyAdminRepository
@@ -76,6 +79,120 @@ const normalizeInput = (input: MoneyLedgerTransactionInput): MoneyLedgerTransact
   }))
 });
 
+const csvHeaders = [
+  "transaction_id",
+  "line_id",
+  "transaction_type",
+  "money_mode",
+  "posting_status",
+  "source_kind",
+  "source_provider",
+  "occurred_at",
+  "accounting_at",
+  "line_kind",
+  "direction",
+  "amount_minor",
+  "amount_major",
+  "currency",
+  "value_source",
+  "is_estimate",
+  "category_key",
+  "project_id",
+  "project_item_id",
+  "corrects_transaction_id",
+  "correction_reason",
+  "transaction_notes_private",
+  "line_notes_private",
+  "created_at",
+  "updated_at"
+] as const;
+
+const csvEscape = (value: string | number | boolean | null): string => {
+  if (value === null) {
+    return "";
+  }
+
+  const text = String(value);
+
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll("\"", "\"\"")}"` : text;
+};
+
+const formatAmountMajor = (amountMinor: number): string =>
+  (amountMinor / 100).toFixed(2);
+
+const getReportPeriod = (transactions: readonly MoneyLedgerTransaction[]): {
+  periodStart: string;
+  periodEnd: string;
+} => {
+  const accountingTimes = transactions.map((transaction) => Date.parse(transaction.accountingAt))
+    .filter(Number.isFinite);
+
+  if (accountingTimes.length === 0) {
+    const now = new Date();
+    const later = new Date(now.getTime() + 1_000);
+
+    return {
+      periodStart: now.toISOString(),
+      periodEnd: later.toISOString()
+    };
+  }
+
+  const periodStart = new Date(Math.min(...accountingTimes));
+  const latest = Math.max(...accountingTimes);
+  const periodEnd = new Date(latest + 1_000);
+
+  return {
+    periodStart: periodStart.toISOString(),
+    periodEnd: periodEnd.toISOString()
+  };
+};
+
+const buildLedgerCsv = (transactions: readonly MoneyLedgerTransaction[]): {
+  csv: string;
+  lineCount: number;
+} => {
+  const rows = [csvHeaders.join(",")];
+  let lineCount = 0;
+
+  for (const transaction of transactions) {
+    for (const line of transaction.lines) {
+      lineCount += 1;
+      rows.push([
+        transaction.id,
+        line.id,
+        transaction.transactionType,
+        transaction.moneyMode,
+        transaction.postingStatus,
+        transaction.sourceKind,
+        transaction.sourceProvider,
+        transaction.occurredAt,
+        transaction.accountingAt,
+        line.lineKind,
+        line.direction,
+        line.amountMinor,
+        formatAmountMajor(line.amountMinor),
+        line.currency,
+        line.valueSource,
+        line.isEstimate,
+        line.categoryKey,
+        line.projectId,
+        line.projectItemId,
+        transaction.correctsTransactionId,
+        transaction.correctionReason,
+        transaction.notesPrivate,
+        line.notesPrivate,
+        transaction.createdAt,
+        transaction.updatedAt
+      ].map(csvEscape).join(","));
+    }
+  }
+
+  return {
+    csv: `${rows.join("\n")}\n`,
+    lineCount
+  };
+};
+
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
 
@@ -89,6 +206,48 @@ export class MoneyAdminService {
     return {
       ok: true,
       transactions: await this.repository.listTransactions()
+    };
+  }
+
+  public async exportLedgerCsv(input: { authUserId: string }): Promise<MoneyAdminExportResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const transactions = await this.repository.listTransactions();
+    const generatedAt = new Date().toISOString();
+    const { csv, lineCount } = buildLedgerCsv(transactions);
+    const checksum = createHash("sha256").update(csv).digest("hex");
+    const filename = `maiks-money-ledger-${generatedAt.slice(0, 10)}.csv`;
+    const period = getReportPeriod(transactions);
+
+    await this.repository.recordReportExport({
+      reportKind: "tax_review_export",
+      periodStart: period.periodStart,
+      periodEnd: period.periodEnd,
+      filters: {
+        export: "manual-ledger-csv",
+        transactionLimit: 100
+      },
+      warningCounts: {},
+      fileKind: "csv",
+      fileReference: filename,
+      fileChecksum: checksum,
+      generatedByUserId: actor.domainUserId
+    });
+
+    return {
+      ok: true,
+      export: {
+        filename,
+        contentType: "text/csv; charset=utf-8",
+        csv,
+        transactionCount: transactions.length,
+        lineCount,
+        generatedAt
+      }
     };
   }
 

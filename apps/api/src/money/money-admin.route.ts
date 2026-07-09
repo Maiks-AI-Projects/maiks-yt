@@ -25,7 +25,7 @@ type MoneyAdminAuthSession = {
 type MoneyAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MoneyAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction">;
+  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv">;
 };
 
 const nullableText = (maxLength: number) =>
@@ -79,7 +79,7 @@ export const registerMoneyAdminRoutes = (
   server: FastifyInstance,
   dependencies: MoneyAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction"> =>
+  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv"> =>
     dependencies.createService?.()
     ?? new MoneyAdminService(createMoneyAdminRepository(dependencies.getDatabasePool()));
 
@@ -120,6 +120,42 @@ export const registerMoneyAdminRoutes = (
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Money ledger list failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.get("/admin/money/ledger.csv", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    try {
+      const result = await getService().exportLedgerCsv({ authUserId: session.user.id });
+
+      if (!result.ok) {
+        reply.code(403);
+        return result;
+      }
+
+      reply
+        .header("content-type", result.export.contentType)
+        .header("content-disposition", `attachment; filename="${result.export.filename}"`)
+        .header("x-maiks-money-export-transactions", String(result.export.transactionCount))
+        .header("x-maiks-money-export-lines", String(result.export.lineCount))
+        .header("x-maiks-money-export-generated-at", result.export.generatedAt);
+
+      return result.export.csv;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money ledger CSV export failed.");
       reply.code(503);
       return {
         ok: false,

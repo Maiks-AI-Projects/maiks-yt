@@ -61,6 +61,9 @@ const toIsoString = (value: Date | string): string =>
 const toSqlTimestamp = (value: string): string =>
   new Date(value).toISOString().slice(0, 19).replace("T", " ");
 
+const toJsonString = (value: unknown): string =>
+  JSON.stringify(value);
+
 const mapLine = (row: MoneyLineRow): MoneyLedgerLine => ({
   id: row.id,
   transactionId: row.transactionId,
@@ -319,5 +322,29 @@ export const createMoneyAdminRepository = (
     } finally {
       connection.release();
     }
+  },
+
+  async recordReportExport(input) {
+    await pool.execute(
+      `
+        INSERT INTO money_report_exports
+          (id, report_kind, period_start, period_end, filters_json, rule_version_ids_json,
+            warning_counts_json, file_kind, file_reference, file_checksum, generated_by_user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        randomUUID(),
+        input.reportKind,
+        toSqlTimestamp(input.periodStart),
+        toSqlTimestamp(input.periodEnd),
+        toJsonString(input.filters),
+        toJsonString([]),
+        toJsonString(input.warningCounts),
+        input.fileKind,
+        input.fileReference,
+        input.fileChecksum,
+        input.generatedByUserId
+      ]
+    );
   }
 });

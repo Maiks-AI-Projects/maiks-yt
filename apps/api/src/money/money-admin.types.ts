@@ -31,9 +31,39 @@ export type MoneyAdminMutationResult =
       | "money_admin_invalid_input";
   };
 
+export type MoneyAdminCsvExport = {
+  filename: string;
+  contentType: "text/csv; charset=utf-8";
+  csv: string;
+  transactionCount: number;
+  lineCount: number;
+  generatedAt: string;
+};
+
+export type MoneyAdminExportResult =
+  | {
+    ok: true;
+    export: MoneyAdminCsvExport;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden";
+  };
+
 export interface MoneyAdminRepository {
   resolveActor(authUserId: string): Promise<MoneyAdminActor | null>;
   listTransactions(): Promise<readonly MoneyLedgerTransaction[]>;
+  recordReportExport(input: {
+    reportKind: "tax_review_export";
+    periodStart: string;
+    periodEnd: string;
+    filters: Record<string, unknown>;
+    warningCounts: Record<string, number>;
+    fileKind: "csv";
+    fileReference: string;
+    fileChecksum: string;
+    generatedByUserId: string;
+  }): Promise<void>;
   createTransaction(input: MoneyLedgerTransactionInput & {
     actorUserId: string;
   }): Promise<MoneyLedgerTransaction>;

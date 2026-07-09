@@ -1227,6 +1227,13 @@ button:disabled {
   font-size: 2rem;
 }
 
+.admin-inline-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .project-admin-header p:not(.eyebrow),
 .project-admin-state p,
 .project-admin-panel p,

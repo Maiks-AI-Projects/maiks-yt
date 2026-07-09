@@ -288,6 +288,43 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const exportLedgerCsv = async (): Promise<void> => {
+    setBusy(true);
+    setMessage("Preparing private money CSV export...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/ledger.csv`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        const payload = await parseJson<{ ok: false; reason?: string }>(response);
+        setMessage(getFailureMessage(response, payload?.reason));
+        return;
+      }
+
+      const csv = await response.text();
+      const filename = response.headers
+        .get("content-disposition")
+        ?.match(/filename="([^"]+)"/)?.[1] ?? "maiks-money-ledger.csv";
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage("Private money CSV export downloaded.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money CSV export failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <section className="project-admin-shell">
       <header className="project-admin-header">
@@ -296,9 +333,14 @@ const MoneyAdminClient = (): React.ReactNode => {
           <h1>Money Ledger</h1>
           <p>Manual income, cost, fee, payout, and correction tracking before public payment behavior exists.</p>
         </div>
-        <button type="button" onClick={() => void loadLedger()} disabled={loadState === "loading"}>
-          Refresh
-        </button>
+        <div className="admin-inline-actions">
+          <button type="button" onClick={() => void exportLedgerCsv()} disabled={busy || loadState !== "ready"}>
+            Export CSV
+          </button>
+          <button type="button" onClick={() => void loadLedger()} disabled={loadState === "loading"}>
+            Refresh
+          </button>
+        </div>
       </header>
 
       <p className={`admin-status admin-status-${loadState}`}>{message}</p>

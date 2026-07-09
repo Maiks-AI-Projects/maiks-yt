@@ -403,6 +403,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-07-09 Phase C1 added `reports/money-accounting-stage-plan.md`, defining a private/admin-first ledger/report/export path plus a generated-migration-only Phase C2 target. Public payment/donation/support behavior remains gated.
   - 2026-07-09 Phase C2 generated migration `0023_slimy_harpoon.sql` for private money ledger transactions/lines, dated rule versions, receipt references, report export audit, and accounting warnings. Runtime admin entry/report screens are next; public payments/support remain gated.
   - 2026-07-09 Phase C3 adds owner-only `/admin/money` plus `GET /admin/money/ledger` and `POST /admin/money/transactions` for manual private income/cost/fee/payout-style entries. This is manual ledger testing only, not public payment behavior.
+  - 2026-07-09 Phase C4 adds owner-only CSV export for the current private ledger list and records each export in `money_report_exports` with checksum/count metadata. This is private reporting support only, not provider settlement or public money behavior.
 - [ ] Draft donation/support terms.
 - [ ] Draft refund/revocation wording.
 - [ ] Draft affiliate/sponsor disclosure.
@@ -422,7 +423,7 @@ Gate note: money remains design-only until Michael explicitly approves a money p
 - [ ] Add claimable platform-derived support.
 - [ ] Add transparent money trail.
 - [ ] Add private accounting/report export.
-  - First private accounting UI exists as ledger entry/list/summary; CSV/export builder remains a later Phase C4 slice.
+  - First private accounting UI exists as ledger entry/list/summary. Phase C4 adds a manual CSV export button and audit row; richer period filters, receipt attachments, warnings, and formal report packages remain later slices.
 - [ ] Add public withdrawals.
 - [ ] Add spending records.
 - [ ] Add project archives.
