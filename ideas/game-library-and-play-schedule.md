@@ -119,6 +119,20 @@ Gifted games may involve money/value, refunds, platform terms, public expectatio
 - No provider account linking beyond existing approved account-linking phases.
 - Content warnings and stream-safety notes are owner-controlled.
 
+## Schema Gate Result
+
+2026-07-09: the first persistence slice was generated as `packages/database/drizzle/0024_overjoyed_wrecker.sql`.
+
+The migration creates:
+
+- `game_library_entries` for owner-curated game records, ownership/access status, interest status, stream-fit notes, content warnings, category labels, visibility, and sort order.
+- `game_suggestions` for pending/reviewed suggestions that are private by default and cannot be public while pending.
+- `game_schedule_links` for connecting curated game records to existing stream schedule entries without creating a second schedule system.
+
+This is persistence only. It does not add public suggestion intake, admin UI, public pages, gifted-game claims, provider/store sync, purchasing, wishlist automation, money behavior, moderation automation, or scheduling provider sync.
+
+The first runtime slice should be manual owner/admin game-library CRUD plus a read-only public curated list. Suggestions can follow after moderation/review wording is ready.
+
 ## Related Cards
 
 - [Stream scheduling and cancellations](./stream-scheduling-and-cancellations.md)

@@ -259,7 +259,8 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 - [x] Build public schedule page.
 - [x] Add cancellation flow.
 - [x] Add cancellation reason templates.
-- [ ] Design game library, game suggestions, and play-schedule links.
+- [x] Design game library, game suggestions, and play-schedule links.
+  - 2026-07-09 generated `0024_overjoyed_wrecker.sql` for game library persistence: owner-curated game records, private/reviewed suggestions, and links from games to existing stream schedule entries. Runtime admin/public pages, public suggestions, gifted-game handling, provider/store sync, money behavior, and scheduling provider sync remain separate scopes.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.
 
