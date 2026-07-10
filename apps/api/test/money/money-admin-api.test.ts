@@ -110,6 +110,59 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     return structuredClone(rule);
   }
 
+  public async listActiveRuleImpactSourceIds(sourceIds: readonly string[]): Promise<readonly string[]> {
+    return this.transactions
+      .filter((transaction) =>
+        transaction.sourceKind === "report"
+        && transaction.postingStatus !== "voided"
+        && transaction.sourceId !== null
+        && sourceIds.includes(transaction.sourceId)
+      )
+      .map((transaction) => transaction.sourceId as string);
+  }
+
+  public async createRuleImpactDraftTransactions(input: Parameters<MoneyAdminRepository["createRuleImpactDraftTransactions"]>[0]): Promise<readonly MoneyLedgerTransaction[]> {
+    const created = input.suggestions.map((suggestion, index) =>
+      createTransaction({
+        id: `rule-impact-transaction-${index + 1}`,
+        transactionType: "fee",
+        moneyMode: "real",
+        sourceKind: "report",
+        sourceProvider: suggestion.sourceProvider,
+        sourceId: `rule-impact:${suggestion.ruleId}:${suggestion.lineId}`,
+        postingStatus: "draft",
+        occurredAt: suggestion.basisDate,
+        accountingAt: suggestion.basisDate,
+        notesPrivate: `Draft from dated rule ${suggestion.ruleId}`,
+        createdByUserId: input.actorUserId,
+        lines: [
+          {
+            id: `rule-impact-line-${index + 1}`,
+            transactionId: `rule-impact-transaction-${index + 1}`,
+            lineKind: suggestion.ruleKind === "platform_split" ? "platform_split" : "provider_fee",
+            direction: "out",
+            amountMinor: suggestion.suggestedAmountMinor,
+            currency: suggestion.currency,
+            valueSource: "eur",
+            isEstimate: true,
+            categoryKey: suggestion.ruleKind.replaceAll("_", "-"),
+            projectId: null,
+            projectItemId: null,
+            ruleVersionId: suggestion.ruleId,
+            receiptReferenceId: null,
+            receiptReference: null,
+            notesPrivate: null,
+            createdAt: "2026-07-10T12:00:00.000Z"
+          }
+        ]
+      })
+    );
+
+    this.transactions.unshift(...created);
+
+    return structuredClone(created);
+  }
+
   public async listResolvedWarnings(): Promise<readonly Pick<MoneyAccountingWarning, "targetKind" | "targetId" | "warningKind">[]> {
     return structuredClone(this.resolvedWarnings);
   }
@@ -396,6 +449,63 @@ describe("MoneyAdminService", () => {
       }
     });
     expect(repository.transactions).toHaveLength(1);
+  });
+
+  it("creates draft entries from rule impact suggestions and skips repeats", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.rules.push({
+      id: "rule-fee",
+      ruleKind: "platform_fee",
+      provider: "manual",
+      valueSource: "eur",
+      appliesToDateBasis: "event_date",
+      effectiveFrom: "2026-07-01T00:00:00.000Z",
+      effectiveUntil: null,
+      percentageBps: 1000,
+      fixedAmountMinor: null,
+      fixedCurrency: null,
+      rulePayload: null,
+      changeReason: "Manual provider fee estimate.",
+      supersedesRuleId: null,
+      createdByUserId: "domain-user",
+      createdAt: "2026-07-01T00:00:00.000Z"
+    });
+    const service = new MoneyAdminService(repository);
+
+    const firstResult = await service.createRuleImpactDrafts({ authUserId: "auth-user" });
+
+    expect(firstResult).toMatchObject({
+      ok: true,
+      transactions: [
+        {
+          transactionType: "fee",
+          postingStatus: "draft",
+          sourceKind: "report",
+          sourceId: "rule-impact:rule-fee:line-1",
+          lines: [
+            {
+              ruleVersionId: "rule-fee",
+              amountMinor: 1235,
+              direction: "out",
+              isEstimate: true
+            }
+          ]
+        }
+      ],
+      createdSuggestionKeys: ["rule-impact:rule-fee:line-1"],
+      skippedSuggestionKeys: []
+    });
+    expect(repository.transactions).toHaveLength(2);
+
+    const secondResult = await service.createRuleImpactDrafts({ authUserId: "auth-user" });
+
+    expect(secondResult).toMatchObject({
+      ok: true,
+      transactions: [],
+      createdSuggestionKeys: [],
+      skippedSuggestionKeys: ["rule-impact:rule-fee:line-1"]
+    });
+    expect(repository.transactions).toHaveLength(2);
   });
 
   it("exports private ledger lines as CSV and records an audit row", async () => {
@@ -2140,6 +2250,58 @@ describe("Money admin route boundary", () => {
       }
     });
     expect(repository.transactions).toHaveLength(1);
+  });
+
+  it("creates draft entries from rule impact suggestions through owner routes", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.rules.push({
+      id: "rule-fee",
+      ruleKind: "platform_fee",
+      provider: "manual",
+      valueSource: "eur",
+      appliesToDateBasis: "event_date",
+      effectiveFrom: "2026-07-01T00:00:00.000Z",
+      effectiveUntil: null,
+      percentageBps: 1000,
+      fixedAmountMinor: null,
+      fixedCurrency: null,
+      rulePayload: null,
+      changeReason: "Manual provider fee estimate.",
+      supersedesRuleId: null,
+      createdByUserId: "domain-user",
+      createdAt: "2026-07-01T00:00:00.000Z"
+    });
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/rule-impact-drafts"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      createdSuggestionKeys: ["rule-impact:rule-fee:line-1"],
+      skippedSuggestionKeys: [],
+      transactions: [
+        {
+          transactionType: "fee",
+          postingStatus: "draft"
+        }
+      ]
+    });
+    expect(repository.transactions).toHaveLength(2);
   });
 
   it("applies accounting date query filters to list and export routes", async () => {

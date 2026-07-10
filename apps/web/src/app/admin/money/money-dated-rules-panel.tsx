@@ -29,6 +29,7 @@ type MoneyDatedRulesPanelProps = {
   busy: boolean;
   onRuleFormChange: Dispatch<SetStateAction<MoneyRuleFormState>>;
   onCreateRule: (event: FormEvent<HTMLFormElement>) => void;
+  onCreateImpactDrafts: () => void;
 };
 
 export type MoneyRuleImpactSuggestion = {
@@ -113,7 +114,8 @@ export const MoneyDatedRulesPanel = ({
   ruleForm,
   busy,
   onRuleFormChange,
-  onCreateRule
+  onCreateRule,
+  onCreateImpactDrafts
 }: MoneyDatedRulesPanelProps): ReactNode => (
   <form className="admin-list" onSubmit={onCreateRule}>
     <h3>Dated Rules</h3>
@@ -242,6 +244,9 @@ export const MoneyDatedRulesPanel = ({
             {impactPreview.suggestionCount} suggestion{impactPreview.suggestionCount === 1 ? "" : "s"}
             {" "}· {formatAmount(impactPreview.totalSuggestedOutMinor, "EUR")} estimated out
           </p>
+          <button type="button" onClick={onCreateImpactDrafts} disabled={busy}>
+            Create draft entries
+          </button>
           {impactPreview.suggestions.slice(0, 8).map((suggestion) => (
             <article className="admin-list-item" key={`${suggestion.ruleId}-${suggestion.lineId}`}>
               <div>

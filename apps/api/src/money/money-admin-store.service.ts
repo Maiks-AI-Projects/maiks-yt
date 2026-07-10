@@ -22,6 +22,7 @@ import type {
 } from "@maiks-yt/domain";
 
 import type { MoneyAdminActor, MoneyAdminRepository } from "./money-admin.types.js";
+import type { MoneyAdminRuleImpactSuggestion } from "./money-admin.types.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
 
@@ -177,6 +178,25 @@ const mapRuleVersion = (row: MoneyRuleVersionRow): MoneyRuleVersion => ({
   createdByUserId: row.createdByUserId ?? null,
   createdAt: toIsoString(row.createdAt)
 });
+
+const getRuleImpactSuggestionKey = (suggestion: MoneyAdminRuleImpactSuggestion): string =>
+  `rule-impact:${suggestion.ruleId}:${suggestion.lineId}`;
+
+const getRuleImpactLineKind = (suggestion: MoneyAdminRuleImpactSuggestion): MoneyLedgerLineKind => {
+  if (suggestion.ruleKind === "platform_split") {
+    return "platform_split";
+  }
+
+  if (suggestion.ruleKind === "payout_fee") {
+    return "payout_fee";
+  }
+
+  if (suggestion.ruleKind === "currency_conversion_fee") {
+    return "currency_conversion";
+  }
+
+  return "provider_fee";
+};
 
 const mapTransaction = (
   row: MoneyTransactionRow,
@@ -486,6 +506,94 @@ export const createMoneyAdminRepository = (
     }
 
     return mapRuleVersion(rows[0] as MoneyRuleVersionRow);
+  },
+
+  async listActiveRuleImpactSourceIds(sourceIds) {
+    if (sourceIds.length === 0) {
+      return [];
+    }
+
+    const placeholders = sourceIds.map(() => "?").join(", ");
+    const [rows] = await pool.execute(
+      `
+        SELECT source_id AS sourceId
+        FROM money_ledger_transactions
+        WHERE source_kind = 'report'
+          AND posting_status <> 'voided'
+          AND source_id IN (${placeholders})
+      `,
+      [...sourceIds]
+    );
+
+    return Array.isArray(rows)
+      ? (rows as Array<{ sourceId?: string | null }>).flatMap((row) => row.sourceId ? [row.sourceId] : [])
+      : [];
+  },
+
+  async createRuleImpactDraftTransactions(input) {
+    if (input.suggestions.length === 0) {
+      return [];
+    }
+
+    const connection = await pool.getConnection();
+    const transactionIds: string[] = [];
+
+    try {
+      await connection.beginTransaction();
+
+      for (const suggestion of input.suggestions) {
+        const transactionId = randomUUID();
+        const sourceId = getRuleImpactSuggestionKey(suggestion);
+
+        await connection.execute(
+          `
+            INSERT INTO money_ledger_transactions
+              (id, transaction_type, money_mode, source_kind, source_provider, source_id,
+                posting_status, occurred_at, accounting_at, notes_private, created_by_user_id)
+            VALUES (?, 'fee', 'real', 'report', ?, ?, 'draft', ?, ?, ?, ?)
+          `,
+          [
+            transactionId,
+            suggestion.sourceProvider ?? "manual",
+            sourceId,
+            toSqlTimestamp(suggestion.basisDate),
+            toSqlTimestamp(suggestion.basisDate),
+            `Draft from dated rule ${suggestion.ruleId} for source line ${suggestion.lineId}. ${suggestion.reason}`,
+            input.actorUserId
+          ]
+        );
+
+        await connection.execute(
+          `
+            INSERT INTO money_ledger_lines
+              (id, transaction_id, line_kind, direction, amount_minor, currency, value_source,
+                is_estimate, category_key, rule_version_id, notes_private)
+            VALUES (?, ?, ?, 'out', ?, ?, 'eur', true, ?, ?, ?)
+          `,
+          [
+            randomUUID(),
+            transactionId,
+            getRuleImpactLineKind(suggestion),
+            suggestion.suggestedAmountMinor,
+            suggestion.currency ?? "EUR",
+            suggestion.ruleKind.replaceAll("_", "-"),
+            suggestion.ruleId,
+            `Suggested by ${sourceId}. Source amount ${suggestion.sourceAmountMinor}.`
+          ]
+        );
+
+        transactionIds.push(transactionId);
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+
+    return await Promise.all(transactionIds.map((id) => readTransaction(pool, id)));
   },
 
   async listResolvedWarnings(targetIds) {

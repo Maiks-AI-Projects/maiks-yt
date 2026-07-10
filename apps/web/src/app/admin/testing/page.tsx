@@ -91,6 +91,7 @@ const testingPasses: readonly TestingPass[] = [
     goal: "Test private accounting mechanics without public payment behavior.",
     checks: [
       "Add a dated provider fee or platform split rule and confirm it appears in Dated Rules and Rule Impact Preview.",
+      "Create draft entries from Rule Impact Preview and confirm a repeat run skips existing suggestions.",
       "Create one private test income entry and one private test spending/cost entry.",
       "Attach receipt/reference metadata where useful.",
       "Paste the example CSV in Import Preview, confirm row warnings/totals, then create draft entries only after review.",

@@ -61,6 +61,19 @@ type MoneyRuleImpactResponse =
     reason: string;
   };
 
+type MoneyRuleImpactDraftResponse =
+  | {
+    ok: true;
+    preview: MoneyRuleImpactPreview;
+    transactions: readonly MoneyLedgerTransaction[];
+    createdSuggestionKeys: readonly string[];
+    skippedSuggestionKeys: readonly string[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type MoneyMutationResponse =
   | {
     ok: true;
@@ -1016,6 +1029,43 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const createRuleImpactDrafts = async (): Promise<void> => {
+    if (!ruleImpactPreview || ruleImpactPreview.suggestions.length === 0) {
+      setMessage("No rule impact suggestions are available for the current filter.");
+      return;
+    }
+
+    if (!window.confirm(`Create draft entries for ${ruleImpactPreview.suggestions.length} rule-impact suggestion${ruleImpactPreview.suggestions.length === 1 ? "" : "s"}? They will stay draft until you review them.`)) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("Creating draft entries from rule impact preview...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/rule-impact-drafts${buildLedgerQuery()}`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<MoneyRuleImpactDraftResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setRuleImpactPreview(payload.preview);
+        await loadLedger();
+        setMessage(`Created ${payload.transactions.length} draft entr${payload.transactions.length === 1 ? "y" : "ies"} from rule impact preview${payload.skippedSuggestionKeys.length > 0 ? `; skipped ${payload.skippedSuggestionKeys.length} already-created suggestion${payload.skippedSuggestionKeys.length === 1 ? "" : "s"}` : ""}.`);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Rule impact draft creation failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const voidTransaction = async (transaction: MoneyLedgerTransaction): Promise<void> => {
     const reason = window.prompt("Why should this private money entry be voided?");
 
@@ -1444,6 +1494,7 @@ const MoneyAdminClient = (): React.ReactNode => {
               busy={busy}
               onRuleFormChange={setRuleForm}
               onCreateRule={(event) => void createRuleVersion(event)}
+              onCreateImpactDrafts={() => void createRuleImpactDrafts()}
             />
             {warnings.length > 0 ? (
               <div className="admin-list">

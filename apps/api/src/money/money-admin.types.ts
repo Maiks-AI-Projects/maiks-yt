@@ -101,6 +101,19 @@ export type MoneyAdminRuleImpactPreviewResult =
     reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
   };
 
+export type MoneyAdminRuleImpactDraftResult =
+  | {
+    ok: true;
+    preview: MoneyAdminRuleImpactPreview;
+    transactions: readonly MoneyLedgerTransaction[];
+    createdSuggestionKeys: readonly string[];
+    skippedSuggestionKeys: readonly string[];
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
 export type MoneyAdminWarningResolveResult =
   | {
     ok: true;
@@ -383,4 +396,9 @@ export interface MoneyAdminRepository {
   createRuleVersion(input: MoneyRuleVersionInput & {
     actorUserId: string;
   }): Promise<MoneyRuleVersion>;
+  listActiveRuleImpactSourceIds(sourceIds: readonly string[]): Promise<readonly string[]>;
+  createRuleImpactDraftTransactions(input: {
+    actorUserId: string;
+    suggestions: readonly MoneyAdminRuleImpactSuggestion[];
+  }): Promise<readonly MoneyLedgerTransaction[]>;
 }

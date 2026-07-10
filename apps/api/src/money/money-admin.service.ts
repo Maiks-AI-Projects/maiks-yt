@@ -31,6 +31,7 @@ import type {
   MoneyAdminReviewPackagePayload,
   MoneyAdminReportBucket,
   MoneyAdminRepository,
+  MoneyAdminRuleImpactDraftResult,
   MoneyAdminRuleImpactPreview,
   MoneyAdminRuleImpactPreviewResult,
   MoneyAdminRuleImpactSuggestion,
@@ -790,6 +791,41 @@ const buildRuleImpactPreview = (input: {
   };
 };
 
+const getRuleImpactSuggestionKey = (suggestion: MoneyAdminRuleImpactSuggestion): string =>
+  `rule-impact:${suggestion.ruleId}:${suggestion.lineId}`;
+
+const filterNewRuleImpactSuggestions = async (
+  repository: MoneyAdminRepository,
+  suggestions: readonly MoneyAdminRuleImpactSuggestion[]
+): Promise<{
+  newSuggestions: readonly MoneyAdminRuleImpactSuggestion[];
+  createdSuggestionKeys: readonly string[];
+  skippedSuggestionKeys: readonly string[];
+}> => {
+  const suggestionKeys = suggestions.map(getRuleImpactSuggestionKey);
+  const existingSourceIds = new Set(await repository.listActiveRuleImpactSourceIds(suggestionKeys));
+  const newSuggestions: MoneyAdminRuleImpactSuggestion[] = [];
+  const createdSuggestionKeys: string[] = [];
+  const skippedSuggestionKeys: string[] = [];
+
+  for (const suggestion of suggestions) {
+    const key = getRuleImpactSuggestionKey(suggestion);
+
+    if (existingSourceIds.has(key)) {
+      skippedSuggestionKeys.push(key);
+    } else {
+      newSuggestions.push(suggestion);
+      createdSuggestionKeys.push(key);
+    }
+  }
+
+  return {
+    newSuggestions,
+    createdSuggestionKeys,
+    skippedSuggestionKeys
+  };
+};
+
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
 
@@ -863,6 +899,52 @@ export class MoneyAdminService {
         filters,
         generatedAt: new Date().toISOString()
       })
+    };
+  }
+
+  public async createRuleImpactDrafts(input: {
+    authUserId: string;
+    filters?: Partial<MoneyAdminLedgerFilters>;
+  }): Promise<MoneyAdminRuleImpactDraftResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const filters = normalizeLedgerFilters(input.filters);
+
+    if (!filters) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const preview = buildRuleImpactPreview({
+      transactions: await this.repository.listTransactions(filters),
+      rules: await this.repository.listRuleVersions(),
+      filters,
+      generatedAt: new Date().toISOString()
+    });
+    const {
+      newSuggestions,
+      createdSuggestionKeys,
+      skippedSuggestionKeys
+    } = await filterNewRuleImpactSuggestions(this.repository, preview.suggestions);
+    const transactions = newSuggestions.length > 0
+      ? await this.repository.createRuleImpactDraftTransactions({
+        actorUserId: actor.domainUserId,
+        suggestions: newSuggestions
+      })
+      : [];
+
+    return {
+      ok: true,
+      preview,
+      transactions,
+      createdSuggestionKeys,
+      skippedSuggestionKeys
     };
   }
 
