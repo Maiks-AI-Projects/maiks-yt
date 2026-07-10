@@ -26,6 +26,8 @@ pnpm test:readiness -- --skip-review
 
 Expected current smoke size: 77 passing checks.
 
+The readiness command waits for `api-dev` health before it starts the smoke dry-run, so immediately after a dev deploy it may report a few transient `502` attempts before continuing.
+
 ## Pass 1: Access And Recovery
 
 Goal: make sure Michael can get in, recover from mistakes, and inspect sensitive state.

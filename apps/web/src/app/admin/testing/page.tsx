@@ -16,15 +16,15 @@ type TestingPass = {
 const readinessCommands = [
   {
     command: "pnpm test:readiness",
-    description: "Local pre-testing gate: review checks plus the current 77-check dev smoke dry-run."
+    description: "Local pre-testing gate: review checks, a bounded dev API startup wait, and the current 77-check dev smoke dry-run."
   },
   {
     command: "pnpm test:readiness -- --visual",
-    description: "Adds screenshot coverage for public pages, admin surfaces, chat, moderation, and overlay."
+    description: "Adds screenshot coverage for public pages, admin surfaces, chat, moderation, and overlay after the readiness gate."
   },
   {
     command: "pnpm test:readiness -- --skip-review",
-    description: "Container/server-friendly gate when the full local review shell is not needed."
+    description: "Container/server-friendly gate with the same dev API startup wait when the full local review shell is not needed."
   }
 ] as const;
 
