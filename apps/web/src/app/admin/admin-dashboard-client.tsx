@@ -97,6 +97,28 @@ type TestingSmokeStateResponse =
     reason: string;
   };
 
+type LiveHelperDashboardResponse =
+  | {
+    ok: true;
+    pendingApprovals: {
+      count: number;
+    };
+    notifications: {
+      openWarningCount: number;
+      openCriticalCount: number;
+    };
+    activeHelperGrants: {
+      count: number;
+    };
+    fakeLocalActiveModeration: {
+      count: number;
+    };
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type ExportStatusTone = "idle" | "working" | "ok" | "bad";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -251,7 +273,11 @@ const getDashboardItemBadge = (
   const statusKeyByHref: Record<string, string> = {
     "/admin/backup/health": "backup",
     "/admin/connections": "provider-intake",
+    "/admin/event-routing": "pending-approvals",
+    "/admin/live-helper": "live-helper",
+    "/admin/moderators": "active-helpers",
     "/admin/sessions": "sessions",
+    "https://control-dev.maiks.yt/moderation": "active-moderation",
     "/tools/notifications": "notifications"
   };
   const statusKey = statusKeyByHref[item.href];
@@ -322,6 +348,27 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     value: "Checking",
     detail: "Waiting for recurring smoke state.",
     tone: "loading"
+  },
+  {
+    key: "pending-approvals",
+    label: "Pending Approvals",
+    value: "Checking",
+    detail: "Waiting for live helper approval counts.",
+    tone: "loading"
+  },
+  {
+    key: "active-helpers",
+    label: "Active Helpers",
+    value: "Checking",
+    detail: "Waiting for helper grant counts.",
+    tone: "loading"
+  },
+  {
+    key: "active-moderation",
+    label: "Active Moderation",
+    value: "Checking",
+    detail: "Waiting for active local moderation counts.",
+    tone: "loading"
   }
 ];
 
@@ -365,7 +412,8 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     intakeHealth,
     sessions,
     backupHealth,
-    testingSmokeState
+    testingSmokeState,
+    liveHelper
   ] = await Promise.allSettled([
     readJson<{ ok?: boolean; surface?: string }>("/health"),
     readJson<{ ok?: boolean; database?: string }>("/health/database"),
@@ -373,7 +421,8 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     readJson<ProviderIntakeHealthResponse>("/admin/connections/intake/health", true),
     readJson<SessionListResponse>("/admin/sessions", true),
     readJson<BackupHealthResponse>("/admin/backup/health", true),
-    readJson<TestingSmokeStateResponse>("/admin/testing/smoke-state", true)
+    readJson<TestingSmokeStateResponse>("/admin/testing/smoke-state", true),
+    readJson<LiveHelperDashboardResponse>("/admin/live-helper", true)
   ]);
   const getFulfilled = <Payload,>(result: PromiseSettledResult<{
     status: number;
@@ -386,6 +435,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const sessionResult = getFulfilled(sessions);
   const backupResult = getFulfilled(backupHealth);
   const smokeResult = getFulfilled(testingSmokeState);
+  const liveHelperResult = getFulfilled(liveHelper);
   const intakeEntries = intakeResult?.payload?.ok ? intakeResult.payload.entries : [];
   const staleOrMissing = intakeEntries.filter((entry) => entry.status !== "healthy").length;
   const criticalUnread = notificationResult?.payload?.ok ? notificationResult.payload.criticalUnreadCount : 0;
@@ -395,6 +445,12 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const backupWarningCount = backupResult?.payload?.ok ? backupResult.payload.warnings.length : 0;
   const smokeState = smokeResult?.payload?.ok ? smokeResult.payload.state : null;
   const smokeLastRun = smokeState?.lastSuccessAt ?? smokeState?.lastFailureNotifiedAt ?? null;
+  const pendingApprovalCount = liveHelperResult?.payload?.ok ? liveHelperResult.payload.pendingApprovals.count : 0;
+  const openHelperWarningCount = liveHelperResult?.payload?.ok ? liveHelperResult.payload.notifications.openWarningCount : 0;
+  const openHelperCriticalCount = liveHelperResult?.payload?.ok ? liveHelperResult.payload.notifications.openCriticalCount : 0;
+  const activeHelperCount = liveHelperResult?.payload?.ok ? liveHelperResult.payload.activeHelperGrants.count : 0;
+  const activeModerationCount = liveHelperResult?.payload?.ok ? liveHelperResult.payload.fakeLocalActiveModeration.count : 0;
+  const totalHelperAlertCount = openHelperWarningCount + openHelperCriticalCount;
 
   return [
     {
@@ -475,6 +531,39 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
           : smokeState?.status === "passing"
             ? "ok"
             : "warn"
+    },
+    {
+      key: "pending-approvals",
+      label: "Pending Approvals",
+      value: liveHelperResult?.payload?.ok ? `${pendingApprovalCount} pending` : "Unavailable",
+      detail: liveHelperResult?.payload?.ok
+        ? "Safe simulated/test approvals waiting for review."
+        : `HTTP ${liveHelperResult?.status ?? "failed"}`,
+      tone: !liveHelperResult?.payload?.ok ? "bad" : pendingApprovalCount > 0 ? "warn" : "ok"
+    },
+    {
+      key: "active-helpers",
+      label: "Active Helpers",
+      value: liveHelperResult?.payload?.ok ? `${activeHelperCount} active` : "Unavailable",
+      detail: liveHelperResult?.payload?.ok
+        ? "Non-owner active helper/moderator grants."
+        : `HTTP ${liveHelperResult?.status ?? "failed"}`,
+      tone: liveHelperResult?.payload?.ok ? "ok" : "bad"
+    },
+    {
+      key: "active-moderation",
+      label: "Active Moderation",
+      value: liveHelperResult?.payload?.ok ? `${activeModerationCount} active` : "Unavailable",
+      detail: liveHelperResult?.payload?.ok
+        ? `${totalHelperAlertCount} open warning/critical alert(s).`
+        : `HTTP ${liveHelperResult?.status ?? "failed"}`,
+      tone: !liveHelperResult?.payload?.ok
+        ? "bad"
+        : openHelperCriticalCount > 0
+          ? "bad"
+          : activeModerationCount > 0 || openHelperWarningCount > 0
+            ? "warn"
+            : "ok"
     }
   ];
 };
