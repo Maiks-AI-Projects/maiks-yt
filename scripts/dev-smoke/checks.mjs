@@ -534,6 +534,104 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
 
       return null;
     }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "money ledger API",
+    path: "/admin/money/ledger",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || !Array.isArray(json?.transactions)
+        || !Array.isArray(json?.warnings)
+      ) {
+        return "money ledger API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "live helper API",
+    path: "/admin/live-helper",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || json?.readOnly !== true
+        || typeof json?.generatedAt !== "string"
+        || typeof json?.pendingApprovals?.count !== "number"
+        || !Array.isArray(json?.pendingApprovals?.items)
+        || typeof json?.notifications?.openWarningCount !== "number"
+        || typeof json?.notifications?.openCriticalCount !== "number"
+        || !Array.isArray(json?.activeHelperGrants?.items)
+        || !Array.isArray(json?.boundaries)
+      ) {
+        return "live helper API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "event routing rules API",
+    path: "/admin/event-routing/rules",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || !Array.isArray(json?.rules)
+        || json.rules.length === 0
+        || json.rules.some((rule) =>
+          typeof rule?.eventKind !== "string"
+          || typeof rule?.label !== "string"
+          || typeof rule?.persisted !== "boolean"
+          || typeof rule?.validation?.valid !== "boolean"
+        )
+      ) {
+        return "event routing rules API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "page admin list API",
+    path: "/admin/pages",
+    validate: (json) => {
+      if (json?.ok !== true || !Array.isArray(json?.pages)) {
+        return "page admin list API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "game admin list API",
+    path: "/admin/games",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || !Array.isArray(json?.games)
+        || !Array.isArray(json?.suggestions)
+      ) {
+        return "game admin list API returned an unexpected payload.";
+      }
+
+      return null;
+    }
   })
 ];
 
