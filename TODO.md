@@ -470,7 +470,8 @@ Gate note: later money features require an immutable ledger design, refund/revoc
 ## 17. Backup, Export, and Recovery
 
 - [ ] Add automated database backups.
-- [ ] Add backup health checks.
+- [x] Add backup health checks.
+  - 2026-07-10 added `pnpm dev:backup:health`, a read-only dev database health check for core backup/export tables plus dump-tool availability warnings. The recurring dev smoke runner now includes it as a failure-only backup-health check; missing dump tooling is reported as a warning, not a recurring failure.
 - [ ] Add manual export for key data.
 - [x] Document restore process.
 - [x] Document rare improper-deletion restore process.
@@ -478,6 +479,7 @@ Gate note: later money features require an immutable ledger design, refund/revoc
 
 Gate note: backup/export can start before production money, but must be treated as reliability/security work. First safe slice is a backup inventory and restore runbook using dev/staging data only; do not automate production backups, touch secrets, or claim recovery guarantees until retention, encryption, and restore testing are defined.
   - 2026-07-09 Phase E1 added `reports/backup-restore-runbook.md` for dev/staging-safe inventory, manual export/restore verification, improper-deletion drill boundaries, and failure-only backup-health notification expectations. Production backup automation, encryption/key policy, retention, and destructive restore remain gated.
+  - 2026-07-10 added a dev-safe backup health command and recurring smoke check. It does not create backups, export data, edit secrets, or change retention/encryption policy.
 
 ## 18. Phase Gates Before Risky Work
 

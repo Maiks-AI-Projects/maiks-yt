@@ -1,3 +1,8 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
 const checkJsonEndpoint = async ({ http, name, url, validate, critical = false }) => {
   try {
     const result = await http.readJson(url);
@@ -254,6 +259,45 @@ const checkYouTubeActivitiesPoll = async ({ config, getDevOwnerToken, http }) =>
   }
 };
 
+const checkBackupHealth = async () => {
+  try {
+    const result = await execFileAsync("pnpm", ["--filter", "@maiks-yt/database", "backup:health"], {
+      timeout: 45_000,
+      maxBuffer: 4 * 1024 * 1024
+    });
+    const jsonStart = result.stdout.indexOf("{");
+    const parsed = jsonStart === -1 ? null : JSON.parse(result.stdout.slice(jsonStart));
+
+    if (parsed?.ok !== true) {
+      return {
+        ok: false,
+        critical: false,
+        name: "backup health",
+        message: "backup health returned an unhealthy payload."
+      };
+    }
+
+    const warningSuffix = Array.isArray(parsed.warnings) && parsed.warnings.length > 0
+      ? ` Warnings: ${parsed.warnings.join(" ")}`
+      : "";
+
+    return {
+      ok: true,
+      name: "backup health",
+      message: parsed.skipped
+        ? `backup health skipped: ${parsed.reason ?? "not configured"}.${warningSuffix}`
+        : `backup health passed.${warningSuffix}`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      critical: false,
+      name: "backup health",
+      message: `backup health failed: ${error instanceof Error ? error.message : String(error)}.`
+    };
+  }
+};
+
 export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.all([
   checkJsonEndpoint({
     http,
@@ -371,6 +415,7 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     url: http.makeUrl(config.controlUrl, "/moderation"),
     scanInjection: true
   }),
+  checkBackupHealth(),
   checkProviderIntakeHealth({ config, getDevOwnerToken, http }),
   checkYouTubeActivitiesPoll({ config, getDevOwnerToken, http })
 ]);

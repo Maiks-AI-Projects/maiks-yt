@@ -13,6 +13,7 @@
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:full": "scripts/check-full.sh",
     "check:review": "scripts/check-review.sh",
+    "dev:backup:health": "pnpm --filter @maiks-yt/database backup:health",
     "db:generate": "pnpm --filter @maiks-yt/database db:generate",
     "db:migrate": "pnpm --filter @maiks-yt/database db:migrate",
     "db:seed": "pnpm --filter @maiks-yt/database db:seed",
