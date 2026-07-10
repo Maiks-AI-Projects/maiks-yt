@@ -26,6 +26,7 @@ type MoneyAdminRouteService = Pick<
   | "listTransactions"
   | "listRuleVersions"
   | "createRuleVersion"
+  | "previewRuleImpact"
   | "createTransaction"
   | "exportLedgerCsv"
   | "buildJsonReport"
@@ -250,6 +251,50 @@ export const registerMoneyAdminRoutes = (
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Money rule create failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.get("/admin/money/rule-impact", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const filters = moneyLedgerFilterQuerySchema.safeParse(request.query);
+
+    if (!filters.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().previewRuleImpact({
+        authUserId: session.user.id,
+        filters: {
+          accountingFrom: filters.data.accountingFrom ?? null,
+          accountingTo: filters.data.accountingTo ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money rule impact preview failed.");
       reply.code(503);
       return {
         ok: false,

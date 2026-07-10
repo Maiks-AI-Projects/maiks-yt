@@ -24,10 +24,38 @@ export type MoneyRuleFormState = {
 
 type MoneyDatedRulesPanelProps = {
   rules: readonly MoneyRuleVersion[];
+  impactPreview: MoneyRuleImpactPreview | null;
   ruleForm: MoneyRuleFormState;
   busy: boolean;
   onRuleFormChange: Dispatch<SetStateAction<MoneyRuleFormState>>;
   onCreateRule: (event: FormEvent<HTMLFormElement>) => void;
+};
+
+export type MoneyRuleImpactSuggestion = {
+  ruleId: string;
+  ruleKind: MoneyRuleKind;
+  transactionId: string;
+  lineId: string;
+  basisDate: string;
+  sourceProvider: MoneyProvider | null;
+  sourceAmountMinor: number;
+  suggestedAmountMinor: number;
+  currency: string | null;
+  percentageBps: number | null;
+  fixedAmountMinor: number | null;
+  fixedCurrency: string | null;
+  reason: string;
+};
+
+export type MoneyRuleImpactPreview = {
+  generatedAt: string;
+  filters: {
+    accountingFrom: string | null;
+    accountingTo: string | null;
+  };
+  suggestionCount: number;
+  totalSuggestedOutMinor: number;
+  suggestions: readonly MoneyRuleImpactSuggestion[];
 };
 
 const ruleKindOptions: readonly MoneyRuleKind[] = [
@@ -81,6 +109,7 @@ const formatAmount = (amountMinor: number, currency: string | null): string =>
 
 export const MoneyDatedRulesPanel = ({
   rules,
+  impactPreview,
   ruleForm,
   busy,
   onRuleFormChange,
@@ -201,6 +230,37 @@ export const MoneyDatedRulesPanel = ({
       />
     </label>
     <button type="submit" disabled={busy}>{busy ? "Saving..." : "Save rule"}</button>
+    <div className="admin-list">
+      <h4>Rule Impact Preview</h4>
+      {!impactPreview ? (
+        <p>Rule impact preview unavailable.</p>
+      ) : impactPreview.suggestions.length === 0 ? (
+        <p>No current ledger income lines match the saved dated rules for this date filter.</p>
+      ) : (
+        <>
+          <p>
+            {impactPreview.suggestionCount} suggestion{impactPreview.suggestionCount === 1 ? "" : "s"}
+            {" "}· {formatAmount(impactPreview.totalSuggestedOutMinor, "EUR")} estimated out
+          </p>
+          {impactPreview.suggestions.slice(0, 8).map((suggestion) => (
+            <article className="admin-list-item" key={`${suggestion.ruleId}-${suggestion.lineId}`}>
+              <div>
+                <strong>{suggestion.ruleKind.replaceAll("_", " ")}</strong>
+                <span>{suggestion.sourceProvider ?? "manual"} · {formatDate(suggestion.basisDate)}</span>
+              </div>
+              <p>
+                {formatAmount(suggestion.sourceAmountMinor, suggestion.currency)} source
+                {" -> "}
+                {formatAmount(suggestion.suggestedAmountMinor, suggestion.currency)} suggested out
+                {suggestion.percentageBps !== null ? ` · ${(suggestion.percentageBps / 100).toFixed(2)}%` : ""}
+                {suggestion.fixedAmountMinor !== null ? ` + ${formatAmount(suggestion.fixedAmountMinor, suggestion.fixedCurrency)}` : ""}
+              </p>
+              <p>{suggestion.reason}</p>
+            </article>
+          ))}
+        </>
+      )}
+    </div>
     <div className="admin-list">
       {rules.length === 0 ? (
         <p>No dated money rules yet.</p>

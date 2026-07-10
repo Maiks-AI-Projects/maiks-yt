@@ -31,6 +31,9 @@ import type {
   MoneyAdminReviewPackagePayload,
   MoneyAdminReportBucket,
   MoneyAdminRepository,
+  MoneyAdminRuleImpactPreview,
+  MoneyAdminRuleImpactPreviewResult,
+  MoneyAdminRuleImpactSuggestion,
   MoneyAdminRuleListResult,
   MoneyAdminRuleMutationResult,
   MoneyAdminWarningExportResult,
@@ -692,6 +695,101 @@ const getApplicableRules = (
 const getRuleVersionIds = (rules: readonly MoneyRuleVersion[]): readonly string[] =>
   rules.map((rule) => rule.id);
 
+const getRuleBasisDate = (
+  rule: MoneyRuleVersion,
+  transaction: MoneyLedgerTransaction
+): string => {
+  if (rule.appliesToDateBasis === "event_date") {
+    return transaction.occurredAt;
+  }
+
+  return transaction.accountingAt;
+};
+
+const ruleMatchesLine = (
+  rule: MoneyRuleVersion,
+  transaction: MoneyLedgerTransaction,
+  line: MoneyLedgerLine
+): boolean => {
+  if (transaction.postingStatus === "voided" || line.direction !== "in" || line.amountMinor <= 0) {
+    return false;
+  }
+
+  if (!["platform_fee", "fixed_transaction_fee", "payout_fee", "currency_conversion_fee", "platform_split"].includes(rule.ruleKind)) {
+    return false;
+  }
+
+  if (rule.provider !== null && rule.provider !== transaction.sourceProvider) {
+    return false;
+  }
+
+  if (rule.valueSource !== null && rule.valueSource !== line.valueSource) {
+    return false;
+  }
+
+  const basisTime = Date.parse(getRuleBasisDate(rule, transaction));
+  const startsAt = Date.parse(rule.effectiveFrom);
+  const endsAt = rule.effectiveUntil ? Date.parse(rule.effectiveUntil) : Number.POSITIVE_INFINITY;
+
+  return Number.isFinite(basisTime)
+    && Number.isFinite(startsAt)
+    && basisTime >= startsAt
+    && basisTime < endsAt;
+};
+
+const buildRuleImpactPreview = (input: {
+  transactions: readonly MoneyLedgerTransaction[];
+  rules: readonly MoneyRuleVersion[];
+  filters: MoneyAdminLedgerFilters;
+  generatedAt: string;
+}): MoneyAdminRuleImpactPreview => {
+  const suggestions: MoneyAdminRuleImpactSuggestion[] = [];
+
+  for (const transaction of input.transactions) {
+    for (const line of transaction.lines) {
+      for (const rule of input.rules) {
+        if (!ruleMatchesLine(rule, transaction, line)) {
+          continue;
+        }
+
+        const percentageAmount = rule.percentageBps === null
+          ? 0
+          : Math.round((line.amountMinor * rule.percentageBps) / 10_000);
+        const fixedAmount = rule.fixedAmountMinor ?? 0;
+        const suggestedAmountMinor = percentageAmount + fixedAmount;
+
+        if (suggestedAmountMinor <= 0) {
+          continue;
+        }
+
+        suggestions.push({
+          ruleId: rule.id,
+          ruleKind: rule.ruleKind,
+          transactionId: transaction.id,
+          lineId: line.id,
+          basisDate: getRuleBasisDate(rule, transaction),
+          sourceProvider: transaction.sourceProvider,
+          sourceAmountMinor: line.amountMinor,
+          suggestedAmountMinor,
+          currency: rule.fixedCurrency ?? line.currency,
+          percentageBps: rule.percentageBps,
+          fixedAmountMinor: rule.fixedAmountMinor,
+          fixedCurrency: rule.fixedCurrency,
+          reason: rule.changeReason
+        });
+      }
+    }
+  }
+
+  return {
+    generatedAt: input.generatedAt,
+    filters: input.filters,
+    suggestionCount: suggestions.length,
+    totalSuggestedOutMinor: suggestions.reduce((total, suggestion) => total + suggestion.suggestedAmountMinor, 0),
+    suggestions
+  };
+};
+
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
 
@@ -734,6 +832,36 @@ export class MoneyAdminService {
       rule: await this.repository.createRuleVersion({
         ...normalized,
         actorUserId: actor.domainUserId
+      })
+    };
+  }
+
+  public async previewRuleImpact(input: {
+    authUserId: string;
+    filters?: Partial<MoneyAdminLedgerFilters>;
+  }): Promise<MoneyAdminRuleImpactPreviewResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const filters = normalizeLedgerFilters(input.filters);
+
+    if (!filters) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    return {
+      ok: true,
+      preview: buildRuleImpactPreview({
+        transactions: await this.repository.listTransactions(filters),
+        rules: await this.repository.listRuleVersions(),
+        filters,
+        generatedAt: new Date().toISOString()
       })
     };
   }

@@ -18,7 +18,7 @@ import type {
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { MoneyDatedRulesPanel } from "./money-dated-rules-panel";
-import type { MoneyRuleFormState } from "./money-dated-rules-panel";
+import type { MoneyRuleFormState, MoneyRuleImpactPreview } from "./money-dated-rules-panel";
 
 type MoneyLedgerResponse =
   | {
@@ -45,6 +45,16 @@ type MoneyRuleMutationResponse =
   | {
     ok: true;
     rule: MoneyRuleVersion;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type MoneyRuleImpactResponse =
+  | {
+    ok: true;
+    preview: MoneyRuleImpactPreview;
   }
   | {
     ok: false;
@@ -430,6 +440,7 @@ const MoneyAdminClient = (): React.ReactNode => {
   const [transactions, setTransactions] = useState<readonly MoneyLedgerTransaction[]>([]);
   const [warnings, setWarnings] = useState<readonly MoneyAccountingWarning[]>([]);
   const [rules, setRules] = useState<readonly MoneyRuleVersion[]>([]);
+  const [ruleImpactPreview, setRuleImpactPreview] = useState<MoneyRuleImpactPreview | null>(null);
   const [filters, setFilters] = useState<MoneyFilterState>(() => currentMonthFilters());
   const [form, setForm] = useState<MoneyFormState>(() => defaultForm());
   const [ruleForm, setRuleForm] = useState<MoneyRuleFormState>(() => defaultRuleForm());
@@ -486,20 +497,32 @@ const MoneyAdminClient = (): React.ReactNode => {
   }, [filters.accountingFrom, filters.accountingTo]);
 
   const loadRules = useCallback(async (): Promise<void> => {
-    const response = await fetch(`${apiBaseUrl}/admin/money/rules`, {
-      headers: createApiHeaders(),
-      credentials: "include"
-    });
-    const payload = await parseJson<MoneyRuleResponse>(response);
+    const [rulesResponse, impactResponse] = await Promise.all([
+      fetch(`${apiBaseUrl}/admin/money/rules`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      }),
+      fetch(`${apiBaseUrl}/admin/money/rule-impact${buildLedgerQuery()}`, {
+        headers: createApiHeaders(),
+        credentials: "include"
+      })
+    ]);
+    const rulesPayload = await parseJson<MoneyRuleResponse>(rulesResponse);
+    const impactPayload = await parseJson<MoneyRuleImpactResponse>(impactResponse);
 
-    if (response.ok && payload?.ok) {
-      setRules(payload.rules);
+    if (rulesResponse.ok && rulesPayload?.ok && impactResponse.ok && impactPayload?.ok) {
+      setRules(rulesPayload.rules);
+      setRuleImpactPreview(impactPayload.preview);
       return;
     }
 
-    const reason = payload?.ok === false ? payload.reason : undefined;
-    throw new Error(getFailureMessage(response, reason));
-  }, []);
+    const reason = rulesPayload?.ok === false
+      ? rulesPayload.reason
+      : impactPayload?.ok === false
+        ? impactPayload.reason
+        : undefined;
+    throw new Error(getFailureMessage(rulesResponse.ok ? impactResponse : rulesResponse, reason));
+  }, [buildLedgerQuery]);
 
   const loadLedger = useCallback(async (): Promise<void> => {
     setLoadState("loading");
@@ -1416,6 +1439,7 @@ const MoneyAdminClient = (): React.ReactNode => {
             </div>
             <MoneyDatedRulesPanel
               rules={rules}
+              impactPreview={ruleImpactPreview}
               ruleForm={ruleForm}
               busy={busy}
               onRuleFormChange={setRuleForm}

@@ -353,6 +353,51 @@ describe("MoneyAdminService", () => {
     expect(repository.rules).toHaveLength(0);
   });
 
+  it("previews dated rule impact without creating ledger rows", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.rules.push({
+      id: "rule-fee",
+      ruleKind: "platform_fee",
+      provider: "manual",
+      valueSource: "eur",
+      appliesToDateBasis: "event_date",
+      effectiveFrom: "2026-07-01T00:00:00.000Z",
+      effectiveUntil: null,
+      percentageBps: 1000,
+      fixedAmountMinor: 35,
+      fixedCurrency: "EUR",
+      rulePayload: null,
+      changeReason: "Manual provider fee estimate.",
+      supersedesRuleId: null,
+      createdByUserId: "domain-user",
+      createdAt: "2026-07-01T00:00:00.000Z"
+    });
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.previewRuleImpact({ authUserId: "auth-user" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      preview: {
+        suggestionCount: 1,
+        totalSuggestedOutMinor: 1270,
+        suggestions: [
+          {
+            ruleId: "rule-fee",
+            transactionId: "transaction-1",
+            lineId: "line-1",
+            sourceAmountMinor: 12345,
+            suggestedAmountMinor: 1270,
+            percentageBps: 1000,
+            fixedAmountMinor: 35,
+            fixedCurrency: "EUR"
+          }
+        ]
+      }
+    });
+    expect(repository.transactions).toHaveLength(1);
+  });
+
   it("exports private ledger lines as CSV and records an audit row", async () => {
     const repository = new FakeMoneyAdminRepository();
     repository.transactions.push(createTransaction({
@@ -2041,6 +2086,60 @@ describe("Money admin route boundary", () => {
       reason: "money_admin_invalid_input"
     });
     expect(repository.rules).toHaveLength(0);
+  });
+
+  it("returns a no-write money rule impact preview for owner routes", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.rules.push({
+      id: "rule-fee",
+      ruleKind: "platform_fee",
+      provider: "manual",
+      valueSource: "eur",
+      appliesToDateBasis: "event_date",
+      effectiveFrom: "2026-07-01T00:00:00.000Z",
+      effectiveUntil: null,
+      percentageBps: 1000,
+      fixedAmountMinor: null,
+      fixedCurrency: null,
+      rulePayload: null,
+      changeReason: "Manual provider fee estimate.",
+      supersedesRuleId: null,
+      createdByUserId: "domain-user",
+      createdAt: "2026-07-01T00:00:00.000Z"
+    });
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/rule-impact"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      preview: {
+        suggestionCount: 1,
+        suggestions: [
+          {
+            ruleId: "rule-fee",
+            transactionId: "transaction-1",
+            suggestedAmountMinor: 1235
+          }
+        ]
+      }
+    });
+    expect(repository.transactions).toHaveLength(1);
   });
 
   it("applies accounting date query filters to list and export routes", async () => {

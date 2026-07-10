@@ -67,6 +67,40 @@ export type MoneyAdminRuleMutationResult =
       | "money_admin_invalid_input";
   };
 
+export type MoneyAdminRuleImpactSuggestion = {
+  ruleId: string;
+  ruleKind: MoneyRuleVersion["ruleKind"];
+  transactionId: string;
+  lineId: string;
+  basisDate: string;
+  sourceProvider: MoneyProvider | null;
+  sourceAmountMinor: number;
+  suggestedAmountMinor: number;
+  currency: string | null;
+  percentageBps: number | null;
+  fixedAmountMinor: number | null;
+  fixedCurrency: string | null;
+  reason: string;
+};
+
+export type MoneyAdminRuleImpactPreview = {
+  generatedAt: string;
+  filters: MoneyAdminLedgerFilters;
+  suggestionCount: number;
+  totalSuggestedOutMinor: number;
+  suggestions: readonly MoneyAdminRuleImpactSuggestion[];
+};
+
+export type MoneyAdminRuleImpactPreviewResult =
+  | {
+    ok: true;
+    preview: MoneyAdminRuleImpactPreview;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
 export type MoneyAdminWarningResolveResult =
   | {
     ok: true;

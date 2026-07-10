@@ -103,7 +103,7 @@ Goal: verify public pages can be edited or inspected safely without accidental p
 Goal: test private accounting mechanics without public money behavior.
 
 - Open `/admin/money`.
-- Add a dated rule such as a provider fee or platform split, then confirm it appears in the Dated Rules list with the expected provider, date basis, percentage, fixed amount, and reason.
+- Add a dated rule such as a provider fee or platform split, then confirm it appears in the Dated Rules list and Rule Impact Preview with the expected provider, date basis, percentage, fixed amount, and reason.
 - Create one private test income entry.
 - Create one private test spending/cost entry.
 - Add receipt/reference metadata where useful.
