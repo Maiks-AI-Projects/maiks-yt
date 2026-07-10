@@ -58,6 +58,21 @@ type SessionListResponse =
     reason: string;
   };
 
+type BackupHealthResponse =
+  | {
+    ok: true;
+    healthOk: boolean;
+    databaseReachable: boolean;
+    requiredTables: Array<{
+      present: boolean;
+    }>;
+    warnings: string[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const groups: readonly AdminDashboardGroup[] = [
@@ -188,6 +203,13 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     value: "Checking",
     detail: "Waiting for session-admin access.",
     tone: "loading"
+  },
+  {
+    key: "backup",
+    label: "Backup Health",
+    value: "Checking",
+    detail: "Waiting for backup health.",
+    tone: "loading"
   }
 ];
 
@@ -224,13 +246,15 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     database,
     notifications,
     intakeHealth,
-    sessions
+    sessions,
+    backupHealth
   ] = await Promise.allSettled([
     readJson<{ ok?: boolean; surface?: string }>("/health"),
     readJson<{ ok?: boolean; database?: string }>("/health/database"),
     readJson<NotificationListResponse>("/admin/notifications?limit=5", true),
     readJson<ProviderIntakeHealthResponse>("/admin/connections/intake/health", true),
-    readJson<SessionListResponse>("/admin/sessions", true)
+    readJson<SessionListResponse>("/admin/sessions", true),
+    readJson<BackupHealthResponse>("/admin/backup/health", true)
   ]);
   const getFulfilled = <Payload,>(result: PromiseSettledResult<{
     status: number;
@@ -241,10 +265,14 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const notificationResult = getFulfilled(notifications);
   const intakeResult = getFulfilled(intakeHealth);
   const sessionResult = getFulfilled(sessions);
+  const backupResult = getFulfilled(backupHealth);
   const intakeEntries = intakeResult?.payload?.ok ? intakeResult.payload.entries : [];
   const staleOrMissing = intakeEntries.filter((entry) => entry.status !== "healthy").length;
   const criticalUnread = notificationResult?.payload?.ok ? notificationResult.payload.criticalUnreadCount : 0;
   const unread = notificationResult?.payload?.ok ? notificationResult.payload.unreadCount : 0;
+  const backupTables = backupResult?.payload?.ok ? backupResult.payload.requiredTables : [];
+  const missingBackupTables = backupTables.filter((table) => !table.present).length;
+  const backupWarningCount = backupResult?.payload?.ok ? backupResult.payload.warnings.length : 0;
 
   return [
     {
@@ -285,6 +313,23 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
       value: sessionResult?.payload?.ok ? `${sessionResult.payload.sessions.length} listed` : "Unavailable",
       detail: sessionResult?.payload?.ok ? "Owner session admin is reachable." : `HTTP ${sessionResult?.status ?? "failed"}`,
       tone: sessionResult?.payload?.ok ? "ok" : "bad"
+    },
+    {
+      key: "backup",
+      label: "Backup Health",
+      value: backupResult?.payload?.ok ? `${backupTables.length - missingBackupTables}/${backupTables.length} tables` : "Unavailable",
+      detail: backupResult?.payload?.ok
+        ? backupResult.payload.healthOk
+          ? `${missingBackupTables} missing table(s). ${backupWarningCount} warning(s).`
+          : backupResult.payload.databaseReachable
+            ? "One or more required tables are missing."
+            : "Database is not reachable."
+        : `HTTP ${backupResult?.status ?? "failed"}`,
+      tone: !backupResult?.payload?.ok || !backupResult.payload.healthOk
+        ? "bad"
+        : backupWarningCount > 0
+          ? "warn"
+          : "ok"
     }
   ];
 };

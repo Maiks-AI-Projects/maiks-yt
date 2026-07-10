@@ -3,6 +3,7 @@ import type { OverlayFakeChatMessageReceivedEvent, StreamerChatMessage } from "@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import { configuredAuthProviderIds } from "./auth/better-auth.service.js";
+import { registerBackupHealthRoutes } from "./backup/index.js";
 import {
   registerAccountDomainRoutes,
   registerStreamVisibilityPreferencesRoutes,
@@ -184,6 +185,10 @@ export const registerApplicationRoutes = ({
     publishPlayback: publishEventRoutingPlayback
   });
   registerNotificationAdminRoutes(server, {
+    getAuthSession,
+    getDatabasePool
+  });
+  registerBackupHealthRoutes(server, {
     getAuthSession,
     getDatabasePool
   });
