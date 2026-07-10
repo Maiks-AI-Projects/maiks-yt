@@ -214,6 +214,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added `/admin/testing` as an owner-area in-app testing guide with readiness commands and the same practical first-pass manual testing order, linked from the admin dashboard and covered by recurring and visual smoke.
 - Added `/account` to recurring and visual smoke coverage because linked accounts, profile privacy, and stream visibility preferences are core testing surfaces.
 - Added `/tools/actions` to recurring and visual smoke coverage and added the main `control-dev` `/control` window to visual smoke, alongside the existing standalone `/chat` and `/moderation` captures.
+- Added recurring smoke checks for the stream-tools manifest, control-panel manifest, standalone chat manifest, and public updates RSS feed, plus recurring/visual smoke coverage for `/affiliates`.
 
 ## Current Task
 
@@ -234,6 +235,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 9. Before any future `dev` to `main` or production release, use the refreshed `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 10. Session review/revoke is available for owner testing on `/admin/sessions`, including a "revoke others" action that preserves the current real browser session. Future hardening can add deeper audit logging if testing shows the need.
 11. `/admin` now provides a testing dashboard for the growing admin surface list and is covered by `pnpm dev:smoke:notify`. It also shows live status cards for API/database health, notifications, provider intake, and session-admin reachability when opened with owner auth.
+12. Recurring smoke now validates installable PWA manifest shape for stream tools, control panel, and standalone chat, plus the public updates RSS feed and affiliate disclosure page.
 
 ## Known State
 

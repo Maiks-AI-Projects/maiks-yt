@@ -151,6 +151,11 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       expectedText: ["Action Panel", "Persistent Actions"]
     },
     {
+      name: "affiliates",
+      url: `${webBaseUrl}/affiliates`,
+      expectedText: ["Affiliate Links", "Disclosure"]
+    },
+    {
       name: "community-rules",
       url: `${webBaseUrl}/community-rules`,
       expectedText: ["Community Rules"]

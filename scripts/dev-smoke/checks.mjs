@@ -42,6 +42,38 @@ const checkJsonEndpoint = async ({ http, name, url, validate, critical = false, 
   }
 };
 
+const checkManifestEndpoint = ({ expected, http, name, url }) => checkJsonEndpoint({
+  http,
+  name,
+  url,
+  validate: (json) => {
+    if (
+      typeof json?.name !== "string"
+      || json?.id !== expected.id
+      || json?.start_url !== expected.startUrl
+      || json?.scope !== expected.scope
+      || json?.display !== "standalone"
+      || !Array.isArray(json?.icons)
+      || json.icons.length === 0
+    ) {
+      return `${name} returned an unexpected manifest shape.`;
+    }
+
+    if (expected.shortcutUrls) {
+      const shortcutUrls = Array.isArray(json?.shortcuts)
+        ? json.shortcuts.map((shortcut) => shortcut?.url)
+        : [];
+      const missingShortcut = expected.shortcutUrls.find((shortcutUrl) => !shortcutUrls.includes(shortcutUrl));
+
+      if (missingShortcut) {
+        return `${name} is missing manifest shortcut ${missingShortcut}.`;
+      }
+    }
+
+    return null;
+  }
+});
+
 const sleep = (delayMs) => new Promise((resolve) => {
   setTimeout(resolve, delayMs);
 });
@@ -619,6 +651,7 @@ const publicPageChecks = [
   ["account", "/account", ["Account"], false],
   ["public accountability", "/accountability", ["Accountability"], false],
   ["public actions", "/actions", ["Action Panel", "Persistent Actions"], false],
+  ["public affiliates", "/affiliates", ["Affiliate Links", "Disclosure"], false],
   ["community rules", "/community-rules", ["Community Rules"], false],
   ["public context", "/context", ["Personal Context"], false],
   ["public games", "/games", ["Games"], false],
@@ -733,6 +766,26 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     scanInjection: true,
     rejectNavbar: true
   }),
+  checkManifestEndpoint({
+    expected: {
+      id: "/tools/actions",
+      scope: "/tools/",
+      shortcutUrls: ["/tools/actions", "/tools/notifications"],
+      startUrl: "/tools/actions"
+    },
+    http,
+    name: "stream tools manifest",
+    url: http.makeUrl(config.webUrl, "/manifest.webmanifest")
+  }),
+  checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    expectedText: ["<rss version=\"2.0\">", "<title>Maiks.yt Updates</title>"],
+    http,
+    name: "public updates feed",
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    url: http.makeUrl(config.webUrl, "/feed.xml"),
+    scanInjection: true
+  }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
     http,
@@ -781,6 +834,26 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.controlUrl, "/moderation"),
     scanInjection: true
+  }),
+  checkManifestEndpoint({
+    expected: {
+      id: "/control",
+      scope: "/control",
+      startUrl: "/control"
+    },
+    http,
+    name: "control panel manifest",
+    url: http.makeUrl(config.controlUrl, "/manifest.webmanifest")
+  }),
+  checkManifestEndpoint({
+    expected: {
+      id: "/chat",
+      scope: "/chat",
+      startUrl: "/chat"
+    },
+    http,
+    name: "streamer chat manifest",
+    url: http.makeUrl(config.controlUrl, "/chat-manifest.webmanifest")
   }),
   checkStreamerChatMessages({ config, http }),
   ...createProviderChatStatusChecks({ config, http }),
