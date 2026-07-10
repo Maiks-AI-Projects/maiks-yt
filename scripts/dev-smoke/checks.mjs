@@ -259,6 +259,167 @@ const checkYouTubeActivitiesPoll = async ({ config, getDevOwnerToken, http }) =>
   }
 };
 
+const checkBackupKeyDataExport = async ({ config, getDevOwnerToken, http }) => {
+  try {
+    const minted = await getDevOwnerToken();
+
+    if (minted.skipped) {
+      return {
+        ok: true,
+        name: "backup key-data export",
+        message: `backup key-data export skipped: ${minted.reason}`
+      };
+    }
+
+    if (!minted.ok) {
+      return {
+        ok: false,
+        critical: false,
+        name: "backup key-data export",
+        message: `backup key-data export could not mint an owner token: ${minted.reason}`
+      };
+    }
+
+    const result = await http.readJson(http.makeUrl(config.apiUrl, config.backupKeyDataExportPath), {
+      headers: {
+        Authorization: `Bearer ${minted.token}`
+      }
+    });
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        critical: false,
+        name: "backup key-data export",
+        message: `backup key-data export returned HTTP ${result.status}.`
+      };
+    }
+
+    const bodyContainsSecretMarker = [
+      "token_hash",
+      "access_token",
+      "refresh_token"
+    ].some((marker) => result.body.includes(marker));
+
+    if (
+      result.json?.ok !== true
+      || result.json?.readOnly !== true
+      || result.json?.formatVersion !== 1
+      || !Array.isArray(result.json?.sections)
+      || result.json.sections.length < 12
+      || bodyContainsSecretMarker
+    ) {
+      return {
+        ok: false,
+        critical: false,
+        name: "backup key-data export",
+        message: "backup key-data export returned an unexpected or unsafe payload."
+      };
+    }
+
+    return {
+      ok: true,
+      name: "backup key-data export",
+      message: `backup key-data export passed with ${result.json.sections.length} section(s).`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      critical: false,
+      name: "backup key-data export",
+      message: `backup key-data export failed: ${error instanceof Error ? error.message : String(error)}.`
+    };
+  }
+};
+
+const getSmokeControlAccessToken = () =>
+  process.env.DEV_CONTROL_ACCESS_TOKEN
+  ?? process.env.CONTROL_PANEL_ACCESS_TOKEN
+  ?? null;
+
+const checkModerationAudit = async ({ config, getDevOwnerToken, http }) => {
+  try {
+    const accessToken = getSmokeControlAccessToken();
+
+    if (!accessToken) {
+      return {
+        ok: true,
+        name: "moderation audit",
+        message: "moderation audit skipped: no dev control access token is available."
+      };
+    }
+
+    const minted = await getDevOwnerToken();
+
+    if (minted.skipped) {
+      return {
+        ok: true,
+        name: "moderation audit",
+        message: `moderation audit skipped: ${minted.reason}`
+      };
+    }
+
+    if (!minted.ok) {
+      return {
+        ok: false,
+        critical: false,
+        name: "moderation audit",
+        message: `moderation audit could not mint an owner token: ${minted.reason}`
+      };
+    }
+
+    const url = new URL(http.makeUrl(config.apiUrl, config.moderationAuditPath));
+    url.searchParams.set("accessToken", accessToken);
+    const result = await http.readJson(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${minted.token}`
+      }
+    });
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        critical: false,
+        name: "moderation audit",
+        message: `moderation audit returned HTTP ${result.status}.`
+      };
+    }
+
+    if (
+      result.json?.ok !== true
+      || result.json?.providerAction !== false
+      || !Array.isArray(result.json?.audit)
+      || result.json.audit.some((entry) =>
+        typeof entry?.id !== "string"
+        || typeof entry?.source !== "string"
+        || typeof entry?.action !== "string"
+        || typeof entry?.outcome !== "string"
+        || typeof entry?.at !== "string"
+      )
+    ) {
+      return {
+        ok: false,
+        critical: false,
+        name: "moderation audit",
+        message: "moderation audit returned an unexpected payload."
+      };
+    }
+
+    return {
+      ok: true,
+      name: "moderation audit",
+      message: `moderation audit passed with ${result.json.audit.length} recent item(s).`
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      critical: false,
+      name: "moderation audit",
+      message: `moderation audit failed: ${error instanceof Error ? error.message : String(error)}.`
+    };
+  }
+};
+
 const checkBackupHealth = async () => {
   try {
     const result = await execFileAsync("pnpm", ["--filter", "@maiks-yt/database", "backup:health"], {
@@ -416,6 +577,8 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     scanInjection: true
   }),
   checkBackupHealth(),
+  checkBackupKeyDataExport({ config, getDevOwnerToken, http }),
+  checkModerationAudit({ config, getDevOwnerToken, http }),
   checkProviderIntakeHealth({ config, getDevOwnerToken, http }),
   checkYouTubeActivitiesPoll({ config, getDevOwnerToken, http })
 ]);

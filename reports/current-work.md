@@ -200,6 +200,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added `pnpm dev:backup:health`, a read-only dev backup-health check over database connectivity, core backup/export table presence, and dump-tool availability warnings. The recurring dev smoke runner now includes this as a failure-only backup health check without creating backups or exporting data.
 - Added owner-gated `/admin/backup/health` and a Backup Health status card to `/admin`, exposing the same safe read-only table/warning status without shell access.
 - Added owner-gated `/admin/backup/key-data-export` and a `/admin` download action for a short-lived key-data JSON snapshot. It includes editable/testing-critical rows for content, projects, schedule, games, roles, routing/opt-outs, provider channel identities, notifications, active moderation state, and money ledger/rule/reference/warning data while excluding auth/session/token/provider credential secrets, push secrets, raw provider payloads, env/config, filesystem uploads, and full encrypted dump/restore automation.
+- Extended `pnpm dev:smoke:notify` to cover the owner-gated key-data export payload and the moderation audit endpoint shape. The moderation audit check is optional until a dev control access token is present in the smoke environment; otherwise it reports a clean skip.
 
 ## Current Task
 

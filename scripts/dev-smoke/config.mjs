@@ -5,6 +5,8 @@ export const defaultConfig = {
   controlUrl: "https://control-dev.maiks.yt",
   notificationPath: "/dev/notifications",
   ownerTokenPath: "/dev/testing/owner-token",
+  backupKeyDataExportPath: "/admin/backup/key-data-export",
+  moderationAuditPath: "/streamer-chat/moderation/audit",
   providerIntakeHealthPath: "/admin/connections/intake/health",
   youtubeActivitiesPollPath: "/admin/provider-integrations/youtube-activities/poll",
   stateFile: "/tmp/maiks-yt-dev-smoke-state.json",
