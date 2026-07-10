@@ -1010,29 +1010,30 @@ const checkBackupHealth = async () => {
 };
 
 const publicPageChecks = [
-  ["web home", "/", ["Maiks.yt"], true],
-  ["account", "/account", ["Account"], false],
-  ["public accountability", "/accountability", ["Accountability"], false],
-  ["public actions", "/actions", ["Action Panel", "Persistent Actions"], false],
-  ["public affiliates", "/affiliates", ["Affiliate Links", "Disclosure"], false],
-  ["community rules", "/community-rules", ["Community Rules"], false],
-  ["public context", "/context", ["Personal Context"], false],
-  ["public games", "/games", ["Games"], false],
-  ["public links", "/links", ["Maiks.yt Links"], false],
-  ["tools actions", "/tools/actions", ["Persistent Actions"], false],
-  ["public privacy analytics", "/privacy/analytics", ["Analytics", "Necessary Data"], false],
-  ["public projects", "/projects", ["Projects"], false],
-  ["public schedule", "/schedule", ["Stream Schedule"], false],
-  ["public updates", "/updates", ["Public Updates"], false]
+  ["web home", "/", ["Maiks.yt"], true, false],
+  ["account", "/account", ["Account"], false, false],
+  ["public accountability", "/accountability", ["Accountability"], false, false],
+  ["public actions", "/actions", ["Action Panel", "Persistent Actions"], false, false],
+  ["public affiliates", "/affiliates", ["Affiliate Links", "Disclosure"], false, false],
+  ["community rules", "/community-rules", ["Community Rules"], false, false],
+  ["public context", "/context", ["Personal Context"], false, false],
+  ["public games", "/games", ["Games"], false, false],
+  ["public links", "/links", ["Maiks.yt Links"], false, false],
+  ["tools actions", "/tools/actions", ["Persistent Actions"], false, true],
+  ["public privacy analytics", "/privacy/analytics", ["Analytics", "Necessary Data"], false, false],
+  ["public projects", "/projects", ["Projects"], false, false],
+  ["public schedule", "/schedule", ["Stream Schedule"], false, false],
+  ["public updates", "/updates", ["Public Updates"], false, false]
 ];
 
-const createPublicPageChecks = ({ config, http }) => publicPageChecks.map(([name, path, expectedText, critical]) =>
+const createPublicPageChecks = ({ config, http }) => publicPageChecks.map(([name, path, expectedText, critical, rejectNavbar]) =>
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
     critical,
     expectedText,
     http,
     name,
+    rejectNavbar,
     retryDelayMs: config.textEndpointRetryDelayMs,
     scanInjection: true,
     url: http.makeUrl(config.webUrl, path)
