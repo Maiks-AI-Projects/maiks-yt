@@ -257,6 +257,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 23. `/moderation` now has a dedicated standalone PWA manifest and recurring smoke coverage instead of inheriting the control-panel install identity.
 24. `/admin/testing` now reflects the current 76-check readiness baseline instead of the older smoke count.
 25. Recurring smoke now verifies `/admin/testing` includes the current readiness baseline text, so stale in-app testing guidance fails fast.
+26. `pnpm dev:smoke:notify` now has an explicit expected-check-count guard, so adding/removing smoke checks requires an intentional readiness-baseline update.
 
 ## Known State
 

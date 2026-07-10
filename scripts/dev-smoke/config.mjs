@@ -14,6 +14,7 @@ export const defaultConfig = {
   timeoutMs: 30_000,
   textEndpointAttempts: 3,
   textEndpointRetryDelayMs: 5_000,
+  expectedCheckCount: 76,
   dryRun: false,
   forceNotify: false,
   notifyRecovery: true,
@@ -34,6 +35,7 @@ Options:
   --text-endpoint-attempts <n>      Attempts for text/page checks that may cold-compile.
   --text-endpoint-retry-delay-ms <n>
                                       Delay between text/page check attempts.
+  --expected-check-count <n>         Expected total smoke check count.
   --api-url <url>                   API base URL.
   --web-url <url>                   Web base URL.
   --overlay-url <url>               Overlay base URL.
@@ -89,6 +91,7 @@ export const parseConfig = (args) => ({
     "--text-endpoint-retry-delay-ms",
     defaultConfig.textEndpointRetryDelayMs
   ),
+  expectedCheckCount: parseNumberOption(args, "--expected-check-count", defaultConfig.expectedCheckCount),
   dryRun: args.includes("--dry-run"),
   forceNotify: args.includes("--force-notify"),
   notifyRecovery: !args.includes("--no-recovery-notice"),

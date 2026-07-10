@@ -22,12 +22,24 @@ const main = async () => {
   const startedAt = new Date();
   const results = await runChecks({ config, getDevOwnerToken, http });
   const failures = results.filter((result) => !result.ok);
+  const expectedCheckCount = config.expectedCheckCount;
+
+  if (Number.isFinite(expectedCheckCount) && results.length !== expectedCheckCount) {
+    failures.push({
+      ok: false,
+      critical: false,
+      name: "dev smoke check count",
+      message: `dev smoke expected ${expectedCheckCount} checks but ran ${results.length}. Update the readiness baseline intentionally.`
+    });
+  }
+
   const state = await readState(config.stateFile);
   const now = Date.now();
 
   console.log(JSON.stringify({
     checkedAt: startedAt.toISOString(),
     dryRun: config.dryRun,
+    expectedCheckCount,
     ok: failures.length === 0,
     passed: results.length - failures.length,
     failed: failures.length,
