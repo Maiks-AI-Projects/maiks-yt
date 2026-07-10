@@ -136,14 +136,59 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       expectedText: ["Maiks.yt"]
     },
     {
+      name: "accountability",
+      url: `${webBaseUrl}/accountability`,
+      expectedText: ["Accountability"]
+    },
+    {
+      name: "actions",
+      url: `${webBaseUrl}/actions`,
+      expectedText: ["Action Panel", "Persistent Actions"]
+    },
+    {
       name: "community-rules",
       url: `${webBaseUrl}/community-rules`,
       expectedText: ["Community Rules"]
     },
     {
+      name: "context",
+      url: `${webBaseUrl}/context`,
+      expectedText: ["Personal Context"]
+    },
+    {
+      name: "games",
+      url: `${webBaseUrl}/games`,
+      expectedText: ["Games"]
+    },
+    {
+      name: "links",
+      url: `${webBaseUrl}/links`,
+      expectedText: ["Maiks.yt Links"]
+    },
+    {
       name: "notifications-tool",
       url: `${webBaseUrl}/tools/notifications`,
       expectedText: ["Notifications"]
+    },
+    {
+      name: "privacy-analytics",
+      url: `${webBaseUrl}/privacy/analytics`,
+      expectedText: ["Analytics", "Necessary Data"]
+    },
+    {
+      name: "projects",
+      url: `${webBaseUrl}/projects`,
+      expectedText: ["Projects"]
+    },
+    {
+      name: "schedule",
+      url: `${webBaseUrl}/schedule`,
+      expectedText: ["Stream Schedule"]
+    },
+    {
+      name: "updates",
+      url: `${webBaseUrl}/updates`,
+      expectedText: ["Public Updates"]
     }
   ];
 
