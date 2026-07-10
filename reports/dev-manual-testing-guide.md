@@ -76,8 +76,10 @@ Goal: confirm real provider intake is visible privately before any overlay routi
 - Twitch: start/reconnect intake if needed, send one harmless Twitch chat message from a test account, confirm it appears in `/chat`, and confirm it does not appear on the OBS overlay by default.
 - Discord: send one harmless Discord message in the configured guild/channel, confirm it appears in `/chat`, and confirm it does not appear on the OBS overlay by default.
 - YouTube: only test real live chat when an active YouTube live chat exists; otherwise confirm the status stays in the safe waiting state.
+- YouTube Warn: reconnect owner consent from `/admin/provider-integrations` before live warning tests if the credential was created before the write-scope update; old credentials are read-only.
 - Open `/admin/connections`.
 - Confirm recent intake rows are redacted and source/mechanism labels make sense.
+- Confirm Provider Action Readiness lists Discord/Twitch/YouTube warning sends as fail-closed and delete/timeout/ban as gated.
 - Confirm provider health cards do not expose raw tokens or payload secrets.
 
 ## Pass 4: Content And Public Pages

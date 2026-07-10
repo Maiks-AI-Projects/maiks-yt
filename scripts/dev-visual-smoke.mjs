@@ -213,7 +213,7 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
     for (const [name, path, expectedText] of [
       ["admin-dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Recurring Smoke", "Provider Intake", "Pending Approvals", "Active Helpers", "Active Moderation", "Money Ledger"]],
       ["admin-backup-health", "/admin/backup/health", ["Backup Health", "Required Tables", "Dump Tool", "Warnings"]],
-      ["admin-connections", "/admin/connections", "Connections"],
+      ["admin-connections", "/admin/connections", ["Connections", "Provider Action Readiness", "provider.warn-in-origin-chat"]],
       ["admin-event-routing", "/admin/event-routing", "Event"],
       ["admin-games", "/admin/games", "Game"],
       ["admin-links", "/admin/links", "Link"],

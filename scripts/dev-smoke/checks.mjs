@@ -1116,7 +1116,7 @@ const createPwaIconChecks = ({ config, http }) => pwaIconChecks.map(([name, conf
 const ownerAdminPageChecks = [
   ["admin dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Notifications", "Recurring Smoke", "Provider Intake", "Pending Approvals", "Active Helpers", "Active Moderation", "Money Ledger"]],
   ["admin backup health", "/admin/backup/health", ["Backup Health"]],
-  ["admin connections", "/admin/connections", ["Connections"]],
+  ["admin connections", "/admin/connections", ["Connections", "Provider Action Readiness", "Fail-closed", "provider.warn-in-origin-chat"]],
   ["admin event routing", "/admin/event-routing", ["Event"]],
   ["admin games", "/admin/games", ["Game"]],
   ["admin links", "/admin/links", ["Link"]],
@@ -1128,7 +1128,7 @@ const ownerAdminPageChecks = [
   ["admin provider integrations", "/admin/provider-integrations", ["Provider"]],
   ["admin schedule", "/admin/schedule", ["Schedule"]],
   ["admin sessions", "/admin/sessions", ["Session"]],
-  ["admin testing", "/admin/testing", ["Testing Guide", "78 passing checks", "Quick Open", "Installed Window Checklist", "Manual Testing Checklist", "Session started", "Start new session", "Copy progress", "Reset marks", "Mark section done", "Clear section", "Session Notes", "Access Required", "Backup Health", "Sessions", "Provider Integrations", "Moderators", "Schedule Admin", "Account", "Updates", "Privacy Analytics", "Testing note", "Copy template", "Severity: blocking / annoying / polish"]],
+  ["admin testing", "/admin/testing", ["Testing Guide", "78 passing checks", "Quick Open", "Installed Window Checklist", "Manual Testing Checklist", "Session started", "Start new session", "Copy progress", "Reset marks", "Mark section done", "Clear section", "Session Notes", "Access Required", "Backup Health", "Sessions", "Provider Integrations", "Moderators", "Schedule Admin", "Account", "Updates", "Privacy Analytics", "Provider Action Readiness", "Reconnect YouTube owner consent", "Testing note", "Copy template", "Severity: blocking / annoying / polish"]],
   ["admin tokens", "/admin/tokens", ["Token"]]
 ];
 

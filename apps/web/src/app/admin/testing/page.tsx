@@ -69,7 +69,9 @@ const testingPasses: readonly TestingPass[] = [
       "Send one harmless Twitch message from a test account and confirm it appears in /chat only.",
       "Send one harmless Discord message in the configured guild/channel and confirm it appears in /chat only.",
       "For YouTube, test real message capture only when an active live chat exists.",
+      "Reconnect YouTube owner consent before live YouTube Warn tests if the stored credential is still read-only.",
       "Open /admin/connections and confirm recent intake rows are redacted.",
+      "Confirm Provider Action Readiness lists warning sends as fail-closed and delete/timeout/ban as gated.",
       "Confirm provider health cards never expose raw tokens or payload secrets."
     ]
   },
