@@ -24,7 +24,7 @@ On the dev server, where the container does not run the full local Bash review g
 pnpm test:readiness -- --skip-review
 ```
 
-Expected current smoke size: 77 passing checks.
+Expected current smoke size: 78 passing checks.
 
 The readiness command waits for `api-dev` health before it starts the smoke dry-run, so immediately after a dev deploy it may report a few transient `502` attempts before continuing.
 

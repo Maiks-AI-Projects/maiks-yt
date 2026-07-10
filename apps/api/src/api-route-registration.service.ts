@@ -45,6 +45,7 @@ import { registerProjectAdminRoutes, registerProjectReadRoutes } from "./project
 import { registerRealtimeSpikeRoutes } from "./realtime/index.js";
 import { registerSessionAdminRoutes } from "./sessions/index.js";
 import { registerStreamScheduleRoutes } from "./schedule/index.js";
+import { registerTestingSmokeStateRoutes } from "./testing/index.js";
 import {
   InMemoryFakeLocalModerationRuntime,
   InMemoryStreamerChatModerationRuntime,
@@ -176,6 +177,10 @@ export const registerApplicationRoutes = ({
     getDatabasePool
   });
   registerSessionAdminRoutes(server, {
+    getAuthSession,
+    getDatabasePool
+  });
+  registerTestingSmokeStateRoutes(server, {
     getAuthSession,
     getDatabasePool
   });

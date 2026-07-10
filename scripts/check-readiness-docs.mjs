@@ -30,13 +30,13 @@ const requiredSnippets = [
     file: "apps/web/src/app/admin/testing/page.tsx",
     snippets: [
       "bounded dev API startup wait",
-      "77-check dev smoke dry-run"
+      "78-check dev smoke dry-run"
     ]
   },
   {
     file: "reports/dev-manual-testing-guide.md",
     snippets: [
-      "Expected current smoke size: 77 passing checks.",
+      "Expected current smoke size: 78 passing checks.",
       "waits for `api-dev` health",
       "transient `502` attempts"
     ]
@@ -45,7 +45,7 @@ const requiredSnippets = [
     file: "reports/next-agent-tasks.md",
     snippets: [
       "bounded dev API health wait",
-      "77-check smoke dry-run"
+      "78-check smoke dry-run"
     ]
   }
 ];

@@ -14,7 +14,7 @@ export const defaultConfig = {
   timeoutMs: 30_000,
   textEndpointAttempts: 3,
   textEndpointRetryDelayMs: 5_000,
-  expectedCheckCount: 77,
+  expectedCheckCount: 78,
   dryRun: false,
   forceNotify: false,
   notifyRecovery: true,

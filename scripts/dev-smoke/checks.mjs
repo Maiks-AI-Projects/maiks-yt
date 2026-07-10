@@ -551,6 +551,30 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
     config,
     getDevOwnerToken,
     http,
+    name: "testing smoke state API",
+    path: "/admin/testing/smoke-state",
+    validate: (json, body) => {
+      if (
+        json?.ok !== true
+        || json?.readOnly !== true
+        || typeof json?.checkedAt !== "string"
+        || typeof json?.stateFileConfigured !== "boolean"
+        || !["passing", "failing", "unknown"].includes(json?.state?.status)
+        || typeof json?.state?.stateAvailable !== "boolean"
+        || typeof json?.state?.lastFailureSignaturePresent !== "boolean"
+      ) {
+        return "testing smoke state API returned an unexpected payload.";
+      }
+
+      return body.includes("lastFailureSignature\"")
+        ? "testing smoke state API leaked a failure signature."
+        : null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
     name: "money ledger API",
     path: "/admin/money/ledger",
     validate: (json) => {
@@ -1090,7 +1114,7 @@ const createPwaIconChecks = ({ config, http }) => pwaIconChecks.map(([name, conf
 );
 
 const ownerAdminPageChecks = [
-  ["admin dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Notifications"]],
+  ["admin dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Notifications", "Recurring Smoke"]],
   ["admin backup health", "/admin/backup/health", ["Backup Health"]],
   ["admin connections", "/admin/connections", ["Connections"]],
   ["admin event routing", "/admin/event-routing", ["Event"]],
@@ -1104,7 +1128,7 @@ const ownerAdminPageChecks = [
   ["admin provider integrations", "/admin/provider-integrations", ["Provider"]],
   ["admin schedule", "/admin/schedule", ["Schedule"]],
   ["admin sessions", "/admin/sessions", ["Session"]],
-  ["admin testing", "/admin/testing", ["Testing Guide", "77 passing checks", "Quick Open", "Installed Window Checklist", "Access Required", "Backup Health", "Sessions", "Provider Integrations", "Moderators", "Schedule Admin", "Account", "Updates", "Privacy Analytics", "Testing note", "Severity: blocking / annoying / polish"]],
+  ["admin testing", "/admin/testing", ["Testing Guide", "78 passing checks", "Quick Open", "Installed Window Checklist", "Access Required", "Backup Health", "Sessions", "Provider Integrations", "Moderators", "Schedule Admin", "Account", "Updates", "Privacy Analytics", "Testing note", "Severity: blocking / annoying / polish"]],
   ["admin tokens", "/admin/tokens", ["Token"]]
 ];
 

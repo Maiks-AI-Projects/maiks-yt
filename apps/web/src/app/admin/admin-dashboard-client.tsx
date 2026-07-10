@@ -74,6 +74,24 @@ type BackupHealthResponse =
     reason: string;
   };
 
+type TestingSmokeStateResponse =
+  | {
+    ok: true;
+    stateFileConfigured: boolean;
+    state: {
+      status: "passing" | "failing" | "unknown";
+      stateAvailable: boolean;
+      hadActiveFailure: boolean | null;
+      lastSuccessAt: string | null;
+      lastFailureNotifiedAt: string | null;
+      lastFailureSignaturePresent: boolean;
+    };
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type ExportStatusTone = "idle" | "working" | "ok" | "bad";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -257,6 +275,13 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     value: "Checking",
     detail: "Waiting for backup health.",
     tone: "loading"
+  },
+  {
+    key: "recurring-smoke",
+    label: "Recurring Smoke",
+    value: "Checking",
+    detail: "Waiting for recurring smoke state.",
+    tone: "loading"
   }
 ];
 
@@ -299,14 +324,16 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     notifications,
     intakeHealth,
     sessions,
-    backupHealth
+    backupHealth,
+    testingSmokeState
   ] = await Promise.allSettled([
     readJson<{ ok?: boolean; surface?: string }>("/health"),
     readJson<{ ok?: boolean; database?: string }>("/health/database"),
     readJson<NotificationListResponse>("/admin/notifications?limit=5", true),
     readJson<ProviderIntakeHealthResponse>("/admin/connections/intake/health", true),
     readJson<SessionListResponse>("/admin/sessions", true),
-    readJson<BackupHealthResponse>("/admin/backup/health", true)
+    readJson<BackupHealthResponse>("/admin/backup/health", true),
+    readJson<TestingSmokeStateResponse>("/admin/testing/smoke-state", true)
   ]);
   const getFulfilled = <Payload,>(result: PromiseSettledResult<{
     status: number;
@@ -318,6 +345,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const intakeResult = getFulfilled(intakeHealth);
   const sessionResult = getFulfilled(sessions);
   const backupResult = getFulfilled(backupHealth);
+  const smokeResult = getFulfilled(testingSmokeState);
   const intakeEntries = intakeResult?.payload?.ok ? intakeResult.payload.entries : [];
   const staleOrMissing = intakeEntries.filter((entry) => entry.status !== "healthy").length;
   const criticalUnread = notificationResult?.payload?.ok ? notificationResult.payload.criticalUnreadCount : 0;
@@ -325,6 +353,8 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const backupTables = backupResult?.payload?.ok ? backupResult.payload.requiredTables : [];
   const missingBackupTables = backupTables.filter((table) => !table.present).length;
   const backupWarningCount = backupResult?.payload?.ok ? backupResult.payload.warnings.length : 0;
+  const smokeState = smokeResult?.payload?.ok ? smokeResult.payload.state : null;
+  const smokeLastRun = smokeState?.lastSuccessAt ?? smokeState?.lastFailureNotifiedAt ?? null;
 
   return [
     {
@@ -382,6 +412,29 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
         : backupWarningCount > 0
           ? "warn"
           : "ok"
+    },
+    {
+      key: "recurring-smoke",
+      label: "Recurring Smoke",
+      value: smokeResult?.payload?.ok
+        ? smokeState?.status === "passing"
+          ? "Passing"
+          : smokeState?.status === "failing"
+            ? "Failure active"
+            : "Unknown"
+        : "Unavailable",
+      detail: smokeResult?.payload?.ok
+        ? smokeState?.stateAvailable
+          ? `Last recorded run: ${smokeLastRun ? new Date(smokeLastRun).toLocaleString() : "unknown"}.`
+          : "No recurring smoke state file has been recorded yet."
+        : `HTTP ${smokeResult?.status ?? "failed"}`,
+      tone: !smokeResult?.payload?.ok
+        ? "bad"
+        : smokeState?.status === "failing"
+          ? "bad"
+          : smokeState?.status === "passing"
+            ? "ok"
+            : "warn"
     }
   ];
 };

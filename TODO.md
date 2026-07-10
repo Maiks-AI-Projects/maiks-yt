@@ -394,6 +394,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-06-30 follow-up: cron was confirmed firing at the scheduled times, but healthy runs remain intentionally quiet. Only failures and recovery-after-failure should notify.
   - 2026-07-10 follow-up added recurring smoke coverage for the owner-gated key-data export shape and optional moderation audit shape. The moderation audit check runs when a dev control access token is available in the smoke environment and otherwise skips cleanly.
   - 2026-07-10 follow-up made the smoke state writer create its parent directory and moved the installed server cron state to an ignored bind-mounted `.private` path, so duplicate-failure and recovery state survives dev container recreation.
+  - 2026-07-10 follow-up added owner-gated `/admin/testing/smoke-state` and a Recurring Smoke dashboard card for the last recorded cron state. The smoke baseline is now 78 checks and verifies the endpoint without exposing the state file path or failure signature.
 - [x] Add repeatable local visual smoke command.
   - 2026-07-10 added `pnpm dev:visual-smoke` for headless-browser screenshots of key public, admin, overlay, chat, and moderation dev surfaces. Reports are local/ignored under `reports/visual-qa/current-dev-smoke/`, redact private token query values, and mark chat/moderation as auth-required when a fresh browser lacks a signed-in session.
 - [x] Define initial safe cache rule: no private data caching; static assets only until an explicit encrypted/offline design exists.
