@@ -20,17 +20,17 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
       {
         href: "https://control-dev.maiks.yt/chat",
         label: "Streamer Chat",
-        description: "Standalone private chat PWA for Twitch, YouTube, Discord, and fake/local messages."
+        description: "Standalone private chat PWA. Requires the current control access token from Access Tokens."
       },
       {
         href: "https://control-dev.maiks.yt/moderation",
         label: "Moderation",
-        description: "Separate moderation PWA with chat-first controls, applied rules, and helper context."
+        description: "Separate moderation PWA. Requires the current control access token plus signed-in rights."
       },
       {
         href: "https://control-dev.maiks.yt/control",
         label: "Control Panel",
-        description: "Overlay controls, scene designer, testing controls, and advanced stream operations."
+        description: "Overlay controls and scene designer. Requires the current control access token."
       },
       {
         href: "https://overlay-dev.maiks.yt/",
@@ -42,6 +42,11 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
   {
     title: "Private Tools",
     links: [
+      {
+        href: "/admin/tokens",
+        label: "Access Tokens",
+        description: "Create or rotate the control/overlay URLs used by OBS and standalone stream windows."
+      },
       {
         href: "/tools/notifications",
         label: "Notifications",

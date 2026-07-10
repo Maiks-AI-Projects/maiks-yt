@@ -44,6 +44,7 @@ Goal: make sure Michael can get in, recover from mistakes, and inspect sensitive
 
 Goal: verify the windows Michael needs while live.
 
+- If a stream window shows "Access Required", open `/admin/tokens`, create or rotate a Control Panel token, and use the generated control URL for `/chat`, `/moderation`, or `/control`.
 - Open the standalone chat PWA at `control-dev` `/chat`.
 - Confirm newest messages appear on top.
 - Confirm Twitch, YouTube, and Discord status dots are visible.
