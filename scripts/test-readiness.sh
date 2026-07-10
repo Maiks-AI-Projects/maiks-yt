@@ -58,6 +58,7 @@ else
 fi
 
 run_step "Dev smoke dry-run" pnpm dev:smoke:notify -- --dry-run --fail-on-smoke-failure
+run_step "Readiness docs" node scripts/check-readiness-docs.mjs
 
 if [ "$RUN_VISUAL" = "1" ]; then
   run_step "Dev visual smoke" pnpm dev:visual-smoke

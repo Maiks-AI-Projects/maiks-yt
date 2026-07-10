@@ -258,6 +258,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 24. `/admin/testing` now reflects the current 76-check readiness baseline instead of the older smoke count.
 25. Recurring smoke now verifies `/admin/testing` includes the current readiness baseline text, so stale in-app testing guidance fails fast.
 26. `pnpm dev:smoke:notify` now has an explicit expected-check-count guard, so adding/removing smoke checks requires an intentional readiness-baseline update.
+27. `pnpm test:readiness` now scans active testing docs/app copy for stale smoke-count wording, including the next-agent handoff.
 
 ## Known State
 
