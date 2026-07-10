@@ -177,7 +177,7 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
 ] as const;
 
 const shouldAppendDevAuthToken = (href: string): boolean =>
-  href.startsWith("/admin") || href.startsWith("/tools");
+  href.startsWith("/admin") || href.startsWith("/tools") || href === "/account";
 
 const withDevAuthToken = (href: string, token: string | null): string => {
   if (!token || !shouldAppendDevAuthToken(href)) {

@@ -420,6 +420,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-07-10 added browser-local session start tracking and a Start new session action to `/admin/testing`; Copy progress includes the session start timestamp.
   - 2026-07-10 added progress counts, remaining counts, and completed-section highlighting to `/admin/testing` so manual testing progress is visible at a glance.
   - 2026-07-10 clarified the `/admin/testing` stream-window checklist so emergency drills include both Emergency clear and Restore overlay.
+  - 2026-07-10 `/admin/testing` Quick Open now preserves short-lived `devAuthToken` access when opening `/account` for profile and stream-visibility testing.
 
 ## 14B. Stream-Safe Music, Future Phase
 
