@@ -9,16 +9,104 @@ import type {
 
 export const twitchEventSubDefaultSubscriptions = [
   {
+    conditionKind: "broadcaster",
     type: "stream.online",
     version: "1"
   },
   {
+    conditionKind: "broadcaster",
     type: "stream.offline",
     version: "1"
   },
   {
+    conditionKind: "broadcaster",
     type: "channel.update",
     version: "2"
+  },
+  {
+    conditionKind: "broadcaster_and_moderator",
+    type: "channel.follow",
+    version: "2"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.subscribe",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.subscription.gift",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.subscription.message",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.cheer",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.bits.use",
+    version: "1"
+  },
+  {
+    conditionKind: "raid_to_broadcaster",
+    type: "channel.raid",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.channel_points_automatic_reward_redemption.add",
+    version: "2"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.channel_points_custom_reward_redemption.add",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.custom_power_up_redemption.add",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.goal.begin",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.goal.progress",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.goal.end",
+    version: "1"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.hype_train.begin",
+    version: "2"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.hype_train.progress",
+    version: "2"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.hype_train.end",
+    version: "2"
+  },
+  {
+    conditionKind: "broadcaster",
+    type: "channel.shoutout.receive",
+    version: "1"
   }
 ] as const satisfies readonly TwitchEventSubDesiredSubscription[];
 
@@ -132,13 +220,38 @@ const findExistingDefault = (
   subscriptions: readonly TwitchEventSubSubscriptionSummary[],
   desired: TwitchEventSubDesiredSubscription,
   broadcasterUserId: string
-): TwitchEventSubSubscriptionSummary | null =>
-  subscriptions.find((subscription) =>
+): TwitchEventSubSubscriptionSummary | null => {
+  const desiredCondition = buildTwitchEventSubCondition(desired, broadcasterUserId);
+
+  return subscriptions.find((subscription) =>
     subscription.callbackMatches
     && subscription.type === desired.type
     && subscription.version === desired.version
-    && subscription.condition.broadcaster_user_id === broadcasterUserId
+    && Object.entries(desiredCondition).every(([key, value]) => subscription.condition[key] === value)
   ) ?? null;
+};
+
+export const buildTwitchEventSubCondition = (
+  desired: TwitchEventSubDesiredSubscription,
+  broadcasterUserId: string
+): Record<string, string> => {
+  if (desired.conditionKind === "broadcaster_and_moderator") {
+    return {
+      broadcaster_user_id: broadcasterUserId,
+      moderator_user_id: broadcasterUserId
+    };
+  }
+
+  if (desired.conditionKind === "raid_to_broadcaster") {
+    return {
+      to_broadcaster_user_id: broadcasterUserId
+    };
+  }
+
+  return {
+    broadcaster_user_id: broadcasterUserId
+  };
+};
 
 export const projectTwitchEventSubDefaultStatuses = (input: {
   broadcasterUserId: string;

@@ -1,5 +1,6 @@
 import {
   projectTwitchEventSubDefaultStatuses,
+  buildTwitchEventSubCondition,
   resolveTwitchEventSubSubscriptionConfig,
   summarizeTwitchEventSubSubscription
 } from "./twitch-eventsub-subscriptions.rules.js";
@@ -214,7 +215,7 @@ export class TwitchEventSubSubscriptionService {
         callbackUrl: context.callbackUrl,
         clientId: context.clientId,
         condition: {
-          broadcaster_user_id: context.broadcasterUserId
+          ...buildTwitchEventSubCondition(desired, context.broadcasterUserId)
         },
         secret: context.secret,
         type: desired.type,

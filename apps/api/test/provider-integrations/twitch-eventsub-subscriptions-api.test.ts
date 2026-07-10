@@ -33,6 +33,7 @@ class FakeTwitchEventSubService {
     defaults: [
       {
         desired: {
+          conditionKind: "broadcaster",
           type: "stream.online",
           version: "1"
         },
@@ -64,6 +65,7 @@ class FakeTwitchEventSubService {
           version: "1"
         },
         desired: {
+          conditionKind: "broadcaster",
           type: "stream.online",
           version: "1"
         },

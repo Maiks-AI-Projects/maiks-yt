@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-07-09
+Updated: 2026-07-10
 
 ## Objective
 
@@ -8,6 +8,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 
 ## Completed In This Pass
 
+- Expanded the Twitch EventSub default subscription manager for the broader read/log-only Twitch engagement set: follows, subscriptions/gifts/resubs, cheers/bits, raids, channel point/power-up redemptions, goals, hype trains, and shoutout receives, with event-specific condition shapes and sanitized create-failure behavior.
 - Finished the localization foundation with English default and Dutch-ready helpers.
 - Added an explicit telemetry allowlist and retention boundaries.
 - Added the public analytics/privacy explanation page.
