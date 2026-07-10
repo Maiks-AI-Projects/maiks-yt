@@ -178,12 +178,14 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
     {
       name: "notifications-tool",
       url: `${webBaseUrl}/tools/notifications`,
-      expectedText: ["Notifications"]
+      expectedText: ["Notifications"],
+      rejectNavbar: true
     },
     {
       name: "tools-actions",
       url: `${webBaseUrl}/tools/actions`,
-      expectedText: ["Persistent Actions"]
+      expectedText: ["Persistent Actions"],
+      rejectNavbar: true
     },
     {
       name: "privacy-analytics",
@@ -320,14 +322,16 @@ const captureSurface = async ({ chromium, outputDir, surface, viewport }) => {
   const missingExpectedText = surface.expectedText.filter((text) => !dom.includes(text));
   const hasInjectionMarker = injectionPattern.test(dom);
   const authRequired = surface.allowAuthRequired === true && dom.includes("Access Required");
+  const hasRejectedNavbar = surface.rejectNavbar === true && dom.includes("site-header");
 
   return {
     authRequired,
     expectedText: surface.expectedText,
     hasInjectionMarker,
     hasHorizontalOverflow: false,
+    hasRejectedNavbar,
     missingExpectedText,
-    ok: (missingExpectedText.length === 0 || authRequired) && !hasInjectionMarker,
+    ok: (missingExpectedText.length === 0 || authRequired) && !hasInjectionMarker && !hasRejectedNavbar,
     screenshotFile,
     surface: surface.name,
     url: safeUrl(surface.url),
@@ -348,6 +352,7 @@ const captureSurfaceWithPlaywright = async ({ outputDir, page, surface, viewport
   const missingExpectedText = surface.expectedText.filter((text) => !dom.includes(text));
   const hasInjectionMarker = injectionPattern.test(dom);
   const authRequired = surface.allowAuthRequired === true && dom.includes("Access Required");
+  const hasRejectedNavbar = surface.rejectNavbar === true && dom.includes("site-header");
   const layout = await page.evaluate(() => {
     const documentElement = document.documentElement;
     const body = document.body;
@@ -369,8 +374,9 @@ const captureSurfaceWithPlaywright = async ({ outputDir, page, surface, viewport
     expectedText: surface.expectedText,
     hasInjectionMarker,
     hasHorizontalOverflow,
+    hasRejectedNavbar,
     missingExpectedText,
-    ok: (missingExpectedText.length === 0 || authRequired) && !hasInjectionMarker && !hasHorizontalOverflow,
+    ok: (missingExpectedText.length === 0 || authRequired) && !hasInjectionMarker && !hasHorizontalOverflow && !hasRejectedNavbar,
     screenshotFile,
     scrollWidth: layout.scrollWidth,
     surface: surface.name,
@@ -413,6 +419,10 @@ const writeMarkdownReport = async ({ outputDir, results, startedAt, tokenFile, v
 
     if (result.hasHorizontalOverflow) {
       notes.push(`horizontal overflow: ${result.scrollWidth}px > ${result.viewportWidth}px`);
+    }
+
+    if (result.hasRejectedNavbar) {
+      notes.push("normal website navbar detected");
     }
 
     if (result.authRequired) {
