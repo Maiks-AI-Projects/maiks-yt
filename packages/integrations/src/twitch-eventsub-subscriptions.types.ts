@@ -1,7 +1,24 @@
 export type TwitchEventSubDefaultSubscriptionType =
   | "stream.online"
   | "stream.offline"
-  | "channel.update";
+  | "channel.update"
+  | "channel.follow"
+  | "channel.subscribe"
+  | "channel.subscription.gift"
+  | "channel.subscription.message"
+  | "channel.cheer"
+  | "channel.bits.use"
+  | "channel.raid"
+  | "channel.channel_points_automatic_reward_redemption.add"
+  | "channel.channel_points_custom_reward_redemption.add"
+  | "channel.custom_power_up_redemption.add"
+  | "channel.goal.begin"
+  | "channel.goal.progress"
+  | "channel.goal.end"
+  | "channel.hype_train.begin"
+  | "channel.hype_train.progress"
+  | "channel.hype_train.end"
+  | "channel.shoutout.receive";
 
 export type TwitchEventSubSubscriptionStatus =
   | "enabled"
@@ -25,6 +42,7 @@ export type TwitchEventSubSubscriptionStatus =
 export type TwitchEventSubDesiredSubscription = {
   type: TwitchEventSubDefaultSubscriptionType;
   version: "1" | "2";
+  conditionKind: "broadcaster" | "broadcaster_and_moderator" | "raid_to_broadcaster";
 };
 
 export type TwitchEventSubSubscriptionSummary = {

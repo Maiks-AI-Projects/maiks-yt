@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildTwitchEventSubCondition,
   projectTwitchEventSubDefaultStatuses,
   resolveTwitchEventSubSubscriptionConfig,
-  summarizeTwitchEventSubSubscription
+  summarizeTwitchEventSubSubscription,
+  twitchEventSubDefaultSubscriptions
 } from "./twitch-eventsub-subscriptions.rules.js";
 import { TwitchEventSubSubscriptionService } from "./twitch-eventsub-subscriptions.service.js";
 import type {
@@ -110,17 +112,45 @@ describe("Twitch EventSub subscription rules", () => {
     expect(projectTwitchEventSubDefaultStatuses({
       broadcasterUserId: "617410645",
       subscriptions: summary ? [summary] : []
-    })).toEqual([
+    })).toEqual(expect.arrayContaining([
       expect.objectContaining({
+        desired: expect.objectContaining({
+          type: "stream.online"
+        }),
         state: "enabled"
       }),
       expect.objectContaining({
+        desired: expect.objectContaining({
+          type: "stream.offline"
+        }),
         state: "missing"
       }),
       expect.objectContaining({
+        desired: expect.objectContaining({
+          type: "channel.update"
+        }),
         state: "missing"
       })
-    ]);
+    ]));
+    expect(projectTwitchEventSubDefaultStatuses({
+      broadcasterUserId: "617410645",
+      subscriptions: summary ? [summary] : []
+    })).toHaveLength(twitchEventSubDefaultSubscriptions.length);
+  });
+
+  it("builds EventSub conditions for scoped Twitch subscriptions", () => {
+    const follow = twitchEventSubDefaultSubscriptions.find((desired) => desired.type === "channel.follow");
+    const raid = twitchEventSubDefaultSubscriptions.find((desired) => desired.type === "channel.raid");
+
+    expect(follow).toBeDefined();
+    expect(raid).toBeDefined();
+    expect(follow ? buildTwitchEventSubCondition(follow, "617410645") : null).toEqual({
+      broadcaster_user_id: "617410645",
+      moderator_user_id: "617410645"
+    });
+    expect(raid ? buildTwitchEventSubCondition(raid, "617410645") : null).toEqual({
+      to_broadcaster_user_id: "617410645"
+    });
   });
 });
 
@@ -143,23 +173,20 @@ describe("TwitchEventSubSubscriptionService", () => {
       }
     ];
     const service = new TwitchEventSubSubscriptionService({ env, transport });
+    const result = await service.listDefaults();
 
-    await expect(service.listDefaults()).resolves.toMatchObject({
+    expect(result).toMatchObject({
       broadcasterLogin: "maiksmc",
       ok: true,
-      readOnly: true,
-      defaults: [
-        {
-          state: "enabled"
-        },
-        {
-          state: "missing"
-        },
-        {
-          state: "missing"
-        }
-      ]
+      readOnly: true
     });
+    expect(result.ok ? result.defaults : []).toHaveLength(twitchEventSubDefaultSubscriptions.length);
+    expect(result.ok ? result.defaults.find((entry) => entry.desired.type === "stream.online") : null)
+      .toMatchObject({ state: "enabled" });
+    expect(result.ok ? result.defaults.find((entry) => entry.desired.type === "stream.offline") : null)
+      .toMatchObject({ state: "missing" });
+    expect(result.ok ? result.defaults.find((entry) => entry.desired.type === "channel.update") : null)
+      .toMatchObject({ state: "missing" });
   });
 
   it("creates missing defaults without recreating enabled subscriptions", async () => {
@@ -183,21 +210,44 @@ describe("TwitchEventSubSubscriptionService", () => {
     const result = await service.ensureDefaults();
     const serialized = JSON.stringify(result);
 
-    expect(result).toMatchObject({
-      ok: true,
-      results: [
-        {
-          state: "already_enabled"
-        },
-        {
-          state: "created"
-        },
-        {
-          state: "created"
-        }
-      ]
+    expect(result).toMatchObject({ ok: true });
+    expect(result.ok ? result.results : []).toHaveLength(twitchEventSubDefaultSubscriptions.length);
+    expect(result.ok ? result.results.find((entry) => entry.desired.type === "stream.online") : null)
+      .toMatchObject({ state: "already_enabled" });
+    expect(result.ok ? result.results.find((entry) => entry.desired.type === "stream.offline") : null)
+      .toMatchObject({ state: "created" });
+    expect(result.ok ? result.results.find((entry) => entry.desired.type === "channel.update") : null)
+      .toMatchObject({ state: "created" });
+    expect(transport.createCalls.map((call) => call.type)).toEqual(expect.arrayContaining([
+      "stream.offline",
+      "channel.update",
+      "channel.follow",
+      "channel.subscribe",
+      "channel.subscription.gift",
+      "channel.subscription.message",
+      "channel.cheer",
+      "channel.bits.use",
+      "channel.raid",
+      "channel.channel_points_automatic_reward_redemption.add",
+      "channel.channel_points_custom_reward_redemption.add",
+      "channel.custom_power_up_redemption.add",
+      "channel.goal.begin",
+      "channel.goal.progress",
+      "channel.goal.end",
+      "channel.hype_train.begin",
+      "channel.hype_train.progress",
+      "channel.hype_train.end",
+      "channel.shoutout.receive"
+    ]));
+    expect(transport.createCalls.map((call) => call.type)).not.toContain("stream.online");
+    expect(transport.createCalls.find((call) => call.type === "channel.follow")?.condition).toEqual({
+      broadcaster_user_id: "617410645",
+      moderator_user_id: "617410645"
     });
-    expect(transport.createCalls.map((call) => call.type)).toEqual(["stream.offline", "channel.update"]);
+    expect(transport.createCalls.find((call) => call.type === "channel.raid")?.condition).toEqual({
+      to_broadcaster_user_id: "617410645"
+    });
+    expect(transport.createCalls).toHaveLength(twitchEventSubDefaultSubscriptions.length - 1);
     expect(serialized).not.toContain("client-secret");
     expect(serialized).not.toContain("0123456789abcdef");
   });
