@@ -408,6 +408,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-07-10 added a Copy template action to the `/admin/testing` breakage note so testing issues can be pasted quickly into follow-up threads or issue trackers.
   - 2026-07-10 added local browser-only checklist marks to `/admin/testing`, so the manual pass can be tracked during a session without adding API/database state.
   - 2026-07-10 added Copy progress to the local `/admin/testing` checklist, producing a pasteable checked/unchecked session summary without backend storage.
+  - 2026-07-10 added browser-local Session Notes to `/admin/testing`; Copy progress includes those notes so test-session context can be pasted without backend storage.
 
 ## 14B. Stream-Safe Music, Future Phase
 

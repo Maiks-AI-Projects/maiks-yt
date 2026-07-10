@@ -10,13 +10,14 @@ type TestingPassChecklistClientProps = {
   }[];
 };
 
-const storageKey = "maiks-yt-testing-guide-checked-v1";
+const checkedStorageKey = "maiks-yt-testing-guide-checked-v1";
+const notesStorageKey = "maiks-yt-testing-guide-notes-v1";
 
 const getCheckId = (passTitle: string, check: string): string => `${passTitle}::${check}`;
 
 const readChecked = (): Set<string> => {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]") as unknown;
+    const parsed = JSON.parse(window.localStorage.getItem(checkedStorageKey) ?? "[]") as unknown;
 
     return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []);
   } catch {
@@ -24,9 +25,12 @@ const readChecked = (): Set<string> => {
   }
 };
 
+const readNotes = (): string => window.localStorage.getItem(notesStorageKey) ?? "";
+
 const buildProgressSummary = (
   passes: TestingPassChecklistClientProps["passes"],
-  checked: Set<string>
+  checked: Set<string>,
+  notes: string
 ): string => {
   const totalChecks = passes.reduce((total, testingPass) => total + testingPass.checks.length, 0);
   const lines = [
@@ -47,6 +51,10 @@ const buildProgressSummary = (
     lines.push("");
   }
 
+  if (notes.trim()) {
+    lines.push("Session notes:", notes.trim(), "");
+  }
+
   return lines.join("\n").trimEnd();
 };
 
@@ -54,6 +62,7 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState("Progress is saved in this browser.");
+  const [notes, setNotes] = useState("");
   const totalChecks = useMemo(
     () => passes.reduce((total, testingPass) => total + testingPass.checks.length, 0),
     [passes]
@@ -61,14 +70,21 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
 
   useEffect(() => {
     setChecked(readChecked());
+    setNotes(readNotes());
     setLoaded(true);
   }, []);
 
   useEffect(() => {
     if (loaded) {
-      window.localStorage.setItem(storageKey, JSON.stringify([...checked].sort()));
+      window.localStorage.setItem(checkedStorageKey, JSON.stringify([...checked].sort()));
     }
   }, [checked, loaded]);
+
+  useEffect(() => {
+    if (loaded) {
+      window.localStorage.setItem(notesStorageKey, notes);
+    }
+  }, [loaded, notes]);
 
   const toggleCheck = (id: string): void => {
     setChecked((current) => {
@@ -86,9 +102,11 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
 
   const reset = (): void => setChecked(new Set());
 
+  const clearNotes = (): void => setNotes("");
+
   const copyProgress = async (): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(buildProgressSummary(passes, checked));
+      await navigator.clipboard.writeText(buildProgressSummary(passes, checked, notes));
       setMessage("Copied testing progress.");
     } catch {
       setMessage("Copy failed. Browser clipboard access is blocked.");
@@ -111,6 +129,20 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
           </button>
           <span>{message}</span>
         </div>
+      </div>
+
+      <label className="testing-session-notes">
+        <span>Session Notes</span>
+        <textarea
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Jot blockers, odd behavior, links, screenshots, or follow-up names while testing."
+          value={notes}
+        />
+      </label>
+      <div className="admin-inline-actions testing-checklist-actions">
+        <button type="button" className="secondary-action" onClick={clearNotes} disabled={!notes.trim()}>
+          Clear notes
+        </button>
       </div>
 
       <div className="project-admin-grid">

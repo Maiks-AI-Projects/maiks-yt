@@ -1591,6 +1591,21 @@ button:disabled {
   margin-top: 0.2rem;
 }
 
+.testing-session-notes {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.testing-session-notes span {
+  color: #253342;
+  font-weight: 700;
+}
+
+.testing-session-notes textarea {
+  min-height: 7rem;
+  resize: vertical;
+}
+
 .testing-checklist-actions span {
   color: #4b5966;
   font-size: 0.9rem;
