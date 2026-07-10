@@ -623,6 +623,7 @@ const publicPageChecks = [
   ["public context", "/context", ["Personal Context"], false],
   ["public games", "/games", ["Games"], false],
   ["public links", "/links", ["Maiks.yt Links"], false],
+  ["tools actions", "/tools/actions", ["Persistent Actions"], false],
   ["public privacy analytics", "/privacy/analytics", ["Analytics", "Necessary Data"], false],
   ["public projects", "/projects", ["Projects"], false],
   ["public schedule", "/schedule", ["Stream Schedule"], false],

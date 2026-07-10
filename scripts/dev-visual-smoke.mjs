@@ -176,6 +176,11 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       expectedText: ["Notifications"]
     },
     {
+      name: "tools-actions",
+      url: `${webBaseUrl}/tools/actions`,
+      expectedText: ["Persistent Actions"]
+    },
+    {
       name: "privacy-analytics",
       url: `${webBaseUrl}/privacy/analytics`,
       expectedText: ["Analytics", "Necessary Data"]
@@ -233,6 +238,12 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
   }
 
   if (controlUrl) {
+    surfaces.push({
+      allowAuthRequired: true,
+      name: "control-panel",
+      url: addQueryValue(withPath(controlUrl, "/control"), "devAuthToken", devAuthToken),
+      expectedText: ["Control Panel"]
+    });
     surfaces.push({
       allowAuthRequired: true,
       name: "moderation-window",
