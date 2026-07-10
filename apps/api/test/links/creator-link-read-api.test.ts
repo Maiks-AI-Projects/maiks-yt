@@ -38,12 +38,12 @@ describe("public creator link read API", () => {
       createLink("draft", { isPublished: false }),
       createLink("missing-href", { href: "" }),
       createLink("support", {
-        title: "Support",
+        title: "Funding",
         purpose: "support",
         icon: "support",
         availability: "unavailable",
         href: null,
-        availabilityNote: "Support link not available",
+        availabilityNote: "Funding launches later",
         sortOrder: 2
       }),
       createLink("home", {
@@ -71,7 +71,7 @@ describe("public creator link read API", () => {
       ok: true,
       links: [
         { key: "home", availability: "available", href: "/home", isPrimary: true },
-        { key: "support", availability: "unavailable", availabilityNote: "Support link not available" }
+        { key: "support", title: "Funding", availability: "unavailable", availabilityNote: "Funding launches later" }
       ]
     });
     await server.close();

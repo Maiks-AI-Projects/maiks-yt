@@ -14,6 +14,7 @@ import type {
 } from "./creator-link-admin.types.js";
 
 const creatorLinkKeyPattern = /^[a-z0-9][a-z0-9-]{0,79}$/;
+const protectedFundingAvailabilityNote = "Funding launches later";
 
 const canManageCreatorLinks = (capabilities: readonly unknown[]): boolean =>
   capabilities.some((capability) => capability === "*" || capability === "creator-links:manage");
@@ -52,7 +53,7 @@ const isSupportRowStillProtected = (
     && next.icon === "support"
     && next.availability === "unavailable"
     && next.href === null
-    && next.availabilityNote === "Support link not available"
+    && next.availabilityNote === protectedFundingAvailabilityNote
   );
 
 const isValidCreatorLinkAdminReorderInput = (input: CreatorLinkAdminReorderInput): boolean =>

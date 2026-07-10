@@ -58,6 +58,7 @@ type LinkFormState = {
 };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const protectedFundingAvailabilityNote = "Funding launches later";
 
 const creatorLinkPurposes = [
   "account",
@@ -138,7 +139,7 @@ const toPayload = (form: LinkFormState): Record<string, unknown> => {
     href: availability === "available" ? form.href.trim() : null,
     availabilityNote: availability === "unavailable"
       ? isSupportLink
-        ? "Support link not available"
+        ? protectedFundingAvailabilityNote
         : form.availabilityNote.trim()
       : null,
     isPrimary: form.isPrimary,
@@ -499,7 +500,7 @@ const CreatorLinkAdminClient = (): React.ReactNode => {
                         ? {
                           availability: "unavailable",
                           href: "",
-                          availabilityNote: "Support link not available"
+                          availabilityNote: protectedFundingAvailabilityNote
                         }
                         : {})
                     }));

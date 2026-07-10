@@ -13,7 +13,7 @@ export const creatorLinkPurposeLabels = {
   project: "Project",
   social: "Social",
   stream: "Stream",
-  support: "Support",
+  support: "Funding",
   tool: "Tool"
 } satisfies Record<CreatorLinkPurpose, string>;
 
@@ -108,12 +108,12 @@ export const publicCreatorLinks: readonly PublicCreatorLink[] = [
   },
   {
     key: "support",
-    title: "Support",
-    description: "A support destination can be added after its terms and public wording are approved.",
+    title: "Funding",
+    description: "Maiks.yt is planned to launch with its own donation system, so contributions can support the creator and projects directly without relying on Twitch Partner or YouTube monetization. Familiar third-party platforms may be added later for people who prefer services they already know, even when those platforms keep a larger share.",
     purpose: "support",
     icon: "support",
     availability: "unavailable",
-    availabilityNote: "Support link not available",
+    availabilityNote: "Funding launches later",
     isPrimary: false,
     sortOrder: 90
   },
