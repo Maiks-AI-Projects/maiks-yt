@@ -29,6 +29,7 @@ export const projectTwitchChatMessage = (
 ): TwitchChatProjectionResult => {
   const channelName = normalizeChannelName(input.channelName);
   const userName = normalizeText(input.userName, maxAuthorNameLength).toLowerCase();
+  const userId = normalizeText(input.userId ?? "", 80) || null;
   const authorName = normalizeText(input.displayName || input.userName, maxAuthorNameLength);
   const message = normalizeText(input.text, maxMessageLength);
 
@@ -63,6 +64,7 @@ export const projectTwitchChatMessage = (
       createdAt: (input.createdAt ?? new Date()).toISOString(),
       message,
       providerMessageId: normalizeText(input.messageId ?? "", 80) || randomUUID(),
+      userId,
       userName,
       source: "twitch",
       visibleOnOverlayByDefault: false

@@ -44,10 +44,24 @@ export type StreamerChatModerationResponse = {
   providerAction: false;
 };
 
+export type StreamerChatProviderModerationResponse = {
+  ok: true;
+  action: "delete_message" | "timeout_author" | "ban_author";
+  affectedCount: number;
+  providerAction: boolean;
+  providerActionReason: string | null;
+  providerActionSent: boolean;
+} | {
+  ok: false;
+  reason: string;
+  providerAction: false;
+};
+
 export type StreamerChatActionAccess = {
   canAllow?: boolean;
   canBan: boolean;
   canHide: boolean;
+  canProviderModerate?: boolean;
   canWarn: boolean;
 };
 

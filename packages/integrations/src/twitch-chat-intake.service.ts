@@ -190,6 +190,7 @@ export class TwitchChatReadOnlyIntakeService {
         displayName: msg.userInfo.displayName,
         messageId: msg.id,
         text,
+        userId: (msg.userInfo as { userId?: string | null }).userId ?? null,
         userName: user
       });
 

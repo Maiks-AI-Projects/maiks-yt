@@ -25,7 +25,7 @@ export type StreamerChatModerationRule = {
 };
 
 export type StreamerChatModerationAuditEntry = {
-  action: "warn_author" | "allow_message" | "allow_author" | "hide_message" | "ban_author" | "unban_author";
+  action: "warn_author" | "allow_message" | "allow_author" | "hide_message" | "ban_author" | "unban_author" | "delete_message" | "temporary_mute_author";
   actorDisplayName: string | null;
   at: string;
   id: string;

@@ -3,8 +3,10 @@ import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import {
   DiscordChatWarningDeliveryService,
   DiscordChatReadOnlyIntakeService,
+  DiscordChatModerationService,
   TwitchChatWarningDeliveryService,
   TwitchChatReadOnlyIntakeService,
+  TwitchChatModerationService,
   YouTubeChatWarningDeliveryService,
   YouTubeLiveChatReadOnlyIntakeService,
   type DiscordGatewayProjectedEvent,
@@ -177,7 +179,8 @@ const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): S
   return appendStreamerChatMessage({
     ...message,
     providerChannelId: message.channelName,
-    providerUserId: message.userName
+    providerUserLogin: message.userName,
+    ...(message.userId ? { providerUserId: message.userId } : {})
   });
 };
 
@@ -239,7 +242,9 @@ const {
 } = createApiAuthRuntime({ getDatabasePool });
 streamerChatModerationStore = new StreamerChatModerationStoreService(getDatabasePool);
 const discordChatWarningDeliveryService = new DiscordChatWarningDeliveryService();
+const discordChatModerationService = new DiscordChatModerationService();
 const twitchChatWarningDeliveryService = new TwitchChatWarningDeliveryService();
+const twitchChatModerationService = new TwitchChatModerationService();
 const youtubeChatWarningDeliveryService = new YouTubeChatWarningDeliveryService({
   contextResolver: youtubeLiveChatContextRepository.resolveSelectedLiveChatContext
 });
@@ -350,6 +355,7 @@ const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) 
 registerApplicationRoutes({
   discordChatIntakeRuntime,
   discordChatWarningDeliveryService,
+  discordChatModerationService,
   fakeLocalModerationRuntime,
   getAuthSession,
   getDatabasePool,
@@ -365,6 +371,7 @@ registerApplicationRoutes({
   streamerChatRuntime,
   twitchChatIntakeRuntime,
   twitchChatWarningDeliveryService,
+  twitchChatModerationService,
   validateUrlAccessTokenForRequest,
   youtubeChatWarningDeliveryService,
   youtubeLiveChatIntakeRuntime

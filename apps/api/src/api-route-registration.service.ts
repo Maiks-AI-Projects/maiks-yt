@@ -79,6 +79,7 @@ type RequireStreamerChatModerationPermission = (
 
 type RegisterApplicationRoutesInput = {
   discordChatIntakeRuntime: DiscordChatReadOnlyIntakeService;
+  discordChatModerationService: import("@maiks-yt/integrations").DiscordChatModerationService;
   discordChatWarningDeliveryService: import("@maiks-yt/integrations").DiscordChatWarningDeliveryService;
   fakeLocalModerationRuntime: InMemoryFakeLocalModerationRuntime;
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
@@ -94,6 +95,7 @@ type RegisterApplicationRoutesInput = {
   streamerChatModerationStore: StreamerChatModerationStoreService;
   streamerChatRuntime: StreamerChatRuntime;
   twitchChatIntakeRuntime: TwitchChatReadOnlyIntakeService;
+  twitchChatModerationService: import("@maiks-yt/integrations").TwitchChatModerationService;
   twitchChatWarningDeliveryService: import("@maiks-yt/integrations").TwitchChatWarningDeliveryService;
   validateUrlAccessTokenForRequest: ValidateUrlAccessTokenForRequest;
   youtubeChatWarningDeliveryService: import("@maiks-yt/integrations").YouTubeChatWarningDeliveryService;
@@ -102,6 +104,7 @@ type RegisterApplicationRoutesInput = {
 
 export const registerApplicationRoutes = ({
   discordChatIntakeRuntime,
+  discordChatModerationService,
   discordChatWarningDeliveryService,
   fakeLocalModerationRuntime,
   getAuthSession,
@@ -117,6 +120,7 @@ export const registerApplicationRoutes = ({
   streamerChatModerationStore,
   streamerChatRuntime,
   twitchChatIntakeRuntime,
+  twitchChatModerationService,
   twitchChatWarningDeliveryService,
   validateUrlAccessTokenForRequest,
   youtubeChatWarningDeliveryService,
@@ -277,10 +281,12 @@ export const registerApplicationRoutes = ({
   });
   registerStreamerChatModerationRoutes(server, {
     accessService: streamerChatModerationAccessService,
+    discordModerationService: discordChatModerationService,
     discordWarningDeliveryService: discordChatWarningDeliveryService,
     moderationRuntime: streamerChatModerationRuntime,
     moderationStore: streamerChatModerationStore,
     streamerChatRuntime,
+    twitchModerationService: twitchChatModerationService,
     twitchWarningDeliveryService: twitchChatWarningDeliveryService,
     youtubeWarningDeliveryService: youtubeChatWarningDeliveryService
   });

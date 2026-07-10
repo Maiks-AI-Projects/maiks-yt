@@ -23,7 +23,7 @@ export type StreamerChatModerationRulesResponse = {
 };
 
 export type StreamerChatModerationAuditEntry = {
-  action: "warn_author" | "allow_message" | "allow_author" | "hide_message" | "ban_author" | "unban_author";
+  action: "warn_author" | "allow_message" | "allow_author" | "hide_message" | "ban_author" | "unban_author" | "delete_message" | "temporary_mute_author";
   actorDisplayName: string | null;
   at: string;
   id: string;
@@ -63,6 +63,7 @@ export type StreamerChatModerationAccess = {
     canBan: boolean;
     canEmergencyClear: boolean;
     canHide: boolean;
+    canProviderModerate: boolean;
     canAllow: boolean;
     canViewAudit: boolean;
     canRetractRules: boolean;
@@ -108,7 +109,9 @@ export const moderationAuditActionLabels: Record<StreamerChatModerationAuditEntr
   allow_author: "Allow author",
   allow_message: "Allow message",
   ban_author: "Ban",
+  delete_message: "Delete message",
   hide_message: "Hide",
+  temporary_mute_author: "Timeout",
   unban_author: "Retract ban",
   warn_author: "Warning"
 };

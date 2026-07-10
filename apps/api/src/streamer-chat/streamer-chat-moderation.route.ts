@@ -2,8 +2,11 @@ import type { FastifyInstance } from "fastify";
 import type {
   DiscordChatWarningDeliveryResult,
   DiscordChatWarningDeliveryService,
+  DiscordChatModerationService,
+  ProviderChatModerationResult,
   TwitchChatWarningDeliveryResult,
   TwitchChatWarningDeliveryService,
+  TwitchChatModerationService,
   YouTubeChatWarningDeliveryResult,
   YouTubeChatWarningDeliveryService
 } from "@maiks-yt/integrations";
@@ -24,6 +27,11 @@ const streamerChatModerationRequestSchema = z.object({
 const streamerChatModerationAllowRequestSchema = streamerChatModerationRequestSchema.extend({
   durationSeconds: z.number().int().min(60).max(30 * 24 * 60 * 60).nullable().optional(),
   scope: z.enum(["message", "always", "stream", "timed"])
+});
+const streamerChatProviderModerationRequestSchema = streamerChatModerationRequestSchema.extend({
+  action: z.enum(["delete_message", "timeout_author", "ban_author"]),
+  durationSeconds: z.number().int().min(60).max(28 * 24 * 60 * 60).nullable().optional(),
+  reason: z.string().trim().max(500).optional()
 });
 const streamerChatModerationRuleListRequestSchema = z.object({
   accessToken: z.string().min(24)
@@ -49,14 +57,52 @@ const applyAccessFailure = (
   };
 };
 
+const createProviderModerationReason = (
+  action: "delete_message" | "timeout_author" | "ban_author",
+  authorName: string,
+  customReason?: string
+): string => {
+  const normalizedCustomReason = customReason?.trim();
+
+  if (normalizedCustomReason) {
+    return normalizedCustomReason;
+  }
+
+  if (action === "delete_message") {
+    return `Message from ${authorName} moderated from Maiks.yt streamer chat.`;
+  }
+
+  if (action === "timeout_author") {
+    return `${authorName} timed out from Maiks.yt streamer chat.`;
+  }
+
+  return `${authorName} banned from Maiks.yt streamer chat.`;
+};
+
+const toAuditAction = (
+  action: "delete_message" | "timeout_author" | "ban_author"
+): "delete_message" | "temporary_mute_author" | "ban_author" => {
+  if (action === "delete_message") {
+    return "delete_message";
+  }
+
+  if (action === "timeout_author") {
+    return "temporary_mute_author";
+  }
+
+  return "ban_author";
+};
+
 export const registerStreamerChatModerationRoutes = (
   server: FastifyInstance,
   dependencies: {
     accessService: StreamerChatModerationAccessService;
+    discordModerationService: Pick<DiscordChatModerationService, "moderate">;
     discordWarningDeliveryService: Pick<DiscordChatWarningDeliveryService, "sendWarning">;
     moderationRuntime: InMemoryStreamerChatModerationRuntime;
     moderationStore: StreamerChatModerationStoreService;
     streamerChatRuntime: StreamerChatRuntime;
+    twitchModerationService: Pick<TwitchChatModerationService, "moderate">;
     twitchWarningDeliveryService: Pick<TwitchChatWarningDeliveryService, "sendWarning">;
     youtubeWarningDeliveryService: Pick<YouTubeChatWarningDeliveryService, "sendWarning">;
   }
@@ -86,6 +132,7 @@ export const registerStreamerChatModerationRoutes = (
         canBan: canUseStreamerChatModerationAction(access.permissions, "ban"),
         canEmergencyClear: canUseStreamerChatModerationAction(access.permissions, "emergency_clear"),
         canHide: canUseStreamerChatModerationAction(access.permissions, "hide"),
+        canProviderModerate: canUseStreamerChatModerationAction(access.permissions, "provider_action"),
         canAllow: canUseStreamerChatModerationAction(access.permissions, "allow"),
         canViewAudit: canUseStreamerChatModerationAction(access.permissions, "view_audit"),
         canRetractRules: canUseStreamerChatModerationAction(access.permissions, "retract_rule"),
@@ -314,7 +361,7 @@ export const registerStreamerChatModerationRoutes = (
         providerDelivery = await dependencies.twitchWarningDeliveryService.sendWarning({
           authorName: result.message.authorName,
           channelName: result.message.providerChannelId ?? result.message.channelName,
-          userName: result.message.providerUserId,
+          userName: result.message.providerUserLogin ?? result.message.providerUserId ?? result.message.authorName,
           warningCount: result.warningCount,
           warningThreshold: result.warningThreshold
         });
@@ -372,6 +419,91 @@ export const registerStreamerChatModerationRoutes = (
         ? `@${result.message.authorName} this is warning ${result.warningCount}/${result.warningThreshold}. A third warning results in an automatic Maiks.yt stream-surface ban.`
         : null),
       providerWarningReason: providerDelivery?.ok === false ? providerDelivery.reason : null
+    };
+  });
+
+  server.post("/streamer-chat/moderation/provider-action", async (request, reply) => {
+    const parsedRequest = streamerChatProviderModerationRequestSchema.safeParse(request.body);
+
+    if (!parsedRequest.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "invalid_request",
+        providerAction: false
+      };
+    }
+
+    const access = await dependencies.accessService.requirePermission(request, parsedRequest.data.accessToken, "provider_action");
+
+    if (!access.ok) {
+      return applyAccessFailure(reply, access);
+    }
+
+    const targetMessage = dependencies.streamerChatRuntime.findMessage(parsedRequest.data.targetMessageId);
+
+    if (!targetMessage) {
+      return {
+        ok: true,
+        action: parsedRequest.data.action,
+        affectedMessage: null,
+        affectedCount: 0,
+        providerAction: false,
+        providerActionSent: false,
+        providerActionReason: "streamer_chat_message_not_found"
+      };
+    }
+
+    const reason = createProviderModerationReason(parsedRequest.data.action, targetMessage.authorName, parsedRequest.data.reason);
+    let providerResult: ProviderChatModerationResult;
+
+    if (targetMessage.source === "discord") {
+      providerResult = await dependencies.discordModerationService.moderate({
+        action: parsedRequest.data.action,
+        channelId: targetMessage.providerChannelId ?? null,
+        durationSeconds: parsedRequest.data.durationSeconds ?? null,
+        guildId: targetMessage.providerGuildId ?? null,
+        messageId: targetMessage.providerMessageId ?? null,
+        reason,
+        userId: targetMessage.providerUserId ?? null
+      });
+    } else if (targetMessage.source === "twitch") {
+      providerResult = await dependencies.twitchModerationService.moderate({
+        action: parsedRequest.data.action,
+        durationSeconds: parsedRequest.data.durationSeconds ?? null,
+        messageId: targetMessage.providerMessageId ?? null,
+        reason,
+        userId: targetMessage.providerUserId ?? null
+      });
+    } else {
+      providerResult = {
+        ok: false,
+        providerAction: false,
+        providerActionId: null,
+        providerActionSent: false,
+        reason: targetMessage.source === "youtube"
+          ? "youtube_provider_moderation_gated"
+          : "provider_moderation_unsupported_source"
+      };
+    }
+
+    await dependencies.moderationStore.appendProviderActionAudit({
+      action: toAuditAction(parsedRequest.data.action),
+      actionKey: parsedRequest.data.action,
+      durationSeconds: parsedRequest.data.durationSeconds ?? null,
+      message: targetMessage,
+      providerResult,
+      reason
+    });
+
+    return {
+      ok: true,
+      action: parsedRequest.data.action,
+      affectedMessage: targetMessage,
+      affectedCount: providerResult.ok ? 1 : 0,
+      providerAction: providerResult.providerAction,
+      providerActionSent: providerResult.providerActionSent,
+      providerActionReason: providerResult.ok ? null : providerResult.reason
     };
   });
 

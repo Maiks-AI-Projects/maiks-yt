@@ -6,6 +6,7 @@ export type TwitchChatProjectedMessage = {
   createdAt: string;
   message: string;
   providerMessageId: string;
+  userId: string | null;
   userName: string;
   source: "twitch";
   visibleOnOverlayByDefault: false;
@@ -17,6 +18,7 @@ export type TwitchChatProjectionInput = {
   displayName?: string | null;
   messageId?: string | null;
   text: string;
+  userId?: string | null;
   userName: string;
 };
 

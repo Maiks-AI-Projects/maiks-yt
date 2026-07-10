@@ -143,7 +143,7 @@ describe("event action catalog", () => {
 });
 
 describe("provider action capability matrix", () => {
-  it("marks warning delivery implemented fail-closed and destructive provider actions gated", () => {
+  it("marks implemented provider writes fail-closed and keeps YouTube destructive actions gated", () => {
     const capabilities = listProviderActionCapabilities();
 
     expect(capabilities.filter((entry) => entry.actionKey === "provider.warn-in-origin-chat")).toEqual(
@@ -155,8 +155,8 @@ describe("provider action capability matrix", () => {
     );
     expect(capabilities.filter((entry) => entry.actionKey === "provider.ban-origin-user")).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ platform: "discord", status: "gated" }),
-        expect.objectContaining({ platform: "twitch", status: "gated" }),
+        expect.objectContaining({ platform: "discord", status: "implemented-fail-closed" }),
+        expect.objectContaining({ platform: "twitch", status: "implemented-fail-closed" }),
         expect.objectContaining({ platform: "youtube", status: "gated" })
       ])
     );
