@@ -3,9 +3,9 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-const checkJsonEndpoint = async ({ http, name, url, validate, critical = false }) => {
+const checkJsonEndpoint = async ({ http, name, url, validate, critical = false, headers = {} }) => {
   try {
-    const result = await http.readJson(url);
+    const result = await http.readJson(url, { headers });
 
     if (!result.ok) {
       return {
@@ -439,6 +439,142 @@ const checkModerationAudit = async ({ config, getDevOwnerToken, http }) => {
   }
 };
 
+const makeControlTokenUrl = ({ config, http, path, accessToken }) => {
+  const url = new URL(http.makeUrl(config.apiUrl, path));
+  url.searchParams.set("accessToken", accessToken);
+  return url.toString();
+};
+
+const checkStreamerChatMessages = async ({ config, http }) => {
+  const accessToken = getSmokeControlAccessToken();
+
+  if (!accessToken) {
+    return {
+      ok: true,
+      name: "streamer chat messages",
+      message: "streamer chat messages skipped: no dev control access token is available."
+    };
+  }
+
+  return checkJsonEndpoint({
+    http,
+    name: "streamer chat messages",
+    url: makeControlTokenUrl({ config, http, path: "/streamer-chat/messages", accessToken }),
+    validate: (json) => {
+      if (json?.ok !== true || json?.source !== "mixed" || !Array.isArray(json?.messages)) {
+        return "streamer chat messages returned an unexpected payload.";
+      }
+
+      return json.messages.some((message) =>
+        typeof message?.id !== "string"
+        || typeof message?.authorName !== "string"
+        || typeof message?.message !== "string"
+        || typeof message?.source !== "string"
+      )
+        ? "streamer chat messages included an unexpected message shape."
+        : null;
+    }
+  });
+};
+
+const providerChatStatusChecks = [
+  ["twitch chat status", "/streamer-chat/twitch-status", ["stopped", "connecting", "connected", "unconfigured"]],
+  ["discord chat status", "/streamer-chat/discord-status", ["stopped", "connecting", "connected", "unconfigured"]],
+  ["youtube chat status", "/streamer-chat/youtube-status", ["stopped", "connecting", "waiting", "connected", "unconfigured"]]
+];
+
+const checkProviderChatStatus = async ({ allowedStates, config, http, name, path }) => {
+  const accessToken = getSmokeControlAccessToken();
+
+  if (!accessToken) {
+    return {
+      ok: true,
+      name,
+      message: `${name} skipped: no dev control access token is available.`
+    };
+  }
+
+  return checkJsonEndpoint({
+    http,
+    name,
+    url: makeControlTokenUrl({ config, http, path, accessToken }),
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || json?.readOnly !== true
+        || typeof json?.checkedAt !== "string"
+        || !allowedStates.includes(json?.status?.state)
+        || !Array.isArray(json?.status?.recentMessages)
+      ) {
+        return `${name} returned an unexpected payload.`;
+      }
+
+      return null;
+    }
+  });
+};
+
+const createProviderChatStatusChecks = ({ config, http }) => providerChatStatusChecks.map(([name, path, allowedStates]) =>
+  checkProviderChatStatus({ allowedStates, config, http, name, path })
+);
+
+const checkStreamerChatModerationAccess = async ({ config, getDevOwnerToken, http }) => {
+  const accessToken = getSmokeControlAccessToken();
+
+  if (!accessToken) {
+    return {
+      ok: true,
+      name: "streamer chat moderation access",
+      message: "streamer chat moderation access skipped: no dev control access token is available."
+    };
+  }
+
+  const minted = await getDevOwnerToken();
+
+  if (minted.skipped) {
+    return {
+      ok: true,
+      name: "streamer chat moderation access",
+      message: `streamer chat moderation access skipped: ${minted.reason}`
+    };
+  }
+
+  if (!minted.ok) {
+    return {
+      ok: false,
+      critical: false,
+      name: "streamer chat moderation access",
+      message: `streamer chat moderation access could not mint an owner token: ${minted.reason}`
+    };
+  }
+
+  return checkJsonEndpoint({
+    headers: {
+      Authorization: `Bearer ${minted.token}`
+    },
+    http,
+    name: "streamer chat moderation access",
+    url: makeControlTokenUrl({ config, http, path: "/streamer-chat/moderation/access", accessToken }),
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || json?.providerAction !== false
+        || typeof json?.checkedAt !== "string"
+        || typeof json?.actions?.canHide !== "boolean"
+        || typeof json?.actions?.canBan !== "boolean"
+        || typeof json?.actions?.canWarn !== "boolean"
+        || typeof json?.panels?.chat !== "boolean"
+        || typeof json?.panels?.auditHistory !== "boolean"
+      ) {
+        return "streamer chat moderation access returned an unexpected payload.";
+      }
+
+      return null;
+    },
+    critical: false
+  });
+};
+
 const checkBackupHealth = async () => {
   try {
     const result = await execFileAsync("pnpm", ["--filter", "@maiks-yt/database", "backup:health"], {
@@ -643,6 +779,9 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     url: http.makeUrl(config.controlUrl, "/moderation"),
     scanInjection: true
   }),
+  checkStreamerChatMessages({ config, http }),
+  ...createProviderChatStatusChecks({ config, http }),
+  checkStreamerChatModerationAccess({ config, getDevOwnerToken, http }),
   checkBackupHealth(),
   checkBackupKeyDataExport({ config, getDevOwnerToken, http }),
   checkModerationAudit({ config, getDevOwnerToken, http }),

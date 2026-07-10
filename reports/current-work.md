@@ -208,6 +208,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Expanded `pnpm dev:visual-smoke` public-page coverage for testing readiness: accountability, actions, context, games, links, privacy analytics, projects, schedule, and updates now get screenshot and DOM smoke checks alongside the existing public/admin/tool captures.
 - Expanded the recurring failure-only `pnpm dev:smoke:notify` page checks with stable text assertions for the public testing pages, so HTTP 200 responses with the wrong shell/error content no longer count as healthy.
 - Expanded the recurring failure-only `pnpm dev:smoke:notify` owner-page checks with short-lived dev-owner-token coverage for the full `/admin` testing surface list, mirroring the visual smoke surface set without printing the token.
+- Expanded the recurring failure-only `pnpm dev:smoke:notify` control-window backend checks: when the dev control token is available it now validates streamer chat messages, Twitch/Discord/YouTube chat status payloads, and the owner-authenticated moderation access snapshot used by `/chat` and `/moderation`.
 
 ## Current Task
 
