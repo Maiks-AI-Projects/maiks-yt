@@ -15,7 +15,7 @@ import type {
 class FakeTestingSmokeStateRepository implements TestingSmokeStateRepository {
   public actor: TestingSmokeStateActor | null = {
     domainUserId: "domain-user",
-    rolePermissionValues: [["*"]]
+    rolePermissionValues: [JSON.stringify(["*"])]
   };
 
   public async resolveActor(): Promise<TestingSmokeStateActor | null> {

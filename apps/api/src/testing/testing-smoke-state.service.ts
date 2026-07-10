@@ -14,6 +14,16 @@ const normalizePermissions = (values: readonly unknown[]): string[] => values.fl
   }
 
   if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+
+      if (Array.isArray(parsed)) {
+        return parsed.filter((entry): entry is string => typeof entry === "string");
+      }
+    } catch {
+      // Plain string permissions are still accepted below for test fixtures and future callers.
+    }
+
     return [value];
   }
 
