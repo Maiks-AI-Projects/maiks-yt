@@ -1,5 +1,6 @@
 import {
   listEventActionCatalogEntries,
+  listProviderActionCapabilities,
   listProviderEventCatalogEntries,
   summarizeProviderEventCatalog
 } from "@maiks-yt/domain/events";
@@ -75,9 +76,16 @@ const safetyBadgesForAction = (entry: ReturnType<typeof listEventActionCatalogEn
   return badges;
 };
 
+const actionCapabilityStatusLabels = {
+  gated: "Gated",
+  "implemented-fail-closed": "Fail-closed",
+  unsupported: "Unsupported"
+};
+
 const ConnectionsPage = (): React.ReactNode => {
   const events = listProviderEventCatalogEntries();
   const actions = listEventActionCatalogEntries();
+  const actionCapabilities = listProviderActionCapabilities();
   const summary = summarizeProviderEventCatalog();
 
   return (
@@ -119,6 +127,36 @@ const ConnectionsPage = (): React.ReactNode => {
       </section>
 
       <ProviderIntakeRecentClient />
+
+      <section className="project-admin-panel">
+        <div className="project-admin-panel-heading">
+          <div>
+            <h2>Provider Action Readiness</h2>
+            <p>Warning sends are guarded by provider context and credentials. Destructive provider actions stay gated.</p>
+          </div>
+        </div>
+        <div className="connections-event-table" role="table" aria-label="Provider action readiness">
+          <div className="connections-event-row header" role="row">
+            <span>Provider</span>
+            <span>Action</span>
+            <span>Status</span>
+            <span>Notes</span>
+          </div>
+          {actionCapabilities.map((capability) => (
+            <div className="connections-event-row" role="row" key={`${capability.platform}:${capability.actionKey}`}>
+              <span>{platformLabels[capability.platform]}</span>
+              <span><code>{capability.actionKey}</code></span>
+              <span className="dev-test-console-badges">
+                <span className={capability.status === "implemented-fail-closed" ? undefined : "warning"}>
+                  {actionCapabilityStatusLabels[capability.status]}
+                </span>
+                {capability.requiresLiveContext ? <span className="warning">live context</span> : null}
+              </span>
+              <span>{capability.reason}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="project-admin-panel connections-admin-actions">
         <div className="project-admin-panel-heading">

@@ -224,6 +224,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Tightened `pnpm dev:visual-smoke` so `/tools/actions` and `/tools/notifications` fail if the normal website navbar appears; the current 68-capture visual sweep passed with no navbar failures.
 - Added recurring PWA icon asset smoke checks for the web stream-tools manifest and control-panel/chat manifests, covering both regular and maskable SVG icons.
 - Added fail-closed YouTube warning-message delivery for streamer-chat Warn actions: YouTube chat intake now preserves author channel context, future owner consent requests include the official `youtube.force-ssl` write scope, and YouTube Warn attempts send only when an active live chat plus write-scoped credential are available. Existing read-only credentials need re-consent before live YouTube warning sends can work.
+- Added a read-only provider action readiness matrix to `/admin/connections` so testing can see Discord/Twitch/YouTube warning delivery as fail-closed and provider-side delete/hide, timeout, and ban actions as still gated with visible reasons.
 
 ## Current Task
 

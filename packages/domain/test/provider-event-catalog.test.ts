@@ -4,6 +4,7 @@ import {
   eventActionCatalog,
   getEventActionCatalogEntry,
   getProviderEventCatalogEntry,
+  listProviderActionCapabilities,
   providerEventCatalog,
   summarizeProviderEventCatalog
 } from "../src/events/index.js";
@@ -138,5 +139,26 @@ describe("event action catalog", () => {
     expect(eventActionCatalog.every((catalogEntry) => catalogEntry.safety.publicOutput
       ? catalogEntry.safety.requiresApprovalSupport
       : true)).toBe(true);
+  });
+});
+
+describe("provider action capability matrix", () => {
+  it("marks warning delivery implemented fail-closed and destructive provider actions gated", () => {
+    const capabilities = listProviderActionCapabilities();
+
+    expect(capabilities.filter((entry) => entry.actionKey === "provider.warn-in-origin-chat")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ platform: "discord", status: "implemented-fail-closed" }),
+        expect.objectContaining({ platform: "twitch", status: "implemented-fail-closed" }),
+        expect.objectContaining({ platform: "youtube", requiresLiveContext: true, status: "implemented-fail-closed" })
+      ])
+    );
+    expect(capabilities.filter((entry) => entry.actionKey === "provider.ban-origin-user")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ platform: "discord", status: "gated" }),
+        expect.objectContaining({ platform: "twitch", status: "gated" }),
+        expect.objectContaining({ platform: "youtube", status: "gated" })
+      ])
+    );
   });
 });
