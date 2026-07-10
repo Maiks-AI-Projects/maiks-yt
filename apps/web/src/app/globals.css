@@ -1247,6 +1247,67 @@ button:disabled {
   text-decoration: none;
 }
 
+.project-admin-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+
+.project-admin-preview {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem;
+}
+
+.project-admin-preview h2 {
+  margin: 0;
+}
+
+.admin-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-list-item {
+  background: #f7f9fc;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem;
+}
+
+.admin-list-item > div {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: space-between;
+}
+
+.admin-list-item strong {
+  color: #102131;
+}
+
+.admin-list-item span,
+.admin-list-item p {
+  color: #4b5966;
+  margin: 0;
+}
+
+.admin-list-item span {
+  font-size: 0.85rem;
+}
+
+.admin-dashboard-link:hover,
+.admin-dashboard-link:focus-visible {
+  background: #eef4fb;
+  border-color: #9ab6d0;
+}
+
 .admin-dashboard-status-grid {
   display: grid;
   gap: 0.75rem;

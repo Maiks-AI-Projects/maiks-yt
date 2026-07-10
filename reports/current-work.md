@@ -201,6 +201,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added owner-gated `/admin/backup/health` and a Backup Health status card to `/admin`, exposing the same safe read-only table/warning status without shell access.
 - Added owner-gated `/admin/backup/key-data-export` and a `/admin` download action for a short-lived key-data JSON snapshot. It includes editable/testing-critical rows for content, projects, schedule, games, roles, routing/opt-outs, provider channel identities, notifications, active moderation state, and money ledger/rule/reference/warning data while excluding auth/session/token/provider credential secrets, push secrets, raw provider payloads, env/config, filesystem uploads, and full encrypted dump/restore automation.
 - Extended `pnpm dev:smoke:notify` to cover the owner-gated key-data export payload and the moderation audit endpoint shape. The moderation audit check is optional until a dev control access token is present in the smoke environment; otherwise it reports a clean skip.
+- Restored focused admin dashboard/list card styling after visual smoke showed `/admin` navigation collapsing into plain text. This improves the testing hub and shared admin list surfaces without changing behavior.
 
 ## Current Task
 
