@@ -204,6 +204,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Restored focused admin dashboard/list card styling after visual smoke showed `/admin` navigation collapsing into plain text. This improves the testing hub and shared admin list surfaces without changing behavior.
 - Added control-panel dev bearer capture for `devAuthToken` URLs so fresh-browser visual smoke and short-lived testing links can open `/chat` and `/moderation` without relying on a pre-existing browser cookie. Normal session-cookie login remains supported.
 - Updated `pnpm dev:visual-smoke` so the standalone `/chat` capture receives the same `devAuthToken` query value as `/moderation`, allowing fresh-browser visual QA to cover the real chat UI instead of stopping at Access Required.
+- Expanded `pnpm dev:visual-smoke` to cover the broader owner admin testing surface list: connections, event routing, games, links, live helper, money, moderators, pages, projects, provider integrations, schedule, sessions, and tokens, plus the existing chat/moderation/overlay captures.
 
 ## Current Task
 

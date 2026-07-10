@@ -151,11 +151,18 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
     for (const [name, path, expectedText] of [
       ["admin-dashboard", "/admin", "Admin"],
       ["admin-connections", "/admin/connections", "Connections"],
+      ["admin-event-routing", "/admin/event-routing", "Event"],
       ["admin-games", "/admin/games", "Game"],
+      ["admin-links", "/admin/links", "Link"],
+      ["admin-live-helper", "/admin/live-helper", "Live"],
       ["admin-money", "/admin/money", "Money"],
+      ["admin-moderators", "/admin/moderators", "Moderator"],
       ["admin-pages", "/admin/pages", "Page Creator"],
       ["admin-projects", "/admin/projects", "Project"],
-      ["admin-provider-integrations", "/admin/provider-integrations", "Provider"]
+      ["admin-provider-integrations", "/admin/provider-integrations", "Provider"],
+      ["admin-schedule", "/admin/schedule", "Schedule"],
+      ["admin-sessions", "/admin/sessions", "Session"],
+      ["admin-tokens", "/admin/tokens", "Token"]
     ]) {
       surfaces.push({
         name,
