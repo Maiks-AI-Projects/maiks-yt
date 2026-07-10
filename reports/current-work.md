@@ -264,6 +264,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 30. The standalone chat window's Open dropdown now preserves stored `devAuthToken` access when jumping to web-dev private tools from a token-based testing session.
 31. The standalone chat window's provider status shortcuts now use the same stored `devAuthToken` helper when opening provider admin, so disconnected/unconfigured service dots do not drop owner test access.
 32. `/admin/testing` now includes the stream-window "Access Required" recovery step directly in the in-app checklist, not only in the Markdown manual testing guide.
+33. `pnpm test:readiness -- --visual` passed on 2026-07-10 with 68 fresh Chromium captures across public pages, owner admin surfaces, `/chat`, `/control`, `/moderation`, and overlay; the summary reported no auth-required stops, no known injection markers, no rejected navbars, and no horizontal overflow.
 
 ## Known State
 
