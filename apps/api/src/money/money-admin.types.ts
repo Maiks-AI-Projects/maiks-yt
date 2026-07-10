@@ -179,6 +179,7 @@ export type MoneyAdminImportPreviewRow = {
   sourceProvider: MoneyProvider | null;
   categoryKey: string | null;
   reference: string | null;
+  duplicateTransactionId: string | null;
   warnings: readonly string[];
 };
 

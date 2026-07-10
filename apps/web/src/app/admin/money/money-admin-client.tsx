@@ -81,6 +81,7 @@ type MoneyImportPreviewRow = {
   sourceProvider: MoneyProvider | null;
   categoryKey: string | null;
   reference: string | null;
+  duplicateTransactionId: string | null;
   warnings: readonly string[];
 };
 
@@ -1377,6 +1378,7 @@ const MoneyAdminClient = (): React.ReactNode => {
                           </span>
                         </div>
                         {row.description ? <p>{row.description}</p> : null}
+                        {row.duplicateTransactionId ? <p>Existing entry: {row.duplicateTransactionId}</p> : null}
                         {row.warnings.length > 0 ? <p>{row.warnings.join(", ")}</p> : null}
                       </article>
                     ))}

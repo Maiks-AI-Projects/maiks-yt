@@ -167,6 +167,22 @@ const normalizeLedgerFilters = (filters?: Partial<MoneyAdminLedgerFilters>): Mon
   };
 };
 
+const buildExistingReferenceMap = (transactions: readonly MoneyLedgerTransaction[]): ReadonlyMap<string, string> => {
+  const references = new Map<string, string>();
+
+  for (const transaction of transactions) {
+    for (const line of transaction.lines) {
+      const privateReference = normalizeNullableText(line.receiptReference?.privateReference ?? null, 191);
+
+      if (privateReference && !references.has(privateReference)) {
+        references.set(privateReference, transaction.id);
+      }
+    }
+  }
+
+  return references;
+};
+
 const normalizeInput = (input: MoneyLedgerTransactionInput): MoneyLedgerTransactionInput => ({
   transactionType: input.transactionType,
   moneyMode: input.moneyMode,
@@ -1057,8 +1073,13 @@ export class MoneyAdminService {
       };
     }
 
+    const existingTransactions = await this.repository.listTransactions({
+      accountingFrom: null,
+      accountingTo: null
+    });
     const preview = buildMoneyImportPreview({
       csv: input.csv,
+      existingReferences: buildExistingReferenceMap(existingTransactions),
       filename: input.filename ?? null
     });
 
@@ -1093,8 +1114,13 @@ export class MoneyAdminService {
       };
     }
 
+    const existingTransactions = await this.repository.listTransactions({
+      accountingFrom: null,
+      accountingTo: null
+    });
     const preview = buildMoneyImportPreview({
       csv: input.csv,
+      existingReferences: buildExistingReferenceMap(existingTransactions),
       filename: input.filename ?? null
     });
 

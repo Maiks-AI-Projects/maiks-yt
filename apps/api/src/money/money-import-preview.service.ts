@@ -216,6 +216,7 @@ const normalizeCurrency = (value: string | undefined): string | null => {
 
 export const buildMoneyImportPreview = (input: {
   csv: string;
+  existingReferences?: ReadonlyMap<string, string>;
   filename?: string | null;
   generatedAt?: string;
 }): MoneyAdminImportPreview | null => {
@@ -238,6 +239,10 @@ export const buildMoneyImportPreview = (input: {
     const explicitCurrency = normalizeCurrency(cell(row, indexes, "currency"));
     const sourceProvider = normalizeProvider(cell(row, indexes, "sourceProvider"));
     const categoryKey = normalizeText(cell(row, indexes, "categoryKey"), 80);
+    const reference = normalizeText(cell(row, indexes, "reference"), 191);
+    const duplicateTransactionId = reference
+      ? input.existingReferences?.get(reference) ?? null
+      : null;
 
     if (amountMinor === null) {
       warnings.push("amount_missing_or_invalid");
@@ -263,7 +268,11 @@ export const buildMoneyImportPreview = (input: {
       warnings.push("category_missing");
     }
 
-    const status = amountMinor === null || !direction
+    if (duplicateTransactionId) {
+      warnings.push("duplicate_reference");
+    }
+
+    const status = amountMinor === null || !direction || duplicateTransactionId
       ? "skipped"
       : warnings.length > 0
         ? "warning"
@@ -280,7 +289,8 @@ export const buildMoneyImportPreview = (input: {
       direction,
       sourceProvider,
       categoryKey,
-      reference: normalizeText(cell(row, indexes, "reference"), 191),
+      reference,
+      duplicateTransactionId,
       warnings
     };
   });
