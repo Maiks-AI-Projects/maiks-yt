@@ -82,6 +82,11 @@ const groups: readonly AdminDashboardGroup[] = [
     title: "Testing",
     items: [
       {
+        href: "/admin/testing",
+        label: "Testing Guide",
+        description: "Manual testing order and readiness commands for the current dev build."
+      },
+      {
         href: "/admin/connections",
         label: "Connections",
         description: "Provider intake catalog, health, and recent received events."

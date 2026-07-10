@@ -207,6 +207,7 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       ["admin-provider-integrations", "/admin/provider-integrations", "Provider"],
       ["admin-schedule", "/admin/schedule", "Schedule"],
       ["admin-sessions", "/admin/sessions", "Session"],
+      ["admin-testing", "/admin/testing", "Testing Guide"],
       ["admin-tokens", "/admin/tokens", "Token"]
     ]) {
       surfaces.push({

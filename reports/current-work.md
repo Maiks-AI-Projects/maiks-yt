@@ -211,6 +211,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Expanded the recurring failure-only `pnpm dev:smoke:notify` control-window backend checks: when the dev control token is available it now validates streamer chat messages, Twitch/Discord/YouTube chat status payloads, and the owner-authenticated moderation access snapshot used by `/chat` and `/moderation`.
 - Added `pnpm test:readiness` as a pre-testing local gate that runs `pnpm check:review` and the dev smoke dry-run, with optional `-- --visual` screenshot coverage for broader manual-test sessions.
 - Added `reports/dev-manual-testing-guide.md` with a practical first-pass manual testing order covering access/recovery, stream windows, provider intake, content, private accounting, moderator/helper flow, and event routing/overlay checks.
+- Added `/admin/testing` as an owner-area in-app testing guide with readiness commands and the same practical first-pass manual testing order, linked from the admin dashboard and covered by recurring and visual smoke.
 
 ## Current Task
 
