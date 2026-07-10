@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
-import { captureDevAuthTokenFromUrl, createApiHeaders } from "./dev-auth-token.js";
+import { captureDevAuthTokenFromUrl, createApiHeaders, withDevAuthToken } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
 import { OperationsPanel } from "./operations/OperationsPanel.js";
 import { SurfaceStatus } from "./overlay/SurfaceStatus.js";
@@ -39,6 +39,12 @@ type AccountSessionResponse = {
     email?: string | null;
   };
 } | null;
+
+const controlRouteLabels: Record<string, string> = {
+  "/chat": "Streamer Chat",
+  "/control": "Control Panel",
+  "/moderation": "Moderation"
+};
 
 const readStoredPanelMode = (): PanelMode => {
   const storedValue = window.localStorage.getItem(panelModeStorageKey);
@@ -113,6 +119,36 @@ const updateManifestForRoute = (): void => {
   }
 };
 
+const getCurrentSurfaceLabel = (): string =>
+  controlRouteLabels[currentRoutePath] ?? "Control Panel";
+
+type ControlPanelBlockedState = Exclude<ControlPanelAuthState, { status: "allowed" }>;
+
+const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }): React.ReactNode => (
+  <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRulesRoute ? "chat-surface" : ""}`}>
+    <section className="access-required-panel">
+      <p className="access-required-eyebrow">{getCurrentSurfaceLabel()}</p>
+      <h1>Access Required</h1>
+      <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
+      {authState.status === "blocked" ? (
+        <>
+          <p className="access-required-help">
+            Use the current generated Control Panel access URL from Access Tokens. Opening the bare route is expected to stop here.
+          </p>
+          <div className="access-required-actions">
+            <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/tokens")}>
+              Access Tokens
+            </a>
+            <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/testing")}>
+              Testing Guide
+            </a>
+          </div>
+        </>
+      ) : null}
+    </section>
+  </main>
+);
+
 const App = (): React.ReactNode => {
   const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
@@ -141,12 +177,7 @@ const App = (): React.ReactNode => {
   };
 
   if (authState.status !== "allowed") {
-    return (
-      <main className={`surface ${isStandaloneChatRoute || isModerationRulesRoute ? "chat-surface" : ""}`}>
-        <h1>Access Required</h1>
-        <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
-      </main>
-    );
+    return <AccessRequired authState={authState} />;
   }
 
   if (isStandaloneChatRoute) {
