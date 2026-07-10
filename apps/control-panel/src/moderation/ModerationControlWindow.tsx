@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
 import { createApiHeaders } from "../dev-auth-token.js";
+import type { OverlayStatusResponse } from "../overlay/SurfaceStatus.types.js";
 import { ModerationAuditWindow } from "./ModerationAuditWindow.js";
 import { ModerationInfoPanel } from "./ModerationInfoPanel.js";
 import { ModerationRulesWindow } from "./ModerationRulesWindow.js";
@@ -9,6 +10,7 @@ import { moderationPanelLabels, type ModerationControlWindowProps, type Moderati
 
 export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowProps): ReactNode => {
   const [access, setAccess] = useState<StreamerChatModerationAccess | null>(null);
+  const [emergencyCleanModeEnabled, setEmergencyCleanModeEnabled] = useState<boolean | null>(null);
   const [status, setStatus] = useState("Loading moderation access.");
   const [selectedPanel, setSelectedPanel] = useState<ModerationPanelKey>("chat");
 
@@ -59,11 +61,40 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
     }
   };
 
+  const refreshEmergencyCleanMode = async (): Promise<void> => {
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setEmergencyCleanModeEnabled(null);
+      return;
+    }
+
+    try {
+      const url = new URL("/overlay/status", apiBaseUrl);
+      url.searchParams.set("accessToken", token);
+      const response = await fetch(url);
+      const result = await response.json() as OverlayStatusResponse;
+
+      if (response.ok && result.ok) {
+        setEmergencyCleanModeEnabled(result.emergencyCleanModeEnabled);
+      }
+    } catch {
+      setEmergencyCleanModeEnabled(null);
+    }
+  };
+
   useEffect(() => {
     void loadAccess();
   }, []);
 
-  const triggerEmergencyClear = async (): Promise<void> => {
+  useEffect(() => {
+    void refreshEmergencyCleanMode();
+    const intervalId = window.setInterval(refreshEmergencyCleanMode, 5_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [apiBaseUrl]);
+
+  const setEmergencyCleanMode = async (enabled: boolean): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
     if (!token) {
@@ -71,11 +102,13 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
       return;
     }
 
+    setStatus(enabled ? "Turning emergency clean mode on." : "Restoring overlay.");
+
     try {
       const response = await fetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
         body: JSON.stringify({
           accessToken: token,
-          enabled: true
+          enabled
         }),
         credentials: "include",
         headers: createApiHeaders({
@@ -88,7 +121,8 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
         throw new Error(`Emergency clear failed with ${response.status}.`);
       }
 
-      setStatus("Emergency clean mode on.");
+      setEmergencyCleanModeEnabled(enabled);
+      setStatus(enabled ? "Emergency clean mode on." : "Overlay restored.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Emergency clear failed.");
     }
@@ -98,8 +132,12 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
     <>
       <div className="chat-window-toolbar moderation-window-toolbar" aria-label="Moderator window controls">
         {access?.actions.canEmergencyClear ? (
-          <button type="button" className="chat-emergency-clear" onClick={() => void triggerEmergencyClear()}>
-            Emergency clear
+          <button
+            type="button"
+            className={`chat-emergency-clear${emergencyCleanModeEnabled ? " active" : ""}`}
+            onClick={() => void setEmergencyCleanMode(!emergencyCleanModeEnabled)}
+          >
+            {emergencyCleanModeEnabled ? "Restore overlay" : "Emergency clear"}
           </button>
         ) : null}
         <label>
