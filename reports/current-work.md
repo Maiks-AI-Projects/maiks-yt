@@ -280,6 +280,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 46. `pnpm test:readiness` now waits for `https://api-dev.maiks.yt/health` to return a healthy JSON response before starting the 77-check smoke dry-run. This avoids false walls of `502` failures immediately after a dev container restart while still failing if the API does not become ready within the bounded wait.
 47. A fresh `pnpm dev:visual-smoke` pass against deployed dev commit `1304eba` completed 76 Playwright captures with 0 failures. The updated `/admin` dashboard captured cleanly at 1366x768 and 1600x900 with no missing expected text, no known injection markers, and no detected horizontal overflow. Ignored artifacts were written under `reports/visual-qa/current-dev-smoke/2026-07-10T03-48-04Z/`.
 48. The manual and in-app testing guides now explain that `pnpm test:readiness` performs a bounded dev API health wait before smoke. Visual smoke now also expects the `/admin` Stream Windows launch labels, aligning screenshot coverage with the recurring dashboard smoke guard.
+49. `scripts/check-readiness-docs.mjs` now requires the active testing guide, in-app testing page, and next-agent handoff to keep the 77-check baseline and bounded dev API health-wait wording. This turns readiness-copy drift into a fast checker failure instead of a manual surprise.
 
 ## Known State
 

@@ -25,6 +25,31 @@ const stalePatterns = [
   /\b75-check\b/i
 ];
 
+const requiredSnippets = [
+  {
+    file: "apps/web/src/app/admin/testing/page.tsx",
+    snippets: [
+      "bounded dev API startup wait",
+      "77-check dev smoke dry-run"
+    ]
+  },
+  {
+    file: "reports/dev-manual-testing-guide.md",
+    snippets: [
+      "Expected current smoke size: 77 passing checks.",
+      "waits for `api-dev` health",
+      "transient `502` attempts"
+    ]
+  },
+  {
+    file: "reports/next-agent-tasks.md",
+    snippets: [
+      "bounded dev API health wait",
+      "77-check smoke dry-run"
+    ]
+  }
+];
+
 const failures = [];
 
 for (const file of activeReadinessFiles) {
@@ -45,8 +70,23 @@ for (const file of activeReadinessFiles) {
   });
 }
 
+for (const requirement of requiredSnippets) {
+  const absolutePath = resolve(repoRoot, requirement.file);
+  const contents = await readFile(absolutePath, "utf8");
+
+  for (const snippet of requirement.snippets) {
+    if (!contents.includes(snippet)) {
+      failures.push({
+        file: requirement.file,
+        line: 0,
+        text: `missing required readiness copy: ${snippet}`
+      });
+    }
+  }
+}
+
 if (failures.length > 0) {
-  console.error("Readiness docs contain stale smoke-count wording:");
+  console.error("Readiness docs failed validation:");
 
   for (const failure of failures) {
     console.error(`- ${failure.file}:${failure.line}: ${failure.text}`);
