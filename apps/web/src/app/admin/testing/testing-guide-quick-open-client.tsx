@@ -125,8 +125,13 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
     ]
   },
   {
-    title: "Public Pages",
+    title: "Account And Public Pages",
     links: [
+      {
+        href: "/account",
+        label: "Account",
+        description: "Linked accounts, profile visibility, and stream visibility preferences."
+      },
       {
         href: "/links",
         label: "Links",
@@ -146,6 +151,26 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
         href: "/games",
         label: "Games",
         description: "Public curated game library."
+      },
+      {
+        href: "/updates",
+        label: "Updates",
+        description: "Public update feed and changelog-style posts."
+      },
+      {
+        href: "/community-rules",
+        label: "Community Rules",
+        description: "Public community behavior baseline for testing moderation wording."
+      },
+      {
+        href: "/privacy/analytics",
+        label: "Privacy Analytics",
+        description: "Public analytics and privacy boundary explanation."
+      },
+      {
+        href: "/accountability",
+        label: "Accountability",
+        description: "Public accountability and project-history context."
       }
     ]
   }
