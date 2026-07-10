@@ -228,6 +228,26 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     return structuredClone(updated);
   }
 
+  public async postDraftTransaction(input: Parameters<MoneyAdminRepository["postDraftTransaction"]>[0]): Promise<MoneyLedgerTransaction | null> {
+    const index = this.transactions.findIndex((transaction) => transaction.id === input.id);
+
+    if (index < 0) {
+      return null;
+    }
+
+    const current = this.transactions[index];
+    const postNote = `[posted]${input.note ? ` ${input.note}` : ""}`;
+    const updated = {
+      ...current,
+      postingStatus: "posted" as const,
+      notesPrivate: current.notesPrivate ? `${current.notesPrivate}\n${postNote}` : postNote,
+      updatedAt: "2026-07-09T12:45:00.000Z"
+    };
+    this.transactions[index] = updated;
+
+    return structuredClone(updated);
+  }
+
   public async recordReportExport(input: Parameters<MoneyAdminRepository["recordReportExport"]>[0]): Promise<void> {
     this.exportAuditCount += 1;
     this.lastExportAudit = structuredClone(input);
@@ -1143,6 +1163,49 @@ describe("MoneyAdminService", () => {
     });
   });
 
+  it("posts reviewed draft entries without changing non-draft rows", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.unshift(createTransaction({
+      id: "draft-transaction",
+      postingStatus: "draft",
+      notesPrivate: "Imported draft"
+    }));
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.postDraftTransaction({
+      authUserId: "auth-user",
+      id: "draft-transaction",
+      note: "Reviewed against source statement."
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      transaction: {
+        id: "draft-transaction",
+        postingStatus: "posted",
+        notesPrivate: expect.stringContaining("Reviewed against source statement.")
+      }
+    });
+
+    await expect(service.postDraftTransaction({
+      authUserId: "auth-user",
+      id: "transaction-1",
+      note: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
+
+    await expect(service.postDraftTransaction({
+      authUserId: "auth-user",
+      id: "missing",
+      note: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_not_found"
+    });
+  });
+
   it("creates correction entries only for existing transactions", async () => {
     const repository = new FakeMoneyAdminRepository();
     const service = new MoneyAdminService(repository);
@@ -1711,6 +1774,69 @@ describe("MoneyAdminService", () => {
         id: "transaction-1",
         postingStatus: "voided",
         notesPrivate: expect.stringContaining("Mistake during testing")
+      }
+    });
+  });
+
+  it("requires an auth session before posting draft entries", async () => {
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      }
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/transactions/draft-transaction/post",
+      payload: {
+        note: "Reviewed"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+  });
+
+  it("posts draft entries for an owner", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.unshift(createTransaction({
+      id: "draft-transaction",
+      postingStatus: "draft",
+      notesPrivate: "Imported draft"
+    }));
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/transactions/draft-transaction/post",
+      payload: {
+        note: "Reviewed during testing"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      transaction: {
+        id: "draft-transaction",
+        postingStatus: "posted",
+        notesPrivate: expect.stringContaining("Reviewed during testing")
       }
     });
   });

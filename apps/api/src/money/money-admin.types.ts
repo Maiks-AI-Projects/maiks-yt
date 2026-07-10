@@ -389,6 +389,11 @@ export interface MoneyAdminRepository {
     reason: string;
     actorUserId: string;
   }): Promise<MoneyLedgerTransaction | null>;
+  postDraftTransaction(input: {
+    id: string;
+    note: string | null;
+    actorUserId: string;
+  }): Promise<MoneyLedgerTransaction | null>;
   createTransaction(input: MoneyLedgerTransactionInput & {
     actorUserId: string;
   }): Promise<MoneyLedgerTransaction>;

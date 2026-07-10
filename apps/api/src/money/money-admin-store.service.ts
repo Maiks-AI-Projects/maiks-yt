@@ -787,6 +787,44 @@ export const createMoneyAdminRepository = (
     return await readTransaction(pool, input.id);
   },
 
+  async postDraftTransaction(input) {
+    const postNote = `[posted ${new Date().toISOString()} by ${input.actorUserId}]${input.note ? ` ${input.note}` : ""}`;
+    await pool.execute(
+      `
+        UPDATE money_ledger_transactions
+        SET
+          posting_status = 'posted',
+          notes_private = CASE
+            WHEN notes_private IS NULL OR trim(notes_private) = '' THEN ?
+            ELSE concat(notes_private, '\n', ?)
+          END
+        WHERE id = ?
+          AND posting_status = 'draft'
+      `,
+      [
+        postNote,
+        postNote,
+        input.id
+      ]
+    );
+
+    const [rows] = await pool.execute(
+      `
+        SELECT id
+        FROM money_ledger_transactions
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [input.id]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return null;
+    }
+
+    return await readTransaction(pool, input.id);
+  },
+
   async recordReportExport(input) {
     await pool.execute(
       `

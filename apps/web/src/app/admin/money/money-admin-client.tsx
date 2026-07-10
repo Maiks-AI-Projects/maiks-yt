@@ -1171,6 +1171,51 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const postDraftTransaction = async (transaction: MoneyLedgerTransaction): Promise<void> => {
+    if (transaction.postingStatus !== "draft") {
+      setMessage("Only draft private money entries can be posted.");
+      return;
+    }
+
+    const note = window.prompt("Optional review note before posting this draft entry:", "Reviewed for testing.");
+
+    if (note === null) {
+      return;
+    }
+
+    if (!window.confirm("Post this draft entry? It will stay reversible through the void action, but it will count as posted in private reports.")) {
+      return;
+    }
+
+    setBusy(true);
+    setMessage("Posting private money draft...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/transactions/${transaction.id}/post`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          note: note.trim() || null
+        })
+      });
+      const payload = await parseJson<MoneyMutationResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        await loadLedger();
+        setMessage("Private money draft posted.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money draft post failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const startCorrection = (transaction: MoneyLedgerTransaction): void => {
     setForm((current) => ({
       ...current,
@@ -1602,6 +1647,11 @@ const MoneyAdminClient = (): React.ReactNode => {
                   </div>
                   {transaction.postingStatus !== "voided" ? (
                     <div className="admin-inline-actions">
+                      {transaction.postingStatus === "draft" ? (
+                        <button type="button" onClick={() => void postDraftTransaction(transaction)} disabled={busy}>
+                          Post draft
+                        </button>
+                      ) : null}
                       <button type="button" onClick={() => startCorrection(transaction)} disabled={busy}>
                         Correct entry
                       </button>

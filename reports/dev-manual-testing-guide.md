@@ -105,12 +105,14 @@ Goal: test private accounting mechanics without public money behavior.
 - Open `/admin/money`.
 - Add a dated rule such as a provider fee or platform split, then confirm it appears in the Dated Rules list and Rule Impact Preview with the expected provider, date basis, percentage, fixed amount, and reason.
 - Create draft entries from Rule Impact Preview, confirm they stay draft, and run it again to confirm existing suggestions are skipped instead of duplicated.
+- Post one reviewed rule-impact draft and confirm it counts as posted while mistakes can still be voided.
 - Create one private test income entry.
 - Create one private test spending/cost entry.
 - Add receipt/reference metadata where useful.
 - Paste the example CSV in Import Preview.
 - Confirm row readiness, warning counts, in/out totals, provider/category/reference hints, and duplicate status.
 - Create draft entries only after reviewing the preview, then confirm imported rows stay draft until manually reviewed.
+- Post one reviewed imported draft and keep any uncertain rows as drafts.
 - Preview the same CSV/reference again and confirm `duplicate_reference` blocks repeated draft import.
 - Preview a reference-less exact match and confirm `possible_duplicate` warns without blocking owner import.
 - Add a correction rather than editing historical meaning.

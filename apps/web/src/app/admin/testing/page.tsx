@@ -92,9 +92,11 @@ const testingPasses: readonly TestingPass[] = [
     checks: [
       "Add a dated provider fee or platform split rule and confirm it appears in Dated Rules and Rule Impact Preview.",
       "Create draft entries from Rule Impact Preview and confirm a repeat run skips existing suggestions.",
+      "Post one reviewed rule-impact draft and confirm mistakes can still be voided.",
       "Create one private test income entry and one private test spending/cost entry.",
       "Attach receipt/reference metadata where useful.",
       "Paste the example CSV in Import Preview, confirm row warnings/totals, then create draft entries only after review.",
+      "Post one reviewed imported draft and leave uncertain rows as drafts.",
       "Preview the same CSV/reference again and confirm duplicate_reference blocks repeated draft import.",
       "Preview a reference-less exact match and confirm possible_duplicate warns without blocking.",
       "Use a correction instead of editing historical meaning.",

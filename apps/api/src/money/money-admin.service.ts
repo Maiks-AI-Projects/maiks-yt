@@ -1585,6 +1585,62 @@ export class MoneyAdminService {
     };
   }
 
+  public async postDraftTransaction(input: {
+    authUserId: string;
+    id: string;
+    note?: string | null;
+  }): Promise<MoneyAdminMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const id = normalizeNullableText(input.id, 36);
+    const note = normalizeNullableText(input.note ?? null, 500);
+
+    if (!id) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const current = await this.repository.getTransaction(id);
+
+    if (!current) {
+      return {
+        ok: false,
+        reason: "money_admin_not_found"
+      };
+    }
+
+    if (current.postingStatus !== "draft") {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const transaction = await this.repository.postDraftTransaction({
+      id,
+      note,
+      actorUserId: actor.domainUserId
+    });
+
+    if (!transaction) {
+      return {
+        ok: false,
+        reason: "money_admin_not_found"
+      };
+    }
+
+    return {
+      ok: true,
+      transaction
+    };
+  }
+
   private async requireActor(authUserId: string): Promise<
     | { ok: true; domainUserId: string }
     | { ok: false; reason: "money_admin_user_unlinked" | "money_admin_forbidden" }

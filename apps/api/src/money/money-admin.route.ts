@@ -37,6 +37,7 @@ type MoneyAdminRouteService = Pick<
   | "downloadReceiptEvidence"
   | "resolveWarning"
   | "voidTransaction"
+  | "postDraftTransaction"
   | "previewImportCsv"
   | "importCsvDrafts"
 >;
@@ -106,6 +107,10 @@ const moneyRulePayloadSchema = z.object({
 
 const moneyVoidPayloadSchema = z.object({
   reason: z.string().trim().min(1).max(500)
+}).strict();
+
+const moneyPostDraftPayloadSchema = z.object({
+  note: z.string().trim().max(500).nullable().optional()
 }).strict();
 
 const moneyWarningResolvePayloadSchema = z.object({
@@ -908,6 +913,48 @@ export const registerMoneyAdminRoutes = (
       );
     } catch (error) {
       server.log.warn({ err: error }, "Money transaction void failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/money/transactions/:id/post", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const params = z.object({
+      id: z.string().trim().min(1).max(36)
+    }).safeParse(request.params);
+    const parsedBody = moneyPostDraftPayloadSchema.safeParse(request.body);
+
+    if (!params.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      return sendMutationResult(
+        await getService().postDraftTransaction({
+          authUserId: session.user.id,
+          id: params.data.id,
+          note: parsedBody.data.note ?? null
+        }),
+        reply
+      );
+    } catch (error) {
+      server.log.warn({ err: error }, "Money draft transaction post failed.");
       reply.code(503);
       return {
         ok: false,
