@@ -282,6 +282,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 48. The manual and in-app testing guides now explain that `pnpm test:readiness` performs a bounded dev API health wait before smoke. Visual smoke now also expects the `/admin` Stream Windows launch labels, aligning screenshot coverage with the recurring dashboard smoke guard.
 49. `scripts/check-readiness-docs.mjs` now requires the active testing guide, in-app testing page, and next-agent handoff to keep the 77-check baseline and bounded dev API health-wait wording. This turns readiness-copy drift into a fast checker failure instead of a manual surprise.
 50. Visual smoke now also expects the in-app `/admin/testing` launchpad to render Quick Open, Stream Windows, the testing-note template, and the severity template, matching the recurring smoke guard with screenshot-backed coverage.
+51. The exact non-dry cron command was manually run inside the current dev container on commit `2e3cf85`: it executed the 77-check baseline with 77 passing, 0 failures, posted no alert because the run was healthy, and wrote `/tmp/maiks-yt-dev-smoke-state.json` with `hadActiveFailure: false` plus a fresh `lastSuccessAt`.
 
 ## Known State
 
