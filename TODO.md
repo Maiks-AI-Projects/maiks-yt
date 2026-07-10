@@ -410,6 +410,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-07-10 added Copy progress to the local `/admin/testing` checklist, producing a pasteable checked/unchecked session summary without backend storage.
   - 2026-07-10 added browser-local Session Notes to `/admin/testing`; Copy progress includes those notes so test-session context can be pasted without backend storage.
   - 2026-07-10 added Mark section done and Clear section controls to each `/admin/testing` checklist pass for faster manual session tracking.
+  - 2026-07-10 added browser-local session start tracking and a Start new session action to `/admin/testing`; Copy progress includes the session start timestamp.
 
 ## 14B. Stream-Safe Music, Future Phase
 

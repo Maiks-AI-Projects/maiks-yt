@@ -12,6 +12,7 @@ type TestingPassChecklistClientProps = {
 
 const checkedStorageKey = "maiks-yt-testing-guide-checked-v1";
 const notesStorageKey = "maiks-yt-testing-guide-notes-v1";
+const sessionStartedStorageKey = "maiks-yt-testing-guide-session-started-v1";
 
 const getCheckId = (passTitle: string, check: string): string => `${passTitle}::${check}`;
 
@@ -27,14 +28,46 @@ const readChecked = (): Set<string> => {
 
 const readNotes = (): string => window.localStorage.getItem(notesStorageKey) ?? "";
 
+const readSessionStartedAt = (): string => {
+  const saved = window.localStorage.getItem(sessionStartedStorageKey);
+
+  if (saved && !Number.isNaN(Date.parse(saved))) {
+    return saved;
+  }
+
+  const startedAt = new Date().toISOString();
+  window.localStorage.setItem(sessionStartedStorageKey, startedAt);
+
+  return startedAt;
+};
+
+const formatSessionStartedAt = (sessionStartedAt: string): string => {
+  if (!sessionStartedAt) {
+    return "Not started yet";
+  }
+
+  const timestamp = Date.parse(sessionStartedAt);
+
+  if (Number.isNaN(timestamp)) {
+    return sessionStartedAt;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(timestamp));
+};
+
 const buildProgressSummary = (
   passes: TestingPassChecklistClientProps["passes"],
   checked: Set<string>,
-  notes: string
+  notes: string,
+  sessionStartedAt: string
 ): string => {
   const totalChecks = passes.reduce((total, testingPass) => total + testingPass.checks.length, 0);
   const lines = [
     "Maiks.yt dev testing progress",
+    `Session started: ${sessionStartedAt || "not recorded"}`,
     `Generated: ${new Date().toISOString()}`,
     `Checked: ${checked.size}/${totalChecks}`,
     ""
@@ -63,6 +96,7 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
   const [loaded, setLoaded] = useState(false);
   const [message, setMessage] = useState("Progress is saved in this browser.");
   const [notes, setNotes] = useState("");
+  const [sessionStartedAt, setSessionStartedAt] = useState("");
   const totalChecks = useMemo(
     () => passes.reduce((total, testingPass) => total + testingPass.checks.length, 0),
     [passes]
@@ -71,6 +105,7 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
   useEffect(() => {
     setChecked(readChecked());
     setNotes(readNotes());
+    setSessionStartedAt(readSessionStartedAt());
     setLoaded(true);
   }, []);
 
@@ -85,6 +120,12 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
       window.localStorage.setItem(notesStorageKey, notes);
     }
   }, [loaded, notes]);
+
+  useEffect(() => {
+    if (loaded) {
+      window.localStorage.setItem(sessionStartedStorageKey, sessionStartedAt);
+    }
+  }, [loaded, sessionStartedAt]);
 
   const toggleCheck = (id: string): void => {
     setChecked((current) => {
@@ -103,6 +144,13 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
   const reset = (): void => setChecked(new Set());
 
   const clearNotes = (): void => setNotes("");
+
+  const startNewSession = (): void => {
+    setChecked(new Set());
+    setNotes("");
+    setSessionStartedAt(new Date().toISOString());
+    setMessage("Started a new testing session.");
+  };
 
   const markPass = (testingPass: TestingPassChecklistClientProps["passes"][number]): void => {
     setChecked((current) => {
@@ -130,7 +178,7 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
 
   const copyProgress = async (): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(buildProgressSummary(passes, checked, notes));
+      await navigator.clipboard.writeText(buildProgressSummary(passes, checked, notes, sessionStartedAt));
       setMessage("Copied testing progress.");
     } catch {
       setMessage("Copy failed. Browser clipboard access is blocked.");
@@ -143,8 +191,12 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
         <div>
           <h2>Manual Testing Checklist</h2>
           <p>{checked.size}/{totalChecks} checks marked in this browser.</p>
+          <p>Session started: {formatSessionStartedAt(sessionStartedAt)}</p>
         </div>
         <div className="admin-inline-actions testing-checklist-actions">
+          <button type="button" className="secondary-action" onClick={startNewSession}>
+            Start new session
+          </button>
           <button type="button" onClick={() => void copyProgress()}>
             Copy progress
           </button>
