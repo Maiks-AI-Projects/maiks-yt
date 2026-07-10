@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
 RUN_REVIEW=1
@@ -49,7 +49,7 @@ run_step() {
   "$@"
 }
 
-if [[ "$RUN_REVIEW" == "1" ]]; then
+if [ "$RUN_REVIEW" = "1" ]; then
   run_step "Review checks" pnpm check:review
 else
   printf '\n==> Review checks skipped\n'
@@ -57,7 +57,7 @@ fi
 
 run_step "Dev smoke dry-run" pnpm dev:smoke:notify -- --dry-run --fail-on-smoke-failure
 
-if [[ "$RUN_VISUAL" == "1" ]]; then
+if [ "$RUN_VISUAL" = "1" ]; then
   run_step "Dev visual smoke" pnpm dev:visual-smoke
 else
   printf '\n==> Dev visual smoke skipped (pass --visual to include screenshots)\n'
