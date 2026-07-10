@@ -258,6 +258,7 @@ Reviewer gate:
 - `pnpm dev:smoke:notify -- --dry-run` passed locally and inside `maiks-yt-dev`.
 - A synthetic failed `control-dev` smoke created one warning alert, the duplicate guard suppressed the same failure signature during cooldown, and a healthy follow-up run created one lower-severity recovery note.
 - The recurring schedule is installed in Michael's user crontab on `codex-server-1` at `07:00`, `12:00`, `17:00`, and `22:00` Europe/Amsterdam time, matching the preferred five-hour work windows and logging to `/tmp/maiks-yt-dev-smoke-cron.log`.
+- The installed cron state file should live at `/app/.private/maiks-yt-dev-smoke-state.json` inside the container, which is bind-mounted to the ignored server checkout. Avoid changing it back to container `/tmp`, because deploys recreate the container and would lose duplicate/recovery state.
 - Healthy scheduled runs are intentionally quiet. Failures post warning/critical notifications, and recovery after failure posts a recovery note.
 - A user systemd timer was tested and then disabled because `loginctl enable-linger michael` requires sudo/password; cron is active and avoids that lingering dependency.
 

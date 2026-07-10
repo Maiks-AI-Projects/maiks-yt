@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 export const readState = async (stateFile) => {
   try {
@@ -10,6 +11,7 @@ export const readState = async (stateFile) => {
 };
 
 export const writeState = async (stateFile, state) => {
+  await mkdir(dirname(stateFile), { recursive: true });
   await writeFile(stateFile, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 };
 
