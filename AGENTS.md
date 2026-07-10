@@ -83,4 +83,6 @@ pnpm check:full
 
 Use `pnpm check:review` before merging reviewed work. Use `pnpm check:full` before high-risk deploys or when changes cross many packages. Update `scripts/check-review.sh` and `scripts/check-full.sh` when the standard verification needs change.
 
+Use `pnpm test:readiness` for a pre-testing local gate that runs review checks plus the dev smoke dry-run. Add `-- --visual` when screenshot coverage is needed before or after a testing session.
+
 Use `./scripts/push-dev.ps1 -Message "..."` only from the reviewer/coordinator after review succeeds.
