@@ -104,8 +104,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Support project categories.
 - [x] Support non-monetary milestones.
 - [x] Support project updates.
-- [ ] Support linking stream sessions to projects.
-- [ ] Add active project/stream focus display.
+- [x] Support linking stream sessions to projects.
+- [x] Add active project/stream focus display.
 - [x] Add internal wishlist entries linked to project items.
   - 2026-07-10 wired existing project item links through domain/API/admin/public project views. `/admin/projects` can attach manual wishlist/store/reference/receipt links to project items, and public project details show those links. Provider wishlist integrations, link edit/delete, price sync, and price history remain future explicit work.
   - 2026-07-10 follow-up added manual edit/remove controls for those project item links, so testing mistakes are reversible without direct database access. Provider wishlist integrations, price sync, and price history remain future explicit work.
