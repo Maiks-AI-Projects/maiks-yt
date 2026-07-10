@@ -119,6 +119,17 @@ type LiveHelperDashboardResponse =
     reason: string;
   };
 
+type MoneyLedgerDashboardResponse =
+  | {
+    ok: true;
+    transactions: readonly unknown[];
+    warnings: readonly unknown[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type ExportStatusTone = "idle" | "working" | "ok" | "bad";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -276,6 +287,7 @@ const getDashboardItemBadge = (
     "/admin/event-routing": "pending-approvals",
     "/admin/live-helper": "live-helper",
     "/admin/moderators": "active-helpers",
+    "/admin/money": "money-ledger",
     "/admin/sessions": "sessions",
     "https://control-dev.maiks.yt/moderation": "active-moderation",
     "/tools/notifications": "notifications"
@@ -369,6 +381,13 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     value: "Checking",
     detail: "Waiting for active local moderation counts.",
     tone: "loading"
+  },
+  {
+    key: "money-ledger",
+    label: "Money Ledger",
+    value: "Checking",
+    detail: "Waiting for private ledger warning counts.",
+    tone: "loading"
   }
 ];
 
@@ -413,7 +432,8 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     sessions,
     backupHealth,
     testingSmokeState,
-    liveHelper
+    liveHelper,
+    moneyLedger
   ] = await Promise.allSettled([
     readJson<{ ok?: boolean; surface?: string }>("/health"),
     readJson<{ ok?: boolean; database?: string }>("/health/database"),
@@ -422,7 +442,8 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     readJson<SessionListResponse>("/admin/sessions", true),
     readJson<BackupHealthResponse>("/admin/backup/health", true),
     readJson<TestingSmokeStateResponse>("/admin/testing/smoke-state", true),
-    readJson<LiveHelperDashboardResponse>("/admin/live-helper", true)
+    readJson<LiveHelperDashboardResponse>("/admin/live-helper", true),
+    readJson<MoneyLedgerDashboardResponse>("/admin/money/ledger", true)
   ]);
   const getFulfilled = <Payload,>(result: PromiseSettledResult<{
     status: number;
@@ -436,6 +457,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const backupResult = getFulfilled(backupHealth);
   const smokeResult = getFulfilled(testingSmokeState);
   const liveHelperResult = getFulfilled(liveHelper);
+  const moneyLedgerResult = getFulfilled(moneyLedger);
   const intakeEntries = intakeResult?.payload?.ok ? intakeResult.payload.entries : [];
   const staleOrMissing = intakeEntries.filter((entry) => entry.status !== "healthy").length;
   const criticalUnread = notificationResult?.payload?.ok ? notificationResult.payload.criticalUnreadCount : 0;
@@ -451,6 +473,8 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const activeHelperCount = liveHelperResult?.payload?.ok ? liveHelperResult.payload.activeHelperGrants.count : 0;
   const activeModerationCount = liveHelperResult?.payload?.ok ? liveHelperResult.payload.fakeLocalActiveModeration.count : 0;
   const totalHelperAlertCount = openHelperWarningCount + openHelperCriticalCount;
+  const moneyWarningCount = moneyLedgerResult?.payload?.ok ? moneyLedgerResult.payload.warnings.length : 0;
+  const moneyTransactionCount = moneyLedgerResult?.payload?.ok ? moneyLedgerResult.payload.transactions.length : 0;
 
   return [
     {
@@ -564,6 +588,15 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
           : activeModerationCount > 0 || openHelperWarningCount > 0
             ? "warn"
             : "ok"
+    },
+    {
+      key: "money-ledger",
+      label: "Money Ledger",
+      value: moneyLedgerResult?.payload?.ok ? `${moneyWarningCount} warning${moneyWarningCount === 1 ? "" : "s"}` : "Unavailable",
+      detail: moneyLedgerResult?.payload?.ok
+        ? `${moneyTransactionCount} private ledger transaction${moneyTransactionCount === 1 ? "" : "s"} in the current view.`
+        : `HTTP ${moneyLedgerResult?.status ?? "failed"}`,
+      tone: !moneyLedgerResult?.payload?.ok ? "bad" : moneyWarningCount > 0 ? "warn" : "ok"
     }
   ];
 };

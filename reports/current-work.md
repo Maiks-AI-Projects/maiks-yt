@@ -288,7 +288,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 54. Added owner-gated, read-only `/admin/testing/smoke-state` and a Recurring Smoke dashboard card so Michael can see the last recorded cron smoke state from the app. The recurring smoke baseline is now 78 checks and verifies this endpoint without exposing the state file path or failure signature.
 55. `/admin/testing` now has a Copy template action for the breakage note so manual testing issues can be pasted quickly with the expected surface/action/actual/expected/severity fields. Recurring and visual smoke assert the action remains visible.
 56. `/admin/testing` now renders the manual pass list as a local browser-only checklist with session start tracking, Start new session, Copy progress, Reset marks, Mark section done, Clear section, and Session Notes, so a testing session can be tracked and pasted into follow-up notes without adding API/database state. Recurring and visual smoke assert the checklist remains visible.
-57. `/admin` dashboard links now reuse existing status-card and live-helper data as compact live badges for notifications, provider intake, sessions, backup health, pending approvals, active helper grants, and active local moderation, so the testing launchpad shows useful counts before opening each admin surface.
+57. `/admin` dashboard links now reuse existing status-card, live-helper, and money ledger data as compact live badges for notifications, provider intake, sessions, backup health, pending approvals, active helper grants, active local moderation, and private ledger warnings, so the testing launchpad shows useful counts before opening each admin surface.
 
 ## Known State
 
