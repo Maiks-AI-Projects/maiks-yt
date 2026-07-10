@@ -104,6 +104,30 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
 
   const clearNotes = (): void => setNotes("");
 
+  const markPass = (testingPass: TestingPassChecklistClientProps["passes"][number]): void => {
+    setChecked((current) => {
+      const next = new Set(current);
+
+      for (const check of testingPass.checks) {
+        next.add(getCheckId(testingPass.title, check));
+      }
+
+      return next;
+    });
+  };
+
+  const clearPass = (testingPass: TestingPassChecklistClientProps["passes"][number]): void => {
+    setChecked((current) => {
+      const next = new Set(current);
+
+      for (const check of testingPass.checks) {
+        next.delete(getCheckId(testingPass.title, check));
+      }
+
+      return next;
+    });
+  };
+
   const copyProgress = async (): Promise<void> => {
     try {
       await navigator.clipboard.writeText(buildProgressSummary(passes, checked, notes));
@@ -148,8 +172,20 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
       <div className="project-admin-grid">
         {passes.map((testingPass) => (
           <section className="project-admin-preview testing-checklist-pass" key={testingPass.title}>
-            <h2>{testingPass.title}</h2>
-            <p>{testingPass.goal}</p>
+            <div className="testing-checklist-pass-heading">
+              <div>
+                <h2>{testingPass.title}</h2>
+                <p>{testingPass.goal}</p>
+              </div>
+              <div className="admin-inline-actions testing-checklist-pass-actions">
+                <button type="button" className="secondary-action" onClick={() => markPass(testingPass)}>
+                  Mark section done
+                </button>
+                <button type="button" className="secondary-action" onClick={() => clearPass(testingPass)}>
+                  Clear section
+                </button>
+              </div>
+            </div>
             <div className="testing-checklist-items">
               {testingPass.checks.map((check) => {
                 const id = getCheckId(testingPass.title, check);
