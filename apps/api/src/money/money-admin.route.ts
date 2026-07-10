@@ -8,6 +8,8 @@ import {
   moneyProviders,
   moneyReceiptReferenceTypes,
   moneyReceiptStorageKinds,
+  moneyRuleDateBases,
+  moneyRuleKinds,
   moneySourceKinds,
   moneyTransactionTypes,
   moneyValueSources
@@ -22,6 +24,8 @@ import type { MoneyAdminMutationResult } from "./money-admin.types.js";
 type MoneyAdminRouteService = Pick<
   MoneyAdminService,
   | "listTransactions"
+  | "listRuleVersions"
+  | "createRuleVersion"
   | "createTransaction"
   | "exportLedgerCsv"
   | "buildJsonReport"
@@ -81,6 +85,21 @@ const moneyTransactionPayloadSchema = z.object({
   correctionReason: nullableText(500),
   notesPrivate: nullableText(2_000),
   lines: z.array(moneyLedgerLinePayloadSchema).min(1).max(20)
+}).strict();
+
+const moneyRulePayloadSchema = z.object({
+  ruleKind: z.enum(moneyRuleKinds),
+  provider: z.enum(moneyProviders).nullable().optional(),
+  valueSource: z.enum(moneyValueSources).nullable().optional(),
+  appliesToDateBasis: z.enum(moneyRuleDateBases),
+  effectiveFrom: z.string().trim().datetime({ offset: true }),
+  effectiveUntil: z.string().trim().datetime({ offset: true }).nullable().optional(),
+  percentageBps: z.number().int().min(0).max(10_000).nullable().optional(),
+  fixedAmountMinor: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).nullable().optional(),
+  fixedCurrency: z.string().trim().length(3).nullable().optional(),
+  rulePayload: z.record(z.string(), z.unknown()).nullable().optional(),
+  changeReason: z.string().trim().min(1).max(500),
+  supersedesRuleId: nullableText(36)
 }).strict();
 
 const moneyVoidPayloadSchema = z.object({
@@ -157,6 +176,87 @@ export const registerMoneyAdminRoutes = (
       return null;
     }
   };
+
+  server.get("/admin/money/rules", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    try {
+      const result = await getService().listRuleVersions({
+        authUserId: session.user.id
+      });
+
+      if (!result.ok) {
+        reply.code(403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money rule list failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/money/rules", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = moneyRulePayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().createRuleVersion({
+        authUserId: session.user.id,
+        rule: {
+          ...parsedBody.data,
+          provider: parsedBody.data.provider ?? null,
+          valueSource: parsedBody.data.valueSource ?? null,
+          effectiveUntil: parsedBody.data.effectiveUntil ?? null,
+          percentageBps: parsedBody.data.percentageBps ?? null,
+          fixedAmountMinor: parsedBody.data.fixedAmountMinor ?? null,
+          fixedCurrency: parsedBody.data.fixedCurrency ?? null,
+          rulePayload: parsedBody.data.rulePayload ?? null,
+          supersedesRuleId: parsedBody.data.supersedesRuleId ?? null
+        }
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money rule create failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
 
   server.get("/admin/money/ledger", async (request, reply) => {
     const session = await getSession(request, reply);

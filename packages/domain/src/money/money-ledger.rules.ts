@@ -4,6 +4,7 @@ import type {
   MoneyReceiptReferenceInput,
   MoneyLedgerTransactionInput,
   MoneyMode,
+  MoneyRuleVersionInput,
   MoneyValueSource
 } from "./money-ledger.types.js";
 
@@ -59,6 +60,33 @@ const isValidLineInput = (line: MoneyLedgerLineInput): boolean =>
   && isValidNullableText(line.notesPrivate, moneyPrivateNoteMaxLength);
 
 export const normalizeMoneyMode = (value: MoneyMode): MoneyMode => value;
+
+const isValidRulePayload = (value: Record<string, unknown> | null): boolean => {
+  if (value === null) {
+    return true;
+  }
+
+  try {
+    return JSON.stringify(value).length <= 5_000;
+  } catch {
+    return false;
+  }
+};
+
+export const isValidMoneyRuleVersionInput = (input: MoneyRuleVersionInput): boolean =>
+  isIsoDate(input.effectiveFrom)
+  && (input.effectiveUntil === null || (isIsoDate(input.effectiveUntil) && Date.parse(input.effectiveUntil) > Date.parse(input.effectiveFrom)))
+  && (input.percentageBps === null || (Number.isSafeInteger(input.percentageBps) && input.percentageBps >= 0 && input.percentageBps <= 10_000))
+  && (input.fixedAmountMinor === null || (Number.isSafeInteger(input.fixedAmountMinor) && input.fixedAmountMinor >= 0))
+  && (
+    input.fixedAmountMinor === null
+    || (input.fixedCurrency !== null && /^[A-Z]{3}$/.test(input.fixedCurrency))
+  )
+  && (input.fixedAmountMinor !== null || input.fixedCurrency === null)
+  && isValidRulePayload(input.rulePayload)
+  && input.changeReason.trim().length > 0
+  && input.changeReason.trim().length <= moneyCorrectionReasonMaxLength
+  && isValidNullableId(input.supersedesRuleId);
 
 export const isValidMoneyLedgerTransactionInput = (input: MoneyLedgerTransactionInput): boolean =>
   isIsoDate(input.occurredAt)

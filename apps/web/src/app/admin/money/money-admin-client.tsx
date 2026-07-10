@@ -11,17 +11,40 @@ import type {
   MoneyProvider,
   MoneyReceiptReferenceType,
   MoneyReceiptStorageKind,
+  MoneyRuleVersion,
   MoneyTransactionType,
   MoneyValueSource
 } from "@maiks-yt/domain";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import { MoneyDatedRulesPanel } from "./money-dated-rules-panel";
+import type { MoneyRuleFormState } from "./money-dated-rules-panel";
 
 type MoneyLedgerResponse =
   | {
     ok: true;
     transactions: readonly MoneyLedgerTransaction[];
     warnings: readonly MoneyAccountingWarning[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type MoneyRuleResponse =
+  | {
+    ok: true;
+    rules: readonly MoneyRuleVersion[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type MoneyRuleMutationResponse =
+  | {
+    ok: true;
+    rule: MoneyRuleVersion;
   }
   | {
     ok: false;
@@ -182,6 +205,19 @@ const defaultForm = (): MoneyFormState => ({
   correctsTransactionId: "",
   correctionReason: "",
   notesPrivate: ""
+});
+
+const defaultRuleForm = (): MoneyRuleFormState => ({
+  ruleKind: "platform_fee",
+  provider: "kofi",
+  valueSource: "eur",
+  appliesToDateBasis: "event_date",
+  effectiveFrom: nowLocalInputValue(),
+  effectiveUntil: "",
+  percentagePercent: "",
+  fixedAmountMajor: "",
+  fixedCurrency: "EUR",
+  changeReason: ""
 });
 
 const currentMonthFilters = (): MoneyFilterState => {
@@ -393,8 +429,10 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
 const MoneyAdminClient = (): React.ReactNode => {
   const [transactions, setTransactions] = useState<readonly MoneyLedgerTransaction[]>([]);
   const [warnings, setWarnings] = useState<readonly MoneyAccountingWarning[]>([]);
+  const [rules, setRules] = useState<readonly MoneyRuleVersion[]>([]);
   const [filters, setFilters] = useState<MoneyFilterState>(() => currentMonthFilters());
   const [form, setForm] = useState<MoneyFormState>(() => defaultForm());
+  const [ruleForm, setRuleForm] = useState<MoneyRuleFormState>(() => defaultRuleForm());
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading private money ledger...");
   const [busy, setBusy] = useState(false);
@@ -447,6 +485,22 @@ const MoneyAdminClient = (): React.ReactNode => {
     return query ? `?${query}` : "";
   }, [filters.accountingFrom, filters.accountingTo]);
 
+  const loadRules = useCallback(async (): Promise<void> => {
+    const response = await fetch(`${apiBaseUrl}/admin/money/rules`, {
+      headers: createApiHeaders(),
+      credentials: "include"
+    });
+    const payload = await parseJson<MoneyRuleResponse>(response);
+
+    if (response.ok && payload?.ok) {
+      setRules(payload.rules);
+      return;
+    }
+
+    const reason = payload?.ok === false ? payload.reason : undefined;
+    throw new Error(getFailureMessage(response, reason));
+  }, []);
+
   const loadLedger = useCallback(async (): Promise<void> => {
     setLoadState("loading");
     setMessage("Loading private money ledger...");
@@ -461,6 +515,7 @@ const MoneyAdminClient = (): React.ReactNode => {
       if (response.ok && payload?.ok) {
         setTransactions(payload.transactions);
         setWarnings(payload.warnings);
+        await loadRules();
         setLoadState("ready");
         setMessage(payload.transactions.length === 0 ? "No private money entries yet." : "Private money ledger loaded.");
         return;
@@ -475,7 +530,7 @@ const MoneyAdminClient = (): React.ReactNode => {
       setLoadState("failed");
       setMessage(error instanceof Error ? error.message : "Money ledger request failed.");
     }
-  }, [buildLedgerQuery]);
+  }, [buildLedgerQuery, loadRules]);
 
   useEffect(() => {
     captureDevAuthTokenFromUrl();
@@ -867,6 +922,72 @@ const MoneyAdminClient = (): React.ReactNode => {
       setImportMessage(getFailureMessage(response, reason));
     } catch (error) {
       setImportMessage(error instanceof Error ? error.message : "Money draft import failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createRuleVersion = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault();
+
+    const percentageBps = ruleForm.percentagePercent.trim()
+      ? Math.round(Number(ruleForm.percentagePercent.trim().replace(",", ".")) * 100)
+      : null;
+    const fixedAmountMinor = ruleForm.fixedAmountMajor.trim()
+      ? parseAmountMinor(ruleForm.fixedAmountMajor)
+      : null;
+
+    if (percentageBps !== null && (!Number.isFinite(percentageBps) || percentageBps < 0 || percentageBps > 10_000)) {
+      setMessage("Rule percentage must be between 0 and 100.");
+      return;
+    }
+
+    if (ruleForm.fixedAmountMajor.trim() && fixedAmountMinor === null) {
+      setMessage("Rule fixed amount must use up to two decimals.");
+      return;
+    }
+
+    if (!ruleForm.changeReason.trim()) {
+      setMessage("Rule changes need a reason.");
+      return;
+    }
+
+    setBusy(true);
+    setMessage("Saving dated money rule...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/rules`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          ruleKind: ruleForm.ruleKind,
+          provider: ruleForm.provider || null,
+          valueSource: ruleForm.valueSource || null,
+          appliesToDateBasis: ruleForm.appliesToDateBasis,
+          effectiveFrom: toIsoFromLocalInput(ruleForm.effectiveFrom),
+          effectiveUntil: ruleForm.effectiveUntil ? toIsoFromLocalInput(ruleForm.effectiveUntil) : null,
+          percentageBps,
+          fixedAmountMinor,
+          fixedCurrency: fixedAmountMinor === null ? null : ruleForm.fixedCurrency.trim().toUpperCase(),
+          rulePayload: null,
+          changeReason: ruleForm.changeReason.trim(),
+          supersedesRuleId: null
+        })
+      });
+      const payload = await parseJson<MoneyRuleMutationResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        await loadRules();
+        setRuleForm(defaultRuleForm());
+        setMessage("Dated money rule saved.");
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Money rule save failed.");
     } finally {
       setBusy(false);
     }
@@ -1293,6 +1414,13 @@ const MoneyAdminClient = (): React.ReactNode => {
               <div><strong>{formatAmount(totals.remainderMinor, "EUR")}</strong><span>Remainder</span></div>
               <div><strong>{warnings.length}</strong><span>Open warnings</span></div>
             </div>
+            <MoneyDatedRulesPanel
+              rules={rules}
+              ruleForm={ruleForm}
+              busy={busy}
+              onRuleFormChange={setRuleForm}
+              onCreateRule={(event) => void createRuleVersion(event)}
+            />
             {warnings.length > 0 ? (
               <div className="admin-list">
                 <h3>Accounting Warnings</h3>

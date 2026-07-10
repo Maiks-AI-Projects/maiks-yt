@@ -13,6 +13,9 @@ import type {
   MoneyReceiptReference,
   MoneyReceiptReferenceType,
   MoneyReceiptStorageKind,
+  MoneyRuleDateBasis,
+  MoneyRuleKind,
+  MoneyRuleVersion,
   MoneySourceKind,
   MoneyTransactionType,
   MoneyValueSource
@@ -71,6 +74,24 @@ type MoneyResolvedWarningRow = {
   warningKind: MoneyAccountingWarning["warningKind"];
 };
 
+type MoneyRuleVersionRow = {
+  id: string;
+  ruleKind: MoneyRuleKind;
+  provider?: MoneyProvider | null;
+  valueSource?: MoneyValueSource | null;
+  appliesToDateBasis: MoneyRuleDateBasis;
+  effectiveFrom: Date | string;
+  effectiveUntil?: Date | string | null;
+  percentageBps?: number | string | null;
+  fixedAmountMinor?: number | string | null;
+  fixedCurrency?: string | null;
+  rulePayload?: Record<string, unknown> | string | null;
+  changeReason: string;
+  supersedesRuleId?: string | null;
+  createdByUserId?: string | null;
+  createdAt: Date | string;
+};
+
 const toIsoString = (value: Date | string): string =>
   value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 
@@ -79,6 +100,30 @@ const toSqlTimestamp = (value: string): string =>
 
 const toJsonString = (value: unknown): string =>
   JSON.stringify(value);
+
+const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 const mapReceiptReference = (row: MoneyLineRow): MoneyReceiptReference | null => {
   if (!row.receiptReferenceId || !row.receiptReferenceType || !row.receiptStorageKind || !row.receiptLabel || !row.receiptPrivateReference || !row.receiptCreatedAt) {
@@ -112,6 +157,24 @@ const mapLine = (row: MoneyLineRow): MoneyLedgerLine => ({
   receiptReferenceId: row.receiptReferenceId ?? null,
   receiptReference: mapReceiptReference(row),
   notesPrivate: row.notesPrivate ?? null,
+  createdAt: toIsoString(row.createdAt)
+});
+
+const mapRuleVersion = (row: MoneyRuleVersionRow): MoneyRuleVersion => ({
+  id: row.id,
+  ruleKind: row.ruleKind,
+  provider: row.provider ?? null,
+  valueSource: row.valueSource ?? null,
+  appliesToDateBasis: row.appliesToDateBasis,
+  effectiveFrom: toIsoString(row.effectiveFrom),
+  effectiveUntil: row.effectiveUntil ? toIsoString(row.effectiveUntil) : null,
+  percentageBps: row.percentageBps === null || row.percentageBps === undefined ? null : Number(row.percentageBps),
+  fixedAmountMinor: row.fixedAmountMinor === null || row.fixedAmountMinor === undefined ? null : Number(row.fixedAmountMinor),
+  fixedCurrency: row.fixedCurrency ?? null,
+  rulePayload: parseJsonObject(row.rulePayload),
+  changeReason: row.changeReason,
+  supersedesRuleId: row.supersedesRuleId ?? null,
+  createdByUserId: row.createdByUserId ?? null,
   createdAt: toIsoString(row.createdAt)
 });
 
@@ -334,6 +397,95 @@ export const createMoneyAdminRepository = (
 
   async getTransaction(id) {
     return await getTransaction(pool, id);
+  },
+
+  async listRuleVersions() {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          id,
+          rule_kind AS ruleKind,
+          provider,
+          value_source AS valueSource,
+          applies_to_date_basis AS appliesToDateBasis,
+          effective_from AS effectiveFrom,
+          effective_until AS effectiveUntil,
+          percentage_bps AS percentageBps,
+          fixed_amount_minor AS fixedAmountMinor,
+          fixed_currency AS fixedCurrency,
+          rule_payload AS rulePayload,
+          change_reason AS changeReason,
+          supersedes_rule_id AS supersedesRuleId,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt
+        FROM money_rule_versions
+        ORDER BY effective_from DESC, created_at DESC
+        LIMIT 100
+      `
+    );
+
+    return Array.isArray(rows) ? (rows as MoneyRuleVersionRow[]).map(mapRuleVersion) : [];
+  },
+
+  async createRuleVersion(input) {
+    const ruleId = randomUUID();
+
+    await pool.execute(
+      `
+        INSERT INTO money_rule_versions
+          (id, rule_kind, provider, value_source, applies_to_date_basis, effective_from, effective_until,
+            percentage_bps, fixed_amount_minor, fixed_currency, rule_payload, change_reason,
+            supersedes_rule_id, created_by_user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        ruleId,
+        input.ruleKind,
+        input.provider,
+        input.valueSource,
+        input.appliesToDateBasis,
+        toSqlTimestamp(input.effectiveFrom),
+        input.effectiveUntil ? toSqlTimestamp(input.effectiveUntil) : null,
+        input.percentageBps,
+        input.fixedAmountMinor,
+        input.fixedCurrency,
+        input.rulePayload ? toJsonString(input.rulePayload) : null,
+        input.changeReason,
+        input.supersedesRuleId,
+        input.actorUserId
+      ]
+    );
+
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          id,
+          rule_kind AS ruleKind,
+          provider,
+          value_source AS valueSource,
+          applies_to_date_basis AS appliesToDateBasis,
+          effective_from AS effectiveFrom,
+          effective_until AS effectiveUntil,
+          percentage_bps AS percentageBps,
+          fixed_amount_minor AS fixedAmountMinor,
+          fixed_currency AS fixedCurrency,
+          rule_payload AS rulePayload,
+          change_reason AS changeReason,
+          supersedes_rule_id AS supersedesRuleId,
+          created_by_user_id AS createdByUserId,
+          created_at AS createdAt
+        FROM money_rule_versions
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [ruleId]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      throw new Error("money_rule_reread_failed");
+    }
+
+    return mapRuleVersion(rows[0] as MoneyRuleVersionRow);
   },
 
   async listResolvedWarnings(targetIds) {

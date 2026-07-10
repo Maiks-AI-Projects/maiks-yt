@@ -86,6 +86,44 @@ export const moneyValueSources = [
 
 export type MoneyValueSource = typeof moneyValueSources[number];
 
+export const moneyRuleKinds = [
+  "platform_fee",
+  "fixed_transaction_fee",
+  "payout_fee",
+  "currency_conversion_fee",
+  "platform_split",
+  "streamer_share_estimate",
+  "tax_or_vat_note",
+  "manual_override"
+] as const;
+
+export type MoneyRuleKind = typeof moneyRuleKinds[number];
+
+export const moneyRuleDateBases = ["event_date", "payout_date", "accounting_date"] as const;
+
+export type MoneyRuleDateBasis = typeof moneyRuleDateBases[number];
+
+export type MoneyRuleVersionInput = {
+  ruleKind: MoneyRuleKind;
+  provider: MoneyProvider | null;
+  valueSource: MoneyValueSource | null;
+  appliesToDateBasis: MoneyRuleDateBasis;
+  effectiveFrom: string;
+  effectiveUntil: string | null;
+  percentageBps: number | null;
+  fixedAmountMinor: number | null;
+  fixedCurrency: string | null;
+  rulePayload: Record<string, unknown> | null;
+  changeReason: string;
+  supersedesRuleId: string | null;
+};
+
+export type MoneyRuleVersion = MoneyRuleVersionInput & {
+  id: string;
+  createdByUserId: string | null;
+  createdAt: string;
+};
+
 export const moneyReceiptReferenceTypes = [
   "receipt",
   "invoice",

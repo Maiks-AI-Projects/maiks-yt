@@ -1,7 +1,9 @@
 import type {
   MoneyAccountingWarning,
   MoneyLedgerTransaction,
-  MoneyLedgerTransactionInput
+  MoneyLedgerTransactionInput,
+  MoneyRuleVersion,
+  MoneyRuleVersionInput
 } from "@maiks-yt/domain";
 import { rm } from "node:fs/promises";
 import Fastify from "fastify";
@@ -65,6 +67,7 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     rolePermissionValues: [["*"]]
   };
   public readonly transactions: MoneyLedgerTransaction[] = [createTransaction()];
+  public readonly rules: MoneyRuleVersion[] = [];
   public readonly resolvedWarnings: Array<Pick<MoneyAccountingWarning, "targetKind" | "targetId" | "warningKind">> = [];
   public exportAuditCount = 0;
   public lastExportAudit: Parameters<MoneyAdminRepository["recordReportExport"]>[0] | null = null;
@@ -86,6 +89,25 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     const transaction = this.transactions.find((candidate) => candidate.id === id);
 
     return transaction ? structuredClone(transaction) : null;
+  }
+
+  public async listRuleVersions(): Promise<readonly MoneyRuleVersion[]> {
+    return structuredClone(this.rules);
+  }
+
+  public async createRuleVersion(input: MoneyRuleVersionInput & {
+    actorUserId: string;
+  }): Promise<MoneyRuleVersion> {
+    const rule: MoneyRuleVersion = {
+      id: `rule-${this.rules.length + 1}`,
+      ...input,
+      createdByUserId: input.actorUserId,
+      createdAt: "2026-07-10T10:00:00.000Z"
+    };
+
+    this.rules.unshift(rule);
+
+    return structuredClone(rule);
   }
 
   public async listResolvedWarnings(): Promise<readonly Pick<MoneyAccountingWarning, "targetKind" | "targetId" | "warningKind">[]> {
@@ -249,6 +271,86 @@ describe("MoneyAdminService", () => {
       ok: false,
       reason: "money_admin_invalid_input"
     });
+  });
+
+  it("creates dated money rules for retroactive fee and split tracking", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const createResult = await service.createRuleVersion({
+      authUserId: "auth-user",
+      rule: {
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        valueSource: "eur",
+        appliesToDateBasis: "event_date",
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveUntil: null,
+        percentageBps: 1000,
+        fixedAmountMinor: 35,
+        fixedCurrency: "EUR",
+        rulePayload: null,
+        changeReason: "Ko-fi platform fee changed for testing.",
+        supersedesRuleId: null
+      }
+    });
+
+    expect(createResult).toMatchObject({
+      ok: true,
+      rule: {
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        valueSource: "eur",
+        appliesToDateBasis: "event_date",
+        percentageBps: 1000,
+        fixedAmountMinor: 35,
+        fixedCurrency: "EUR",
+        createdByUserId: "domain-user"
+      }
+    });
+
+    const listResult = await service.listRuleVersions({
+      authUserId: "auth-user"
+    });
+
+    expect(listResult).toMatchObject({
+      ok: true,
+      rules: [
+        expect.objectContaining({
+          id: "rule-1",
+          changeReason: "Ko-fi platform fee changed for testing."
+        })
+      ]
+    });
+  });
+
+  it("rejects invalid dated money rules", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.createRuleVersion({
+      authUserId: "auth-user",
+      rule: {
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        valueSource: "eur",
+        appliesToDateBasis: "event_date",
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveUntil: "2026-06-01T00:00:00.000Z",
+        percentageBps: 12_000,
+        fixedAmountMinor: null,
+        fixedCurrency: null,
+        rulePayload: null,
+        changeReason: "",
+        supersedesRuleId: null
+      }
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
+    expect(repository.rules).toHaveLength(0);
   });
 
   it("exports private ledger lines as CSV and records an audit row", async () => {
@@ -1750,6 +1852,125 @@ describe("Money admin route boundary", () => {
       ]
     });
     expect(repository.transactions).toHaveLength(2);
+  });
+
+  it("requires authentication before listing money rules", async () => {
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      }
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/rules"
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+  });
+
+  it("lists and creates dated money rules through owner routes", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const createResponse = await server.inject({
+      method: "POST",
+      url: "/admin/money/rules",
+      payload: {
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        valueSource: "eur",
+        appliesToDateBasis: "event_date",
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        percentageBps: 1000,
+        fixedAmountMinor: 35,
+        fixedCurrency: "EUR",
+        changeReason: "Ko-fi platform fee changed."
+      }
+    });
+
+    expect(createResponse.statusCode).toBe(200);
+    expect(createResponse.json()).toMatchObject({
+      ok: true,
+      rule: {
+        id: "rule-1",
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        percentageBps: 1000,
+        fixedAmountMinor: 35,
+        fixedCurrency: "EUR"
+      }
+    });
+
+    const listResponse = await server.inject({
+      method: "GET",
+      url: "/admin/money/rules"
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toMatchObject({
+      ok: true,
+      rules: [
+        {
+          id: "rule-1",
+          changeReason: "Ko-fi platform fee changed."
+        }
+      ]
+    });
+  });
+
+  it("rejects invalid money rule route payloads", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/rules",
+      payload: {
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        valueSource: "eur",
+        appliesToDateBasis: "event_date",
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        percentageBps: 10_001,
+        changeReason: "Invalid percentage."
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
+    expect(repository.rules).toHaveLength(0);
   });
 
   it("applies accounting date query filters to list and export routes", async () => {

@@ -4,14 +4,16 @@ import path from "node:path";
 
 import {
   canManageMoneyLedger,
-  isValidMoneyLedgerTransactionInput
+  isValidMoneyLedgerTransactionInput,
+  isValidMoneyRuleVersionInput
 } from "@maiks-yt/domain";
 import type {
   MoneyAccountingWarning,
   MoneyAccountingWarningKind,
   MoneyLedgerLine,
   MoneyLedgerTransaction,
-  MoneyLedgerTransactionInput
+  MoneyLedgerTransactionInput,
+  MoneyRuleVersionInput
 } from "@maiks-yt/domain";
 
 import type {
@@ -28,6 +30,8 @@ import type {
   MoneyAdminReviewPackagePayload,
   MoneyAdminReportBucket,
   MoneyAdminRepository,
+  MoneyAdminRuleListResult,
+  MoneyAdminRuleMutationResult,
   MoneyAdminWarningExportResult,
   MoneyAdminWarningResolveResult
 } from "./money-admin.types.js";
@@ -249,6 +253,21 @@ const normalizeInput = (input: MoneyLedgerTransactionInput): MoneyLedgerTransact
       : null,
     notesPrivate: normalizeNullableText(line.notesPrivate, 2_000)
   }))
+});
+
+const normalizeRuleInput = (input: MoneyRuleVersionInput): MoneyRuleVersionInput => ({
+  ruleKind: input.ruleKind,
+  provider: input.provider,
+  valueSource: input.valueSource,
+  appliesToDateBasis: input.appliesToDateBasis,
+  effectiveFrom: input.effectiveFrom,
+  effectiveUntil: normalizeNullableText(input.effectiveUntil, 40),
+  percentageBps: input.percentageBps === null ? null : Math.trunc(input.percentageBps),
+  fixedAmountMinor: input.fixedAmountMinor === null ? null : Math.trunc(input.fixedAmountMinor),
+  fixedCurrency: normalizeCurrency(input.fixedCurrency),
+  rulePayload: input.rulePayload,
+  changeReason: input.changeReason.trim().slice(0, 500),
+  supersedesRuleId: normalizeNullableText(input.supersedesRuleId, 36)
 });
 
 const csvHeaders = [
@@ -641,6 +660,49 @@ const buildAccountingSummary = (input: {
 
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
+
+  public async listRuleVersions(input: {
+    authUserId: string;
+  }): Promise<MoneyAdminRuleListResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    return {
+      ok: true,
+      rules: await this.repository.listRuleVersions()
+    };
+  }
+
+  public async createRuleVersion(input: {
+    authUserId: string;
+    rule: MoneyRuleVersionInput;
+  }): Promise<MoneyAdminRuleMutationResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const normalized = normalizeRuleInput(input.rule);
+
+    if (!isValidMoneyRuleVersionInput(normalized)) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    return {
+      ok: true,
+      rule: await this.repository.createRuleVersion({
+        ...normalized,
+        actorUserId: actor.domainUserId
+      })
+    };
+  }
 
   public async listTransactions(input: {
     authUserId: string;

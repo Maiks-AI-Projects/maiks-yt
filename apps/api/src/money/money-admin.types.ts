@@ -4,7 +4,9 @@ import type {
   MoneyLedgerTransaction,
   MoneyLedgerTransactionInput,
   MoneyProvider,
-  MoneyReceiptReferenceInput
+  MoneyReceiptReferenceInput,
+  MoneyRuleVersion,
+  MoneyRuleVersionInput
 } from "@maiks-yt/domain";
 
 export type MoneyAdminActor = {
@@ -28,6 +30,16 @@ export type MoneyAdminListResult =
     reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
   };
 
+export type MoneyAdminRuleListResult =
+  | {
+    ok: true;
+    rules: readonly MoneyRuleVersion[];
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden";
+  };
+
 export type MoneyAdminMutationResult =
   | {
     ok: true;
@@ -40,6 +52,19 @@ export type MoneyAdminMutationResult =
       | "money_admin_forbidden"
       | "money_admin_invalid_input"
       | "money_admin_not_found";
+  };
+
+export type MoneyAdminRuleMutationResult =
+  | {
+    ok: true;
+    rule: MoneyRuleVersion;
+  }
+  | {
+    ok: false;
+    reason:
+      | "money_admin_user_unlinked"
+      | "money_admin_forbidden"
+      | "money_admin_invalid_input";
   };
 
 export type MoneyAdminWarningResolveResult =
@@ -317,4 +342,8 @@ export interface MoneyAdminRepository {
   createTransaction(input: MoneyLedgerTransactionInput & {
     actorUserId: string;
   }): Promise<MoneyLedgerTransaction>;
+  listRuleVersions(): Promise<readonly MoneyRuleVersion[]>;
+  createRuleVersion(input: MoneyRuleVersionInput & {
+    actorUserId: string;
+  }): Promise<MoneyRuleVersion>;
 }
