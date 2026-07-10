@@ -83,6 +83,7 @@ const testingPasses: readonly TestingPass[] = [
       "Review /admin/links ordering and published state.",
       "Review /admin/projects preview, updates, item estimates, and item links.",
       "Review /admin/schedule stream focus and game links on public /schedule.",
+      "Submit and review a harmless game suggestion, then confirm it moves from pending to Reviewed Suggestions.",
       "Open public links, projects, schedule, games, updates, community rules, privacy, and accountability pages."
     ]
   },

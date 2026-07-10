@@ -269,6 +269,7 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
   - 2026-07-10 added public game suggestion intake and owner review on dev: `POST /games/suggestions` creates private pending suggestions, `/admin/games` lists pending suggestions, and owner review can accept/maybe/reject without public suggestion feeds, gifted-game handling, provider/store sync, or money behavior.
   - 2026-07-10 follow-up adds a one-click admin path to create a private game record from a pending suggestion and accept/link it for review.
   - 2026-07-10 follow-up adds a no-schema gifted-game shortcut in `/admin/games`: pending suggestions can create private records with `ownershipStatus: gifted` and accept/link the suggestion in one action. Rich gift metadata such as giver credit, key/redeem state, value, and accounting remains future schema/provider-store work.
+  - 2026-07-10 follow-up adds a reviewed suggestions panel in `/admin/games` so accepted/maybe-later/rejected suggestions remain visible during manual testing after leaving the pending queue.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.
 

@@ -218,6 +218,22 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
   return "failed";
 };
 
+const getReviewedSortValue = (suggestion: GameSuggestionSource): number => {
+  const timestamp = Date.parse(suggestion.reviewedAt ?? suggestion.updatedAt);
+
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
+const formatReviewedDate = (value: string | null): string => {
+  if (!value) {
+    return "Not recorded";
+  }
+
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
 const GameLibraryAdminClient = (): React.ReactNode => {
   const [games, setGames] = useState<readonly GameLibrarySource[]>([]);
   const [suggestions, setSuggestions] = useState<readonly GameSuggestionSource[]>([]);
@@ -465,7 +481,13 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   };
 
   const visibleGames = sortGames(games);
+  const gameTitleById = new Map(visibleGames.map((game) => [game.id, game.title]));
   const pendingSuggestions = suggestions.filter((suggestion) => suggestion.status === "pending");
+  const reviewedSuggestions = suggestions
+    .filter((suggestion) => suggestion.status !== "pending")
+    .slice()
+    .sort((left, right) => getReviewedSortValue(right) - getReviewedSortValue(left))
+    .slice(0, 8);
 
   return (
     <>
@@ -573,6 +595,32 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                           Reject
                         </button>
                       </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="project-admin-panel">
+              <div className="project-admin-panel-heading">
+                <h2>Reviewed Suggestions</h2>
+                <span>{reviewedSuggestions.length} recent</span>
+              </div>
+              {reviewedSuggestions.length === 0 ? (
+                <p>No reviewed suggestions yet.</p>
+              ) : (
+                <div className="project-admin-selector">
+                  {reviewedSuggestions.map((suggestion) => (
+                    <article className="project-admin-state" key={suggestion.id}>
+                      <h3>{suggestion.title}</h3>
+                      <p>
+                        {suggestion.status} · Reviewed {formatReviewedDate(suggestion.reviewedAt)}
+                      </p>
+                      {suggestion.linkedGameId ? (
+                        <p>Linked game: {gameTitleById.get(suggestion.linkedGameId) ?? suggestion.linkedGameId}</p>
+                      ) : null}
+                      {suggestion.reviewerNote ? <p>{suggestion.reviewerNote}</p> : null}
+                      {suggestion.suggestedByName ? <p>Suggested by {suggestion.suggestedByName}</p> : null}
                     </article>
                   ))}
                 </div>

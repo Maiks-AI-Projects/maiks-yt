@@ -96,6 +96,7 @@ Goal: verify public pages can be edited or inspected safely without accidental p
 - Test project preview, updates, item estimates, and item links.
 - Open `/admin/schedule`.
 - Test schedule focus/project/game links with public schedule output.
+- Submit and review a harmless game suggestion, then confirm it moves from pending to Reviewed Suggestions with its status, note, and linked game when present.
 - Open public `/links`, `/projects`, `/schedule`, `/games`, `/updates`, `/community-rules`, `/privacy/analytics`, and `/accountability`.
 
 ## Pass 5: Money And Accounting
