@@ -109,6 +109,15 @@ const testingPasses: readonly TestingPass[] = [
   }
 ];
 
+const testingNoteTemplate = `Testing note
+Surface:
+What I tried:
+What happened:
+Expected:
+Severity: blocking / annoying / polish
+Screenshot or recording:
+Follow-up owner:`;
+
 const TestingGuidePage = (): React.ReactNode => (
   <main className="project-admin-page testing-guide-page">
     <section className="project-admin-shell">
@@ -166,6 +175,7 @@ const TestingGuidePage = (): React.ReactNode => (
       <section className="project-admin-panel project-admin-note">
         <h2>Record Breakage</h2>
         <p>For each problem, record the page or window, whether it blocks streaming, and attach screenshots for visual/layout issues.</p>
+        <pre><code>{testingNoteTemplate}</code></pre>
       </section>
     </section>
   </main>

@@ -269,6 +269,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 35. The expanded visual readiness pass now covers 74 captures, including bare Access Required recovery screens for `/control`, `/chat`, and `/moderation`; the 2026-07-10 run passed with no missing recovery copy and no horizontal overflow on those routes.
 36. `/admin/backup/health` now has a real owner-facing web page matching the manual testing guide, and the recurring smoke baseline is intentionally bumped to 77 checks to cover that page.
 37. Visual smoke now asserts that `/admin/backup/health` renders loaded backup details, not just the page shell: Backup Health, Required Tables, Dump Tool, and Warnings.
+38. `/admin/testing` now includes a compact testing-note template for recording breakage with surface, attempted action, actual/expected behavior, severity, screenshot/recording, and follow-up owner; recurring smoke asserts the template remains visible.
 
 ## Known State
 
