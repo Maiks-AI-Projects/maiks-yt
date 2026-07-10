@@ -1058,6 +1058,25 @@ const createPublicApiChecks = ({ config, http }) => publicApiChecks.map(([name, 
   })
 );
 
+const pwaIconChecks = [
+  ["stream tools icon", "webUrl", "/icons/maiks-tools-icon.svg"],
+  ["stream tools maskable icon", "webUrl", "/icons/maiks-tools-maskable.svg"],
+  ["control panel icon", "controlUrl", "/icons/maiks-tools-icon.svg"],
+  ["control panel maskable icon", "controlUrl", "/icons/maiks-tools-maskable.svg"]
+];
+
+const createPwaIconChecks = ({ config, http }) => pwaIconChecks.map(([name, configKey, path]) =>
+  checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    expectedText: ["<svg", "Maiks.yt Stream Tools"],
+    http,
+    name,
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    scanInjection: true,
+    url: http.makeUrl(config[configKey], path)
+  })
+);
+
 const ownerAdminPageChecks = [
   ["admin dashboard", "/admin", ["Admin"]],
   ["admin connections", "/admin/connections", ["Connections"]],
@@ -1179,6 +1198,7 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   ...createOwnerAdminPageChecks({ config, getDevOwnerToken, http }),
   ...checkOwnerOperationalReadModels({ config, getDevOwnerToken, http }),
   ...createPublicApiChecks({ config, http }),
+  ...createPwaIconChecks({ config, http }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
     http,
