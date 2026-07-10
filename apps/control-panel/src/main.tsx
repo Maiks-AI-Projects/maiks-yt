@@ -1,5 +1,6 @@
 import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState } from "react";
+import { AiControlsWindow } from "./ai/AiControlsWindow.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
@@ -18,6 +19,7 @@ const panelModeStorageKey = "maiks.yt.control.panelMode";
 const currentRoutePath = window.location.pathname.replace(/\/+$/, "") || "/";
 const isStandaloneChatRoute = currentRoutePath === "/chat";
 const isModerationRulesRoute = currentRoutePath === "/moderation";
+const isAiControlsRoute = currentRoutePath === "/ai";
 const defaultPanelMode = "creator";
 type PanelMode = "creator" | "advanced";
 type ControlPanelAuthState =
@@ -43,6 +45,7 @@ type AccountSessionResponse = {
 const controlRouteLabels: Record<string, string> = {
   "/chat": "Streamer Chat",
   "/control": "Control Panel",
+  "/ai": "AI Controls",
   "/moderation": "Moderation"
 };
 
@@ -125,7 +128,7 @@ const getCurrentSurfaceLabel = (): string =>
 type ControlPanelBlockedState = Exclude<ControlPanelAuthState, { status: "allowed" }>;
 
 const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }): React.ReactNode => (
-  <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRulesRoute ? "chat-surface" : ""}`}>
+  <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRulesRoute || isAiControlsRoute ? "chat-surface" : ""}`}>
     <section className="access-required-panel">
       <p className="access-required-eyebrow">{getCurrentSurfaceLabel()}</p>
       <h1>Access Required</h1>
@@ -158,6 +161,8 @@ const App = (): React.ReactNode => {
     updateManifestForRoute();
     document.title = isStandaloneChatRoute
       ? "Maiks.yt Streamer Chat"
+      : isAiControlsRoute
+        ? "Maiks.yt AI Controls"
       : isModerationRulesRoute
         ? "Maiks.yt Moderation"
         : "Maiks.yt Control Panel";
@@ -204,6 +209,25 @@ const App = (): React.ReactNode => {
           </div>
         </div>
         <ModerationControlWindow apiBaseUrl={apiBaseUrl} />
+      </main>
+    );
+  }
+
+  if (isAiControlsRoute) {
+    return (
+      <main className="surface chat-surface chat-window-surface">
+        <div className="surface-header chat-surface-header">
+          <div className="surface-title">
+            <h1>AI Controls</h1>
+            <p>{authState.displayName}</p>
+          </div>
+          <div className="status-action-group">
+            <a className="secondary-window-link" href="/chat">Chat</a>
+            <a className="secondary-window-link" href="/moderation">Moderation</a>
+            <a className="secondary-window-link" href="/control">Control panel</a>
+          </div>
+        </div>
+        <AiControlsWindow />
       </main>
     );
   }

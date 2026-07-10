@@ -147,10 +147,11 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
             onChange={(event) => setSelectedPanel(event.currentTarget.value as ModerationPanelKey)}
           >
             {availablePanels.map((panel) => (
-              <option key={panel} value={panel}>{moderationPanelLabels[panel]}</option>
+            <option key={panel} value={panel}>{moderationPanelLabels[panel]}</option>
             ))}
           </select>
         </label>
+        <a className="secondary-window-link" href="/ai">AI controls</a>
         <span>{status}</span>
       </div>
       {!access ? (

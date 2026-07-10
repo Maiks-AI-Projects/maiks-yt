@@ -33,6 +33,11 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
         description: "Overlay controls and scene designer. Requires the current control access token."
       },
       {
+        href: "https://control-dev.maiks.yt/ai",
+        label: "AI Controls",
+        description: "Inert AI settings and safety panel. Requires the current control access token."
+      },
+      {
         href: "https://overlay-dev.maiks.yt/",
         label: "OBS Overlay",
         description: "Current shared overlay surface for OBS/browser-source checks."

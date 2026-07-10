@@ -318,6 +318,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Add no-nagging rule to prompts.
 - [ ] Add low-energy mode design.
 - [ ] Add editable start instructions and provider settings.
+- [x] Add first inert AI settings/control surface.
+  - 2026-07-10 added token-gated `control-dev/ai` as an inert AI controls window. It shows public output, TTS, paid-message reading, moderation suggestions, and autonomous actions as off/blocked/shadow-only. No AI provider calls, public speech, chat replies, TTS execution, moderation decisions, schema, secrets, or production behavior were added.
 - [ ] Add optional draft/shadow mode for tuning without public output.
 - [ ] Add interruption avoidance requirement.
 - [ ] Add optional stream-end wellness checkpoint.
