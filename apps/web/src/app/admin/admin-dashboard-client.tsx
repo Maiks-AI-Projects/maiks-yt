@@ -73,6 +73,8 @@ type BackupHealthResponse =
     reason: string;
   };
 
+type ExportStatusTone = "idle" | "working" | "ok" | "bad";
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const groups: readonly AdminDashboardGroup[] = [
@@ -240,6 +242,11 @@ const readJson = async <Payload,>(path: string, authenticated = false): Promise<
   }
 };
 
+const getFilenameFromContentDisposition = (header: string | null): string | null => {
+  const match = header?.match(/filename="([^"]+)"/i);
+  return match?.[1] ?? null;
+};
+
 const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const [
     api,
@@ -338,6 +345,13 @@ const AdminDashboardClient = (): React.ReactNode => {
   const [devAuthQuery, setDevAuthQuery] = useState("");
   const [statusCards, setStatusCards] = useState<readonly DashboardStatusCard[]>(() => loadingCards());
   const [statusMessage, setStatusMessage] = useState("Loading dashboard status...");
+  const [exportStatus, setExportStatus] = useState<{
+    tone: ExportStatusTone;
+    message: string;
+  }>({
+    tone: "idle",
+    message: "Ready to download a read-only key-data JSON export."
+  });
 
   const refreshStatus = async (): Promise<void> => {
     setStatusCards(loadingCards());
@@ -357,6 +371,47 @@ const AdminDashboardClient = (): React.ReactNode => {
     }
   };
 
+  const downloadKeyDataExport = async (): Promise<void> => {
+    setExportStatus({
+      tone: "working",
+      message: "Preparing key-data export..."
+    });
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/backup/key-data-export`, {
+        credentials: "include",
+        headers: createApiHeaders()
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { reason?: string } | null;
+        throw new Error(payload?.reason ?? `Export failed with HTTP ${response.status}.`);
+      }
+
+      const blob = await response.blob();
+      const filename = getFilenameFromContentDisposition(response.headers.get("content-disposition"))
+        ?? `maiks-yt-key-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setExportStatus({
+        tone: "ok",
+        message: `Downloaded ${filename}.`
+      });
+    } catch (error) {
+      setExportStatus({
+        tone: "bad",
+        message: error instanceof Error ? error.message : "Key-data export failed."
+      });
+    }
+  };
+
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     setDevAuthQuery(getDevAuthQuery());
@@ -372,6 +427,9 @@ const AdminDashboardClient = (): React.ReactNode => {
           <p>Quick links for testing and operating the current dev build.</p>
         </div>
         <div className="admin-inline-actions">
+          <button type="button" onClick={() => void downloadKeyDataExport()}>
+            Download key data
+          </button>
           <button type="button" onClick={() => void refreshStatus()}>
             Refresh status
           </button>
@@ -394,6 +452,9 @@ const AdminDashboardClient = (): React.ReactNode => {
             </article>
           ))}
         </div>
+        <p className={`admin-dashboard-export-status ${exportStatus.tone}`}>
+          {exportStatus.message}
+        </p>
       </section>
 
       <div className="project-admin-grid">

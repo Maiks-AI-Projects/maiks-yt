@@ -473,7 +473,8 @@ Gate note: later money features require an immutable ledger design, refund/revoc
 - [x] Add backup health checks.
   - 2026-07-10 added `pnpm dev:backup:health`, a read-only dev database health check for core backup/export tables plus dump-tool availability warnings. The recurring dev smoke runner now includes it as a failure-only backup-health check; missing dump tooling is reported as a warning, not a recurring failure.
   - 2026-07-10 follow-up added owner-gated `/admin/backup/health` and a Backup Health card on `/admin`, so test readiness warnings are visible without shell access.
-- [ ] Add manual export for key data.
+- [x] Add manual export for key data.
+  - 2026-07-10 added owner-gated `/admin/backup/key-data-export` and a `/admin` download button. The export is a read-only JSON package for editable/testing-critical content, projects, schedule, games, roles, routing/opt-outs, provider channel identities, notifications, active moderation state, and money ledger/rule/reference/warning rows. It deliberately excludes auth sessions/accounts, token hashes, provider runtime credentials, raw provider payloads, push secrets, env/config, filesystem uploads, and full disaster-recovery dump/restore automation.
 - [x] Document restore process.
 - [x] Document rare improper-deletion restore process.
 - [ ] Decide backup retention and encryption.
@@ -482,6 +483,7 @@ Gate note: backup/export can start before production money, but must be treated 
   - 2026-07-09 Phase E1 added `reports/backup-restore-runbook.md` for dev/staging-safe inventory, manual export/restore verification, improper-deletion drill boundaries, and failure-only backup-health notification expectations. Production backup automation, encryption/key policy, retention, and destructive restore remain gated.
   - 2026-07-10 added a dev-safe backup health command and recurring smoke check. It does not create backups, export data, edit secrets, or change retention/encryption policy.
   - 2026-07-10 follow-up made the same read-only backup health available to owner admin dashboard status cards.
+  - 2026-07-10 follow-up added the owner-only key-data JSON export for manual testing snapshots. It is not encrypted backup automation and should still be treated as short-lived/private until retention and encryption are approved.
 
 ## 18. Phase Gates Before Risky Work
 

@@ -1295,6 +1295,25 @@ button:disabled {
   border-color: #e59a9a;
 }
 
+.admin-dashboard-export-status {
+  border-radius: 6px;
+  margin: 0.85rem 0 0;
+  padding: 0.65rem 0.75rem;
+}
+
+.admin-dashboard-export-status.idle,
+.admin-dashboard-export-status.working {
+  background: #f6f8fb;
+}
+
+.admin-dashboard-export-status.ok {
+  background: #edf8f0;
+}
+
+.admin-dashboard-export-status.bad {
+  background: #fff0f0;
+}
+
 .project-admin-header p:not(.eyebrow),
 .project-admin-state p,
 .project-admin-panel p,
