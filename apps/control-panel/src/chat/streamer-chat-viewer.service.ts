@@ -1,6 +1,7 @@
 import type { StreamerChatActionAccess } from "./streamer-chat-viewer.types.js";
 
 export const defaultActionAccess: StreamerChatActionAccess = {
+  canAllow: true,
   canBan: true,
   canHide: true,
   canWarn: true

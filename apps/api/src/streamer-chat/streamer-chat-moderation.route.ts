@@ -21,6 +21,10 @@ const streamerChatModerationRequestSchema = z.object({
   accessToken: z.string().min(24),
   targetMessageId: z.string().trim().min(1).max(191)
 });
+const streamerChatModerationAllowRequestSchema = streamerChatModerationRequestSchema.extend({
+  durationSeconds: z.number().int().min(60).max(30 * 24 * 60 * 60).nullable().optional(),
+  scope: z.enum(["message", "always", "stream", "timed"])
+});
 const streamerChatModerationRuleListRequestSchema = z.object({
   accessToken: z.string().min(24)
 });
@@ -82,6 +86,7 @@ export const registerStreamerChatModerationRoutes = (
         canBan: canUseStreamerChatModerationAction(access.permissions, "ban"),
         canEmergencyClear: canUseStreamerChatModerationAction(access.permissions, "emergency_clear"),
         canHide: canUseStreamerChatModerationAction(access.permissions, "hide"),
+        canAllow: canUseStreamerChatModerationAction(access.permissions, "allow"),
         canViewAudit: canUseStreamerChatModerationAction(access.permissions, "view_audit"),
         canRetractRules: canUseStreamerChatModerationAction(access.permissions, "retract_rule"),
         canViewRules: canUseStreamerChatModerationAction(access.permissions, "view_rules"),
@@ -185,6 +190,67 @@ export const registerStreamerChatModerationRoutes = (
       action: "ban",
       affectedMessage: result?.bannedMessage ?? null,
       affectedCount: result?.affectedMessages.length ?? 0,
+      providerAction: false
+    };
+  });
+
+  server.post("/streamer-chat/moderation/allow", async (request, reply) => {
+    const parsedRequest = streamerChatModerationAllowRequestSchema.safeParse(request.body);
+
+    if (!parsedRequest.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "invalid_request",
+        providerAction: false
+      };
+    }
+
+    const access = await dependencies.accessService.requirePermission(request, parsedRequest.data.accessToken, "allow");
+
+    if (!access.ok) {
+      return applyAccessFailure(reply, access);
+    }
+
+    const durationSeconds = parsedRequest.data.scope === "timed"
+      ? parsedRequest.data.durationSeconds ?? 4 * 60 * 60
+      : null;
+    const activeUntil = durationSeconds === null ? null : new Date(Date.now() + durationSeconds * 1000);
+    const scope = parsedRequest.data.scope;
+    const affectedMessage = scope === "message"
+      ? dependencies.moderationRuntime.allowMessage(parsedRequest.data.targetMessageId, activeUntil?.toISOString() ?? null)
+      : dependencies.moderationRuntime.allowActorFromMessage(parsedRequest.data.targetMessageId, activeUntil?.toISOString() ?? null);
+
+    if (affectedMessage) {
+      const audit = await dependencies.moderationStore.appendAudit({
+        action: scope === "message" ? "allow_message" : "allow_author",
+        message: affectedMessage,
+        note: scope === "timed"
+          ? `Allowed for ${durationSeconds} seconds from stream chat options.`
+          : scope === "stream"
+            ? "Allowed for this stream from stream chat options."
+            : scope === "message"
+              ? "Message allowed from stream chat options."
+              : "Author allowed from stream chat options.",
+        outcome: "applied",
+        reason: `streamer_chat_${scope}_allowed`
+      });
+      await dependencies.moderationStore.upsertAllowState({
+        activeUntil,
+        auditLogId: audit.id,
+        durationSeconds,
+        message: affectedMessage,
+        stateKind: scope === "message" ? "message_allowed" : "author_allowed"
+      });
+    }
+
+    return {
+      ok: true,
+      action: "allow",
+      allowScope: scope,
+      activeUntil: activeUntil?.toISOString() ?? null,
+      affectedMessage,
+      affectedCount: affectedMessage ? 1 : 0,
       providerAction: false
     };
   });

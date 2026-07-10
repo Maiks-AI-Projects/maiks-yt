@@ -32,12 +32,12 @@ const getOptionUnavailableReasons = (
 
   return [
     !actionAccess.canWarn ? "Warn needs chat:warn-user." : null,
+    !actionAccess.canAllow ? "Allow needs chat:allow-message." : null,
     message.source !== "fake-local" ? "Note and Mute are fake/local drills until provider-write moderation is reviewed." : null,
     message.source === "discord" || message.source === "twitch" || message.source === "youtube"
       ? `${chatSourceLabels[message.source]} provider warning is attempted by the Warn action.`
       : "Provider warning messages are gated until provider-write clients and permission checks exist.",
-    "Provider timeout is gated until provider-write clients and permission checks exist.",
-    "Allow controls need reviewed allowlist persistence."
+    "Provider timeout is gated until provider-write clients and permission checks exist."
   ].filter((reason): reason is string => reason !== null);
 };
 
@@ -84,7 +84,19 @@ export const StreamerChatViewer = ({
 
   const executeStreamerChatModeration = async (
     message: StreamerChatMessage,
-    action: "hide" | "ban" | "warn"
+    action: "hide" | "ban" | "warn",
+    allowScope?: never
+  ): Promise<void> => executeStreamerChatAction(message, action, allowScope);
+
+  const executeStreamerChatAllow = async (
+    message: StreamerChatMessage,
+    allowScope: "message" | "always" | "stream" | "timed"
+  ): Promise<void> => executeStreamerChatAction(message, "allow", allowScope);
+
+  const executeStreamerChatAction = async (
+    message: StreamerChatMessage,
+    action: "hide" | "ban" | "warn" | "allow",
+    allowScope?: "message" | "always" | "stream" | "timed"
   ): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
@@ -98,13 +110,17 @@ export const StreamerChatViewer = ({
         ? "Hiding message locally."
         : action === "ban"
           ? "Banning author locally."
-          : "Warning author locally."
+          : action === "allow"
+            ? "Allowing message locally."
+            : "Warning author locally."
     );
 
     try {
       const response = await fetch(`${apiBaseUrl}/streamer-chat/moderation/${action}`, {
         body: JSON.stringify({
           accessToken: token,
+          durationSeconds: action === "allow" && allowScope === "timed" ? 4 * 60 * 60 : null,
+          scope: action === "allow" ? allowScope ?? "always" : undefined,
           targetMessageId: message.id
         }),
         credentials: "include",
@@ -135,6 +151,12 @@ export const StreamerChatViewer = ({
       setActionStatus(
         action === "hide"
           ? `Message hidden locally. ${result.affectedCount} affected.`
+          : action === "allow"
+            ? allowScope === "message"
+              ? `Message allowed locally. Retract it from the moderation window when needed.`
+              : allowScope === "timed"
+                ? `${message.authorName} allowed locally until ${result.activeUntil ? formatChatTime(result.activeUntil) : "later"}.`
+                : `${message.authorName} allowed locally${allowScope === "stream" ? " for this stream" : ""}. Retract it from the moderation window when needed.`
           : action === "ban"
             ? `${message.authorName} banned locally from stream surfaces. ${result.affectedCount} message(s) hidden.`
             : result.autoBanned
@@ -382,14 +404,37 @@ export const StreamerChatViewer = ({
                         </button>
                       </>
                     ) : null}
-                    <button type="button" disabled title="Needs a reviewed moderation allowlist model.">
+                    <button
+                      type="button"
+                      disabled={!actionAccess.canAllow}
+                      onClick={() => void executeStreamerChatAllow(message, "always")}
+                      title={actionAccess.canAllow ? "Allow this author on Maiks.yt stream surfaces until retracted." : "Missing chat:allow-message permission."}
+                    >
                       Allow always
                     </button>
-                    <button type="button" disabled title="Needs stream-scoped moderation state.">
+                    <button
+                      type="button"
+                      disabled={!actionAccess.canAllow}
+                      onClick={() => void executeStreamerChatAllow(message, "stream")}
+                      title={actionAccess.canAllow ? "Allow this author for the current stream/testing window." : "Missing chat:allow-message permission."}
+                    >
                       Allow this stream
                     </button>
-                    <button type="button" disabled title="Needs timed allowlist persistence.">
-                      Allow x hours
+                    <button
+                      type="button"
+                      disabled={!actionAccess.canAllow}
+                      onClick={() => void executeStreamerChatAllow(message, "timed")}
+                      title={actionAccess.canAllow ? "Allow this author for four hours." : "Missing chat:allow-message permission."}
+                    >
+                      Allow 4h
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!actionAccess.canAllow}
+                      onClick={() => void executeStreamerChatAllow(message, "message")}
+                      title={actionAccess.canAllow ? "Allow only this message on Maiks.yt stream surfaces." : "Missing chat:allow-message permission."}
+                    >
+                      Allow message
                     </button>
                     <ActionUnavailableHint reasons={optionUnavailableReasons} />
                   </div>

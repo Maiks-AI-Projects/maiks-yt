@@ -102,6 +102,14 @@ const hydrateStreamerChatModerationRuntime = async (): Promise<void> => {
       streamerChatModerationRuntime.hydrateHiddenMessage(rule.messageId, rule.authorName, rule.source, rule.appliedAt);
     }
 
+    if (rule.kind === "message_allowed" && rule.messageId) {
+      streamerChatModerationRuntime.hydrateAllowedMessage(rule.messageId, rule.authorName, rule.source, rule.appliedAt, rule.activeUntil ?? null);
+    }
+
+    if (rule.kind === "author_allowed") {
+      streamerChatModerationRuntime.hydrateAllowedActor(rule.authorName, rule.source, rule.appliedAt, rule.activeUntil ?? null);
+    }
+
     if (rule.kind === "author_banned") {
       streamerChatModerationRuntime.hydrateBannedActor(rule.authorName, rule.source, rule.appliedAt);
     }

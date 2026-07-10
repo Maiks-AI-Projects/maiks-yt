@@ -60,6 +60,10 @@ class FakeModerationStore {
   public async upsertActiveState(): Promise<void> {
     // Test double.
   }
+
+  public async upsertAllowState(input: unknown): Promise<void> {
+    this.audits.push({ allowState: input });
+  }
 }
 
 const createServer = () => {
@@ -230,6 +234,48 @@ describe("streamer chat moderation API", () => {
     expect(sendWarning).not.toHaveBeenCalled();
     expect(sendTwitchWarning).not.toHaveBeenCalled();
     expect(sendYouTubeWarning).not.toHaveBeenCalled();
+    expect(moderationStore.providerAudits).toHaveLength(0);
+  });
+
+  it("adds a local allow rule without provider action", async () => {
+    const { moderationStore, server, streamerChatRuntime } = createServer();
+    streamerChatRuntime.appendMessage(createMessage({
+      id: "allow-message-1",
+      source: "twitch"
+    }));
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/allow",
+      payload: {
+        accessToken: validAccessToken,
+        durationSeconds: 3600,
+        scope: "timed",
+        targetMessageId: "allow-message-1"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      action: "allow",
+      allowScope: "timed",
+      affectedCount: 1,
+      providerAction: false
+    });
+    expect(moderationStore.audits).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        action: "allow_author",
+        outcome: "applied",
+        reason: "streamer_chat_timed_allowed"
+      }),
+      expect.objectContaining({
+        allowState: expect.objectContaining({
+          durationSeconds: 3600,
+          stateKind: "author_allowed"
+        })
+      })
+    ]));
     expect(moderationStore.providerAudits).toHaveLength(0);
   });
 

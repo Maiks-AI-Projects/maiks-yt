@@ -51,8 +51,11 @@ const createStreamerChatActorKey = (source: StreamerChatMessage["source"], autho
   `${source}:${authorName.trim().toLowerCase()}`;
 
 const createHiddenMessageRuleId = (messageId: string): string => `message_hidden:${messageId}`;
+const createAllowedMessageRuleId = (messageId: string): string => `message_allowed:${messageId}`;
 const createBannedActorRuleId = (source: StreamerChatMessage["source"], authorName: string): string =>
   `author_banned:${createStreamerChatActorKey(source, authorName)}`;
+const createAllowedActorRuleId = (source: StreamerChatMessage["source"], authorName: string): string =>
+  `author_allowed:${createStreamerChatActorKey(source, authorName)}`;
 const createWarningRuleId = (source: StreamerChatMessage["source"], authorName: string): string =>
   `author_warned:${createStreamerChatActorKey(source, authorName)}`;
 
@@ -66,7 +69,7 @@ export class StreamerChatModerationStoreService {
     outcome,
     reason
   }: {
-    action: "warn_author" | "hide_message" | "ban_author" | "unban_author";
+    action: "warn_author" | "allow_message" | "allow_author" | "hide_message" | "ban_author" | "unban_author";
     message: {
       authorName: string;
       id: string;
@@ -239,6 +242,127 @@ export class StreamerChatModerationStoreService {
     );
   }
 
+  public async upsertAllowState({
+    activeUntil,
+    auditLogId,
+    durationSeconds,
+    message,
+    stateKind
+  }: {
+    activeUntil: Date | null;
+    auditLogId: string;
+    durationSeconds: number | null;
+    message: {
+      authorName: string;
+      id: string;
+      providerMessageId?: string;
+      source: StreamerChatMessage["source"];
+    };
+    stateKind: "message_allowed" | "author_allowed";
+  }): Promise<void> {
+    const now = new Date();
+    const flags = getStreamerChatModerationFlags(message.source);
+    const targetClause = stateKind === "message_allowed"
+      ? "target_message_id = ?"
+      : "LOWER(target_author_name) = LOWER(?)";
+    const targetValue = stateKind === "message_allowed" ? message.id : message.authorName;
+    const [updateResult] = await this.getDatabasePool().execute(
+      `
+        UPDATE moderation_active_states
+        SET
+          status = 'active',
+          active_until = ?,
+          duration_seconds = ?,
+          reason = ?,
+          note = ?,
+          last_audit_log_id = ?,
+          revoked_audit_log_id = NULL,
+          revoked_at = NULL,
+          revoked_by_user_id = NULL,
+          revocation_reason = NULL,
+          provider_action = false,
+          provider_action_id = NULL,
+          provider_state_id = NULL,
+          is_test = ?,
+          is_simulated = ?,
+          test_resettable = ?,
+          updated_at = ?
+        WHERE source = ?
+          AND state_kind = ?
+          AND status = 'active'
+          AND revoked_at IS NULL
+          AND ${targetClause}
+      `,
+      [
+        activeUntil,
+        durationSeconds,
+        stateKind === "message_allowed" ? "Message explicitly allowed on Maiks.yt stream surfaces." : "Author explicitly allowed on Maiks.yt stream surfaces.",
+        "Applied from stream chat allow controls.",
+        auditLogId,
+        flags.isTest,
+        flags.isSimulated,
+        flags.testResettable,
+        now,
+        message.source,
+        stateKind,
+        targetValue
+      ]
+    );
+
+    if (((updateResult as { affectedRows?: number }).affectedRows ?? 0) > 0) {
+      return;
+    }
+
+    await this.getDatabasePool().execute(
+      `
+        INSERT INTO moderation_active_states
+          (
+            id,
+            source,
+            state_kind,
+            status,
+            target_author_name,
+            target_message_id,
+            target_external_id,
+            active_from,
+            active_until,
+            duration_seconds,
+            reason,
+            note,
+            created_audit_log_id,
+            last_audit_log_id,
+            provider_action,
+            is_test,
+            is_simulated,
+            test_resettable,
+            created_at,
+            updated_at
+          )
+        VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, false, ?, ?, ?, ?, ?)
+      `,
+      [
+        randomUUID(),
+        message.source,
+        stateKind,
+        message.authorName,
+        stateKind === "message_allowed" ? message.id : null,
+        message.providerMessageId ?? null,
+        now,
+        activeUntil,
+        durationSeconds,
+        stateKind === "message_allowed" ? "Message explicitly allowed on Maiks.yt stream surfaces." : "Author explicitly allowed on Maiks.yt stream surfaces.",
+        "Applied from stream chat allow controls.",
+        auditLogId,
+        auditLogId,
+        flags.isTest,
+        flags.isSimulated,
+        flags.testResettable,
+        now,
+        now
+      ]
+    );
+  }
+
   public async appendProviderWarningAudit({
     deliveryResult,
     message,
@@ -340,11 +464,13 @@ export class StreamerChatModerationStoreService {
           state_kind AS stateKind,
           target_author_name AS authorName,
           target_message_id AS messageId,
+          active_until AS activeUntil,
           active_from AS appliedAt
         FROM moderation_active_states
         WHERE status = 'active'
           AND provider_action = false
-          AND state_kind IN ('message_hidden', 'user_banned')
+          AND (active_until IS NULL OR active_until > NOW())
+          AND state_kind IN ('message_allowed', 'author_allowed', 'message_hidden', 'user_banned')
           AND source IN ('fake-local', 'twitch', 'youtube', 'discord')
         ORDER BY active_from DESC
         LIMIT 100
@@ -353,24 +479,36 @@ export class StreamerChatModerationStoreService {
     const activeRules = (Array.isArray(activeRows) ? activeRows : []).flatMap((row) => {
       const item = row as {
         appliedAt: unknown;
+        activeUntil: unknown;
         authorName: string | null;
         messageId: string | null;
         source: unknown;
-        stateKind: "message_hidden" | "user_banned";
+        stateKind: "message_allowed" | "author_allowed" | "message_hidden" | "user_banned";
       };
 
       if (!isStreamerChatSource(item.source) || !item.authorName) {
         return [];
       }
 
-      const kind: StreamerChatModerationRuleKind = item.stateKind === "message_hidden" ? "message_hidden" : "author_banned";
+      const kind: StreamerChatModerationRuleKind = item.stateKind === "message_allowed"
+        ? "message_allowed"
+        : item.stateKind === "author_allowed"
+          ? "author_allowed"
+          : item.stateKind === "message_hidden"
+            ? "message_hidden"
+            : "author_banned";
 
       return [{
+        activeUntil: item.activeUntil ? toModerationDate(item.activeUntil) : null,
         appliedAt: toModerationDate(item.appliedAt),
         authorName: item.authorName,
         id: kind === "message_hidden" && item.messageId
           ? createHiddenMessageRuleId(item.messageId)
-          : createBannedActorRuleId(item.source, item.authorName),
+          : kind === "message_allowed" && item.messageId
+            ? createAllowedMessageRuleId(item.messageId)
+            : kind === "author_allowed"
+              ? createAllowedActorRuleId(item.source, item.authorName)
+              : createBannedActorRuleId(item.source, item.authorName),
         kind,
         messageId: item.messageId,
         source: item.source
@@ -409,6 +547,7 @@ export class StreamerChatModerationStoreService {
 
       return [{
         appliedAt: toModerationDate(item.appliedAt),
+        activeUntil: null,
         authorName: item.authorName,
         count: Number(item.warningCount),
         id: createWarningRuleId(item.source, item.authorName),
@@ -441,7 +580,7 @@ export class StreamerChatModerationStoreService {
           created_at AS createdAt
         FROM moderation_audit_logs
         WHERE source IN ('fake-local', 'twitch', 'youtube', 'discord')
-          AND action IN ('warn_author', 'hide_message', 'ban_author', 'unban_author')
+          AND action IN ('warn_author', 'allow_message', 'allow_author', 'hide_message', 'ban_author', 'unban_author')
         ORDER BY created_at DESC, id DESC
         LIMIT ${safeLimit}
       `
@@ -494,9 +633,13 @@ export class StreamerChatModerationStoreService {
     const audit = await this.appendAudit({
       action: rule.kind === "author_banned"
         ? "unban_author"
-        : rule.kind === "message_hidden"
-          ? "hide_message"
-          : "warn_author",
+        : rule.kind === "author_allowed"
+          ? "allow_author"
+          : rule.kind === "message_allowed"
+            ? "allow_message"
+            : rule.kind === "message_hidden"
+              ? "hide_message"
+              : "warn_author",
       message: {
         authorName: rule.authorName,
         id: rule.messageId ?? rule.id,
@@ -507,12 +650,18 @@ export class StreamerChatModerationStoreService {
       reason: "streamer_chat_rule_retracted"
     });
 
-    if (rule.kind === "message_hidden" || rule.kind === "author_banned") {
-      const stateKind = rule.kind === "message_hidden" ? "message_hidden" : "user_banned";
-      const targetClause = rule.kind === "message_hidden"
+    if (rule.kind === "message_hidden" || rule.kind === "author_banned" || rule.kind === "message_allowed" || rule.kind === "author_allowed") {
+      const stateKind = rule.kind === "message_hidden"
+        ? "message_hidden"
+        : rule.kind === "message_allowed"
+          ? "message_allowed"
+          : rule.kind === "author_allowed"
+            ? "author_allowed"
+            : "user_banned";
+      const targetClause = rule.kind === "message_hidden" || rule.kind === "message_allowed"
         ? "target_message_id = ?"
         : "LOWER(target_author_name) = LOWER(?)";
-      const targetValue = rule.kind === "message_hidden" ? rule.messageId : rule.authorName;
+      const targetValue = rule.kind === "message_hidden" || rule.kind === "message_allowed" ? rule.messageId : rule.authorName;
 
       if (targetValue) {
         await this.getDatabasePool().execute(
