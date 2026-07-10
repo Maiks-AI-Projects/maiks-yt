@@ -735,7 +735,7 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
           || typeof row?.provider !== "string"
           || typeof row?.mechanism !== "string"
           || typeof row?.providerEventName !== "string"
-          || row?.overlayEligibleByDefault !== false
+          || ![false, 0].includes(row?.overlayEligibleByDefault)
         )
       ) {
         return "provider intake rows API returned an unexpected payload.";
