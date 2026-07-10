@@ -1213,7 +1213,8 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     name: "control reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.controlUrl, "/"),
-    scanInjection: true
+    scanInjection: true,
+    rejectNavbar: true
   }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
@@ -1221,7 +1222,8 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     name: "chat window reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.controlUrl, "/chat"),
-    scanInjection: true
+    scanInjection: true,
+    rejectNavbar: true
   }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
@@ -1229,7 +1231,8 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     name: "moderation window reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.controlUrl, "/moderation"),
-    scanInjection: true
+    scanInjection: true,
+    rejectNavbar: true
   }),
   checkManifestEndpoint({
     expected: {

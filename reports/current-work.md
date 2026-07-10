@@ -252,6 +252,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 18. Visual smoke now records and fails Playwright captures with horizontal overflow, giving manual testing an earlier warning for layouts that do not fit the target viewport.
 19. Visual smoke now also asserts standalone stream-tool routes do not render the normal website navbar.
 20. Recurring smoke now validates the stream-tool and control-panel PWA icon assets referenced by the install manifests.
+21. Recurring smoke now asserts the standalone control, chat, and moderation PWA windows do not render the normal website navbar.
 
 ## Known State
 
