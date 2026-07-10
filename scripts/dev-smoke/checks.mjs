@@ -632,6 +632,117 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
 
       return null;
     }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "creator links admin API",
+    path: "/admin/links",
+    validate: (json) => {
+      if (json?.ok !== true || !Array.isArray(json?.links)) {
+        return "creator links admin API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "projects admin API",
+    path: "/admin/projects",
+    validate: (json) => {
+      if (json?.ok !== true || !Array.isArray(json?.projects)) {
+        return "projects admin API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "schedule admin API",
+    path: "/admin/schedule",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || !Array.isArray(json?.streams)
+        || !Array.isArray(json?.projectOptions)
+        || !Array.isArray(json?.gameOptions)
+      ) {
+        return "schedule admin API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "moderators admin API",
+    path: "/admin/moderators",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || !Array.isArray(json?.users)
+        || !Array.isArray(json?.rankPaths)
+        || !Array.isArray(json?.roles)
+        || !Array.isArray(json?.grants)
+        || !Array.isArray(json?.auditLogs)
+        || typeof json?.canManageRanks !== "boolean"
+      ) {
+        return "moderators admin API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "token admin API",
+    path: "/admin/tokens",
+    validate: (json, body) => {
+      if (json?.ok !== true || !Array.isArray(json?.tokens)) {
+        return "token admin API returned an unexpected payload.";
+      }
+
+      return body.includes("rawToken") || body.includes("devUrl")
+        ? "token admin API list leaked a create-only token field."
+        : null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "provider intake rows API",
+    path: "/admin/connections/intake?limit=10",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || json?.readOnly !== true
+        || !Array.isArray(json?.rows)
+        || typeof json?.filters?.limit !== "number"
+        || json.rows.some((row) =>
+          typeof row?.id !== "string"
+          || typeof row?.provider !== "string"
+          || typeof row?.mechanism !== "string"
+          || typeof row?.providerEventName !== "string"
+          || row?.overlayEligibleByDefault !== false
+        )
+      ) {
+        return "provider intake rows API returned an unexpected payload.";
+      }
+
+      return null;
+    }
   })
 ];
 
