@@ -171,6 +171,8 @@ type MoneyImportDraftResponse =
     reason: string;
   };
 
+type ImportPreviewStatusFilter = "all" | MoneyImportPreviewRow["status"];
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 type MoneyFormState = {
@@ -465,6 +467,8 @@ const MoneyAdminClient = (): React.ReactNode => {
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [importCsvText, setImportCsvText] = useState("");
   const [importPreview, setImportPreview] = useState<MoneyImportPreview | null>(null);
+  const [importPreviewStatusFilter, setImportPreviewStatusFilter] = useState<ImportPreviewStatusFilter>("all");
+  const [importPreviewRowLimit, setImportPreviewRowLimit] = useState(25);
   const [importMessage, setImportMessage] = useState("Paste a provider CSV to preview it without writing ledger rows.");
 
   const totals = useMemo(() => {
@@ -484,6 +488,16 @@ const MoneyAdminClient = (): React.ReactNode => {
       remainderMinor: incomeMinor - outMinor
     };
   }, [transactions]);
+
+  const filteredImportPreviewRows = useMemo(() => {
+    if (!importPreview) {
+      return [];
+    }
+
+    return importPreview.rows.filter((row) =>
+      importPreviewStatusFilter === "all" || row.status === importPreviewStatusFilter
+    );
+  }, [importPreview, importPreviewStatusFilter]);
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
     try {
@@ -894,6 +908,8 @@ const MoneyAdminClient = (): React.ReactNode => {
 
       if (response.ok && payload?.ok) {
         setImportPreview(payload.preview);
+        setImportPreviewStatusFilter("all");
+        setImportPreviewRowLimit(25);
         setImportMessage(`Preview ready: ${payload.preview.summary.readyRows} ready, ${payload.preview.summary.warningRows} with warnings, ${payload.preview.summary.skippedRows} skipped.`);
         return;
       }
@@ -955,6 +971,8 @@ const MoneyAdminClient = (): React.ReactNode => {
 
       if (response.ok && payload?.ok) {
         setImportPreview(payload.preview);
+        setImportPreviewStatusFilter("all");
+        setImportPreviewRowLimit(25);
         await loadLedger();
         setImportMessage(`Created ${payload.transactions.length} draft entr${payload.transactions.length === 1 ? "y" : "ies"} from rows ${payload.importedRowNumbers.join(", ")}${payload.skippedRowNumbers.length > 0 ? `; skipped rows ${payload.skippedRowNumbers.join(", ")}` : ""}.`);
         return;
@@ -1604,6 +1622,8 @@ const MoneyAdminClient = (): React.ReactNode => {
                   onClick={() => {
                     setImportCsvText(importPreviewExample);
                     setImportPreview(null);
+                    setImportPreviewStatusFilter("all");
+                    setImportPreviewRowLimit(25);
                     setImportMessage("Example CSV loaded. Preview it to inspect the rows.");
                   }}
                   disabled={busy}
@@ -1616,6 +1636,8 @@ const MoneyAdminClient = (): React.ReactNode => {
                   onClick={() => {
                     setImportCsvText("");
                     setImportPreview(null);
+                    setImportPreviewStatusFilter("all");
+                    setImportPreviewRowLimit(25);
                     setImportMessage("Paste a provider CSV to preview it without writing ledger rows.");
                   }}
                   disabled={busy}
@@ -1636,8 +1658,38 @@ const MoneyAdminClient = (): React.ReactNode => {
                   {importPreview.notes.map((note) => (
                     <p key={note}>{note}</p>
                   ))}
+                  <div className="admin-inline-actions">
+                    <label>
+                      Preview rows
+                      <select
+                        value={importPreviewStatusFilter}
+                        onChange={(event) => {
+                          setImportPreviewStatusFilter(event.target.value as ImportPreviewStatusFilter);
+                          setImportPreviewRowLimit(25);
+                        }}
+                      >
+                        <option value="all">All</option>
+                        <option value="ready">Ready</option>
+                        <option value="warning">Warnings</option>
+                        <option value="skipped">Skipped</option>
+                      </select>
+                    </label>
+                    <span>
+                      Showing {Math.min(importPreviewRowLimit, filteredImportPreviewRows.length)} of {filteredImportPreviewRows.length}
+                    </span>
+                    {importPreviewRowLimit < filteredImportPreviewRows.length ? (
+                      <>
+                        <button type="button" onClick={() => setImportPreviewRowLimit((current) => current + 25)}>
+                          Show 25 more
+                        </button>
+                        <button type="button" onClick={() => setImportPreviewRowLimit(filteredImportPreviewRows.length)}>
+                          Show all
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                   <div className="admin-list">
-                    {importPreview.rows.slice(0, 12).map((row) => (
+                    {filteredImportPreviewRows.slice(0, importPreviewRowLimit).map((row) => (
                       <article className="admin-list-item" key={`${row.rowNumber}-${row.reference ?? row.description ?? row.status}`}>
                         <div>
                           <strong>Row {row.rowNumber}: {row.status}</strong>
@@ -1653,6 +1705,9 @@ const MoneyAdminClient = (): React.ReactNode => {
                         {row.warnings.length > 0 ? <p>{row.warnings.join(", ")}</p> : null}
                       </article>
                     ))}
+                    {filteredImportPreviewRows.length === 0 ? (
+                      <p>No preview rows match this filter.</p>
+                    ) : null}
                   </div>
                 </>
               ) : null}

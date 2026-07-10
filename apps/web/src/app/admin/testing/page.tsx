@@ -97,6 +97,7 @@ const testingPasses: readonly TestingPass[] = [
       "Create one private test income entry and one private test spending/cost entry.",
       "Attach receipt/reference metadata where useful.",
       "Paste the example CSV in Import Preview, confirm row warnings/totals, then create draft entries only after review.",
+      "Use the Import Preview row filter to inspect ready, warning, and skipped rows.",
       "Post one reviewed imported draft and leave uncertain rows as drafts.",
       "Preview the same CSV/reference again and confirm duplicate_reference blocks repeated draft import.",
       "Preview a reference-less exact match and confirm possible_duplicate warns without blocking.",

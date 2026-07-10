@@ -112,6 +112,7 @@ Goal: test private accounting mechanics without public money behavior.
 - Add receipt/reference metadata where useful.
 - Paste the example CSV in Import Preview.
 - Confirm row readiness, warning counts, in/out totals, provider/category/reference hints, and duplicate status.
+- Use the Import Preview row filter to inspect ready, warning, and skipped rows before creating drafts.
 - Create draft entries only after reviewing the preview, then confirm imported rows stay draft until manually reviewed.
 - Post one reviewed imported draft and keep any uncertain rows as drafts.
 - Preview the same CSV/reference again and confirm `duplicate_reference` blocks repeated draft import.
