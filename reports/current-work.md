@@ -220,6 +220,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added state-free owner API smoke checks for the remaining major admin list surfaces used during manual testing: Creator Links, Projects, Schedule, Moderators, URL Tokens, and Provider Intake rows.
 - Added state-free public API smoke checks for Creator Links, Projects, and Stream Schedule, alongside the existing public Games API check, so public page shells and public JSON read models are both watched.
 - Tightened the recurring `/tools/actions` smoke check so the standalone Action Panel route fails if the normal website navbar appears.
+- Tightened `pnpm dev:visual-smoke` so Playwright captures fail on document-level horizontal overflow; the current 68-capture visual sweep passed with no overflow failures.
 
 ## Current Task
 
@@ -246,6 +247,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 15. Recurring smoke now validates additional owner-only admin lists for manual testing: creator links, projects, schedule, moderators, tokens, and provider intake rows.
 16. Recurring smoke now validates public JSON read models for links, projects, schedule, and games.
 17. Recurring smoke now asserts the standalone `/tools/actions` route does not render the normal website navbar.
+18. Visual smoke now records and fails Playwright captures with horizontal overflow, giving manual testing an earlier warning for layouts that do not fit the target viewport.
 
 ## Known State
 

@@ -325,6 +325,7 @@ const captureSurface = async ({ chromium, outputDir, surface, viewport }) => {
     authRequired,
     expectedText: surface.expectedText,
     hasInjectionMarker,
+    hasHorizontalOverflow: false,
     missingExpectedText,
     ok: (missingExpectedText.length === 0 || authRequired) && !hasInjectionMarker,
     screenshotFile,
@@ -347,16 +348,34 @@ const captureSurfaceWithPlaywright = async ({ outputDir, page, surface, viewport
   const missingExpectedText = surface.expectedText.filter((text) => !dom.includes(text));
   const hasInjectionMarker = injectionPattern.test(dom);
   const authRequired = surface.allowAuthRequired === true && dom.includes("Access Required");
+  const layout = await page.evaluate(() => {
+    const documentElement = document.documentElement;
+    const body = document.body;
+    const viewportWidth = documentElement.clientWidth;
+    const scrollWidth = Math.max(
+      documentElement.scrollWidth,
+      body?.scrollWidth ?? 0
+    );
+
+    return {
+      scrollWidth,
+      viewportWidth
+    };
+  });
+  const hasHorizontalOverflow = layout.scrollWidth > layout.viewportWidth + 1;
 
   return {
     authRequired,
     expectedText: surface.expectedText,
     hasInjectionMarker,
+    hasHorizontalOverflow,
     missingExpectedText,
-    ok: (missingExpectedText.length === 0 || authRequired) && !hasInjectionMarker,
+    ok: (missingExpectedText.length === 0 || authRequired) && !hasInjectionMarker && !hasHorizontalOverflow,
     screenshotFile,
+    scrollWidth: layout.scrollWidth,
     surface: surface.name,
     url: safeUrl(surface.url),
+    viewportWidth: layout.viewportWidth,
     viewport: viewport.label
   };
 };
@@ -390,6 +409,10 @@ const writeMarkdownReport = async ({ outputDir, results, startedAt, tokenFile, v
 
     if (result.hasInjectionMarker) {
       notes.push("known injection marker detected");
+    }
+
+    if (result.hasHorizontalOverflow) {
+      notes.push(`horizontal overflow: ${result.scrollWidth}px > ${result.viewportWidth}px`);
     }
 
     if (result.authRequired) {
