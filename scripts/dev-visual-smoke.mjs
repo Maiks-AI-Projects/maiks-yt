@@ -169,7 +169,7 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
     surfaces.push({
       allowAuthRequired: true,
       name: "streamer-chat",
-      url: chatUrl,
+      url: addQueryValue(chatUrl, "devAuthToken", devAuthToken),
       expectedText: ["Chat", "Twitch"]
     });
   }

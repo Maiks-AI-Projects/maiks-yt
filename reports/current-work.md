@@ -203,6 +203,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Extended `pnpm dev:smoke:notify` to cover the owner-gated key-data export payload and the moderation audit endpoint shape. The moderation audit check is optional until a dev control access token is present in the smoke environment; otherwise it reports a clean skip.
 - Restored focused admin dashboard/list card styling after visual smoke showed `/admin` navigation collapsing into plain text. This improves the testing hub and shared admin list surfaces without changing behavior.
 - Added control-panel dev bearer capture for `devAuthToken` URLs so fresh-browser visual smoke and short-lived testing links can open `/chat` and `/moderation` without relying on a pre-existing browser cookie. Normal session-cookie login remains supported.
+- Updated `pnpm dev:visual-smoke` so the standalone `/chat` capture receives the same `devAuthToken` query value as `/moderation`, allowing fresh-browser visual QA to cover the real chat UI instead of stopping at Access Required.
 
 ## Current Task
 
