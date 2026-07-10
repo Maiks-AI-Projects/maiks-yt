@@ -235,6 +235,21 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
     }
   }
 
+  if (controlUrl) {
+    for (const [name, path, expectedText] of [
+      ["control-access-required", "/control", "Control Panel"],
+      ["chat-access-required", "/chat", "Streamer Chat"],
+      ["moderation-access-required", "/moderation", "Moderation"]
+    ]) {
+      surfaces.push({
+        name,
+        url: withPath(controlUrl, path),
+        expectedText: [expectedText, "Access Required", "Control Panel access URL", "Access Tokens", "Testing Guide"],
+        rejectNavbar: true
+      });
+    }
+  }
+
   if (chatUrl) {
     surfaces.push({
       allowAuthRequired: true,

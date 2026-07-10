@@ -265,7 +265,8 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 31. The standalone chat window's provider status shortcuts now use the same stored `devAuthToken` helper when opening provider admin, so disconnected/unconfigured service dots do not drop owner test access.
 32. `/admin/testing` now includes the stream-window "Access Required" recovery step directly in the in-app checklist, not only in the Markdown manual testing guide.
 33. `pnpm test:readiness -- --visual` passed on 2026-07-10 with 68 fresh Chromium captures across public pages, owner admin surfaces, `/chat`, `/control`, `/moderation`, and overlay; the summary reported no auth-required stops, no known injection markers, no rejected navbars, and no horizontal overflow.
-34. Bare `control-dev` `/control`, `/chat`, and `/moderation` Access Required screens now show route-aware recovery actions for Access Tokens and the Testing Guide, and recurring smoke asserts that recovery copy on all three routes.
+34. Bare `control-dev` `/control`, `/chat`, and `/moderation` Access Required screens now show route-aware recovery actions for Access Tokens and the Testing Guide. Recurring smoke still checks the SPA routes exist, and visual smoke now asserts the client-rendered recovery copy on all three bare routes before tokenized window captures.
+35. The expanded visual readiness pass now covers 74 captures, including bare Access Required recovery screens for `/control`, `/chat`, and `/moderation`; the 2026-07-10 run passed with no missing recovery copy and no horizontal overflow on those routes.
 
 ## Known State
 

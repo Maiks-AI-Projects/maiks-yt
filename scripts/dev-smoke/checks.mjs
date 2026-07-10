@@ -1209,7 +1209,6 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
-    expectedText: ["Access Required", "Control Panel access URL", "Access Tokens", "Testing Guide"],
     http,
     name: "control reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
@@ -1219,7 +1218,6 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
-    expectedText: ["Access Required", "Control Panel access URL", "Access Tokens", "Testing Guide"],
     http,
     name: "chat window reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
@@ -1229,7 +1227,6 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
-    expectedText: ["Access Required", "Control Panel access URL", "Access Tokens", "Testing Guide"],
     http,
     name: "moderation window reachability",
     retryDelayMs: config.textEndpointRetryDelayMs,
