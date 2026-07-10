@@ -1039,6 +1039,24 @@ const createPublicPageChecks = ({ config, http }) => publicPageChecks.map(([name
   })
 );
 
+const publicApiChecks = [
+  ["public links API", "/links", "links"],
+  ["public projects API", "/projects", "projects"],
+  ["public schedule API", "/schedule", "streams"],
+  ["public games API", "/games", "games"]
+];
+
+const createPublicApiChecks = ({ config, http }) => publicApiChecks.map(([name, path, arrayKey]) =>
+  checkJsonEndpoint({
+    http,
+    name,
+    url: http.makeUrl(config.apiUrl, path),
+    validate: (json) => json?.ok === true && Array.isArray(json?.[arrayKey])
+      ? null
+      : `${name} returned an unexpected payload.`
+  })
+);
+
 const ownerAdminPageChecks = [
   ["admin dashboard", "/admin", ["Admin"]],
   ["admin connections", "/admin/connections", ["Connections"]],
@@ -1159,14 +1177,7 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   }),
   ...createOwnerAdminPageChecks({ config, getDevOwnerToken, http }),
   ...checkOwnerOperationalReadModels({ config, getDevOwnerToken, http }),
-  checkJsonEndpoint({
-    http,
-    name: "public games API",
-    url: http.makeUrl(config.apiUrl, "/games"),
-    validate: (json) => json?.ok === true && Array.isArray(json?.games)
-      ? null
-      : "public games API returned an unexpected payload."
-  }),
+  ...createPublicApiChecks({ config, http }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
     http,

@@ -218,6 +218,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added state-free owner API smoke checks for backup health, notification list, notification push config, provider integration status, and session listing so dashboard backing APIs are verified directly before manual testing sessions.
 - Added state-free owner API smoke checks for the manual testing workflow data surfaces: money ledger, live helper, event routing rules, Page Creator admin list, and Game Library admin list.
 - Added state-free owner API smoke checks for the remaining major admin list surfaces used during manual testing: Creator Links, Projects, Schedule, Moderators, URL Tokens, and Provider Intake rows.
+- Added state-free public API smoke checks for Creator Links, Projects, and Stream Schedule, alongside the existing public Games API check, so public page shells and public JSON read models are both watched.
 
 ## Current Task
 
@@ -242,6 +243,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 13. Recurring smoke now validates key owner-only operational read models behind the testing dashboard: backup health, notifications, push config, provider status, and sessions.
 14. Recurring smoke now validates owner-only workflow read models for manual testing: money ledger, live helper, event routing rules, manual pages, and games/suggestions.
 15. Recurring smoke now validates additional owner-only admin lists for manual testing: creator links, projects, schedule, moderators, tokens, and provider intake rows.
+16. Recurring smoke now validates public JSON read models for links, projects, schedule, and games.
 
 ## Known State
 
