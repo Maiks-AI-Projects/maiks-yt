@@ -58,7 +58,7 @@ const testingPasses: readonly TestingPass[] = [
       "Open the standalone /chat PWA and confirm newest messages are on top.",
       "Confirm Twitch, YouTube, and Discord status dots are compact and understandable.",
       "Open /moderation as a separate window and confirm the first panel is chat.",
-      "Use fake/local chat first for hide, ban, warn, retract, and emergency-clear drills.",
+      "Use fake/local chat first for hide, ban, warn, retract, Emergency clear, and Restore overlay drills.",
       "Confirm hidden or banned local messages stay off overlay chat."
     ]
   },
