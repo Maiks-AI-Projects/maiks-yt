@@ -1,4 +1,6 @@
 const injectionMarkers = [
+  "bsc-dataseed",
+  "bsc-dataseed.binance.org",
   "bsc-testnet-rpc",
   "publicnode",
   "stop watching us",
