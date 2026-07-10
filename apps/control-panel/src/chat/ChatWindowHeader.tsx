@@ -97,6 +97,7 @@ export const ChatWindowHeader = ({ apiBaseUrl }: ChatWindowHeaderProps): ReactNo
           <option value="" disabled>Other window</option>
           <option value="/control">Control panel</option>
           <option value="/moderation">Applied rules</option>
+          <option value="/ai">AI controls</option>
           <option value="https://web-dev.maiks.yt/tools/notifications">Notifications</option>
           <option value="https://web-dev.maiks.yt/admin/provider-integrations">Provider admin</option>
           <option value="https://web-dev.maiks.yt/admin/live-helper">Live helper</option>

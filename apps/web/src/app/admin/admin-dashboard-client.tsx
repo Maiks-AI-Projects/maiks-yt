@@ -154,6 +154,11 @@ const groups: readonly AdminDashboardGroup[] = [
         description: "Overlay controls, scene designer, and stream tool controls."
       },
       {
+        href: "https://control-dev.maiks.yt/ai",
+        label: "AI Controls",
+        description: "Inert AI safety panel showing disabled public output, TTS, and moderation gates."
+      },
+      {
         href: "https://overlay-dev.maiks.yt/",
         label: "OBS Overlay",
         description: "Shared overlay browser-source surface for OBS checks."
