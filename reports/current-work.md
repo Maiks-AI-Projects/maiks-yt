@@ -262,6 +262,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 28. `/admin/testing` now includes a Quick Open section for the stream windows, private tools, and public pages used during a first manual test pass. The web-side private links preserve short-lived `devAuthToken` access during coordinator/testing sessions.
 29. `/admin/testing` and the manual testing guide now call out that standalone control/chat/moderation windows require the current Control Panel access URL from `/admin/tokens`.
 30. The standalone chat window's Open dropdown now preserves stored `devAuthToken` access when jumping to web-dev private tools from a token-based testing session.
+31. The standalone chat window's provider status shortcuts now use the same stored `devAuthToken` helper when opening provider admin, so disconnected/unconfigured service dots do not drop owner test access.
 
 ## Known State
 

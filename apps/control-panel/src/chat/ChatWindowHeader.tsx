@@ -1,26 +1,9 @@
 import { useState, type ReactNode } from "react";
 
-import { getDevAuthToken } from "../dev-auth-token.js";
+import { withDevAuthToken } from "../dev-auth-token.js";
 
 type ChatWindowHeaderProps = {
   apiBaseUrl: string;
-};
-
-const withDevAuthToken = (value: string): string => {
-  if (!value.startsWith("https://web-dev.maiks.yt/")) {
-    return value;
-  }
-
-  const token = getDevAuthToken();
-
-  if (!token) {
-    return value;
-  }
-
-  const url = new URL(value);
-  url.searchParams.set("devAuthToken", token);
-
-  return url.toString();
 };
 
 export const ChatWindowHeader = ({ apiBaseUrl }: ChatWindowHeaderProps): ReactNode => {

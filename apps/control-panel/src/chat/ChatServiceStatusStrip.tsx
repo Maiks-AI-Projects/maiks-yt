@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { formatChatTime } from "./chat-time.service.js";
+import { withDevAuthToken } from "../dev-auth-token.js";
 import {
   discordIntakeStateLabels,
   getDiscordIntakeStatusCopy,
@@ -36,6 +37,9 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
   const [actionPending, setActionPending] = useState(false);
   const [discordActionPending, setDiscordActionPending] = useState(false);
   const [youtubeActionPending, setYouTubeActionPending] = useState(false);
+  const openProviderAdmin = (): void => {
+    window.location.assign(withDevAuthToken("https://web-dev.maiks.yt/admin/provider-integrations"));
+  };
 
   const loadStatus = async (isDisposed: () => boolean = () => false): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
@@ -159,7 +163,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
 
   const handleTwitchServiceClick = async (): Promise<void> => {
     if (status?.state === "unconfigured" || status?.reconnectSuppressed) {
-      window.location.assign("https://web-dev.maiks.yt/admin/provider-integrations");
+      openProviderAdmin();
       return;
     }
 
@@ -209,7 +213,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
 
   const handleDiscordServiceClick = async (): Promise<void> => {
     if (discordStatus?.state === "unconfigured" || discordStatus?.reconnectSuppressed) {
-      window.location.assign("https://web-dev.maiks.yt/admin/provider-integrations");
+      openProviderAdmin();
       return;
     }
 
@@ -259,7 +263,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
 
   const handleYouTubeServiceClick = async (): Promise<void> => {
     if (youtubeStatus?.state === "unconfigured") {
-      window.location.assign("https://web-dev.maiks.yt/admin/provider-integrations");
+      openProviderAdmin();
       return;
     }
 

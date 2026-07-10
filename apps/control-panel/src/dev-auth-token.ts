@@ -19,6 +19,23 @@ export const captureDevAuthTokenFromUrl = (): boolean => {
 export const getDevAuthToken = (): string | null =>
   window.localStorage.getItem(devAuthTokenStorageKey);
 
+export const withDevAuthToken = (value: string): string => {
+  if (!value.startsWith("https://web-dev.maiks.yt/")) {
+    return value;
+  }
+
+  const token = getDevAuthToken();
+
+  if (!token) {
+    return value;
+  }
+
+  const url = new URL(value);
+  url.searchParams.set(devAuthTokenQueryParam, token);
+
+  return url.toString();
+};
+
 export const createApiHeaders = (headers: HeadersInit = {}): HeadersInit => {
   const nextHeaders = new Headers(headers);
   const token = getDevAuthToken();
