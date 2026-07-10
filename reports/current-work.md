@@ -255,6 +255,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 21. Recurring smoke now asserts the standalone control, chat, and moderation PWA windows do not render the normal website navbar.
 22. Visual smoke now also rejects the normal website navbar on the standalone control, chat, and moderation PWA windows while checking their client-rendered content.
 23. `/moderation` now has a dedicated standalone PWA manifest and recurring smoke coverage instead of inheriting the control-panel install identity.
+24. `/admin/testing` now reflects the current 76-check readiness baseline instead of the older smoke count.
 
 ## Known State
 

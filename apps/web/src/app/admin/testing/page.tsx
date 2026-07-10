@@ -14,7 +14,7 @@ type TestingPass = {
 const readinessCommands = [
   {
     command: "pnpm test:readiness",
-    description: "Local pre-testing gate: review checks plus the 44-check dev smoke dry-run."
+    description: "Local pre-testing gate: review checks plus the current 76-check dev smoke dry-run."
   },
   {
     command: "pnpm test:readiness -- --visual",
@@ -114,6 +114,7 @@ const TestingGuidePage = (): React.ReactNode => (
           <p className="eyebrow">Dev Testing</p>
           <h1>Testing Guide</h1>
           <p>First-pass manual test order for getting the dev build ready for repeated use.</p>
+          <p>Current recurring smoke baseline: 76 passing checks.</p>
         </div>
         <a className="admin-dashboard-link" href="/admin">
           Back to admin
