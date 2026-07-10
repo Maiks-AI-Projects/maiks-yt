@@ -1078,7 +1078,7 @@ const createPwaIconChecks = ({ config, http }) => pwaIconChecks.map(([name, conf
 );
 
 const ownerAdminPageChecks = [
-  ["admin dashboard", "/admin", ["Admin"]],
+  ["admin dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Notifications"]],
   ["admin backup health", "/admin/backup/health", ["Backup Health"]],
   ["admin connections", "/admin/connections", ["Connections"]],
   ["admin event routing", "/admin/event-routing", ["Event"]],

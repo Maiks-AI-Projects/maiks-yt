@@ -8,6 +8,7 @@ type AdminDashboardItem = {
   href: string;
   label: string;
   description: string;
+  preserveDevAuth?: boolean;
 };
 
 type AdminDashboardGroup = {
@@ -78,6 +79,37 @@ type ExportStatusTone = "idle" | "working" | "ok" | "bad";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const groups: readonly AdminDashboardGroup[] = [
+  {
+    title: "Stream Windows",
+    items: [
+      {
+        href: "https://control-dev.maiks.yt/chat",
+        label: "Streamer Chat",
+        description: "Standalone private chat window for live messages and quick local moderation."
+      },
+      {
+        href: "https://control-dev.maiks.yt/moderation",
+        label: "Moderation Window",
+        description: "Dedicated moderator/creator window for chat, rules, approvals, and helper context."
+      },
+      {
+        href: "https://control-dev.maiks.yt/control",
+        label: "Control Panel",
+        description: "Overlay controls, scene designer, and stream tool controls."
+      },
+      {
+        href: "https://overlay-dev.maiks.yt/",
+        label: "OBS Overlay",
+        description: "Shared overlay browser-source surface for OBS checks."
+      },
+      {
+        href: "/tools/notifications",
+        label: "Notifications",
+        description: "Installed alert panel for dev smoke failures and important system notices.",
+        preserveDevAuth: true
+      }
+    ]
+  },
   {
     title: "Testing",
     items: [
@@ -179,6 +211,9 @@ const getDevAuthQuery = (): string => {
 
   return token ? `?devAuthToken=${encodeURIComponent(token)}` : "";
 };
+
+const getDashboardLinkHref = (item: AdminDashboardItem, devAuthQuery: string): string =>
+  item.preserveDevAuth !== false && item.href.startsWith("/") ? `${item.href}${devAuthQuery}` : item.href;
 
 const loadingCards = (): readonly DashboardStatusCard[] => [
   {
@@ -473,7 +508,7 @@ const AdminDashboardClient = (): React.ReactNode => {
             <h2>{group.title}</h2>
             <div className="admin-list">
               {group.items.map((item) => (
-                <a className="admin-list-item admin-dashboard-link" href={`${item.href}${devAuthQuery}`} key={item.href}>
+                <a className="admin-list-item admin-dashboard-link" href={getDashboardLinkHref(item, devAuthQuery)} key={item.href}>
                   <div>
                     <strong>{item.label}</strong>
                     <span>{item.href}</span>

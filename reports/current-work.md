@@ -274,6 +274,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 40. A fresh `pnpm dev:visual-smoke` pass against deployed dev commit `e133add` completed 76 Playwright captures with 0 failures, no known injection markers, no detected horizontal overflow, and no rejected-navbar failures. Ignored artifacts were written under `reports/visual-qa/current-dev-smoke/2026-07-10T03-28-22Z/`.
 41. The server cron schedule is installed for `07:00`, `12:00`, `17:00`, and `22:00` Europe/Amsterdam, and the exact cron command was manually run inside the refreshed dev container on commit `3a62531`: it executed the full 77-check baseline with 77 passing, 0 failures, and no notification because healthy runs stay quiet.
 42. `/admin/testing` Quick Open now also includes the account and public review pages called out in the manual testing guide: account settings, updates, community rules, privacy analytics, and accountability. Recurring smoke asserts representative labels so the in-app guide stays usable as the first-pass launchpad.
+43. `/admin` now includes a Stream Windows launch group for standalone chat, moderation, control panel, OBS overlay, and notifications. Internal web links still preserve short-lived `devAuthToken` access, while external `control-dev`/`overlay-dev` URLs are left clean for their own access-token recovery flow. Recurring smoke asserts the group remains visible.
 
 ## Known State
 
