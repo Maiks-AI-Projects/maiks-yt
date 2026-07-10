@@ -263,6 +263,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 29. `/admin/testing` and the manual testing guide now call out that standalone control/chat/moderation windows require the current Control Panel access URL from `/admin/tokens`.
 30. The standalone chat window's Open dropdown now preserves stored `devAuthToken` access when jumping to web-dev private tools from a token-based testing session.
 31. The standalone chat window's provider status shortcuts now use the same stored `devAuthToken` helper when opening provider admin, so disconnected/unconfigured service dots do not drop owner test access.
+32. `/admin/testing` now includes the stream-window "Access Required" recovery step directly in the in-app checklist, not only in the Markdown manual testing guide.
 
 ## Known State
 
