@@ -10,6 +10,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 
 - Expanded the Twitch EventSub default subscription manager for the broader read/log-only Twitch engagement set: follows, subscriptions/gifts/resubs, cheers/bits, raids, channel point/power-up redemptions, goals, hype trains, and shoutout receives, with event-specific condition shapes and sanitized create-failure behavior.
 - Added the first inert AI controls window at `control-dev/ai` for testing: it shows manual-first/shadow-only state and keeps public output, TTS, moderation suggestions, paid-message reading, and autonomous actions blocked.
+- Added clearer private accounting rule evidence in `/admin/money`: Rule Impact Preview shows the dated rule version and source line ids, and generated draft ledger lines display their `ruleVersionId` during review.
 - Finished the localization foundation with English default and Dutch-ready helpers.
 - Added an explicit telemetry allowlist and retention boundaries.
 - Added the public analytics/privacy explanation page.

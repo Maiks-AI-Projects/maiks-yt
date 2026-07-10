@@ -1743,6 +1743,7 @@ const MoneyAdminClient = (): React.ReactNode => {
                         {line.categoryKey ? ` · ${line.categoryKey}` : ""}
                         {line.isEstimate ? " · estimate" : ""}
                       </p>
+                      {line.ruleVersionId ? <p>Rule evidence: {line.ruleVersionId}</p> : null}
                       {line.receiptReference ? (
                         <p>
                           Receipt: {line.receiptReference.label}
