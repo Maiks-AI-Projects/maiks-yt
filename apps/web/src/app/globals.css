@@ -1591,6 +1591,11 @@ button:disabled {
   margin-top: 0.2rem;
 }
 
+.testing-checklist-actions span {
+  color: #4b5966;
+  font-size: 0.9rem;
+}
+
 .page-creator-preview-panel .project-admin-panel-heading span {
   color: #4b5966;
   font-size: 0.9rem;

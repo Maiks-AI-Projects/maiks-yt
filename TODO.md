@@ -407,6 +407,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-07-10 added an Installed Window Checklist to `/admin/testing` and `reports/dev-manual-testing-guide.md`, with recurring and visual smoke assertions so the manual PWA pass remains visible during next-week testing.
   - 2026-07-10 added a Copy template action to the `/admin/testing` breakage note so testing issues can be pasted quickly into follow-up threads or issue trackers.
   - 2026-07-10 added local browser-only checklist marks to `/admin/testing`, so the manual pass can be tracked during a session without adding API/database state.
+  - 2026-07-10 added Copy progress to the local `/admin/testing` checklist, producing a pasteable checked/unchecked session summary without backend storage.
 
 ## 14B. Stream-Safe Music, Future Phase
 
