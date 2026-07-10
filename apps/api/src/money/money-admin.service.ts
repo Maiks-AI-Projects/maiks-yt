@@ -13,6 +13,7 @@ import type {
   MoneyLedgerLine,
   MoneyLedgerTransaction,
   MoneyLedgerTransactionInput,
+  MoneyRuleVersion,
   MoneyRuleVersionInput
 } from "@maiks-yt/domain";
 
@@ -578,6 +579,7 @@ const buildReceiptIndex = (
 const buildAccountingSummary = (input: {
   transactions: readonly MoneyLedgerTransaction[];
   warnings: readonly MoneyAccountingWarning[];
+  appliedRules: readonly MoneyRuleVersion[];
   filters: MoneyAdminLedgerFilters;
   generatedAt: string;
 }) => {
@@ -634,6 +636,7 @@ const buildAccountingSummary = (input: {
       effectiveStart: period.periodStart,
       effectiveEnd: period.periodEnd
     },
+    appliedRules: input.appliedRules,
     counts: {
       transactions: input.transactions.length,
       lines: lineCount,
@@ -657,6 +660,37 @@ const buildAccountingSummary = (input: {
     bySourceProvider: sortBuckets(bySourceProvider)
   };
 };
+
+const ruleOverlapsPeriod = (
+  rule: MoneyRuleVersion,
+  period: {
+    periodStart: string;
+    periodEnd: string;
+  }
+): boolean => {
+  const ruleStart = Date.parse(rule.effectiveFrom);
+  const ruleEnd = rule.effectiveUntil ? Date.parse(rule.effectiveUntil) : Number.POSITIVE_INFINITY;
+  const periodStart = Date.parse(period.periodStart);
+  const periodEnd = Date.parse(period.periodEnd);
+
+  return Number.isFinite(ruleStart)
+    && Number.isFinite(periodStart)
+    && Number.isFinite(periodEnd)
+    && ruleStart < periodEnd
+    && ruleEnd > periodStart;
+};
+
+const getApplicableRules = (
+  rules: readonly MoneyRuleVersion[],
+  transactions: readonly MoneyLedgerTransaction[]
+): readonly MoneyRuleVersion[] => {
+  const period = getReportPeriod(transactions);
+
+  return rules.filter((rule) => ruleOverlapsPeriod(rule, period));
+};
+
+const getRuleVersionIds = (rules: readonly MoneyRuleVersion[]): readonly string[] =>
+  rules.map((rule) => rule.id);
 
 export class MoneyAdminService {
   public constructor(private readonly repository: MoneyAdminRepository) {}
@@ -760,6 +794,7 @@ export class MoneyAdminService {
     const checksum = createHash("sha256").update(csv).digest("hex");
     const filename = `maiks-money-ledger-${generatedAt.slice(0, 10)}.csv`;
     const period = getReportPeriod(transactions);
+    const applicableRules = getApplicableRules(await this.repository.listRuleVersions(), transactions);
 
     await this.repository.recordReportExport({
       reportKind: "tax_review_export",
@@ -772,6 +807,7 @@ export class MoneyAdminService {
         accountingTo: filters.accountingTo
       },
       warningCounts: countWarningsByKind(warnings),
+      ruleVersionIds: getRuleVersionIds(applicableRules),
       fileKind: "csv",
       fileReference: filename,
       fileChecksum: checksum,
@@ -815,9 +851,11 @@ export class MoneyAdminService {
     const resolvedWarnings = await this.repository.listResolvedWarnings(getWarningTargetIds(transactions));
     const warnings = filterResolvedWarnings(buildAccountingWarnings(transactions), resolvedWarnings);
     const period = getReportPeriod(transactions);
+    const applicableRules = getApplicableRules(await this.repository.listRuleVersions(), transactions);
     const report = buildAccountingSummary({
       transactions,
       warnings,
+      appliedRules: applicableRules,
       filters,
       generatedAt
     });
@@ -833,6 +871,7 @@ export class MoneyAdminService {
         accountingTo: filters.accountingTo
       },
       warningCounts: report.warningCounts,
+      ruleVersionIds: getRuleVersionIds(applicableRules),
       fileKind: "none",
       fileReference: null,
       fileChecksum: null,
@@ -872,6 +911,7 @@ export class MoneyAdminService {
     const checksum = createHash("sha256").update(csv).digest("hex");
     const filename = `maiks-money-warnings-${generatedAt.slice(0, 10)}.csv`;
     const period = getReportPeriod(transactions);
+    const applicableRules = getApplicableRules(await this.repository.listRuleVersions(), transactions);
 
     await this.repository.recordReportExport({
       reportKind: "warning_review",
@@ -884,6 +924,7 @@ export class MoneyAdminService {
         accountingTo: filters.accountingTo
       },
       warningCounts: countWarningsByKind(warnings),
+      ruleVersionIds: getRuleVersionIds(applicableRules),
       fileKind: "csv",
       fileReference: filename,
       fileChecksum: checksum,
@@ -928,9 +969,11 @@ export class MoneyAdminService {
     const { csv: ledgerCsv, lineCount } = buildLedgerCsv(transactions);
     const warningsCsv = buildWarningCsv(warnings);
     const receiptIndex = buildReceiptIndex(transactions);
+    const applicableRules = getApplicableRules(await this.repository.listRuleVersions(), transactions);
     const summary = buildAccountingSummary({
       transactions,
       warnings,
+      appliedRules: applicableRules,
       filters,
       generatedAt
     });
@@ -943,6 +986,7 @@ export class MoneyAdminService {
         lineCount,
         warningCount: warnings.length,
         receiptReferenceCount: receiptIndex.length,
+        appliedRuleCount: applicableRules.length,
         includes: [
           "summary",
           "ledgerCsv",
@@ -972,6 +1016,7 @@ export class MoneyAdminService {
         accountingTo: filters.accountingTo
       },
       warningCounts: summary.warningCounts,
+      ruleVersionIds: getRuleVersionIds(applicableRules),
       fileKind: "none",
       fileReference: filename,
       fileChecksum: checksum,

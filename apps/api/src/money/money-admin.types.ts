@@ -115,6 +115,7 @@ export type MoneyAdminReviewPackagePayload = {
     lineCount: number;
     warningCount: number;
     receiptReferenceCount: number;
+    appliedRuleCount: number;
     includes: readonly string[];
     note: string;
   };
@@ -167,6 +168,7 @@ export type MoneyAdminJsonReport = {
     effectiveStart: string;
     effectiveEnd: string;
   };
+  appliedRules: readonly MoneyRuleVersion[];
   counts: {
     transactions: number;
     lines: number;
@@ -329,6 +331,7 @@ export interface MoneyAdminRepository {
     periodEnd: string;
     filters: Record<string, unknown>;
     warningCounts: Record<string, number>;
+    ruleVersionIds?: readonly string[];
     fileKind: "csv" | "none";
     fileReference: string | null;
     fileChecksum: string | null;

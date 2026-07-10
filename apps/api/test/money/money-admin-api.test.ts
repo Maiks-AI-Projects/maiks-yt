@@ -466,6 +466,23 @@ describe("MoneyAdminService", () => {
 
   it("exports a private accounting review package with summary, CSVs, and receipt index", async () => {
     const repository = new FakeMoneyAdminRepository();
+    repository.rules.push({
+      id: "rule-current",
+      ruleKind: "platform_fee",
+      provider: "kofi",
+      valueSource: "eur",
+      appliesToDateBasis: "event_date",
+      effectiveFrom: "2026-07-01T00:00:00.000Z",
+      effectiveUntil: null,
+      percentageBps: 1000,
+      fixedAmountMinor: null,
+      fixedCurrency: null,
+      rulePayload: null,
+      changeReason: "Current fee rule.",
+      supersedesRuleId: null,
+      createdByUserId: "domain-user",
+      createdAt: "2026-07-01T00:00:00.000Z"
+    });
     repository.transactions.push(createTransaction({
       id: "receipt-transaction",
       transactionType: "cost",
@@ -520,8 +537,12 @@ describe("MoneyAdminService", () => {
       manifest: {
         includes: string[];
         note: string;
+        appliedRuleCount: number;
       };
       summary: {
+        appliedRules: Array<{
+          id: string;
+        }>;
         counts: {
           transactions: number;
           lines: number;
@@ -537,6 +558,12 @@ describe("MoneyAdminService", () => {
 
     expect(payload.manifest.includes).toEqual(["summary", "ledgerCsv", "warningsCsv", "receiptIndex"]);
     expect(payload.manifest.note).toContain("not official tax advice");
+    expect(payload.manifest.appliedRuleCount).toBe(1);
+    expect(payload.summary.appliedRules).toEqual([
+      expect.objectContaining({
+        id: "rule-current"
+      })
+    ]);
     expect(payload.summary.counts).toMatchObject({
       transactions: 2,
       lines: 2
@@ -551,6 +578,7 @@ describe("MoneyAdminService", () => {
     ]);
     expect(repository.lastExportAudit).toMatchObject({
       reportKind: "tax_review_export",
+      ruleVersionIds: ["rule-current"],
       fileKind: "none",
       fileReference: expect.stringMatching(/^maiks-money-review-package-\d{4}-\d{2}-\d{2}\.json$/),
       fileChecksum: expect.stringMatching(/^[a-f0-9]{64}$/),
@@ -623,6 +651,42 @@ describe("MoneyAdminService", () => {
 
   it("builds a private JSON accounting summary and records an audit row", async () => {
     const repository = new FakeMoneyAdminRepository();
+    repository.rules.push(
+      {
+        id: "rule-current",
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        valueSource: "eur",
+        appliesToDateBasis: "event_date",
+        effectiveFrom: "2026-07-01T00:00:00.000Z",
+        effectiveUntil: null,
+        percentageBps: 1000,
+        fixedAmountMinor: null,
+        fixedCurrency: null,
+        rulePayload: null,
+        changeReason: "Current fee rule.",
+        supersedesRuleId: null,
+        createdByUserId: "domain-user",
+        createdAt: "2026-07-01T00:00:00.000Z"
+      },
+      {
+        id: "rule-old",
+        ruleKind: "platform_fee",
+        provider: "kofi",
+        valueSource: "eur",
+        appliesToDateBasis: "event_date",
+        effectiveFrom: "2026-06-01T00:00:00.000Z",
+        effectiveUntil: "2026-06-15T00:00:00.000Z",
+        percentageBps: 500,
+        fixedAmountMinor: null,
+        fixedCurrency: null,
+        rulePayload: null,
+        changeReason: "Old rule outside the report period.",
+        supersedesRuleId: null,
+        createdByUserId: "domain-user",
+        createdAt: "2026-06-01T00:00:00.000Z"
+      }
+    );
     repository.transactions.push(createTransaction({
       id: "cost-transaction",
       transactionType: "cost",
@@ -674,6 +738,11 @@ describe("MoneyAdminService", () => {
           missing_category: 1,
           missing_receipt: 1
         },
+        appliedRules: [
+          expect.objectContaining({
+            id: "rule-current"
+          })
+        ],
         byCategory: expect.arrayContaining([
           expect.objectContaining({
             key: "uncategorized",
@@ -691,6 +760,7 @@ describe("MoneyAdminService", () => {
     });
     expect(repository.lastExportAudit).toMatchObject({
       reportKind: "accounting_summary",
+      ruleVersionIds: ["rule-current"],
       fileKind: "none",
       fileReference: null,
       fileChecksum: null,

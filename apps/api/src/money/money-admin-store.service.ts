@@ -693,7 +693,7 @@ export const createMoneyAdminRepository = (
         toSqlTimestamp(input.periodStart),
         toSqlTimestamp(input.periodEnd),
         toJsonString(input.filters),
-        toJsonString([]),
+        toJsonString(input.ruleVersionIds ?? []),
         toJsonString(input.warningCounts),
         input.fileKind,
         input.fileReference,
