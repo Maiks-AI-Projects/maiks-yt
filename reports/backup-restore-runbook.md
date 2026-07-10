@@ -1,8 +1,8 @@
 # Backup, Export, and Restore Runbook
 
-Updated: 2026-07-09
+Updated: 2026-07-10
 
-Status: Phase E1 planning and inventory only. This runbook is for dev/staging-safe verification of the non-provider foundation work. It does not approve production backup automation, destructive restore, secret handling, provider writes, money behavior, or server-state changes.
+Status: Phase E1 planning plus one dev key-data restore dry run. This runbook is for dev/staging-safe verification of the non-provider foundation work. It does not approve production backup automation, destructive restore, secret handling, provider writes, money behavior, or server-state changes.
 
 ## Scope And Boundaries
 
@@ -209,6 +209,7 @@ Do not open production backup automation until all of these are true:
 
 ## Current Gaps
 
+- Completed drill: `reports/backup-restore-drills/2026-07-10-dev-key-data-restore-dry-run.md` records a passed dev key-data JSON restore dry run through the existing owner-gated key-data export path. It validates testing-critical rows and deletes the raw temporary export, but it is not a full SQL disposable-database restore.
 - No production backup automation exists in this slice.
 - No encryption/key policy has been approved.
 - No restore owner/two-person approval policy has been approved.

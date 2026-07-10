@@ -509,6 +509,7 @@ Gate note: later money features require an immutable ledger design, refund/revoc
 - [x] Add manual export for key data.
   - 2026-07-10 added owner-gated `/admin/backup/key-data-export` and a `/admin` download button. The export is a read-only JSON package for editable/testing-critical content, projects, schedule, games, roles, routing/opt-outs, provider channel identities, notifications, active moderation state, and money ledger/rule/reference/warning rows. It deliberately excludes auth sessions/accounts, token hashes, provider runtime credentials, raw provider payloads, push secrets, env/config, filesystem uploads, and full disaster-recovery dump/restore automation.
 - [x] Document restore process.
+  - 2026-07-10 completed a dev key-data JSON restore dry run documented in `reports/backup-restore-drills/2026-07-10-dev-key-data-restore-dry-run.md`. The drill used a short-lived owner token, exported testing-critical rows through the existing key-data export path, reconstructed section metadata in `/tmp`, verified required content/project/schedule/game/money sections were readable, and deleted the raw export. This is not a full SQL disposable-database restore.
 - [x] Document rare improper-deletion restore process.
 - [ ] Decide backup retention and encryption.
 
