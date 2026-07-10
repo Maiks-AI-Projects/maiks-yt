@@ -28,6 +28,8 @@ Expected current smoke size: 79 passing checks.
 
 The readiness command waits for `api-dev` health before it starts the smoke dry-run, so immediately after a dev deploy it may report a few transient `502` attempts before continuing.
 
+Latest recorded visual baseline: `pnpm test:readiness -- --skip-review --visual` passed on 2026-07-10T07:39Z with 76 captured surfaces and no failures, missing text, auth stops, known injection markers, rejected navbar hits, or horizontal overflow. The local ignored artifacts are under `reports/visual-qa/current-dev-smoke/2026-07-10T07-39-43Z/`.
+
 ## Pass 1: Access And Recovery
 
 Goal: make sure Michael can get in, recover from mistakes, and inspect sensitive state.

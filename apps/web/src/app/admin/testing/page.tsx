@@ -30,6 +30,24 @@ const readinessCommands = [
   }
 ] as const;
 
+const readinessEvidence = [
+  {
+    label: "Recurring smoke",
+    value: "79 passing checks",
+    note: "Guarded by the current dev smoke dry-run."
+  },
+  {
+    label: "Latest visual smoke",
+    value: "76 surfaces",
+    note: "2026-07-10T07:39Z: 0 failures, 0 missing text, 0 auth stops, 0 injection markers, 0 rejected navbars, 0 horizontal overflow."
+  },
+  {
+    label: "Artifact path",
+    value: "reports/visual-qa/current-dev-smoke/2026-07-10T07-39-43Z/",
+    note: "Ignored local screenshots and summary for the latest recorded baseline."
+  }
+] as const;
+
 const installedWindowChecks = [
   "Install or open Streamer Chat, Moderation, Control Panel, and Notifications as separate app windows where the browser supports it.",
   "Confirm each installed window opens without the normal website navbar and keeps the expected route after restart.",
@@ -154,6 +172,25 @@ const TestingGuidePage = (): React.ReactNode => (
           Back to admin
         </a>
       </header>
+
+      <section className="project-admin-panel">
+        <div className="project-admin-panel-heading">
+          <div>
+            <h2>Latest Readiness Evidence</h2>
+            <p>Use this as the current confidence snapshot before manual testing starts.</p>
+          </div>
+        </div>
+        <ol className="project-admin-record-list">
+          {readinessEvidence.map((item) => (
+            <li key={item.label}>
+              <div>
+                <strong>{item.label}: {item.value}</strong>
+                <p>{item.note}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <section className="project-admin-panel">
         <div className="project-admin-panel-heading">

@@ -313,6 +313,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 60. The standalone chat window now reports Discord provider-warning send/skipped/failed status after Warn and no longer shows the stale disabled Provider warn placeholder for Discord rows. Twitch/YouTube rows still show provider warning as gated.
 61. Twitch provider warning delivery is now wired into the streamer-chat Warn action. Twitch chat projections preserve normalized login context, Warn attempts a writable Twitch chat message when `TWITCH_CHAT_BOT_ACCESS_TOKEN`/`TWITCH_BOT_ACCESS_TOKEN`/`TWITCH_ACCESS_TOKEN` plus `TWITCH_CLIENT_ID` are visible to the dev app, and the chat window reports sent/skipped/failed status. YouTube provider warning delivery remains a later live/provider-write slice.
 62. A fresh `pnpm test:readiness -- --skip-review --visual` pass against deployed dev commit `427762f` completed on 2026-07-10T07:39Z. The readiness dry run passed 79/79 and the visual smoke captured 76 surfaces with 0 failures, 0 missing expected text, 0 auth-required stops, 0 known injection markers, 0 rejected-navbar hits, and 0 horizontal-overflow findings. Ignored artifacts are under `reports/visual-qa/current-dev-smoke/2026-07-10T07-39-43Z/`.
+63. `/admin/testing` now surfaces the latest recorded readiness evidence directly in the testing guide: 79 recurring smoke checks, the 2026-07-10T07:39Z 76-surface visual baseline, and the ignored artifact path. Recurring and visual smoke both assert that the evidence card remains visible.
 
 ## Known State
 
