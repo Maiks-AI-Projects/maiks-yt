@@ -1288,6 +1288,13 @@ button:disabled {
   justify-content: space-between;
 }
 
+.admin-dashboard-link-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .admin-list-item strong {
   color: #102131;
 }
@@ -1300,6 +1307,30 @@ button:disabled {
 
 .admin-list-item span {
   font-size: 0.85rem;
+}
+
+.admin-list-item .admin-dashboard-link-badge {
+  border: 1px solid #ccd8e3;
+  border-radius: 999px;
+  color: #243646;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.16rem 0.45rem;
+}
+
+.admin-dashboard-link-badge.ok {
+  background: #e4f5e9;
+  border-color: #9bcfa9;
+}
+
+.admin-dashboard-link-badge.warn {
+  background: #fff3d0;
+  border-color: #e5bf68;
+}
+
+.admin-dashboard-link-badge.bad {
+  background: #ffe5e5;
+  border-color: #e59a9a;
 }
 
 .admin-dashboard-link:hover,

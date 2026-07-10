@@ -26,6 +26,11 @@ type DashboardStatusCard = {
   tone: DashboardStatusTone;
 };
 
+type AdminDashboardLinkBadge = {
+  label: string;
+  tone: Exclude<DashboardStatusTone, "loading">;
+};
+
 type NotificationListResponse =
   | {
     ok: true;
@@ -232,6 +237,41 @@ const getDevAuthQuery = (): string => {
 
 const getDashboardLinkHref = (item: AdminDashboardItem, devAuthQuery: string): string =>
   item.preserveDevAuth !== false && item.href.startsWith("/") ? `${item.href}${devAuthQuery}` : item.href;
+
+const findStatusCard = (statusCards: readonly DashboardStatusCard[], key: string): DashboardStatusCard | null =>
+  statusCards.find((card) => card.key === key) ?? null;
+
+const toLinkBadgeTone = (tone: DashboardStatusTone): AdminDashboardLinkBadge["tone"] | null =>
+  tone === "loading" ? null : tone;
+
+const getDashboardItemBadge = (
+  item: AdminDashboardItem,
+  statusCards: readonly DashboardStatusCard[]
+): AdminDashboardLinkBadge | null => {
+  const statusKeyByHref: Record<string, string> = {
+    "/admin/backup/health": "backup",
+    "/admin/connections": "provider-intake",
+    "/admin/sessions": "sessions",
+    "/tools/notifications": "notifications"
+  };
+  const statusKey = statusKeyByHref[item.href];
+
+  if (!statusKey) {
+    return null;
+  }
+
+  const statusCard = findStatusCard(statusCards, statusKey);
+  if (!statusCard) {
+    return null;
+  }
+
+  const tone = toLinkBadgeTone(statusCard.tone);
+
+  return tone ? {
+    label: statusCard.value,
+    tone
+  } : null;
+};
 
 const loadingCards = (): readonly DashboardStatusCard[] => [
   {
@@ -560,15 +600,26 @@ const AdminDashboardClient = (): React.ReactNode => {
           <section className="project-admin-preview" key={group.title}>
             <h2>{group.title}</h2>
             <div className="admin-list">
-              {group.items.map((item) => (
-                <a className="admin-list-item admin-dashboard-link" href={getDashboardLinkHref(item, devAuthQuery)} key={item.href}>
-                  <div>
-                    <strong>{item.label}</strong>
-                    <span>{item.href}</span>
-                  </div>
-                  <p>{item.description}</p>
-                </a>
-              ))}
+              {group.items.map((item) => {
+                const badge = getDashboardItemBadge(item, statusCards);
+
+                return (
+                  <a className="admin-list-item admin-dashboard-link" href={getDashboardLinkHref(item, devAuthQuery)} key={item.href}>
+                    <div>
+                      <div className="admin-dashboard-link-heading">
+                        <strong>{item.label}</strong>
+                        {badge ? (
+                          <span className={`admin-dashboard-link-badge ${badge.tone}`}>
+                            {badge.label}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span>{item.href}</span>
+                    </div>
+                    <p>{item.description}</p>
+                  </a>
+                );
+              })}
             </div>
           </section>
         ))}
