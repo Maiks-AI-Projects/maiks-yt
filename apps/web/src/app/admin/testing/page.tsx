@@ -72,7 +72,7 @@ const testingPasses: readonly TestingPass[] = [
     title: "Stream Windows",
     goal: "Verify the standalone windows needed while live.",
     checks: [
-      "If /chat, /moderation, or /control shows Access Required, create or rotate a Control Panel token from /admin/tokens and open the generated control URL.",
+      "If /chat, /moderation, or /control shows Access Required, open it from /admin or /admin/testing with your devAuthToken present, or create/rotate a Control Panel token from /admin/tokens and copy the Launch URL.",
       "Open the standalone /chat PWA and confirm newest messages are on top.",
       "Confirm Twitch, YouTube, and Discord status dots are compact and understandable.",
       "Open /moderation as a separate window and confirm the first panel is chat.",

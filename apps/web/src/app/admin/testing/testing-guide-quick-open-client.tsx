@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { captureDevAuthTokenFromUrl, getDevAuthToken } from "../../dev-auth-token";
+import { captureDevAuthTokenFromUrl, getDevAuthToken, withDevAuthToken } from "../../dev-auth-token";
 
 type QuickOpenGroup = {
   title: string;
@@ -180,18 +180,6 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
     ]
   }
 ] as const;
-
-const shouldAppendDevAuthToken = (href: string): boolean =>
-  href.startsWith("/admin") || href.startsWith("/tools") || href === "/account";
-
-const withDevAuthToken = (href: string, token: string | null): string => {
-  if (!token || !shouldAppendDevAuthToken(href)) {
-    return href;
-  }
-
-  const separator = href.includes("?") ? "&" : "?";
-  return `${href}${separator}devAuthToken=${encodeURIComponent(token)}`;
-};
 
 export const TestingGuideQuickOpenClient = (): React.ReactNode => {
   const [devAuthToken, setDevAuthToken] = useState<string | null>(null);

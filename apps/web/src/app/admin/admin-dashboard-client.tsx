@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken } from "../dev-auth-token";
+import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken, withDevAuthToken } from "../dev-auth-token";
 
 type AdminDashboardItem = {
   href: string;
@@ -263,18 +263,8 @@ const groups: readonly AdminDashboardGroup[] = [
   }
 ];
 
-const getDevAuthQuery = (): string => {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const token = getDevAuthToken();
-
-  return token ? `?devAuthToken=${encodeURIComponent(token)}` : "";
-};
-
-const getDashboardLinkHref = (item: AdminDashboardItem, devAuthQuery: string): string =>
-  item.preserveDevAuth !== false && item.href.startsWith("/") ? `${item.href}${devAuthQuery}` : item.href;
+const getDashboardLinkHref = (item: AdminDashboardItem, devAuthToken: string | null): string =>
+  item.preserveDevAuth !== false ? withDevAuthToken(item.href, devAuthToken) : item.href;
 
 const findStatusCard = (statusCards: readonly DashboardStatusCard[], key: string): DashboardStatusCard | null =>
   statusCards.find((card) => card.key === key) ?? null;
@@ -607,7 +597,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
 };
 
 const AdminDashboardClient = (): React.ReactNode => {
-  const [devAuthQuery, setDevAuthQuery] = useState("");
+  const [devAuthToken, setDevAuthToken] = useState<string | null>(null);
   const [statusCards, setStatusCards] = useState<readonly DashboardStatusCard[]>(() => loadingCards());
   const [statusMessage, setStatusMessage] = useState("Loading dashboard status...");
   const [exportStatus, setExportStatus] = useState<{
@@ -679,7 +669,7 @@ const AdminDashboardClient = (): React.ReactNode => {
 
   useEffect(() => {
     captureDevAuthTokenFromUrl();
-    setDevAuthQuery(getDevAuthQuery());
+    setDevAuthToken(getDevAuthToken());
     void refreshStatus();
   }, []);
 
@@ -731,7 +721,7 @@ const AdminDashboardClient = (): React.ReactNode => {
                 const badge = getDashboardItemBadge(item, statusCards);
 
                 return (
-                  <a className="admin-list-item admin-dashboard-link" href={getDashboardLinkHref(item, devAuthQuery)} key={item.href}>
+                  <a className="admin-list-item admin-dashboard-link" href={getDashboardLinkHref(item, devAuthToken)} key={item.href}>
                     <div>
                       <div className="admin-dashboard-link-heading">
                         <strong>{item.label}</strong>

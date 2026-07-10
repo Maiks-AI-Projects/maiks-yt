@@ -26,6 +26,34 @@ export const clearDevAuthToken = (): void => {
   window.localStorage.removeItem(devAuthTokenStorageKey);
 };
 
+const shouldAppendDevAuthToken = (href: string): boolean => {
+  if (href.startsWith("/")) {
+    return href.startsWith("/admin") || href.startsWith("/tools") || href === "/account";
+  }
+
+  try {
+    const url = new URL(href);
+
+    return url.hostname === "control-dev.maiks.yt" || url.hostname === "web-dev.maiks.yt";
+  } catch {
+    return false;
+  }
+};
+
+export const withDevAuthToken = (href: string, token = getDevAuthToken()): string => {
+  if (!token || !shouldAppendDevAuthToken(href)) {
+    return href;
+  }
+
+  const url = href.startsWith("/")
+    ? new URL(href, window.location.origin)
+    : new URL(href);
+
+  url.searchParams.set(devAuthTokenQueryParam, token);
+
+  return href.startsWith("/") ? `${url.pathname}${url.search}${url.hash}` : url.toString();
+};
+
 export const createApiHeaders = (headers: HeadersInit = {}): HeadersInit => {
   const nextHeaders = new Headers(headers);
   const token = getDevAuthToken();

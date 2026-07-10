@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UrlAccessSurface, UrlAccessTokenAdminTarget } from "@maiks-yt/domain/security";
 
-import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import { captureDevAuthTokenFromUrl, createApiHeaders, withDevAuthToken } from "../../dev-auth-token";
 
 type UrlAccessTokenAdminListItem = {
   id: string;
@@ -154,6 +154,9 @@ const TokenAdminClient = (): React.ReactNode => {
     () => tokens.find((token) => token.id === selectedTokenId) ?? null,
     [tokens, selectedTokenId]
   );
+  const createdTokenLaunchUrl = createdToken
+    ? withDevAuthToken(createdToken.devUrl)
+    : null;
 
   const replaceToken = useCallback((token: UrlAccessTokenAdminListItem): void => {
     setTokens((current) => {
@@ -386,13 +389,16 @@ const TokenAdminClient = (): React.ReactNode => {
                   <h2>Copy Once URL</h2>
                   <p>This raw token is available only from this create or rotate response.</p>
                 </div>
-                <button type="button" onClick={() => void copyValue(createdToken.devUrl, "token URL")}>
-                  Copy URL
+                <button type="button" onClick={() => void copyValue(createdTokenLaunchUrl ?? createdToken.devUrl, "launch URL")}>
+                  Copy Launch URL
                 </button>
                 <label className="project-admin-inline-form">
-                  Generated URL
-                  <input value={createdToken.devUrl} readOnly />
+                  Launch URL
+                  <input value={createdTokenLaunchUrl ?? createdToken.devUrl} readOnly />
                 </label>
+                {createdToken.requiresLogin ? (
+                  <p>This dev launch URL includes your short-lived dev auth token when available, because Control Panel surfaces still require login after the URL token gate.</p>
+                ) : null}
                 <label className="project-admin-inline-form">
                   Raw Token
                   <input value={createdToken.rawToken} readOnly />
