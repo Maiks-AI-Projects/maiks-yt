@@ -23,6 +23,7 @@ const createMessage = (overrides: Partial<StreamerChatMessage> = {}): StreamerCh
 
 class FakeModerationStore {
   public readonly audits: unknown[] = [];
+  public readonly providerActionAudits: unknown[] = [];
   public readonly providerAudits: unknown[] = [];
 
   public async appendAudit(input: unknown): Promise<{ id: string; at: string }> {
@@ -37,6 +38,14 @@ class FakeModerationStore {
     this.providerAudits.push(input);
     return {
       id: `provider-audit-${this.providerAudits.length}`,
+      at: "2026-07-10T00:00:00.000Z"
+    };
+  }
+
+  public async appendProviderActionAudit(input: unknown): Promise<{ id: string; at: string }> {
+    this.providerActionAudits.push(input);
+    return {
+      id: `provider-action-audit-${this.providerActionAudits.length}`,
       at: "2026-07-10T00:00:00.000Z"
     };
   }
@@ -96,6 +105,18 @@ const createServer = () => {
     providerMessageSent: true as const,
     providerMessage: "@Viewer Name this is warning 1/3. A third warning results in an automatic Maiks.yt stream-surface ban."
   }));
+  const moderateDiscord = vi.fn(async () => ({
+    ok: true as const,
+    providerAction: true as const,
+    providerActionId: "discord-delete-ok",
+    providerActionSent: true as const
+  }));
+  const moderateTwitch = vi.fn(async () => ({
+    ok: true as const,
+    providerAction: true as const,
+    providerActionId: "twitch-timeout-ok",
+    providerActionSent: true as const
+  }));
 
   registerStreamerChatModerationRoutes(server, {
     accessService: {
@@ -108,12 +129,18 @@ const createServer = () => {
         permissions: ["*"]
       }))
     } as never,
+    discordModerationService: {
+      moderate: moderateDiscord
+    },
     discordWarningDeliveryService: {
       sendWarning
     },
     moderationRuntime,
     moderationStore: moderationStore as never,
     streamerChatRuntime,
+    twitchModerationService: {
+      moderate: moderateTwitch
+    },
     twitchWarningDeliveryService: {
       sendWarning: sendTwitchWarning
     },
@@ -124,6 +151,8 @@ const createServer = () => {
 
   return {
     moderationStore,
+    moderateDiscord,
+    moderateTwitch,
     sendTwitchWarning,
     sendYouTubeWarning,
     sendWarning,
@@ -316,5 +345,191 @@ describe("streamer chat moderation API", () => {
       warningThreshold: 3
     });
     expect(moderationStore.providerAudits).toHaveLength(1);
+  });
+
+  it("sends a Discord provider delete action and records provider audit", async () => {
+    const { moderationStore, moderateDiscord, server, streamerChatRuntime } = createServer();
+    streamerChatRuntime.appendMessage(createMessage({
+      providerChannelId: "234567890123456789",
+      providerGuildId: "345678901234567890",
+      providerMessageId: "discord-message-1",
+      providerUserId: "123456789012345678"
+    }));
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/provider-action",
+      payload: {
+        accessToken: validAccessToken,
+        action: "delete_message",
+        targetMessageId: "message-1"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      action: "delete_message",
+      affectedCount: 1,
+      providerAction: true,
+      providerActionSent: true,
+      providerActionReason: null
+    });
+    expect(moderateDiscord).toHaveBeenCalledWith({
+      action: "delete_message",
+      channelId: "234567890123456789",
+      durationSeconds: null,
+      guildId: "345678901234567890",
+      messageId: "discord-message-1",
+      reason: "Message from Test chatter moderated from Maiks.yt streamer chat.",
+      userId: "123456789012345678"
+    });
+    expect(moderationStore.providerActionAudits).toEqual([
+      expect.objectContaining({
+        action: "delete_message",
+        actionKey: "delete_message"
+      })
+    ]);
+  });
+
+  it("sends a Twitch provider timeout action with numeric provider user id", async () => {
+    const { moderationStore, moderateTwitch, server, streamerChatRuntime } = createServer();
+    streamerChatRuntime.appendMessage(createMessage({
+      id: "twitch-message-1",
+      authorName: "Viewer Name",
+      channelName: "maiksmc",
+      providerChannelId: "maiksmc",
+      providerMessageId: "twitch-provider-message-1",
+      providerUserId: "333333",
+      providerUserLogin: "viewer_login",
+      source: "twitch"
+    }));
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/provider-action",
+      payload: {
+        accessToken: validAccessToken,
+        action: "timeout_author",
+        durationSeconds: 600,
+        targetMessageId: "twitch-message-1"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      action: "timeout_author",
+      affectedCount: 1,
+      providerAction: true,
+      providerActionSent: true
+    });
+    expect(moderateTwitch).toHaveBeenCalledWith({
+      action: "timeout_author",
+      durationSeconds: 600,
+      messageId: "twitch-provider-message-1",
+      reason: "Viewer Name timed out from Maiks.yt streamer chat.",
+      userId: "333333"
+    });
+    expect(moderationStore.providerActionAudits).toHaveLength(1);
+  });
+
+  it("requires provider moderation permission before provider action", async () => {
+    const server = Fastify();
+    registerStreamerChatModerationRoutes(server, {
+      accessService: {
+        requirePermission: vi.fn(async () => ({
+          ok: false,
+          reason: "streamer_chat_moderation_forbidden",
+          statusCode: 403
+        })),
+        resolvePermissions: vi.fn()
+      } as never,
+      discordModerationService: {
+        moderate: vi.fn()
+      },
+      discordWarningDeliveryService: {
+        sendWarning: vi.fn()
+      },
+      moderationRuntime: new InMemoryStreamerChatModerationRuntime({
+        chatRuntime: new StreamerChatRuntime({ maxHistory: 10 }),
+        publishOverlayMessage: vi.fn()
+      }),
+      moderationStore: new FakeModerationStore() as never,
+      streamerChatRuntime: new StreamerChatRuntime({ maxHistory: 10 }),
+      twitchModerationService: {
+        moderate: vi.fn()
+      },
+      twitchWarningDeliveryService: {
+        sendWarning: vi.fn()
+      },
+      youtubeWarningDeliveryService: {
+        sendWarning: vi.fn()
+      }
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/provider-action",
+      payload: {
+        accessToken: validAccessToken,
+        action: "ban_author",
+        targetMessageId: "message-1"
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      reason: "streamer_chat_moderation_forbidden",
+      providerAction: false
+    });
+  });
+
+  it("fails closed for YouTube provider moderation while preserving local moderation paths", async () => {
+    const { moderationStore, server, streamerChatRuntime } = createServer();
+    streamerChatRuntime.appendMessage(createMessage({
+      id: "youtube-message-1",
+      authorName: "Viewer Name",
+      providerChannelId: "live-chat-1",
+      providerMessageId: "youtube-provider-message-1",
+      providerUserId: "author-channel-1",
+      source: "youtube"
+    }));
+
+    const providerResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/provider-action",
+      payload: {
+        accessToken: validAccessToken,
+        action: "ban_author",
+        targetMessageId: "youtube-message-1"
+      }
+    });
+    const localResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/hide",
+      payload: {
+        accessToken: validAccessToken,
+        targetMessageId: "youtube-message-1"
+      }
+    });
+
+    expect(providerResponse.statusCode).toBe(200);
+    expect(providerResponse.json()).toMatchObject({
+      ok: true,
+      action: "ban_author",
+      affectedCount: 0,
+      providerAction: false,
+      providerActionSent: false,
+      providerActionReason: "youtube_provider_moderation_gated"
+    });
+    expect(localResponse.statusCode).toBe(200);
+    expect(localResponse.json()).toMatchObject({
+      ok: true,
+      action: "hide",
+      providerAction: false
+    });
+    expect(moderationStore.providerActionAudits).toHaveLength(1);
   });
 });

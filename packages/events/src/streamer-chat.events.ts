@@ -9,6 +9,7 @@ export type StreamerChatMessage = Omit<OverlayFakeChatMessage, "source"> & {
   providerChannelId?: string;
   providerGuildId?: string;
   providerMessageId?: string;
+  providerUserLogin?: string;
   providerUserId?: string;
 };
 

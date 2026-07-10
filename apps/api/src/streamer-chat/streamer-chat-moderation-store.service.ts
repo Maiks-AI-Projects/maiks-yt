@@ -4,6 +4,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 import type { StreamerChatMessage } from "@maiks-yt/events";
 import type {
   DiscordChatWarningDeliveryResult,
+  ProviderChatModerationResult,
   TwitchChatWarningDeliveryResult,
   YouTubeChatWarningDeliveryResult
 } from "@maiks-yt/integrations";
@@ -432,6 +433,91 @@ export class StreamerChatModerationStoreService {
     return { id, at };
   }
 
+  public async appendProviderActionAudit({
+    action,
+    actionKey,
+    durationSeconds,
+    message,
+    providerResult,
+    reason
+  }: {
+    action: "delete_message" | "temporary_mute_author" | "ban_author";
+    actionKey: "delete_message" | "timeout_author" | "ban_author";
+    durationSeconds: number | null;
+    message: {
+      authorName: string;
+      id: string;
+      providerChannelId?: string;
+      providerGuildId?: string;
+      providerMessageId?: string;
+      providerUserId?: string;
+      source: StreamerChatMessage["source"];
+    };
+    providerResult: ProviderChatModerationResult;
+    reason: string;
+  }): Promise<{ id: string; at: string }> {
+    const id = randomUUID();
+    const at = new Date().toISOString();
+    const providerActionId = providerResult.providerActionId ?? null;
+    const flags = getStreamerChatModerationFlags(message.source);
+
+    await this.getDatabasePool().execute(
+      `
+        INSERT INTO moderation_audit_logs
+          (
+            id,
+            source,
+            action,
+            outcome,
+            actor_display_name,
+            target_author_name,
+            target_message_id,
+            target_external_id,
+            reason,
+            note,
+            provider_action,
+            provider_action_id,
+            is_test,
+            is_simulated,
+            test_resettable,
+            redacted_context,
+            created_at
+          )
+        VALUES (?, ?, ?, ?, 'Control chat window', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        id,
+        message.source,
+        action,
+        providerResult.ok ? "applied" : providerResult.providerAction ? "provider_failed" : "denied",
+        message.authorName,
+        message.id,
+        message.providerMessageId ?? message.providerUserId ?? null,
+        providerResult.ok ? "streamer_chat_provider_action_sent" : providerResult.reason,
+        providerResult.ok ? "Provider moderation action sent." : "Provider moderation action failed or was skipped.",
+        providerResult.providerAction,
+        providerActionId,
+        flags.isTest,
+        flags.isSimulated,
+        flags.testResettable,
+        JSON.stringify({
+          provider: message.source,
+          providerAction: providerResult.providerAction,
+          providerActionKey: actionKey,
+          providerActionReason: providerResult.ok ? null : providerResult.reason,
+          providerActionSent: providerResult.providerActionSent,
+          providerChannelId: message.providerChannelId ?? null,
+          providerGuildId: message.providerGuildId ?? null,
+          durationSeconds,
+          reason
+        }),
+        new Date(at)
+      ]
+    );
+
+    return { id, at };
+  }
+
   public async getWarningCount(
     source: StreamerChatMessage["source"],
     authorName: string
@@ -580,7 +666,7 @@ export class StreamerChatModerationStoreService {
           created_at AS createdAt
         FROM moderation_audit_logs
         WHERE source IN ('fake-local', 'twitch', 'youtube', 'discord')
-          AND action IN ('warn_author', 'allow_message', 'allow_author', 'hide_message', 'ban_author', 'unban_author')
+          AND action IN ('warn_author', 'allow_message', 'allow_author', 'hide_message', 'ban_author', 'unban_author', 'delete_message', 'temporary_mute_author')
         ORDER BY created_at DESC, id DESC
         LIMIT ${safeLimit}
       `

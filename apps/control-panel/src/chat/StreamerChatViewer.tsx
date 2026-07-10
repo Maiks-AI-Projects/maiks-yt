@@ -5,7 +5,13 @@ import { createApiHeaders } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
 import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
-import type { FakeLocalModerationResponse, StreamerChatMessagesResponse, StreamerChatModerationResponse, StreamerChatViewerProps } from "./streamer-chat-viewer.types.js";
+import type {
+  FakeLocalModerationResponse,
+  StreamerChatMessagesResponse,
+  StreamerChatModerationResponse,
+  StreamerChatProviderModerationResponse,
+  StreamerChatViewerProps
+} from "./streamer-chat-viewer.types.js";
 
 const getPrimaryUnavailableReasons = (
   actionAccess: StreamerChatViewerProps["actionAccess"],
@@ -33,11 +39,14 @@ const getOptionUnavailableReasons = (
   return [
     !actionAccess.canWarn ? "Warn needs chat:warn-user." : null,
     !actionAccess.canAllow ? "Allow needs chat:allow-message." : null,
-    message.source !== "fake-local" ? "Note and Mute are fake/local drills until provider-write moderation is reviewed." : null,
+    !actionAccess.canProviderModerate && (message.source === "discord" || message.source === "twitch")
+      ? "Provider actions need chat:provider-moderate."
+      : null,
+    message.source !== "fake-local" ? "Note is a fake/local drill." : null,
     message.source === "discord" || message.source === "twitch" || message.source === "youtube"
       ? `${chatSourceLabels[message.source]} provider warning is attempted by the Warn action.`
       : "Provider warning messages are gated until provider-write clients and permission checks exist.",
-    "Provider timeout is gated until provider-write clients and permission checks exist."
+    message.source === "youtube" ? "YouTube provider delete/timeout/ban are still gated." : null
   ].filter((reason): reason is string => reason !== null);
 };
 
@@ -220,6 +229,82 @@ export const StreamerChatViewer = ({
     }
   };
 
+  const executeProviderModeration = async (
+    message: StreamerChatMessage,
+    action: "delete_message" | "timeout_author" | "ban_author"
+  ): Promise<void> => {
+    if (message.source !== "discord" && message.source !== "twitch") {
+      setActionStatus(`${chatSourceLabels[message.source]} provider actions are not available yet.`);
+      return;
+    }
+
+    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
+
+    if (!token) {
+      setActionStatus("Control token missing.");
+      return;
+    }
+
+    setActionStatus(
+      action === "delete_message"
+        ? `Deleting ${chatSourceLabels[message.source]} message.`
+        : action === "timeout_author"
+          ? `Timing out ${message.authorName} on ${chatSourceLabels[message.source]}.`
+          : `Banning ${message.authorName} on ${chatSourceLabels[message.source]}.`
+    );
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/streamer-chat/moderation/provider-action`, {
+        body: JSON.stringify({
+          accessToken: token,
+          action,
+          durationSeconds: action === "timeout_author" ? defaultTemporaryMuteDurationSeconds : null,
+          targetMessageId: message.id
+        }),
+        credentials: "include",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        method: "POST"
+      });
+      const result = await response.json() as StreamerChatProviderModerationResponse;
+
+      if (!response.ok) {
+        throw new Error("Provider moderation request failed.");
+      }
+
+      if (!result.ok) {
+        throw new Error(result.reason);
+      }
+
+      if (result.providerActionSent) {
+        if (action === "delete_message") {
+          setMessages((currentMessages) => currentMessages.filter((currentMessage) => currentMessage.id !== message.id));
+        }
+
+        if (action === "ban_author") {
+          setMessages((currentMessages) => currentMessages.filter((currentMessage) =>
+            currentMessage.source !== message.source
+            || currentMessage.authorName.trim().toLowerCase() !== message.authorName.trim().toLowerCase()
+          ));
+        }
+      }
+
+      setOpenOptionsMessageId(null);
+      setActionStatus(
+        result.providerActionSent
+          ? action === "delete_message"
+            ? `${chatSourceLabels[message.source]} message delete sent.`
+            : action === "timeout_author"
+              ? `${message.authorName} timeout sent to ${chatSourceLabels[message.source]}.`
+              : `${message.authorName} ban sent to ${chatSourceLabels[message.source]}.`
+          : `${chatSourceLabels[message.source]} provider action skipped${result.providerActionReason ? `: ${result.providerActionReason}.` : "."}`
+      );
+    } catch (error) {
+      setActionStatus(error instanceof Error ? error.message : "Provider moderation failed.");
+    }
+  };
+
   useEffect(() => {
     let disposed = false;
     let webSocket: WebSocket | null = null;
@@ -386,21 +471,40 @@ export const StreamerChatViewer = ({
                     >
                       Note
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void executeFakeLocalModeration(message, "temporary_mute_author", "Muted for 10 minutes from streamer chat options.")}
-                      disabled={message.source !== "fake-local"}
-                      title={message.source !== "fake-local" ? "Provider timeouts need the provider-write moderation phase." : "Mute this fake/local author for 10 minutes."}
-                    >
-                      Mute 10m
-                    </button>
-                    {showUnavailableActions && message.source !== "discord" && message.source !== "twitch" && message.source !== "youtube" ? (
+                    {message.source === "fake-local" ? (
+                      <button
+                        type="button"
+                        onClick={() => void executeFakeLocalModeration(message, "temporary_mute_author", "Muted for 10 minutes from streamer chat options.")}
+                        title="Mute this fake/local author for 10 minutes."
+                      >
+                        Mute 10m
+                      </button>
+                    ) : null}
+                    {message.source === "discord" || message.source === "twitch" || showUnavailableActions ? (
                       <>
-                        <button type="button" disabled title="Provider warning messages need the provider-write moderation phase.">
-                          Provider warn
+                        <button
+                          type="button"
+                          disabled={!actionAccess.canProviderModerate || (message.source !== "discord" && message.source !== "twitch")}
+                          onClick={() => void executeProviderModeration(message, "delete_message")}
+                          title={actionAccess.canProviderModerate ? "Delete the origin provider message." : "Missing chat:provider-moderate permission."}
+                        >
+                          Provider delete
                         </button>
-                        <button type="button" disabled title="Provider timeouts need audited provider-write clients and permission checks.">
-                          Provider timeout
+                        <button
+                          type="button"
+                          disabled={!actionAccess.canProviderModerate || (message.source !== "discord" && message.source !== "twitch")}
+                          onClick={() => void executeProviderModeration(message, "timeout_author")}
+                          title={actionAccess.canProviderModerate ? "Timeout the origin provider user for 10 minutes." : "Missing chat:provider-moderate permission."}
+                        >
+                          Provider timeout 10m
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!actionAccess.canProviderModerate || (message.source !== "discord" && message.source !== "twitch")}
+                          onClick={() => void executeProviderModeration(message, "ban_author")}
+                          title={actionAccess.canProviderModerate ? "Ban the origin provider user." : "Missing chat:provider-moderate permission."}
+                        >
+                          Provider ban
                         </button>
                       </>
                     ) : null}

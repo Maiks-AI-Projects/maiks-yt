@@ -4,6 +4,7 @@ export const defaultActionAccess: StreamerChatActionAccess = {
   canAllow: true,
   canBan: true,
   canHide: true,
+  canProviderModerate: true,
   canWarn: true
 };
 
