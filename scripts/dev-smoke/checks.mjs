@@ -1091,7 +1091,7 @@ const ownerAdminPageChecks = [
   ["admin provider integrations", "/admin/provider-integrations", ["Provider"]],
   ["admin schedule", "/admin/schedule", ["Schedule"]],
   ["admin sessions", "/admin/sessions", ["Session"]],
-  ["admin testing", "/admin/testing", ["Testing Guide", "76 passing checks"]],
+  ["admin testing", "/admin/testing", ["Testing Guide", "76 passing checks", "Quick Open"]],
   ["admin tokens", "/admin/tokens", ["Token"]]
 ];
 
