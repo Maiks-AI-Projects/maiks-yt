@@ -18,6 +18,21 @@ export type StreamerChatModerationRule = {
   source: StreamerChatMessage["source"];
 };
 
+export type StreamerChatModerationAuditEntry = {
+  action: "warn_author" | "hide_message" | "ban_author" | "unban_author";
+  actorDisplayName: string | null;
+  at: string;
+  id: string;
+  messageId: string | null;
+  note: string | null;
+  outcome: "applied" | "denied" | "invalid" | "not_found" | "no_op" | "provider_queued" | "provider_failed" | "reverted";
+  providerAction: boolean;
+  reason: string | null;
+  source: StreamerChatMessage["source"];
+  targetAuthorName: string | null;
+  targetExternalId: string | null;
+};
+
 export class InMemoryStreamerChatModerationRuntime {
   private readonly warningThreshold = 3;
   private readonly hiddenMessageRules = new Map<string, {

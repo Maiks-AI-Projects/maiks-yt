@@ -4,6 +4,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 import type { StreamerChatMessage } from "@maiks-yt/events";
 
 import type {
+  StreamerChatModerationAuditEntry,
   StreamerChatModerationRule,
   StreamerChatModerationRuleKind
 } from "./streamer-chat-moderation-runtime.service.js";
@@ -345,6 +346,68 @@ export class StreamerChatModerationStoreService {
 
     return [...activeRules, ...warningRules]
       .sort((left, right) => right.appliedAt.localeCompare(left.appliedAt));
+  }
+
+  public async listAudit(limit = 50): Promise<StreamerChatModerationAuditEntry[]> {
+    const safeLimit = Math.max(1, Math.min(limit, 100));
+    const [rows] = await this.getDatabasePool().execute(
+      `
+        SELECT
+          id,
+          source,
+          action,
+          outcome,
+          actor_display_name AS actorDisplayName,
+          target_author_name AS targetAuthorName,
+          target_message_id AS messageId,
+          target_external_id AS targetExternalId,
+          reason,
+          note,
+          provider_action AS providerAction,
+          created_at AS createdAt
+        FROM moderation_audit_logs
+        WHERE source IN ('fake-local', 'twitch', 'youtube', 'discord')
+          AND action IN ('warn_author', 'hide_message', 'ban_author', 'unban_author')
+        ORDER BY created_at DESC, id DESC
+        LIMIT ${safeLimit}
+      `
+    );
+
+    return (Array.isArray(rows) ? rows : []).flatMap((row) => {
+      const item = row as {
+        action: StreamerChatModerationAuditEntry["action"];
+        actorDisplayName: string | null;
+        createdAt: unknown;
+        id: string;
+        messageId: string | null;
+        note: string | null;
+        outcome: StreamerChatModerationAuditEntry["outcome"];
+        providerAction: boolean | number;
+        reason: string | null;
+        source: unknown;
+        targetAuthorName: string | null;
+        targetExternalId: string | null;
+      };
+
+      if (!isStreamerChatSource(item.source)) {
+        return [];
+      }
+
+      return [{
+        action: item.action,
+        actorDisplayName: item.actorDisplayName,
+        at: toModerationDate(item.createdAt),
+        id: item.id,
+        messageId: item.messageId,
+        note: item.note,
+        outcome: item.outcome,
+        providerAction: Boolean(item.providerAction),
+        reason: item.reason,
+        source: item.source,
+        targetAuthorName: item.targetAuthorName,
+        targetExternalId: item.targetExternalId
+      }];
+    });
   }
 
   public async retractRule(ruleId: string): Promise<StreamerChatModerationRule | null> {

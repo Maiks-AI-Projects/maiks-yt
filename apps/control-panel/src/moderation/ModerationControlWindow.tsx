@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
+import { ModerationAuditWindow } from "./ModerationAuditWindow.js";
 import { ModerationInfoPanel } from "./ModerationInfoPanel.js";
 import { ModerationRulesWindow } from "./ModerationRulesWindow.js";
 import { moderationPanelLabels, type ModerationControlWindowProps, type ModerationPanelKey, type StreamerChatModerationAccess, type StreamerChatModerationAccessResponse } from "./moderation-control.types.js";
@@ -13,6 +14,7 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
   const availablePanels: ModerationPanelKey[] = [
     ...(access?.panels.chat ? ["chat" as const] : []),
     ...(access?.panels.appliedRules ? ["rules" as const] : []),
+    ...(access?.panels.auditHistory ? ["audit" as const] : []),
     ...(access?.panels.pendingApprovals ? ["approvals" as const] : []),
     ...(access?.panels.liveHelper ? ["helper" as const] : [])
   ];
@@ -126,6 +128,8 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
         />
       ) : activePanel === "rules" ? (
         <ModerationRulesWindow apiBaseUrl={apiBaseUrl} canRetract={access.actions.canRetractRules} />
+      ) : activePanel === "audit" ? (
+        <ModerationAuditWindow apiBaseUrl={apiBaseUrl} />
       ) : activePanel === "approvals" ? (
         <ModerationInfoPanel apiBaseUrl={apiBaseUrl} endpoint="/admin/live-helper" title="Pending Approvals" />
       ) : (

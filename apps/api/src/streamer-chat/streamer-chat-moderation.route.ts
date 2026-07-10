@@ -71,12 +71,14 @@ export const registerStreamerChatModerationRoutes = (
         canBan: canUseStreamerChatModerationAction(access.permissions, "ban"),
         canEmergencyClear: canUseStreamerChatModerationAction(access.permissions, "emergency_clear"),
         canHide: canUseStreamerChatModerationAction(access.permissions, "hide"),
+        canViewAudit: canUseStreamerChatModerationAction(access.permissions, "view_audit"),
         canRetractRules: canUseStreamerChatModerationAction(access.permissions, "retract_rule"),
         canViewRules: canUseStreamerChatModerationAction(access.permissions, "view_rules"),
         canWarn: canUseStreamerChatModerationAction(access.permissions, "warn")
       },
       panels: {
         appliedRules: canUseStreamerChatModerationAction(access.permissions, "view_rules"),
+        auditHistory: canUseStreamerChatModerationAction(access.permissions, "view_audit"),
         chat: access.permissions.includes("*") || access.permissions.includes("chat:view"),
         liveHelper: access.permissions.includes("*")
           || access.permissions.includes("moderators:manage")
@@ -265,6 +267,32 @@ export const registerStreamerChatModerationRoutes = (
     return {
       ok: true,
       rules: await dependencies.moderationStore.listRules(),
+      providerAction: false,
+      checkedAt: new Date().toISOString()
+    };
+  });
+
+  server.get("/streamer-chat/moderation/audit", async (request, reply) => {
+    const parsedRequest = streamerChatModerationRuleListRequestSchema.safeParse(request.query);
+
+    if (!parsedRequest.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "invalid_request",
+        providerAction: false
+      };
+    }
+
+    const access = await dependencies.accessService.requirePermission(request, parsedRequest.data.accessToken, "view_audit");
+
+    if (!access.ok) {
+      return applyAccessFailure(reply, access);
+    }
+
+    return {
+      ok: true,
+      audit: await dependencies.moderationStore.listAudit(),
       providerAction: false,
       checkedAt: new Date().toISOString()
     };

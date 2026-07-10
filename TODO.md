@@ -361,8 +361,9 @@ Gate note: AI public output must start in a private draft/shadow mode before any
 - [ ] Add automatic warning system.
 - [ ] Add ban/restriction model.
   - 2026-06-29 Phase 5J designed the restriction escalation model only. Existing `moderation_active_states` remains the current-effect read model for hides/mutes/restrictions/bans, while future strike/policy records should be separate from active enforcement state. Runtime restrictions, real bans, provider actions, destructive actions, and automatic escalation remain gated.
-- [ ] Add moderation audit history.
+- [x] Add moderation audit history.
   - 2026-06-29 Phase 5J kept `moderation_audit_logs` as append-only action history and `moderation_active_states` as current effect. A minimal future schema, if approved, would add `community_policy_versions`, `community_rule_definitions`, and `moderation_strikes`; no migration was generated.
+  - 2026-07-10 follow-up added a token-gated Audit History panel to the standalone `/moderation` PWA. It reads recent local stream-chat moderation audit rows for hide/ban/warn/retract actions and labels whether an action was local-only or provider-side. Provider-side enforcement and strike/policy records remain future work.
 - [x] Decide default quick mute duration.
   - 2026-07-10 default quick temporary mute is 10 minutes. The chat options menu exposes this for fake/local messages; provider timeouts remain disabled until the provider-write moderation phase.
 - [x] Add abuse policy page, including police-report warning for serious abuse.

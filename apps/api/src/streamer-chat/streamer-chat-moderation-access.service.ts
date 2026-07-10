@@ -2,7 +2,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 import type { UrlAccessSurface } from "@maiks-yt/domain/security";
 import type { FastifyRequest } from "fastify";
 
-const streamerChatModerationActions = ["hide", "ban", "warn", "retract_rule", "view_rules", "emergency_clear"] as const;
+const streamerChatModerationActions = ["hide", "ban", "warn", "retract_rule", "view_rules", "view_audit", "emergency_clear"] as const;
 export type StreamerChatModerationAction = typeof streamerChatModerationActions[number];
 
 type UrlAccessTokenValidation = {
@@ -90,6 +90,8 @@ export const canUseStreamerChatModerationAction = (
         || permissions.includes("chat:ban-user-local")
         || permissions.includes("chat:warn-user");
     case "view_rules":
+      return permissions.includes("moderation-rules:view");
+    case "view_audit":
       return permissions.includes("moderation-rules:view");
     case "emergency_clear":
       return permissions.includes("chat:emergency-clear");

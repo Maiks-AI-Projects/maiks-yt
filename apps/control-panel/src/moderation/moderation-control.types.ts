@@ -21,6 +21,32 @@ export type StreamerChatModerationRulesResponse = {
   providerAction: false;
 };
 
+export type StreamerChatModerationAuditEntry = {
+  action: "warn_author" | "hide_message" | "ban_author" | "unban_author";
+  actorDisplayName: string | null;
+  at: string;
+  id: string;
+  messageId: string | null;
+  note: string | null;
+  outcome: "applied" | "denied" | "invalid" | "not_found" | "no_op" | "provider_queued" | "provider_failed" | "reverted";
+  providerAction: boolean;
+  reason: string | null;
+  source: StreamerChatMessage["source"];
+  targetAuthorName: string | null;
+  targetExternalId: string | null;
+};
+
+export type StreamerChatModerationAuditResponse = {
+  ok: true;
+  audit: StreamerChatModerationAuditEntry[];
+  providerAction: false;
+  checkedAt: string;
+} | {
+  ok: false;
+  reason: string;
+  providerAction: false;
+};
+
 export type StreamerChatModerationRuleRetractResponse = {
   ok: true;
   retractedRule: StreamerChatModerationRule | null;
@@ -36,12 +62,14 @@ export type StreamerChatModerationAccess = {
     canBan: boolean;
     canEmergencyClear: boolean;
     canHide: boolean;
+    canViewAudit: boolean;
     canRetractRules: boolean;
     canViewRules: boolean;
     canWarn: boolean;
   };
   panels: {
     appliedRules: boolean;
+    auditHistory: boolean;
     chat: boolean;
     liveHelper: boolean;
     pendingApprovals: boolean;
@@ -60,7 +88,7 @@ export type StreamerChatModerationAccessResponse = {
   providerAction: false;
 };
 
-export type ModerationPanelKey = "chat" | "rules" | "approvals" | "helper";
+export type ModerationPanelKey = "chat" | "rules" | "audit" | "approvals" | "helper";
 
 export type ModerationControlWindowProps = {
   apiBaseUrl: string;
@@ -72,10 +100,17 @@ export const moderationRuleKindLabels: Record<StreamerChatModerationRule["kind"]
   message_hidden: "Hide"
 };
 
+export const moderationAuditActionLabels: Record<StreamerChatModerationAuditEntry["action"], string> = {
+  ban_author: "Ban",
+  hide_message: "Hide",
+  unban_author: "Retract ban",
+  warn_author: "Warning"
+};
+
 export const moderationPanelLabels: Record<ModerationPanelKey, string> = {
   approvals: "Pending Approvals",
+  audit: "Audit History",
   chat: "Chat",
   helper: "Live Helper Summary",
   rules: "Applied Rules"
 };
-

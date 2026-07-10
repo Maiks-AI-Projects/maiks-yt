@@ -240,9 +240,11 @@ a {
 }
 
 .moderation-rules-list span,
-.moderation-rules-list time {
+.moderation-rules-list time,
+.moderation-rules-list p {
   color: #9fb0bd;
   font-size: 0.82rem;
+  margin: 0;
 }
 
 .moderation-rules-list button {
@@ -250,6 +252,21 @@ a {
   border: 1px solid #425366;
   min-height: 2.15rem;
   padding: 0.35rem 0.65rem;
+}
+
+.provider-action-flag {
+  align-self: center;
+  border: 1px solid rgba(87, 214, 141, 0.3);
+  border-radius: 999px;
+  color: rgba(204, 255, 220, 0.86);
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+}
+
+.provider-action-flag.warning {
+  border-color: rgba(255, 179, 64, 0.38);
+  color: rgba(255, 218, 164, 0.9);
 }
 
 .panel-mode-toggle {
