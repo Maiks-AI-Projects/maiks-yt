@@ -1,4 +1,5 @@
 import { TestingGuideQuickOpenClient } from "./testing-guide-quick-open-client";
+import { TestingNoteCopyClient } from "./testing-note-copy-client";
 
 export const dynamic = "force-dynamic";
 
@@ -199,8 +200,13 @@ const TestingGuidePage = (): React.ReactNode => (
       </div>
 
       <section className="project-admin-panel project-admin-note">
-        <h2>Record Breakage</h2>
-        <p>For each problem, record the page or window, whether it blocks streaming, and attach screenshots for visual/layout issues.</p>
+        <div className="project-admin-panel-heading">
+          <div>
+            <h2>Record Breakage</h2>
+            <p>For each problem, record the page or window, whether it blocks streaming, and attach screenshots for visual/layout issues.</p>
+          </div>
+          <TestingNoteCopyClient template={testingNoteTemplate} />
+        </div>
         <pre><code>{testingNoteTemplate}</code></pre>
       </section>
     </section>

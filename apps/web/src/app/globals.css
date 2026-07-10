@@ -1556,6 +1556,11 @@ button:disabled {
   background: #eef2f5;
 }
 
+.testing-note-copy-actions span {
+  color: #4b5966;
+  font-size: 0.9rem;
+}
+
 .page-creator-preview-panel .project-admin-panel-heading span {
   color: #4b5966;
   font-size: 0.9rem;
