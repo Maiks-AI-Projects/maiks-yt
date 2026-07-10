@@ -140,6 +140,10 @@ a {
   padding: 0.45rem 0.75rem;
 }
 
+.chat-emergency-clear.active {
+  background: #287c56;
+}
+
 .secondary-window-link {
   align-items: center;
   background: #25313d;

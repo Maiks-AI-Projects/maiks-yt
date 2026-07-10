@@ -305,6 +305,7 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Add periodic messages.
 - [ ] Add manual chat hide/show.
 - [ ] Add emergency chat shutdown behavior.
+  - 2026-07-10 `/chat` can now read emergency clean-mode state and toggle between Emergency clear and Restore overlay, using the existing permission-gated overlay emergency-clean endpoint. Full stream-scoped chat shutdown policy remains separate from provider-side moderation/enforcement.
 
 ## 12. AI Stream Assistant
 
