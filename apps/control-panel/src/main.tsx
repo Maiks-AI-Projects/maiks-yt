@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
+import { captureDevAuthTokenFromUrl, createApiHeaders } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
 import { OperationsPanel } from "./operations/OperationsPanel.js";
 import { SurfaceStatus } from "./overlay/SurfaceStatus.js";
@@ -74,7 +75,8 @@ const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
   }
 
   const sessionResponse = await fetch(`${apiBaseUrl}/account/session`, {
-    credentials: "include"
+    credentials: "include",
+    headers: createApiHeaders()
   });
 
   if (!sessionResponse.ok) {
@@ -112,6 +114,7 @@ const App = (): React.ReactNode => {
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
 
   useEffect(() => {
+    captureDevAuthTokenFromUrl();
     updateManifestForRoute();
     document.title = isStandaloneChatRoute
       ? "Maiks.yt Streamer Chat"

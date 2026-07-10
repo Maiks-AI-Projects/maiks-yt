@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+import { createApiHeaders } from "../dev-auth-token.js";
+
 export const ModerationInfoPanel = ({
   apiBaseUrl,
   endpoint,
@@ -15,7 +17,8 @@ export const ModerationInfoPanel = ({
   const loadSummary = async (): Promise<void> => {
     try {
       const response = await fetch(`${apiBaseUrl}${endpoint}`, {
-        credentials: "include"
+        credentials: "include",
+        headers: createApiHeaders()
       });
       const result = await response.json() as unknown;
 
@@ -80,4 +83,3 @@ export const ModerationInfoPanel = ({
     </section>
   );
 };
-

@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { chatSourceLabels } from "../chat/chat-source-labels.service.js";
 import { formatChatTime } from "../chat/chat-time.service.js";
+import { createApiHeaders } from "../dev-auth-token.js";
 import { moderationRuleKindLabels, type StreamerChatModerationRule, type StreamerChatModerationRuleRetractResponse, type StreamerChatModerationRulesResponse } from "./moderation-control.types.js";
 
 export const ModerationRulesWindow = ({
@@ -25,7 +26,8 @@ export const ModerationRulesWindow = ({
       const url = new URL("/streamer-chat/moderation/rules", apiBaseUrl);
       url.searchParams.set("accessToken", token);
       const response = await fetch(url, {
-        credentials: "include"
+        credentials: "include",
+        headers: createApiHeaders()
       });
       const result = await response.json() as StreamerChatModerationRulesResponse;
 
@@ -59,9 +61,9 @@ export const ModerationRulesWindow = ({
           ruleId: rule.id
         }),
         credentials: "include",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         method: "POST"
       });
       const result = await response.json() as StreamerChatModerationRuleRetractResponse;
@@ -124,4 +126,3 @@ export const ModerationRulesWindow = ({
     </section>
   );
 };
-

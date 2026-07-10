@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
+import { createApiHeaders } from "../dev-auth-token.js";
 import { ModerationAuditWindow } from "./ModerationAuditWindow.js";
 import { ModerationInfoPanel } from "./ModerationInfoPanel.js";
 import { ModerationRulesWindow } from "./ModerationRulesWindow.js";
@@ -34,7 +35,8 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
       const url = new URL("/streamer-chat/moderation/access", apiBaseUrl);
       url.searchParams.set("accessToken", token);
       const response = await fetch(url, {
-        credentials: "include"
+        credentials: "include",
+        headers: createApiHeaders()
       });
       const result = await response.json() as StreamerChatModerationAccessResponse;
 
@@ -76,9 +78,9 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
           enabled: true
         }),
         credentials: "include",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         method: "POST"
       });
 

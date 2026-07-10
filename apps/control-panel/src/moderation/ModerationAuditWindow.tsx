@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { chatSourceLabels } from "../chat/chat-source-labels.service.js";
 import { formatChatTime } from "../chat/chat-time.service.js";
+import { createApiHeaders } from "../dev-auth-token.js";
 import {
   moderationAuditActionLabels,
   type StreamerChatModerationAuditEntry,
@@ -28,7 +29,8 @@ export const ModerationAuditWindow = ({
       const url = new URL("/streamer-chat/moderation/audit", apiBaseUrl);
       url.searchParams.set("accessToken", token);
       const response = await fetch(url, {
-        credentials: "include"
+        credentials: "include",
+        headers: createApiHeaders()
       });
       const result = await response.json() as StreamerChatModerationAuditResponse;
 

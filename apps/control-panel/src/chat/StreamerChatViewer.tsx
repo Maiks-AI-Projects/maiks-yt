@@ -1,6 +1,7 @@
 import type { StreamerChatLiveMessage, StreamerChatMessage } from "@maiks-yt/events";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { createApiHeaders } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
 import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
@@ -48,9 +49,9 @@ export const StreamerChatViewer = ({
           targetMessageId: message.id
         }),
         credentials: "include",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         method: "POST"
       });
       const result = await response.json() as StreamerChatModerationResponse;
@@ -108,9 +109,9 @@ export const StreamerChatViewer = ({
           note
         }),
         credentials: "include",
-        headers: {
+        headers: createApiHeaders({
           "Content-Type": "application/json"
-        },
+        }),
         method: "POST"
       });
       const result = await response.json() as FakeLocalModerationResponse;
