@@ -592,7 +592,7 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
           typeof rule?.eventKind !== "string"
           || typeof rule?.label !== "string"
           || typeof rule?.persisted !== "boolean"
-          || typeof rule?.validation?.valid !== "boolean"
+          || typeof rule?.validation?.ok !== "boolean"
         )
       ) {
         return "event routing rules API returned an unexpected payload.";
