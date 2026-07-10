@@ -33,9 +33,9 @@ const getOptionUnavailableReasons = (
   return [
     !actionAccess.canWarn ? "Warn needs chat:warn-user." : null,
     message.source !== "fake-local" ? "Note and Mute are fake/local drills until provider-write moderation is reviewed." : null,
-    message.source === "discord"
-      ? "Discord provider warning is attempted by the Warn action."
-      : "Twitch/YouTube provider warning messages are gated until their provider-write clients and permission checks exist.",
+    message.source === "discord" || message.source === "twitch"
+      ? `${chatSourceLabels[message.source]} provider warning is attempted by the Warn action.`
+      : "YouTube provider warning messages are gated until its provider-write client and permission checks exist.",
     "Provider timeout is gated until provider-write clients and permission checks exist.",
     "Allow controls need reviewed allowlist persistence."
   ].filter((reason): reason is string => reason !== null);
@@ -51,19 +51,19 @@ const getProviderWarningStatusText = (
   message: StreamerChatMessage,
   result: Extract<StreamerChatModerationResponse, { ok: true }>
 ): string => {
-  if (message.source !== "discord") {
-    return "Twitch/YouTube provider warning messages are still gated.";
+  if (message.source !== "discord" && message.source !== "twitch") {
+    return "YouTube provider warning messages are still gated.";
   }
 
   if (result.providerMessageSent) {
-    return "Discord warning message sent.";
+    return `${chatSourceLabels[message.source]} warning message sent.`;
   }
 
   if (result.providerAction) {
-    return `Discord warning message failed${result.providerWarningReason ? `: ${result.providerWarningReason}.` : "."}`;
+    return `${chatSourceLabels[message.source]} warning message failed${result.providerWarningReason ? `: ${result.providerWarningReason}.` : "."}`;
   }
 
-  return "Discord warning message skipped because provider context was missing.";
+  return `${chatSourceLabels[message.source]} warning message skipped because provider context or write credentials were missing.`;
 };
 
 export const StreamerChatViewer = ({
@@ -372,7 +372,7 @@ export const StreamerChatViewer = ({
                     >
                       Mute 10m
                     </button>
-                    {showUnavailableActions && message.source !== "discord" ? (
+                    {showUnavailableActions && message.source !== "discord" && message.source !== "twitch" ? (
                       <>
                         <button type="button" disabled title="Provider warning messages need the provider-write moderation phase.">
                           Provider warn

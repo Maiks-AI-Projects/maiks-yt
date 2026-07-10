@@ -94,6 +94,7 @@ type RegisterApplicationRoutesInput = {
   streamerChatModerationStore: StreamerChatModerationStoreService;
   streamerChatRuntime: StreamerChatRuntime;
   twitchChatIntakeRuntime: TwitchChatReadOnlyIntakeService;
+  twitchChatWarningDeliveryService: import("@maiks-yt/integrations").TwitchChatWarningDeliveryService;
   validateUrlAccessTokenForRequest: ValidateUrlAccessTokenForRequest;
   youtubeLiveChatIntakeRuntime: YouTubeLiveChatReadOnlyIntakeService;
 };
@@ -115,6 +116,7 @@ export const registerApplicationRoutes = ({
   streamerChatModerationStore,
   streamerChatRuntime,
   twitchChatIntakeRuntime,
+  twitchChatWarningDeliveryService,
   validateUrlAccessTokenForRequest,
   youtubeLiveChatIntakeRuntime
 }: RegisterApplicationRoutesInput): void => {
@@ -276,7 +278,8 @@ export const registerApplicationRoutes = ({
     discordWarningDeliveryService: discordChatWarningDeliveryService,
     moderationRuntime: streamerChatModerationRuntime,
     moderationStore: streamerChatModerationStore,
-    streamerChatRuntime
+    streamerChatRuntime,
+    twitchWarningDeliveryService: twitchChatWarningDeliveryService
   });
   registerOverlayRoutes(server, {
     fakeLocalModerationRuntime,

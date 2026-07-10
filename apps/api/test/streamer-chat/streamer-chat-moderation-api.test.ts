@@ -78,6 +78,13 @@ const createServer = () => {
     providerMessageSent: true as const,
     providerMessage: "<@123456789012345678> this is warning 1/3. A third warning results in an automatic Maiks.yt stream-surface ban."
   }));
+  const sendTwitchWarning = vi.fn(async () => ({
+    ok: true as const,
+    providerAction: true as const,
+    providerMessageId: "twitch-warning-message-1",
+    providerMessageSent: true as const,
+    providerMessage: "@viewer_login this is warning 1/3. A third warning results in an automatic Maiks.yt stream-surface ban."
+  }));
 
   registerStreamerChatModerationRoutes(server, {
     accessService: {
@@ -95,11 +102,15 @@ const createServer = () => {
     },
     moderationRuntime,
     moderationStore: moderationStore as never,
-    streamerChatRuntime
+    streamerChatRuntime,
+    twitchWarningDeliveryService: {
+      sendWarning: sendTwitchWarning
+    }
   });
 
   return {
     moderationStore,
+    sendTwitchWarning,
     sendWarning,
     server,
     streamerChatRuntime
@@ -143,10 +154,15 @@ describe("streamer chat moderation API", () => {
     expect(moderationStore.providerAudits).toHaveLength(1);
   });
 
-  it("does not send provider warnings for non-Discord sources", async () => {
-    const { moderationStore, sendWarning, server, streamerChatRuntime } = createServer();
+  it("sends a Twitch provider warning when Twitch message context is available", async () => {
+    const { moderationStore, sendTwitchWarning, server, streamerChatRuntime } = createServer();
     streamerChatRuntime.appendMessage(createMessage({
       id: "twitch-message-1",
+      authorName: "Viewer Name",
+      channelName: "maiksmc",
+      providerChannelId: "maiksmc",
+      providerMessageId: "twitch-provider-message-1",
+      providerUserId: "viewer_login",
       source: "twitch"
     }));
 
@@ -163,10 +179,45 @@ describe("streamer chat moderation API", () => {
     expect(response.json()).toMatchObject({
       ok: true,
       action: "warn",
+      providerAction: true,
+      providerMessageSent: true,
+      providerMessage: "@viewer_login this is warning 1/3. A third warning results in an automatic Maiks.yt stream-surface ban."
+    });
+    expect(sendTwitchWarning).toHaveBeenCalledWith({
+      authorName: "Viewer Name",
+      channelName: "maiksmc",
+      userName: "viewer_login",
+      warningCount: 1,
+      warningThreshold: 3
+    });
+    expect(moderationStore.providerAudits).toHaveLength(1);
+  });
+
+  it("does not send provider warnings for unsupported sources", async () => {
+    const { moderationStore, sendTwitchWarning, sendWarning, server, streamerChatRuntime } = createServer();
+    streamerChatRuntime.appendMessage(createMessage({
+      id: "youtube-message-1",
+      source: "youtube"
+    }));
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/warn",
+      payload: {
+        accessToken: validAccessToken,
+        targetMessageId: "youtube-message-1"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      action: "warn",
       providerAction: false,
       providerMessageSent: false
     });
     expect(sendWarning).not.toHaveBeenCalled();
+    expect(sendTwitchWarning).not.toHaveBeenCalled();
     expect(moderationStore.providerAudits).toHaveLength(0);
   });
 });

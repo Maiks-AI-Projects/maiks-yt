@@ -3,6 +3,7 @@ import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import {
   DiscordChatWarningDeliveryService,
   DiscordChatReadOnlyIntakeService,
+  TwitchChatWarningDeliveryService,
   TwitchChatReadOnlyIntakeService,
   YouTubeLiveChatReadOnlyIntakeService,
   type DiscordGatewayProjectedEvent,
@@ -164,7 +165,11 @@ const recordFakeLocalStreamerChatMessage = (
 
 const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): StreamerChatMessage => {
   writeProviderChatIntakeLog(message);
-  return appendStreamerChatMessage({ ...message });
+  return appendStreamerChatMessage({
+    ...message,
+    providerChannelId: message.channelName,
+    providerUserId: message.userName
+  });
 };
 
 const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage): StreamerChatMessage => {
@@ -219,6 +224,7 @@ const {
 } = createApiAuthRuntime({ getDatabasePool });
 streamerChatModerationStore = new StreamerChatModerationStoreService(getDatabasePool);
 const discordChatWarningDeliveryService = new DiscordChatWarningDeliveryService();
+const twitchChatWarningDeliveryService = new TwitchChatWarningDeliveryService();
 const streamerChatModerationAccessService = new StreamerChatModerationAccessService({
   getDatabasePool,
   validateUrlAccessToken: validateUrlAccessTokenForRequest,
@@ -340,6 +346,7 @@ registerApplicationRoutes({
   streamerChatModerationStore,
   streamerChatRuntime,
   twitchChatIntakeRuntime,
+  twitchChatWarningDeliveryService,
   validateUrlAccessTokenForRequest,
   youtubeLiveChatIntakeRuntime
 });

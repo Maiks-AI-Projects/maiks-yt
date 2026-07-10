@@ -87,6 +87,7 @@ describe("projectTwitchChatMessage", () => {
         message: "Hello there",
         providerMessageId: "provider-message-1",
         source: "twitch",
+        userName: "viewer_login",
         visibleOnOverlayByDefault: false
       })
     });
@@ -149,6 +150,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
       authorName: "Viewer Name",
       message: "Hello Twitch chat!",
       source: "twitch",
+      userName: "viewer_login",
       visibleOnOverlayByDefault: false
     }));
     expect(service.getStatus().recentMessages).toEqual([

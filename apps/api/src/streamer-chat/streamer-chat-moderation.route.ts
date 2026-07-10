@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type {
   DiscordChatWarningDeliveryResult,
-  DiscordChatWarningDeliveryService
+  DiscordChatWarningDeliveryService,
+  TwitchChatWarningDeliveryResult,
+  TwitchChatWarningDeliveryService
 } from "@maiks-yt/integrations";
 import { z } from "zod";
 
@@ -49,6 +51,7 @@ export const registerStreamerChatModerationRoutes = (
     moderationRuntime: InMemoryStreamerChatModerationRuntime;
     moderationStore: StreamerChatModerationStoreService;
     streamerChatRuntime: StreamerChatRuntime;
+    twitchWarningDeliveryService: Pick<TwitchChatWarningDeliveryService, "sendWarning">;
   }
 ): void => {
   server.get("/streamer-chat/moderation/access", async (request, reply) => {
@@ -210,7 +213,7 @@ export const registerStreamerChatModerationRoutes = (
       previousWarningCount
     );
 
-    let providerDelivery: DiscordChatWarningDeliveryResult | null = null;
+    let providerDelivery: DiscordChatWarningDeliveryResult | TwitchChatWarningDeliveryResult | null = null;
 
     if (result?.message) {
       const providerMessage = `@${result.message.authorName} this is warning ${result.warningCount}/${result.warningThreshold}. A third warning results in an automatic Maiks.yt stream-surface ban.`;
@@ -234,7 +237,23 @@ export const registerStreamerChatModerationRoutes = (
         await dependencies.moderationStore.appendProviderWarningAudit({
           deliveryResult: providerDelivery,
           message: result.message,
-          providerMessage
+          providerMessage: providerDelivery.providerMessage ?? providerMessage
+        });
+      }
+
+      if (result.message.source === "twitch") {
+        providerDelivery = await dependencies.twitchWarningDeliveryService.sendWarning({
+          authorName: result.message.authorName,
+          channelName: result.message.providerChannelId ?? result.message.channelName,
+          userName: result.message.providerUserId,
+          warningCount: result.warningCount,
+          warningThreshold: result.warningThreshold
+        });
+
+        await dependencies.moderationStore.appendProviderWarningAudit({
+          deliveryResult: providerDelivery,
+          message: result.message,
+          providerMessage: providerDelivery.providerMessage ?? providerMessage
         });
       }
 

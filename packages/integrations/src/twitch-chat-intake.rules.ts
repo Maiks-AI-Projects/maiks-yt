@@ -28,6 +28,7 @@ export const projectTwitchChatMessage = (
   input: TwitchChatProjectionInput
 ): TwitchChatProjectionResult => {
   const channelName = normalizeChannelName(input.channelName);
+  const userName = normalizeText(input.userName, maxAuthorNameLength).toLowerCase();
   const authorName = normalizeText(input.displayName || input.userName, maxAuthorNameLength);
   const message = normalizeText(input.text, maxMessageLength);
 
@@ -38,7 +39,7 @@ export const projectTwitchChatMessage = (
     };
   }
 
-  if (!authorName) {
+  if (!authorName || !userName) {
     return {
       ok: false,
       reason: "empty_author"
@@ -62,6 +63,7 @@ export const projectTwitchChatMessage = (
       createdAt: (input.createdAt ?? new Date()).toISOString(),
       message,
       providerMessageId: normalizeText(input.messageId ?? "", 80) || randomUUID(),
+      userName,
       source: "twitch",
       visibleOnOverlayByDefault: false
     }

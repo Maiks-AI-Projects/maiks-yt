@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
 import type { StreamerChatMessage } from "@maiks-yt/events";
-import type { DiscordChatWarningDeliveryResult } from "@maiks-yt/integrations";
+import type {
+  DiscordChatWarningDeliveryResult,
+  TwitchChatWarningDeliveryResult
+} from "@maiks-yt/integrations";
 
 import type {
   StreamerChatModerationAuditEntry,
@@ -240,7 +243,7 @@ export class StreamerChatModerationStoreService {
     message,
     providerMessage
   }: {
-    deliveryResult: DiscordChatWarningDeliveryResult;
+    deliveryResult: DiscordChatWarningDeliveryResult | TwitchChatWarningDeliveryResult;
     message: {
       authorName: string;
       id: string;

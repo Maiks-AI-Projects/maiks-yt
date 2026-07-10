@@ -6,6 +6,7 @@ export type TwitchChatProjectedMessage = {
   createdAt: string;
   message: string;
   providerMessageId: string;
+  userName: string;
   source: "twitch";
   visibleOnOverlayByDefault: false;
 };
