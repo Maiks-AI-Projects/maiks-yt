@@ -16,6 +16,7 @@ import type {
 
 import type {
   MoneyAdminExportResult,
+  MoneyAdminImportPreviewResult,
   MoneyAdminJsonReportResult,
   MoneyAdminLedgerFilters,
   MoneyAdminListResult,
@@ -29,6 +30,7 @@ import type {
   MoneyAdminWarningExportResult,
   MoneyAdminWarningResolveResult
 } from "./money-admin.types.js";
+import { buildMoneyImportPreview } from "./money-import-preview.service.js";
 
 const receiptUploadMaxBytes = 5 * 1024 * 1024;
 const receiptUploadStorageDir = path.resolve(process.cwd(), ".private", "money-receipts");
@@ -1030,6 +1032,42 @@ export class MoneyAdminService {
         ...transaction,
         actorUserId: actor.domainUserId
       })
+    };
+  }
+
+  public async previewImportCsv(input: {
+    authUserId: string;
+    csv: string;
+    filename?: string | null;
+  }): Promise<MoneyAdminImportPreviewResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    if (input.csv.trim().length === 0 || input.csv.length > 200_000) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const preview = buildMoneyImportPreview({
+      csv: input.csv,
+      filename: input.filename ?? null
+    });
+
+    if (!preview) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    return {
+      ok: true,
+      preview
     };
   }
 

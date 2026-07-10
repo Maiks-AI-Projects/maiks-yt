@@ -19,6 +19,21 @@ import { MoneyAdminService } from "./money-admin.service.js";
 import { createMoneyAdminRepository } from "./money-admin-store.service.js";
 import type { MoneyAdminMutationResult } from "./money-admin.types.js";
 
+type MoneyAdminRouteService = Pick<
+  MoneyAdminService,
+  | "listTransactions"
+  | "createTransaction"
+  | "exportLedgerCsv"
+  | "buildJsonReport"
+  | "exportWarningsCsv"
+  | "exportReviewPackageJson"
+  | "uploadReceiptEvidence"
+  | "downloadReceiptEvidence"
+  | "resolveWarning"
+  | "voidTransaction"
+  | "previewImportCsv"
+>;
+
 type MoneyAdminAuthSession = {
   user: {
     id: string;
@@ -28,7 +43,7 @@ type MoneyAdminAuthSession = {
 type MoneyAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MoneyAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "exportReviewPackageJson" | "uploadReceiptEvidence" | "downloadReceiptEvidence" | "resolveWarning" | "voidTransaction">;
+  createService?: () => MoneyAdminRouteService;
 };
 
 const nullableText = (maxLength: number) =>
@@ -88,6 +103,11 @@ const moneyReceiptParamsSchema = z.object({
   id: z.string().trim().uuid()
 }).strict();
 
+const moneyImportPreviewPayloadSchema = z.object({
+  filename: z.string().trim().max(191).nullable().optional(),
+  csv: z.string().min(1).max(200_000)
+}).strict();
+
 const moneyLedgerFilterQuerySchema = z.object({
   accountingFrom: z.string().trim().datetime({ offset: true }).optional(),
   accountingTo: z.string().trim().datetime({ offset: true }).optional()
@@ -116,7 +136,7 @@ export const registerMoneyAdminRoutes = (
   server: FastifyInstance,
   dependencies: MoneyAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<MoneyAdminService, "listTransactions" | "createTransaction" | "exportLedgerCsv" | "buildJsonReport" | "exportWarningsCsv" | "exportReviewPackageJson" | "uploadReceiptEvidence" | "downloadReceiptEvidence" | "resolveWarning" | "voidTransaction"> =>
+  const getService = (): MoneyAdminRouteService =>
     dependencies.createService?.()
     ?? new MoneyAdminService(createMoneyAdminRepository(dependencies.getDatabasePool()));
 
@@ -475,6 +495,48 @@ export const registerMoneyAdminRoutes = (
       return result.download.bytes;
     } catch (error) {
       server.log.warn({ err: error }, "Money receipt download failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/money/import-preview", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = moneyImportPreviewPayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().previewImportCsv({
+        authUserId: session.user.id,
+        filename: parsedBody.data.filename ?? null,
+        csv: parsedBody.data.csv
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money import preview failed.");
       reply.code(503);
       return {
         ok: false,

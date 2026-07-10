@@ -226,6 +226,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added fail-closed YouTube warning-message delivery for streamer-chat Warn actions: YouTube chat intake now preserves author channel context, future owner consent requests include the official `youtube.force-ssl` write scope, and YouTube Warn attempts send only when an active live chat plus write-scoped credential are available. Existing read-only credentials need re-consent before live YouTube warning sends can work.
 - Added a read-only provider action readiness matrix to `/admin/connections` so testing can see Discord/Twitch/YouTube warning delivery as fail-closed and provider-side delete/hide, timeout, and ban actions as still gated with visible reasons.
 - Added YouTube re-consent and Provider Action Readiness reminders to `reports/dev-manual-testing-guide.md` and `/admin/testing`, then tightened recurring/visual smoke expectations so `/admin/connections` must keep rendering the readiness matrix.
+- Added Phase C15 owner-only no-write money CSV import preview in `/admin/money`: pasted provider/platform exports can be parsed for row readiness, warnings, categories/providers/references, and in/out totals without creating ledger rows, export-audit rows, provider settlement records, or public money behavior.
 
 ## Current Task
 

@@ -1,7 +1,9 @@
 import type {
   MoneyAccountingWarning,
+  MoneyDirection,
   MoneyLedgerTransaction,
   MoneyLedgerTransactionInput,
+  MoneyProvider,
   MoneyReceiptReferenceInput
 } from "@maiks-yt/domain";
 
@@ -162,6 +164,49 @@ export type MoneyAdminJsonReport = {
   byCategory: readonly MoneyAdminReportBucket[];
   bySourceProvider: readonly MoneyAdminReportBucket[];
 };
+
+export type MoneyAdminImportPreviewRowStatus = "ready" | "warning" | "skipped";
+
+export type MoneyAdminImportPreviewRow = {
+  rowNumber: number;
+  status: MoneyAdminImportPreviewRowStatus;
+  occurredAt: string | null;
+  accountingAt: string | null;
+  description: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  direction: MoneyDirection | null;
+  sourceProvider: MoneyProvider | null;
+  categoryKey: string | null;
+  reference: string | null;
+  warnings: readonly string[];
+};
+
+export type MoneyAdminImportPreview = {
+  generatedAt: string;
+  filename: string | null;
+  rowCount: number;
+  rows: readonly MoneyAdminImportPreviewRow[];
+  summary: {
+    readyRows: number;
+    warningRows: number;
+    skippedRows: number;
+    totalInMinor: number;
+    totalOutMinor: number;
+    currencies: readonly string[];
+  };
+  notes: readonly string[];
+};
+
+export type MoneyAdminImportPreviewResult =
+  | {
+    ok: true;
+    preview: MoneyAdminImportPreview;
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
 
 export type MoneyAdminExportResult =
   | {

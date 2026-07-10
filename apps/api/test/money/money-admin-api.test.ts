@@ -933,6 +933,86 @@ describe("MoneyAdminService", () => {
     expect(repository.exportAuditCount).toBe(0);
   });
 
+  it("previews CSV imports without writing ledger rows or export audit", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.previewImportCsv({
+      authUserId: "auth-user",
+      filename: "kofi-export.csv",
+      csv: [
+        "date,description,amount,currency,direction,category,provider,reference",
+        "2026-07-10,Ko-fi support,25.00,EUR,in,support,kofi,kofi-001",
+        "2026-07-10,Provider fee,-2.50,EUR,out,provider-fee,kofi,kofi-fee-001",
+        "bad-date,Missing category,4.20,,in,,unknown-provider,"
+      ].join("\n")
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      preview: {
+        filename: "kofi-export.csv",
+        rowCount: 3,
+        summary: {
+          readyRows: 2,
+          warningRows: 1,
+          skippedRows: 0,
+          totalInMinor: 2920,
+          totalOutMinor: 250,
+          currencies: ["EUR"]
+        },
+        rows: [
+          expect.objectContaining({
+            rowNumber: 2,
+            status: "ready",
+            amountMinor: 2500,
+            direction: "in",
+            sourceProvider: "kofi",
+            categoryKey: "support",
+            warnings: []
+          }),
+          expect.objectContaining({
+            rowNumber: 3,
+            status: "ready",
+            amountMinor: 250,
+            direction: "out",
+            sourceProvider: "kofi",
+            categoryKey: "provider-fee",
+            warnings: []
+          }),
+          expect.objectContaining({
+            rowNumber: 4,
+            status: "warning",
+            amountMinor: 420,
+            currency: "EUR",
+            warnings: expect.arrayContaining([
+              "occurred_at_missing_or_invalid",
+              "currency_missing_default_eur",
+              "provider_unknown",
+              "category_missing"
+            ])
+          })
+        ]
+      }
+    });
+    expect(repository.transactions).toHaveLength(1);
+    expect(repository.exportAuditCount).toBe(0);
+  });
+
+  it("rejects invalid CSV import previews", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.previewImportCsv({
+      authUserId: "auth-user",
+      csv: "only,headers",
+      filename: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
+  });
+
   it("exports a JSON report for an owner", async () => {
     const repository = new FakeMoneyAdminRepository();
     const server = Fastify();
@@ -1288,6 +1368,75 @@ describe("Money admin route boundary", () => {
       ok: false,
       reason: "not_authenticated"
     });
+  });
+
+  it("requires an auth session before previewing CSV imports", async () => {
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      }
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/import-preview",
+      payload: {
+        csv: "date,amount\n2026-07-10,1.00"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+  });
+
+  it("previews CSV imports for an owner route without mutating ledger state", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/import-preview",
+      payload: {
+        filename: "provider.csv",
+        csv: "date,amount,currency,description\n2026-07-10,12.34,EUR,Test payout"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      preview: {
+        rowCount: 1,
+        summary: {
+          readyRows: 0,
+          warningRows: 1,
+          skippedRows: 0,
+          totalInMinor: 1234,
+          totalOutMinor: 0
+        },
+        notes: expect.arrayContaining([
+          expect.stringContaining("Preview only")
+        ])
+      }
+    });
+    expect(repository.transactions).toHaveLength(1);
+    expect(repository.exportAuditCount).toBe(0);
   });
 
   it("applies accounting date query filters to list and export routes", async () => {

@@ -8,6 +8,7 @@ import type {
   MoneyLedgerTransaction,
   MoneyMode,
   MoneyPostingStatus,
+  MoneyProvider,
   MoneyReceiptReferenceType,
   MoneyReceiptStorageKind,
   MoneyTransactionType,
@@ -62,6 +63,47 @@ type MoneyReceiptUploadResponse =
         privateReference: string;
       };
     };
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type MoneyImportPreviewRow = {
+  rowNumber: number;
+  status: "ready" | "warning" | "skipped";
+  occurredAt: string | null;
+  accountingAt: string | null;
+  description: string | null;
+  amountMinor: number | null;
+  currency: string | null;
+  direction: MoneyDirection | null;
+  sourceProvider: MoneyProvider | null;
+  categoryKey: string | null;
+  reference: string | null;
+  warnings: readonly string[];
+};
+
+type MoneyImportPreview = {
+  generatedAt: string;
+  filename: string | null;
+  rowCount: number;
+  rows: readonly MoneyImportPreviewRow[];
+  summary: {
+    readyRows: number;
+    warningRows: number;
+    skippedRows: number;
+    totalInMinor: number;
+    totalOutMinor: number;
+    currencies: readonly string[];
+  };
+  notes: readonly string[];
+};
+
+type MoneyImportPreviewResponse =
+  | {
+    ok: true;
+    preview: MoneyImportPreview;
   }
   | {
     ok: false;
@@ -206,6 +248,13 @@ const lineKindOptions: readonly MoneyLedgerLineKind[] = [
   "correction_delta"
 ];
 
+const importPreviewExample = [
+  "date,description,amount,currency,direction,category,provider,reference",
+  "2026-07-10,Ko-fi support payout,25.00,EUR,in,support,kofi,kofi-001",
+  "2026-07-10,Payment provider fee,-2.50,EUR,out,provider-fee,kofi,kofi-fee-001",
+  "2026-07-10,Hosting bill,-12.99,EUR,out,hosting,manual,invoice-001"
+].join("\n");
+
 const formatDate = (value: string): string =>
   new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
@@ -335,6 +384,9 @@ const MoneyAdminClient = (): React.ReactNode => {
   const [message, setMessage] = useState<string>("Loading private money ledger...");
   const [busy, setBusy] = useState(false);
   const [receiptUploading, setReceiptUploading] = useState(false);
+  const [importCsvText, setImportCsvText] = useState("");
+  const [importPreview, setImportPreview] = useState<MoneyImportPreview | null>(null);
+  const [importMessage, setImportMessage] = useState("Paste a provider CSV to preview it without writing ledger rows.");
 
   const totals = useMemo(() => {
     const realLines = transactions.flatMap((transaction) =>
@@ -702,6 +754,44 @@ const MoneyAdminClient = (): React.ReactNode => {
       setMessage("Accounting warnings CSV export downloaded.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Money warnings CSV export failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const previewImportCsv = async (): Promise<void> => {
+    if (!importCsvText.trim()) {
+      setImportMessage("Paste CSV text before previewing.");
+      return;
+    }
+
+    setBusy(true);
+    setImportMessage("Previewing CSV import...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/import-preview`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          filename: "manual-preview.csv",
+          csv: importCsvText
+        })
+      });
+      const payload = await parseJson<MoneyImportPreviewResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setImportPreview(payload.preview);
+        setImportMessage(`Preview ready: ${payload.preview.summary.readyRows} ready, ${payload.preview.summary.warningRows} with warnings, ${payload.preview.summary.skippedRows} skipped.`);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setImportPreview(null);
+      setImportMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setImportPreview(null);
+      setImportMessage(error instanceof Error ? error.message : "Money import preview failed.");
     } finally {
       setBusy(false);
     }
@@ -1145,6 +1235,79 @@ const MoneyAdminClient = (): React.ReactNode => {
                 ))}
               </div>
             ) : null}
+            <div className="admin-list">
+              <h3>Import Preview</h3>
+              <p>{importMessage}</p>
+              <label>
+                Provider CSV
+                <textarea
+                  value={importCsvText}
+                  onChange={(event) => setImportCsvText(event.target.value)}
+                  rows={7}
+                  placeholder="date,description,amount,currency,direction,category,provider,reference"
+                />
+              </label>
+              <div className="admin-inline-actions">
+                <button type="button" onClick={() => void previewImportCsv()} disabled={busy}>
+                  Preview CSV
+                </button>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => {
+                    setImportCsvText(importPreviewExample);
+                    setImportPreview(null);
+                    setImportMessage("Example CSV loaded. Preview it to inspect the rows.");
+                  }}
+                  disabled={busy}
+                >
+                  Load example
+                </button>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => {
+                    setImportCsvText("");
+                    setImportPreview(null);
+                    setImportMessage("Paste a provider CSV to preview it without writing ledger rows.");
+                  }}
+                  disabled={busy}
+                >
+                  Clear preview
+                </button>
+              </div>
+              {importPreview ? (
+                <>
+                  <div className="admin-metric-grid">
+                    <div><strong>{importPreview.summary.readyRows}</strong><span>Ready</span></div>
+                    <div><strong>{importPreview.summary.warningRows}</strong><span>Warnings</span></div>
+                    <div><strong>{importPreview.summary.skippedRows}</strong><span>Skipped</span></div>
+                    <div><strong>{importPreview.summary.currencies.join(", ") || "None"}</strong><span>Currencies</span></div>
+                    <div><strong>{formatAmount(importPreview.summary.totalInMinor, "EUR")}</strong><span>Preview in</span></div>
+                    <div><strong>{formatAmount(importPreview.summary.totalOutMinor, "EUR")}</strong><span>Preview out</span></div>
+                  </div>
+                  {importPreview.notes.map((note) => (
+                    <p key={note}>{note}</p>
+                  ))}
+                  <div className="admin-list">
+                    {importPreview.rows.slice(0, 12).map((row) => (
+                      <article className="admin-list-item" key={`${row.rowNumber}-${row.reference ?? row.description ?? row.status}`}>
+                        <div>
+                          <strong>Row {row.rowNumber}: {row.status}</strong>
+                          <span>
+                            {row.direction ?? "?"} {row.amountMinor === null ? "invalid amount" : formatAmount(row.amountMinor, row.currency)}
+                            {row.sourceProvider ? ` · ${row.sourceProvider}` : ""}
+                            {row.categoryKey ? ` · ${row.categoryKey}` : ""}
+                          </span>
+                        </div>
+                        {row.description ? <p>{row.description}</p> : null}
+                        {row.warnings.length > 0 ? <p>{row.warnings.join(", ")}</p> : null}
+                      </article>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
             <div className="admin-list">
               {transactions.length === 0 ? (
                 <p>No entries yet.</p>
