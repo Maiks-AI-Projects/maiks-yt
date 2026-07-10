@@ -270,6 +270,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 36. `/admin/backup/health` now has a real owner-facing web page matching the manual testing guide, and the recurring smoke baseline is intentionally bumped to 77 checks to cover that page.
 37. Visual smoke now asserts that `/admin/backup/health` renders loaded backup details, not just the page shell: Backup Health, Required Tables, Dump Tool, and Warnings.
 38. `/admin/testing` now includes a compact testing-note template for recording breakage with surface, attempted action, actual/expected behavior, severity, screenshot/recording, and follow-up owner; recurring smoke asserts the template remains visible.
+39. `/admin/testing` Quick Open now includes the main first-pass admin workflow links as well as stream windows and public pages, so testing can move through sessions, provider integrations, event routing, live helper, moderators, money, pages, games, projects, schedule, links, backup health, and notifications from one guide. Recurring smoke asserts several of those shortcuts remain visible.
 
 ## Known State
 

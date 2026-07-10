@@ -53,14 +53,44 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
         description: "Installed phone/PWA notification panel for dev alerts and smoke failures."
       },
       {
+        href: "/admin/sessions",
+        label: "Sessions",
+        description: "Review browser sessions and revoke suspicious access during testing."
+      },
+      {
         href: "/admin/connections",
         label: "Connections",
         description: "Provider intake health, recent received events, and provider event catalog."
       },
       {
+        href: "/admin/provider-integrations",
+        label: "Provider Integrations",
+        description: "Twitch, YouTube, and Discord connection controls and runtime status."
+      },
+      {
+        href: "/admin/event-routing",
+        label: "Event Routing",
+        description: "Manual routing rules and pending simulated approvals."
+      },
+      {
+        href: "/admin/live-helper",
+        label: "Live Helper",
+        description: "Read-only helper snapshot for moderation and stream state."
+      },
+      {
         href: "/admin/backup/health",
         label: "Backup Health",
         description: "Read-only backup/export readiness checks before testing."
+      }
+    ]
+  },
+  {
+    title: "Admin Workflows",
+    links: [
+      {
+        href: "/admin/moderators",
+        label: "Moderators",
+        description: "Manage ranks, rights, grants, and helper access."
       },
       {
         href: "/admin/money",
@@ -71,6 +101,26 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
         href: "/admin/pages",
         label: "Page Creator",
         description: "Draft, preview, publish, unpublish, and clean up test pages."
+      },
+      {
+        href: "/admin/games",
+        label: "Games Admin",
+        description: "Manage the curated game library and pending suggestions."
+      },
+      {
+        href: "/admin/projects",
+        label: "Projects Admin",
+        description: "Preview and maintain project updates, item links, and estimates."
+      },
+      {
+        href: "/admin/schedule",
+        label: "Schedule Admin",
+        description: "Create planned streams and link project or game focus."
+      },
+      {
+        href: "/admin/links",
+        label: "Creator Links",
+        description: "Edit public Creator Hub links and availability."
       }
     ]
   },
