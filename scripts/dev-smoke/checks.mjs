@@ -3,9 +3,15 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-const checkJsonEndpoint = async ({ http, name, url, validate, critical = false, headers = {} }) => {
+const checkJsonEndpoint = async ({ http, name, url, validate, critical = false, headers = {}, requestOptions = {} }) => {
   try {
-    const result = await http.readJson(url, { headers });
+    const result = await http.readJson(url, {
+      ...requestOptions,
+      headers: {
+        ...headers,
+        ...requestOptions.headers
+      }
+    });
 
     if (!result.ok) {
       return {
@@ -49,6 +55,7 @@ const checkOwnerJsonEndpoint = async ({
   http,
   name,
   path,
+  requestOptions = {},
   validate
 }) => {
   try {
@@ -78,6 +85,7 @@ const checkOwnerJsonEndpoint = async ({
       },
       http,
       name,
+      requestOptions,
       url: http.makeUrl(config.apiUrl, path),
       validate
     });
@@ -584,6 +592,39 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
         || !Array.isArray(json?.warnings)
       ) {
         return "money ledger API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "money import preview API",
+    path: "/admin/money/import-preview",
+    requestOptions: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        filename: "dev-smoke-money-preview.csv",
+        csv: "date,description,amount,currency,direction,category,provider,reference\n2026-07-10,Smoke payout,12.34,EUR,in,support,kofi,smoke-001"
+      })
+    },
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || json?.preview?.rowCount !== 1
+        || json?.preview?.summary?.readyRows !== 1
+        || json?.preview?.summary?.warningRows !== 0
+        || json?.preview?.summary?.skippedRows !== 0
+        || json?.preview?.summary?.totalInMinor !== 1234
+        || !Array.isArray(json?.preview?.rows)
+        || json.preview.rows[0]?.status !== "ready"
+      ) {
+        return "money import preview API returned an unexpected payload.";
       }
 
       return null;
@@ -1121,14 +1162,14 @@ const ownerAdminPageChecks = [
   ["admin games", "/admin/games", ["Game"]],
   ["admin links", "/admin/links", ["Link"]],
   ["admin live helper", "/admin/live-helper", ["Live"]],
-  ["admin money", "/admin/money", ["Money"]],
+  ["admin money", "/admin/money", ["Money", "Import Preview", "Preview CSV"]],
   ["admin moderators", "/admin/moderators", ["Moderator"]],
   ["admin pages", "/admin/pages", ["Page Creator"]],
   ["admin projects", "/admin/projects", ["Project"]],
   ["admin provider integrations", "/admin/provider-integrations", ["Provider"]],
   ["admin schedule", "/admin/schedule", ["Schedule"]],
   ["admin sessions", "/admin/sessions", ["Session"]],
-  ["admin testing", "/admin/testing", ["Testing Guide", "78 passing checks", "Quick Open", "Installed Window Checklist", "Manual Testing Checklist", "Session started", "Start new session", "Copy progress", "Reset marks", "Mark section done", "Clear section", "Session Notes", "Access Required", "Backup Health", "Sessions", "Provider Integrations", "Moderators", "Schedule Admin", "Account", "Updates", "Privacy Analytics", "Provider Action Readiness", "Reconnect YouTube owner consent", "Testing note", "Copy template", "Severity: blocking / annoying / polish"]],
+  ["admin testing", "/admin/testing", ["Testing Guide", "79 passing checks", "Quick Open", "Installed Window Checklist", "Manual Testing Checklist", "Session started", "Start new session", "Copy progress", "Reset marks", "Mark section done", "Clear section", "Session Notes", "Access Required", "Backup Health", "Sessions", "Provider Integrations", "Moderators", "Schedule Admin", "Account", "Updates", "Privacy Analytics", "Provider Action Readiness", "Reconnect YouTube owner consent", "Testing note", "Copy template", "Severity: blocking / annoying / polish"]],
   ["admin tokens", "/admin/tokens", ["Token"]]
 ];
 
