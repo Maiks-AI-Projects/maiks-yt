@@ -1,11 +1,12 @@
 import type { StreamerChatMessage } from "@maiks-yt/events";
 
 export type StreamerChatModerationRule = {
+  activeUntil?: string | null;
   appliedAt: string;
   authorName: string;
   count?: number;
   id: string;
-  kind: "message_hidden" | "author_banned" | "author_warned";
+  kind: "message_allowed" | "author_allowed" | "message_hidden" | "author_banned" | "author_warned";
   messageId: string | null;
   source: StreamerChatMessage["source"];
 };
@@ -22,7 +23,7 @@ export type StreamerChatModerationRulesResponse = {
 };
 
 export type StreamerChatModerationAuditEntry = {
-  action: "warn_author" | "hide_message" | "ban_author" | "unban_author";
+  action: "warn_author" | "allow_message" | "allow_author" | "hide_message" | "ban_author" | "unban_author";
   actorDisplayName: string | null;
   at: string;
   id: string;
@@ -62,6 +63,7 @@ export type StreamerChatModerationAccess = {
     canBan: boolean;
     canEmergencyClear: boolean;
     canHide: boolean;
+    canAllow: boolean;
     canViewAudit: boolean;
     canRetractRules: boolean;
     canViewRules: boolean;
@@ -95,12 +97,16 @@ export type ModerationControlWindowProps = {
 };
 
 export const moderationRuleKindLabels: Record<StreamerChatModerationRule["kind"], string> = {
+  author_allowed: "Allow author",
   author_banned: "Ban",
   author_warned: "Warning",
+  message_allowed: "Allow message",
   message_hidden: "Hide"
 };
 
 export const moderationAuditActionLabels: Record<StreamerChatModerationAuditEntry["action"], string> = {
+  allow_author: "Allow author",
+  allow_message: "Allow message",
   ban_author: "Ban",
   hide_message: "Hide",
   unban_author: "Retract ban",

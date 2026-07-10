@@ -111,6 +111,7 @@ export const ModerationRulesWindow = ({
                 <span>
                   {chatSourceLabels[rule.source]} · {rule.authorName}
                   {rule.kind === "author_warned" && typeof rule.count === "number" ? ` · ${rule.count}/3` : ""}
+                  {rule.activeUntil ? ` · until ${formatChatTime(rule.activeUntil)}` : ""}
                 </span>
                 <time dateTime={rule.appliedAt}>{formatChatTime(rule.appliedAt)}</time>
               </div>

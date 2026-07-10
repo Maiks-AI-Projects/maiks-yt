@@ -390,6 +390,7 @@ const modRankRoles = Array.from({ length: 10 }, (_, index) => {
   const id = `00000000-0000-4000-8000-${idNumber.toString().padStart(12, "0")}`;
   const permissions = [
     "chat:view",
+    "chat:allow-message",
     "chat:hide-message",
     "chat:warn-user",
     "moderation-rules:view",

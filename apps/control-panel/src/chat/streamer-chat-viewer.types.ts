@@ -27,8 +27,10 @@ export type FakeLocalModerationResponse = {
 
 export type StreamerChatModerationResponse = {
   ok: true;
-  action: "hide" | "ban" | "warn";
+  action: "hide" | "ban" | "warn" | "allow";
   affectedCount: number;
+  activeUntil?: string | null;
+  allowScope?: "message" | "always" | "stream" | "timed";
   autoBanned?: boolean;
   providerAction: boolean;
   providerMessage?: string | null;
@@ -43,6 +45,7 @@ export type StreamerChatModerationResponse = {
 };
 
 export type StreamerChatActionAccess = {
+  canAllow?: boolean;
   canBan: boolean;
   canHide: boolean;
   canWarn: boolean;

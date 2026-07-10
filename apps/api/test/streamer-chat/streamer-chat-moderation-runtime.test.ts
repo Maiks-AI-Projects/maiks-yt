@@ -89,6 +89,43 @@ describe("InMemoryStreamerChatModerationRuntime", () => {
     expect(chatRuntime.listVisibleMessages()).toEqual([]);
   });
 
+  it("allows a message or author ahead of hide and ban suppression", () => {
+    const { chatRuntime, moderationRuntime } = createRuntime();
+    chatRuntime.appendMessage(createMessage({ id: "message-1", authorName: "Same Author" }));
+    chatRuntime.appendMessage(createMessage({ id: "message-2", authorName: "Same Author" }));
+
+    expect(moderationRuntime.hideMessage("message-1")).toMatchObject({ id: "message-1" });
+    expect(moderationRuntime.allowMessage("message-1", null)).toMatchObject({ id: "message-1" });
+    expect(chatRuntime.listVisibleMessages().map((message) => message.id)).toEqual(["message-2", "message-1"]);
+
+    expect(moderationRuntime.banActorFromMessage("message-2")).toMatchObject({
+      affectedMessages: [
+        { id: "message-2" },
+        { id: "message-1" }
+      ]
+    });
+    expect(chatRuntime.listVisibleMessages().map((message) => message.id)).toEqual(["message-1"]);
+
+    expect(moderationRuntime.allowActorFromMessage("message-2", null)).toMatchObject({ id: "message-2" });
+    expect(chatRuntime.listVisibleMessages().map((message) => message.id)).toEqual(["message-2", "message-1"]);
+  });
+
+  it("ignores expired allow rules", () => {
+    const { chatRuntime, moderationRuntime } = createRuntime();
+    chatRuntime.appendMessage(createMessage({ id: "message-1" }));
+    expect(moderationRuntime.hideMessage("message-1")).toMatchObject({ id: "message-1" });
+
+    moderationRuntime.hydrateAllowedMessage(
+      "message-1",
+      "Test chatter",
+      "twitch",
+      "2026-07-03T00:00:00.000Z",
+      "2000-01-01T00:00:00.000Z"
+    );
+
+    expect(chatRuntime.listVisibleMessages()).toEqual([]);
+  });
+
   it("retracts hydrated moderation rules", () => {
     const { chatRuntime, moderationRuntime } = createRuntime();
     chatRuntime.appendMessage(createMessage({ id: "message-1" }));

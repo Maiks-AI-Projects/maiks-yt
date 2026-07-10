@@ -1,0 +1,2 @@
+ALTER TABLE `moderation_active_states` MODIFY COLUMN `state_kind` enum('message_hidden','message_allowed','author_muted','author_allowed','user_restricted','user_banned') NOT NULL;--> statement-breakpoint
+ALTER TABLE `moderation_audit_logs` MODIFY COLUMN `action` enum('warn_author','allow_message','allow_author','hide_message','temporary_mute_author','note_author','noop','ban_author','unban_author','delete_message','restrict_user','rank_status_change') NOT NULL;

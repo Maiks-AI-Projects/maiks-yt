@@ -157,6 +157,8 @@ export const moderationAuditLogs = mysqlTable(
     source: mysqlEnum("source", ["fake-local", "website", "twitch", "youtube", "discord", "system"]).notNull(),
     action: mysqlEnum("action", [
       "warn_author",
+      "allow_message",
+      "allow_author",
       "hide_message",
       "temporary_mute_author",
       "note_author",
@@ -253,7 +255,9 @@ export const moderationActiveStates = mysqlTable(
     source: mysqlEnum("source", ["fake-local", "website", "twitch", "youtube", "discord", "system"]).notNull(),
     stateKind: mysqlEnum("state_kind", [
       "message_hidden",
+      "message_allowed",
       "author_muted",
+      "author_allowed",
       "user_restricted",
       "user_banned"
     ]).notNull(),

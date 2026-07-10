@@ -6,9 +6,15 @@ import type {
 
 import type { StreamerChatRuntime } from "./streamer-chat-runtime.service.js";
 
-export type StreamerChatModerationRuleKind = "message_hidden" | "author_banned" | "author_warned";
+export type StreamerChatModerationRuleKind =
+  | "message_allowed"
+  | "author_allowed"
+  | "message_hidden"
+  | "author_banned"
+  | "author_warned";
 
 export type StreamerChatModerationRule = {
+  activeUntil?: string | null;
   appliedAt: string;
   authorName: string;
   count?: number;
@@ -19,7 +25,7 @@ export type StreamerChatModerationRule = {
 };
 
 export type StreamerChatModerationAuditEntry = {
-  action: "warn_author" | "hide_message" | "ban_author" | "unban_author";
+  action: "warn_author" | "allow_message" | "allow_author" | "hide_message" | "ban_author" | "unban_author";
   actorDisplayName: string | null;
   at: string;
   id: string;
@@ -40,6 +46,21 @@ export class InMemoryStreamerChatModerationRuntime {
     authorName: string;
     id: string;
     messageId: string;
+    source: StreamerChatMessage["source"];
+  }>();
+  private readonly allowedMessageRules = new Map<string, {
+    activeUntil: string | null;
+    appliedAt: string;
+    authorName: string;
+    id: string;
+    messageId: string;
+    source: StreamerChatMessage["source"];
+  }>();
+  private readonly allowedActorRules = new Map<string, {
+    activeUntil: string | null;
+    appliedAt: string;
+    authorName: string;
+    id: string;
     source: StreamerChatMessage["source"];
   }>();
   private readonly bannedActorRules = new Map<string, {
@@ -112,6 +133,46 @@ export class InMemoryStreamerChatModerationRuntime {
     };
   }
 
+  public allowMessage(messageId: string, activeUntil: string | null): StreamerChatMessage | null {
+    const message = this.dependencies.chatRuntime.findMessage(messageId);
+
+    if (!message) {
+      return null;
+    }
+
+    this.allowedMessageRules.set(messageId, {
+      activeUntil,
+      appliedAt: new Date().toISOString(),
+      authorName: message.authorName,
+      id: this.createAllowedMessageRuleId(messageId),
+      messageId,
+      source: message.source
+    });
+    this.dependencies.chatRuntime.broadcastSnapshot();
+
+    return { ...message };
+  }
+
+  public allowActorFromMessage(messageId: string, activeUntil: string | null): StreamerChatMessage | null {
+    const message = this.dependencies.chatRuntime.findMessage(messageId);
+
+    if (!message) {
+      return null;
+    }
+
+    const actorKey = this.createActorKey(message);
+    this.allowedActorRules.set(actorKey, {
+      activeUntil,
+      appliedAt: new Date().toISOString(),
+      authorName: message.authorName,
+      id: this.createAllowedActorRuleId(actorKey),
+      source: message.source
+    });
+    this.dependencies.chatRuntime.broadcastSnapshot();
+
+    return { ...message };
+  }
+
   public warnActorFromMessage(messageId: string, previousWarningCount = 0): {
     autoBanned: boolean;
     affectedMessages: StreamerChatMessage[];
@@ -162,6 +223,10 @@ export class InMemoryStreamerChatModerationRuntime {
   }
 
   public isMessageVisible(message: StreamerChatMessage): boolean {
+    if (this.isAllowedMessageActive(message.id) || this.isAllowedActorActive(this.createActorKey(message))) {
+      return true;
+    }
+
     return !this.hiddenMessageRules.has(message.id) && !this.bannedActorRules.has(this.createActorKey(message));
   }
 
@@ -180,6 +245,40 @@ export class InMemoryStreamerChatModerationRuntime {
       authorName,
       id: this.createHiddenMessageRuleId(messageId),
       messageId,
+      source
+    });
+  }
+
+  public hydrateAllowedMessage(
+    messageId: string,
+    authorName: string,
+    source: StreamerChatMessage["source"],
+    appliedAt: string,
+    activeUntil: string | null
+  ): void {
+    this.allowedMessageRules.set(messageId, {
+      activeUntil,
+      appliedAt,
+      authorName,
+      id: this.createAllowedMessageRuleId(messageId),
+      messageId,
+      source
+    });
+  }
+
+  public hydrateAllowedActor(
+    authorName: string,
+    source: StreamerChatMessage["source"],
+    appliedAt: string,
+    activeUntil: string | null
+  ): void {
+    const actorKey = this.createActorKey({ authorName, source });
+
+    this.allowedActorRules.set(actorKey, {
+      activeUntil,
+      appliedAt,
+      authorName,
+      id: this.createAllowedActorRuleId(actorKey),
       source
     });
   }
@@ -219,6 +318,19 @@ export class InMemoryStreamerChatModerationRuntime {
   }
 
   public listRules(): StreamerChatModerationRule[] {
+    const allowedMessageRules = Array.from(this.allowedMessageRules.values())
+      .filter((rule) => this.isActiveUntilVisible(rule.activeUntil))
+      .map((rule) => ({
+        ...rule,
+        kind: "message_allowed" as const
+      }));
+    const allowedActorRules = Array.from(this.allowedActorRules.values())
+      .filter((rule) => this.isActiveUntilVisible(rule.activeUntil))
+      .map((rule) => ({
+        ...rule,
+        kind: "author_allowed" as const,
+        messageId: null
+      }));
     const hiddenRules = Array.from(this.hiddenMessageRules.values()).map((rule) => ({
       ...rule,
       kind: "message_hidden" as const
@@ -238,11 +350,37 @@ export class InMemoryStreamerChatModerationRuntime {
       source: rule.source
     }));
 
-    return [...hiddenRules, ...bannedRules, ...warningRules]
+    return [...allowedMessageRules, ...allowedActorRules, ...hiddenRules, ...bannedRules, ...warningRules]
       .sort((left, right) => right.appliedAt.localeCompare(left.appliedAt));
   }
 
   public retractRule(ruleId: string): StreamerChatModerationRule | null {
+    for (const [messageId, rule] of this.allowedMessageRules.entries()) {
+      if (rule.id === ruleId) {
+        this.allowedMessageRules.delete(messageId);
+        this.dependencies.chatRuntime.broadcastSnapshot();
+
+        return {
+          ...rule,
+          kind: "message_allowed",
+          messageId
+        };
+      }
+    }
+
+    for (const [actorKey, rule] of this.allowedActorRules.entries()) {
+      if (rule.id === ruleId) {
+        this.allowedActorRules.delete(actorKey);
+        this.dependencies.chatRuntime.broadcastSnapshot();
+
+        return {
+          ...rule,
+          kind: "author_allowed",
+          messageId: null
+        };
+      }
+    }
+
     for (const [messageId, rule] of this.hiddenMessageRules.entries()) {
       if (rule.id === ruleId) {
         this.hiddenMessageRules.delete(messageId);
@@ -312,11 +450,51 @@ export class InMemoryStreamerChatModerationRuntime {
     return `message_hidden:${messageId}`;
   }
 
+  private createAllowedMessageRuleId(messageId: string): string {
+    return `message_allowed:${messageId}`;
+  }
+
   private createBannedActorRuleId(actorKey: string): string {
     return `author_banned:${actorKey}`;
   }
 
+  private createAllowedActorRuleId(actorKey: string): string {
+    return `author_allowed:${actorKey}`;
+  }
+
   private createWarningRuleId(actorKey: string): string {
     return `author_warned:${actorKey}`;
+  }
+
+  private isAllowedMessageActive(messageId: string): boolean {
+    const rule = this.allowedMessageRules.get(messageId);
+
+    if (!rule || !this.isActiveUntilVisible(rule.activeUntil)) {
+      if (rule) {
+        this.allowedMessageRules.delete(messageId);
+      }
+
+      return false;
+    }
+
+    return true;
+  }
+
+  private isAllowedActorActive(actorKey: string): boolean {
+    const rule = this.allowedActorRules.get(actorKey);
+
+    if (!rule || !this.isActiveUntilVisible(rule.activeUntil)) {
+      if (rule) {
+        this.allowedActorRules.delete(actorKey);
+      }
+
+      return false;
+    }
+
+    return true;
+  }
+
+  private isActiveUntilVisible(activeUntil: string | null): boolean {
+    return activeUntil === null || new Date(activeUntil).getTime() > Date.now();
   }
 }
