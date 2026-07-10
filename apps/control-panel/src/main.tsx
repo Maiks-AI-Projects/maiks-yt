@@ -1,5 +1,6 @@
 import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState } from "react";
+import { AiControlsPanel } from "./ai/AiControlsPanel.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
@@ -226,6 +227,15 @@ const App = (): React.ReactNode => {
       </div>
       <SurfaceStatus apiBaseUrl={apiBaseUrl} panelMode={panelMode} />
       <SceneDesigner apiBaseUrl={apiBaseUrl} />
+      <details className="quiet-section">
+        <summary>
+          <span>AI Settings</span>
+          <small>Disabled controls</small>
+        </summary>
+        <div className="quiet-section-body">
+          <AiControlsPanel />
+        </div>
+      </details>
       {advancedModeEnabled ? (
         <OperationsPanel apiBaseUrl={apiBaseUrl} displayName={authState.displayName} panelMode={panelMode} />
       ) : null}
