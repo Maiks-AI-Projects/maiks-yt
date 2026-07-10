@@ -46,7 +46,15 @@ const sleep = (delayMs) => new Promise((resolve) => {
   setTimeout(resolve, delayMs);
 });
 
-const checkTextEndpointOnce = async ({ http, name, url, scanInjection = false, rejectNavbar = false, critical = false }) => {
+const checkTextEndpointOnce = async ({
+  http,
+  name,
+  url,
+  expectedText = [],
+  scanInjection = false,
+  rejectNavbar = false,
+  critical = false
+}) => {
   try {
     const result = await http.readText(url);
 
@@ -56,6 +64,17 @@ const checkTextEndpointOnce = async ({ http, name, url, scanInjection = false, r
         critical,
         name,
         message: `${name} returned HTTP ${result.status}.`
+      };
+    }
+
+    const missingExpectedText = expectedText.filter((text) => !result.body.includes(text));
+
+    if (missingExpectedText.length > 0) {
+      return {
+        ok: false,
+        critical,
+        name,
+        message: `${name} is missing expected text: ${missingExpectedText.join(", ")}.`
       };
     }
 
@@ -459,6 +478,33 @@ const checkBackupHealth = async () => {
   }
 };
 
+const publicPageChecks = [
+  ["web home", "/", ["Maiks.yt"], true],
+  ["public accountability", "/accountability", ["Accountability"], false],
+  ["public actions", "/actions", ["Action Panel", "Persistent Actions"], false],
+  ["community rules", "/community-rules", ["Community Rules"], false],
+  ["public context", "/context", ["Personal Context"], false],
+  ["public games", "/games", ["Games"], false],
+  ["public links", "/links", ["Maiks.yt Links"], false],
+  ["public privacy analytics", "/privacy/analytics", ["Analytics", "Necessary Data"], false],
+  ["public projects", "/projects", ["Projects"], false],
+  ["public schedule", "/schedule", ["Stream Schedule"], false],
+  ["public updates", "/updates", ["Public Updates"], false]
+];
+
+const createPublicPageChecks = ({ config, http }) => publicPageChecks.map(([name, path, expectedText, critical]) =>
+  checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    critical,
+    expectedText,
+    http,
+    name,
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    scanInjection: true,
+    url: http.makeUrl(config.webUrl, path)
+  })
+);
+
 export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.all([
   checkJsonEndpoint({
     http,
@@ -478,17 +524,10 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
       ? null
       : "database health returned an unexpected payload."
   }),
+  ...createPublicPageChecks({ config, http }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
-    http,
-    name: "web home",
-    retryDelayMs: config.textEndpointRetryDelayMs,
-    url: http.makeUrl(config.webUrl, "/"),
-    scanInjection: true,
-    critical: true
-  }),
-  checkTextEndpoint({
-    attempts: config.textEndpointAttempts,
+    expectedText: ["Notifications"],
     http,
     name: "notification tool",
     retryDelayMs: config.textEndpointRetryDelayMs,
@@ -506,6 +545,7 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
+    expectedText: ["Admin"],
     http,
     name: "admin dashboard",
     retryDelayMs: config.textEndpointRetryDelayMs,
@@ -514,26 +554,11 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
   }),
   checkTextEndpoint({
     attempts: config.textEndpointAttempts,
+    expectedText: ["Game"],
     http,
     name: "admin games",
     retryDelayMs: config.textEndpointRetryDelayMs,
     url: http.makeUrl(config.webUrl, "/admin/games"),
-    scanInjection: true
-  }),
-  checkTextEndpoint({
-    attempts: config.textEndpointAttempts,
-    http,
-    name: "public games",
-    retryDelayMs: config.textEndpointRetryDelayMs,
-    url: http.makeUrl(config.webUrl, "/games"),
-    scanInjection: true
-  }),
-  checkTextEndpoint({
-    attempts: config.textEndpointAttempts,
-    http,
-    name: "community rules",
-    retryDelayMs: config.textEndpointRetryDelayMs,
-    url: http.makeUrl(config.webUrl, "/community-rules"),
     scanInjection: true
   }),
   checkJsonEndpoint({

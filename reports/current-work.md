@@ -206,6 +206,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Updated `pnpm dev:visual-smoke` so the standalone `/chat` capture receives the same `devAuthToken` query value as `/moderation`, allowing fresh-browser visual QA to cover the real chat UI instead of stopping at Access Required.
 - Expanded `pnpm dev:visual-smoke` to cover the broader owner admin testing surface list: connections, event routing, games, links, live helper, money, moderators, pages, projects, provider integrations, schedule, sessions, and tokens, plus the existing chat/moderation/overlay captures.
 - Expanded `pnpm dev:visual-smoke` public-page coverage for testing readiness: accountability, actions, context, games, links, privacy analytics, projects, schedule, and updates now get screenshot and DOM smoke checks alongside the existing public/admin/tool captures.
+- Expanded the recurring failure-only `pnpm dev:smoke:notify` page checks with stable text assertions for the public testing pages, so HTTP 200 responses with the wrong shell/error content no longer count as healthy.
 
 ## Current Task
 
