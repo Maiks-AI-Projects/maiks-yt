@@ -230,6 +230,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added Phase C16 owner-confirmed draft creation from the CSV import preview. Importable rows create normal private draft ledger entries through the existing ledger service, while skipped rows stay out; there is still no automatic posting, provider settlement, public payment behavior, or recurring import mutation.
 - Added Phase C17 duplicate-reference protection for CSV imports: preview rows whose provider/reference value already exists in private receipt references are marked skipped with `duplicate_reference`, shown with the existing transaction id, and blocked from draft import.
 - Added Phase C18 conservative possible-duplicate warnings for reference-less CSV rows that exactly match an active ledger row by date, amount, direction, currency, provider, and category. These rows remain importable warnings, while voided rows no longer block duplicate-reference reimports.
+- Added the money CSV import workflow to `/admin/testing` and `reports/dev-manual-testing-guide.md`, including preview, draft creation, duplicate-reference blocking, possible-duplicate warnings, and cleanup expectations. Recurring and visual smoke now assert those instructions remain visible.
 
 ## Current Task
 

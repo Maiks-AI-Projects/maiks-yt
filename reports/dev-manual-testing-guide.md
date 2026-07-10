@@ -106,6 +106,11 @@ Goal: test private accounting mechanics without public money behavior.
 - Create one private test income entry.
 - Create one private test spending/cost entry.
 - Add receipt/reference metadata where useful.
+- Paste the example CSV in Import Preview.
+- Confirm row readiness, warning counts, in/out totals, provider/category/reference hints, and duplicate status.
+- Create draft entries only after reviewing the preview, then confirm imported rows stay draft until manually reviewed.
+- Preview the same CSV/reference again and confirm `duplicate_reference` blocks repeated draft import.
+- Preview a reference-less exact match and confirm `possible_duplicate` warns without blocking owner import.
 - Add a correction rather than editing historical meaning.
 - Void a deliberate mistake and confirm it stays auditable.
 - Check derived warnings.
