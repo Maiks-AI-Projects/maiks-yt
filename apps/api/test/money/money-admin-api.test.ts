@@ -1126,6 +1126,122 @@ describe("MoneyAdminService", () => {
     expect(repository.transactions).toHaveLength(2);
   });
 
+  it("does not treat voided provider references as duplicate blockers", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.unshift(createTransaction({
+      id: "voided-provider-row",
+      postingStatus: "voided",
+      lines: [
+        {
+          id: "voided-provider-line",
+          transactionId: "voided-provider-row",
+          lineKind: "gross_income",
+          direction: "in",
+          amountMinor: 2500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: "support",
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: "voided-provider-receipt",
+          receiptReference: {
+            id: "voided-provider-receipt",
+            referenceType: "provider_statement",
+            storageKind: "local_reference",
+            label: "kofi row 2",
+            privateReference: "kofi-voided-reference",
+            createdByUserId: "domain-user",
+            createdAt: "2026-07-09T10:05:00.000Z"
+          },
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.previewImportCsv({
+      authUserId: "auth-user",
+      filename: "kofi-export.csv",
+      csv: [
+        "date,description,amount,currency,direction,category,provider,reference",
+        "2026-07-10,Reimport after void,25.00,EUR,in,support,kofi,kofi-voided-reference"
+      ].join("\n")
+    })).resolves.toMatchObject({
+      ok: true,
+      preview: {
+        summary: {
+          readyRows: 1,
+          skippedRows: 0
+        },
+        rows: [
+          expect.objectContaining({
+            status: "ready",
+            duplicateTransactionId: null
+          })
+        ]
+      }
+    });
+  });
+
+  it("warns about exact possible duplicates when CSV rows have no reference", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.unshift(createTransaction({
+      id: "existing-similar-row",
+      sourceProvider: "kofi",
+      occurredAt: "2026-07-10T08:00:00.000Z",
+      lines: [
+        {
+          id: "existing-similar-line",
+          transactionId: "existing-similar-row",
+          lineKind: "gross_income",
+          direction: "in",
+          amountMinor: 2500,
+          currency: "EUR",
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: "support",
+          projectId: null,
+          projectItemId: null,
+          ruleVersionId: null,
+          receiptReferenceId: null,
+          receiptReference: null,
+          notesPrivate: null,
+          createdAt: "2026-07-09T10:05:00.000Z"
+        }
+      ]
+    }));
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.previewImportCsv({
+      authUserId: "auth-user",
+      filename: "kofi-export.csv",
+      csv: [
+        "date,description,amount,currency,direction,category,provider",
+        "2026-07-10,Possible duplicate,25.00,EUR,in,support,kofi"
+      ].join("\n")
+    })).resolves.toMatchObject({
+      ok: true,
+      preview: {
+        summary: {
+          readyRows: 0,
+          warningRows: 1,
+          skippedRows: 0
+        },
+        rows: [
+          expect.objectContaining({
+            status: "warning",
+            duplicateTransactionId: null,
+            possibleDuplicateTransactionId: "existing-similar-row",
+            warnings: expect.arrayContaining(["possible_duplicate"])
+          })
+        ]
+      }
+    });
+  });
+
   it("rejects invalid CSV import previews", async () => {
     const repository = new FakeMoneyAdminRepository();
     const service = new MoneyAdminService(repository);

@@ -171,6 +171,10 @@ const buildExistingReferenceMap = (transactions: readonly MoneyLedgerTransaction
   const references = new Map<string, string>();
 
   for (const transaction of transactions) {
+    if (transaction.postingStatus === "voided") {
+      continue;
+    }
+
     for (const line of transaction.lines) {
       const privateReference = normalizeNullableText(line.receiptReference?.privateReference ?? null, 191);
 
@@ -181,6 +185,37 @@ const buildExistingReferenceMap = (transactions: readonly MoneyLedgerTransaction
   }
 
   return references;
+};
+
+const buildExistingSimilarRowMap = (transactions: readonly MoneyLedgerTransaction[]): ReadonlyMap<string, string> => {
+  const rows = new Map<string, string>();
+
+  for (const transaction of transactions) {
+    if (transaction.postingStatus === "voided") {
+      continue;
+    }
+
+    for (const line of transaction.lines) {
+      if (!line.currency) {
+        continue;
+      }
+
+      const key = [
+        transaction.occurredAt.slice(0, 10),
+        line.amountMinor,
+        line.direction,
+        line.currency,
+        transaction.sourceProvider ?? "manual",
+        line.categoryKey ?? "uncategorized"
+      ].join("|");
+
+      if (!rows.has(key)) {
+        rows.set(key, transaction.id);
+      }
+    }
+  }
+
+  return rows;
 };
 
 const normalizeInput = (input: MoneyLedgerTransactionInput): MoneyLedgerTransactionInput => ({
@@ -1080,6 +1115,7 @@ export class MoneyAdminService {
     const preview = buildMoneyImportPreview({
       csv: input.csv,
       existingReferences: buildExistingReferenceMap(existingTransactions),
+      existingSimilarRows: buildExistingSimilarRowMap(existingTransactions),
       filename: input.filename ?? null
     });
 
@@ -1121,6 +1157,7 @@ export class MoneyAdminService {
     const preview = buildMoneyImportPreview({
       csv: input.csv,
       existingReferences: buildExistingReferenceMap(existingTransactions),
+      existingSimilarRows: buildExistingSimilarRowMap(existingTransactions),
       filename: input.filename ?? null
     });
 
