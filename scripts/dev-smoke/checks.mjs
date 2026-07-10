@@ -1162,7 +1162,7 @@ const ownerAdminPageChecks = [
   ["admin games", "/admin/games", ["Game"]],
   ["admin links", "/admin/links", ["Link"]],
   ["admin live helper", "/admin/live-helper", ["Live"]],
-  ["admin money", "/admin/money", ["Money", "Import Preview", "Preview CSV"]],
+  ["admin money", "/admin/money", ["Money"]],
   ["admin moderators", "/admin/moderators", ["Moderator"]],
   ["admin pages", "/admin/pages", ["Page Creator"]],
   ["admin projects", "/admin/projects", ["Project"]],
