@@ -33,7 +33,10 @@ const getOptionUnavailableReasons = (
   return [
     !actionAccess.canWarn ? "Warn needs chat:warn-user." : null,
     message.source !== "fake-local" ? "Note and Mute are fake/local drills until provider-write moderation is reviewed." : null,
-    "Provider warn/timeout are gated until provider-write clients and permission checks exist.",
+    message.source === "discord"
+      ? "Discord provider warning is attempted by the Warn action."
+      : "Twitch/YouTube provider warning messages are gated until their provider-write clients and permission checks exist.",
+    "Provider timeout is gated until provider-write clients and permission checks exist.",
     "Allow controls need reviewed allowlist persistence."
   ].filter((reason): reason is string => reason !== null);
 };
@@ -43,6 +46,25 @@ const ActionUnavailableHint = ({ reasons }: { reasons: readonly string[] }): Rea
     {reasons.join(" ")}
   </p>
 ) : null;
+
+const getProviderWarningStatusText = (
+  message: StreamerChatMessage,
+  result: Extract<StreamerChatModerationResponse, { ok: true }>
+): string => {
+  if (message.source !== "discord") {
+    return "Twitch/YouTube provider warning messages are still gated.";
+  }
+
+  if (result.providerMessageSent) {
+    return "Discord warning message sent.";
+  }
+
+  if (result.providerAction) {
+    return `Discord warning message failed${result.providerWarningReason ? `: ${result.providerWarningReason}.` : "."}`;
+  }
+
+  return "Discord warning message skipped because provider context was missing.";
+};
 
 export const StreamerChatViewer = ({
   actionAccess = defaultActionAccess,
@@ -117,7 +139,7 @@ export const StreamerChatViewer = ({
             ? `${message.authorName} banned locally from stream surfaces. ${result.affectedCount} message(s) hidden.`
             : result.autoBanned
               ? `${message.authorName} reached warning ${result.warningCount}/${result.warningThreshold} and was locally banned.`
-              : `${message.authorName} warned locally. ${result.warningCount}/${result.warningThreshold}.`
+              : `${message.authorName} warned locally. ${result.warningCount}/${result.warningThreshold}. ${getProviderWarningStatusText(message, result)}`
       );
     } catch (error) {
       setActionStatus(error instanceof Error ? error.message : "Streamer chat moderation failed.");
@@ -350,7 +372,7 @@ export const StreamerChatViewer = ({
                     >
                       Mute 10m
                     </button>
-                    {showUnavailableActions ? (
+                    {showUnavailableActions && message.source !== "discord" ? (
                       <>
                         <button type="button" disabled title="Provider warning messages need the provider-write moderation phase.">
                           Provider warn

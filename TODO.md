@@ -294,6 +294,7 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [ ] Send warning messages to originating platform chat.
   - Required provider-write behavior: when Warn is used, send a message in the originating Twitch/YouTube/Discord chat tagging the user and saying they have a warning and the third warning results in an automatic ban.
   - 2026-07-10 first provider-write slice adds Discord warning delivery for Discord-sourced streamer chat messages that carry provider channel/user context. The existing local warning still applies first; Discord delivery uses the configured bot token, allowed user mentions only, sanitized failure responses, and a separate provider-action moderation audit row. Twitch and YouTube warning delivery remain future provider-write slices.
+  - 2026-07-10 follow-up updates the chat window status copy so Discord Warn reports whether the provider warning message was sent, skipped, or failed. The stale disabled Provider warn placeholder is hidden for Discord rows and remains visible for Twitch/YouTube rows.
 - [ ] Add typed moderation commands for ban, mute, warning, and rank/status changes.
 - [ ] Add basic stream bot command parser.
 - [ ] Add commands for website links.

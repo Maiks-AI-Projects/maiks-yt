@@ -291,6 +291,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 57. `/admin` dashboard links now reuse existing status-card, live-helper, and money ledger data as compact live badges for notifications, provider intake, sessions, backup health, pending approvals, active helper grants, active local moderation, and private ledger warnings, so the testing launchpad shows useful counts before opening each admin surface.
 58. Recurring and visual smoke now assert the `/admin` launchpad keeps the provider intake, pending approval, active helper, active moderation, and money ledger labels visible.
 59. Discord provider warning delivery is now wired into the streamer-chat Warn action. Discord chat projections preserve provider channel/guild/user IDs, Warn still records the local warning first, then Discord-sourced messages attempt a bot-token channel message with explicit allowed user mentions only. Provider send success/failure is returned to the caller and recorded as a separate provider-action moderation audit row. Twitch/YouTube provider warning delivery plus provider-side hide/delete/timeout/ban remain later slices.
+60. The standalone chat window now reports Discord provider-warning send/skipped/failed status after Warn and no longer shows the stale disabled Provider warn placeholder for Discord rows. Twitch/YouTube rows still show provider warning as gated.
 
 ## Known State
 

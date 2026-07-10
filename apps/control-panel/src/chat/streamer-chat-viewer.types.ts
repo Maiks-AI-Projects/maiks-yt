@@ -30,8 +30,10 @@ export type StreamerChatModerationResponse = {
   action: "hide" | "ban" | "warn";
   affectedCount: number;
   autoBanned?: boolean;
-  providerAction: false;
+  providerAction: boolean;
+  providerMessage?: string | null;
   providerMessageSent?: boolean;
+  providerWarningReason?: string | null;
   warningCount?: number;
   warningThreshold?: number;
 } | {
