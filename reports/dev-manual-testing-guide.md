@@ -24,7 +24,7 @@ On the dev server, where the container does not run the full local Bash review g
 pnpm test:readiness -- --skip-review
 ```
 
-Expected current smoke size: 52 passing checks.
+Expected current smoke size: 57 passing checks.
 
 ## Pass 1: Access And Recovery
 

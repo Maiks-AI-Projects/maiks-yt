@@ -16,7 +16,7 @@ const checkJsonEndpoint = async ({ http, name, url, validate, critical = false, 
       };
     }
 
-    const validationMessage = validate?.(result.json);
+    const validationMessage = validate?.(result.json, result.body);
 
     if (validationMessage) {
       return {
@@ -32,6 +32,55 @@ const checkJsonEndpoint = async ({ http, name, url, validate, critical = false, 
       name,
       message: `${name} passed.`
     };
+  } catch (error) {
+    return {
+      ok: false,
+      critical,
+      name,
+      message: `${name} failed: ${error instanceof Error ? error.message : String(error)}.`
+    };
+  }
+};
+
+const checkOwnerJsonEndpoint = async ({
+  config,
+  critical = false,
+  getDevOwnerToken,
+  http,
+  name,
+  path,
+  validate
+}) => {
+  try {
+    const minted = await getDevOwnerToken();
+
+    if (minted.skipped) {
+      return {
+        ok: true,
+        name,
+        message: `${name} skipped: ${minted.reason}`
+      };
+    }
+
+    if (!minted.ok) {
+      return {
+        ok: false,
+        critical,
+        name,
+        message: `${name} could not mint an owner token: ${minted.reason}`
+      };
+    }
+
+    return checkJsonEndpoint({
+      critical,
+      headers: {
+        Authorization: `Bearer ${minted.token}`
+      },
+      http,
+      name,
+      url: http.makeUrl(config.apiUrl, path),
+      validate
+    });
   } catch (error) {
     return {
       ok: false,
@@ -382,6 +431,111 @@ const checkBackupKeyDataExport = async ({ config, getDevOwnerToken, http }) => {
     };
   }
 };
+
+const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => [
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "backup health API",
+    path: "/admin/backup/health",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || json?.readOnly !== true
+        || typeof json?.healthOk !== "boolean"
+        || typeof json?.checkedAt !== "string"
+        || !Array.isArray(json?.tables)
+        || !Array.isArray(json?.warnings)
+      ) {
+        return "backup health API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "notification list API",
+    path: "/admin/notifications?includeArchived=false&limit=10",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || !Array.isArray(json?.notifications)
+        || typeof json?.unreadCount !== "number"
+        || typeof json?.criticalUnreadCount !== "number"
+      ) {
+        return "notification list API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "notification push config API",
+    path: "/admin/notifications/push-config",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || typeof json?.enabled !== "boolean"
+        || !["string", "object"].includes(typeof json?.publicKey)
+      ) {
+        return "notification push config API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "provider integration status API",
+    path: "/admin/provider-integrations/status",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || json?.readOnly !== true
+        || typeof json?.generatedAt !== "string"
+        || !Array.isArray(json?.providers)
+        || json.providers.length < 3
+        || !Array.isArray(json?.boundaries)
+      ) {
+        return "provider integration status API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  }),
+  checkOwnerJsonEndpoint({
+    config,
+    getDevOwnerToken,
+    http,
+    name: "session list API",
+    path: "/admin/sessions",
+    validate: (json) => {
+      if (
+        json?.ok !== true
+        || !Array.isArray(json?.sessions)
+        || json.sessions.some((session) =>
+          typeof session?.id !== "string"
+          || typeof session?.authUserId !== "string"
+          || typeof session?.isCurrent !== "boolean"
+          || typeof session?.isExpired !== "boolean"
+        )
+      ) {
+        return "session list API returned an unexpected payload.";
+      }
+
+      return null;
+    }
+  })
+];
 
 const getSmokeControlAccessToken = () =>
   process.env.DEV_CONTROL_ACCESS_TOKEN
@@ -795,6 +949,7 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     scanInjection: true
   }),
   ...createOwnerAdminPageChecks({ config, getDevOwnerToken, http }),
+  ...checkOwnerOperationalReadModels({ config, getDevOwnerToken, http }),
   checkJsonEndpoint({
     http,
     name: "public games API",
