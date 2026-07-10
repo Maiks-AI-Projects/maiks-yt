@@ -505,6 +505,65 @@ const createPublicPageChecks = ({ config, http }) => publicPageChecks.map(([name
   })
 );
 
+const ownerAdminPageChecks = [
+  ["admin dashboard", "/admin", ["Admin"]],
+  ["admin connections", "/admin/connections", ["Connections"]],
+  ["admin event routing", "/admin/event-routing", ["Event"]],
+  ["admin games", "/admin/games", ["Game"]],
+  ["admin links", "/admin/links", ["Link"]],
+  ["admin live helper", "/admin/live-helper", ["Live"]],
+  ["admin money", "/admin/money", ["Money"]],
+  ["admin moderators", "/admin/moderators", ["Moderator"]],
+  ["admin pages", "/admin/pages", ["Page Creator"]],
+  ["admin projects", "/admin/projects", ["Project"]],
+  ["admin provider integrations", "/admin/provider-integrations", ["Provider"]],
+  ["admin schedule", "/admin/schedule", ["Schedule"]],
+  ["admin sessions", "/admin/sessions", ["Session"]],
+  ["admin tokens", "/admin/tokens", ["Token"]]
+];
+
+const withDevAuthToken = ({ config, http, path, token }) => {
+  const url = new URL(http.makeUrl(config.webUrl, path));
+  url.searchParams.set("devAuthToken", token);
+  return url.toString();
+};
+
+const checkOwnerAdminPage = async ({ config, expectedText, getDevOwnerToken, http, name, path }) => {
+  const minted = await getDevOwnerToken();
+
+  if (minted.skipped) {
+    return {
+      ok: true,
+      name,
+      message: `${name} skipped: ${minted.reason}`
+    };
+  }
+
+  if (!minted.ok) {
+    return {
+      ok: false,
+      critical: false,
+      name,
+      message: `${name} could not mint an owner token: ${minted.reason}`
+    };
+  }
+
+  return checkTextEndpoint({
+    attempts: config.textEndpointAttempts,
+    expectedText,
+    http,
+    name,
+    retryDelayMs: config.textEndpointRetryDelayMs,
+    scanInjection: true,
+    url: withDevAuthToken({ config, http, path, token: minted.token })
+  });
+};
+
+const createOwnerAdminPageChecks = ({ config, getDevOwnerToken, http }) =>
+  ownerAdminPageChecks.map(([name, path, expectedText]) =>
+    checkOwnerAdminPage({ config, expectedText, getDevOwnerToken, http, name, path })
+  );
+
 export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.all([
   checkJsonEndpoint({
     http,
@@ -543,24 +602,7 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     url: http.makeUrl(config.webUrl, "/notification-service-worker.js"),
     scanInjection: true
   }),
-  checkTextEndpoint({
-    attempts: config.textEndpointAttempts,
-    expectedText: ["Admin"],
-    http,
-    name: "admin dashboard",
-    retryDelayMs: config.textEndpointRetryDelayMs,
-    url: http.makeUrl(config.webUrl, "/admin"),
-    scanInjection: true
-  }),
-  checkTextEndpoint({
-    attempts: config.textEndpointAttempts,
-    expectedText: ["Game"],
-    http,
-    name: "admin games",
-    retryDelayMs: config.textEndpointRetryDelayMs,
-    url: http.makeUrl(config.webUrl, "/admin/games"),
-    scanInjection: true
-  }),
+  ...createOwnerAdminPageChecks({ config, getDevOwnerToken, http }),
   checkJsonEndpoint({
     http,
     name: "public games API",
