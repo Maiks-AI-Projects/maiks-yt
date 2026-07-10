@@ -7,6 +7,15 @@ import type {
 } from "./youtube-owner-oauth.types.js";
 
 export const youtubeLiveChatReadOnlyScope = "https://www.googleapis.com/auth/youtube.readonly";
+export const youtubeLiveChatWriteScope = "https://www.googleapis.com/auth/youtube.force-ssl";
+export const youtubeLiveChatConsentScopes = [
+  youtubeLiveChatReadOnlyScope,
+  youtubeLiveChatWriteScope
+] as const;
+
+export const hasYouTubeLiveChatWriteScope = (scopes: readonly string[]): boolean =>
+  scopes.includes(youtubeLiveChatWriteScope)
+  || scopes.includes("https://www.googleapis.com/auth/youtube");
 
 const trimToNull = (value: string | undefined): string | null => {
   const trimmed = value?.trim() ?? "";
@@ -58,7 +67,7 @@ export const createYouTubeOwnerConsentUrl = (input: {
     access_type: "offline",
     include_granted_scopes: true,
     prompt: "consent",
-    scope: [youtubeLiveChatReadOnlyScope],
+    scope: [...youtubeLiveChatConsentScopes],
     state: input.state
   });
 };
@@ -77,7 +86,7 @@ export const exchangeYouTubeOwnerCode = async (input: {
     const { tokens } = await client.getToken(input.code);
     const scopes = typeof tokens.scope === "string"
       ? tokens.scope.split(/\s+/).filter((scope) => scope.length > 0)
-      : [youtubeLiveChatReadOnlyScope];
+      : [...youtubeLiveChatConsentScopes];
 
     if (!tokens.refresh_token) {
       return {

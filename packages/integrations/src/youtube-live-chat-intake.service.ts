@@ -85,6 +85,7 @@ export const createGoogleYouTubeLiveChatApi = (): YouTubeLiveChatApi => ({
 
     return {
       messages: (response.data.items ?? []).map((item) => ({
+        authorChannelId: item.authorDetails?.channelId ?? null,
         authorName: item.authorDetails?.displayName ?? null,
         createdAt: item.snippet?.publishedAt ?? null,
         id: item.id ?? null,
@@ -260,6 +261,7 @@ export class YouTubeLiveChatReadOnlyIntakeService {
       }
 
       const projected = projectYouTubeLiveChatMessage({
+        authorChannelId: readable.authorChannelId,
         authorName: readable.authorName,
         channelName: context.selectedChannel.title,
         createdAt: readable.createdAt,

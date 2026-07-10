@@ -55,6 +55,7 @@ export const projectYouTubeLiveChatMessage = (
       id: randomUUID(),
       authorKind: "human",
       authorName,
+      authorChannelId: normalizeText(input.authorChannelId, 120) || null,
       channelName,
       createdAt: normalizeIso(input.createdAt),
       message,

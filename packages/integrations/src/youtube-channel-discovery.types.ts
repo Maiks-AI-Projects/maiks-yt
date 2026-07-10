@@ -6,6 +6,7 @@ export type YouTubeChannelDiscoveryCredential = {
   accessToken: string | null;
   refreshToken: string;
   accessTokenExpiresAt: Date | null;
+  scopes?: readonly string[];
 };
 
 export type YouTubeDiscoveredChannel = {

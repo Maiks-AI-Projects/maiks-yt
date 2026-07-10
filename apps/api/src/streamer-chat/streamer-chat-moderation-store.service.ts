@@ -4,7 +4,8 @@ import type { DatabasePool } from "@maiks-yt/database";
 import type { StreamerChatMessage } from "@maiks-yt/events";
 import type {
   DiscordChatWarningDeliveryResult,
-  TwitchChatWarningDeliveryResult
+  TwitchChatWarningDeliveryResult,
+  YouTubeChatWarningDeliveryResult
 } from "@maiks-yt/integrations";
 
 import type {
@@ -243,7 +244,7 @@ export class StreamerChatModerationStoreService {
     message,
     providerMessage
   }: {
-    deliveryResult: DiscordChatWarningDeliveryResult | TwitchChatWarningDeliveryResult;
+    deliveryResult: DiscordChatWarningDeliveryResult | TwitchChatWarningDeliveryResult | YouTubeChatWarningDeliveryResult;
     message: {
       authorName: string;
       id: string;

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   createYouTubeOwnerConsentUrl,
   resolveYouTubeOwnerOAuthConfig,
-  youtubeLiveChatReadOnlyScope
+  youtubeLiveChatReadOnlyScope,
+  youtubeLiveChatWriteScope
 } from "./youtube-owner-oauth.rules.js";
 
 describe("resolveYouTubeOwnerOAuthConfig", () => {
@@ -41,7 +42,7 @@ describe("resolveYouTubeOwnerOAuthConfig", () => {
 });
 
 describe("createYouTubeOwnerConsentUrl", () => {
-  it("creates an offline read-only YouTube consent URL", () => {
+  it("creates an offline YouTube consent URL with read and chat-write scopes", () => {
     const url = new URL(createYouTubeOwnerConsentUrl({
       config: {
         ok: true,
@@ -57,6 +58,7 @@ describe("createYouTubeOwnerConsentUrl", () => {
     expect(url.searchParams.get("prompt")).toBe("consent");
     expect(url.searchParams.get("state")).toBe("signed-state");
     expect(url.searchParams.get("scope")).toContain(youtubeLiveChatReadOnlyScope);
+    expect(url.searchParams.get("scope")).toContain(youtubeLiveChatWriteScope);
     expect(url.toString()).not.toContain("google-secret");
   });
 });

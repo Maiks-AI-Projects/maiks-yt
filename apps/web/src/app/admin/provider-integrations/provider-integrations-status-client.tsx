@@ -33,6 +33,8 @@ import type {
   YouTubeSavedChannel
 } from "./provider-integrations-status.types";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const youtubeLiveChatReadScope = "https://www.googleapis.com/auth/youtube.readonly";
+const youtubeLiveChatWriteScope = "https://www.googleapis.com/auth/youtube.force-ssl";
 const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [snapshot, setSnapshot] = useState<Extract<ProviderIntegrationsStatusResponse, { ok: true }> | null>(null);
   const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
@@ -47,7 +49,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [youtubePubSubSubscription, setYouTubePubSubSubscription] = useState<Extract<YouTubePubSubSubscriptionResponse, { ok: true }> | null>(null);
   const [youtubeActivitiesPoll, setYouTubeActivitiesPoll] = useState<Extract<YouTubeActivitiesPollResponse, { ok: true }> | null>(null);
   const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
-  const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>("https://www.googleapis.com/auth/youtube.readonly");
+  const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>(youtubeLiveChatReadScope);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading provider integration status...");
   const [twitchActionMessage, setTwitchActionMessage] = useState<string>("Twitch chat intake status not loaded.");
@@ -74,6 +76,9 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
 
     return counts;
   }, [snapshot]);
+  const youtubeHasWriteScope = youtubeCredential?.scopes.includes(youtubeLiveChatWriteScope)
+    || youtubeCredential?.scopes.includes("https://www.googleapis.com/auth/youtube")
+    || false;
 
   const loadStatus = useCallback(async (): Promise<void> => {
     setLoadState("loading");
@@ -740,7 +745,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
             <div className="project-admin-panel-heading">
               <div>
                 <h2>YouTube Owner Consent</h2>
-                <p>Read-only OAuth credential and channel discovery for future live-chat intake.</p>
+                <p>Owner OAuth credential for live-chat intake and warning-message delivery.</p>
               </div>
               <div className="project-admin-actions">
                 <button type="button" onClick={() => void connectYouTube()}>Connect</button>
@@ -764,10 +769,17 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
                 <strong>{youtubeCredential?.lastVerifiedAt ? formatDate(youtubeCredential.lastVerifiedAt) : "Never"}</strong>
               </div>
               <div>
-                <span>Scope</span>
+                <span>Read scope</span>
                 <strong>{youtubeRequiredScope}</strong>
               </div>
+              <div className={`provider-chat-state ${youtubeHasWriteScope ? "configured" : "missing"}`}>
+                <span>Warning write scope</span>
+                <strong>{youtubeHasWriteScope ? "Ready" : "Reconnect needed"}</strong>
+              </div>
             </div>
+            {!youtubeHasWriteScope && youtubeCredential?.status === "active" ? (
+              <p className="provider-chat-empty">Reconnect YouTube owner consent before testing YouTube Warn; the current stored credential is still read-only.</p>
+            ) : null}
             <p className="provider-chat-action-message">{youtubeActionMessage}</p>
             <p className="provider-chat-action-message">{youtubeChannelActionMessage}</p>
             {youtubeCredential?.lastError ? (

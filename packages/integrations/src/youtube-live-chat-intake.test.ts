@@ -14,7 +14,8 @@ const context: YouTubeLiveChatContext = {
   credential: {
     accessToken: "access-token",
     refreshToken: "refresh-token",
-    accessTokenExpiresAt: null
+    accessTokenExpiresAt: null,
+    scopes: ["https://www.googleapis.com/auth/youtube.readonly"]
   },
   selectedChannel: {
     id: "youtube-channel-1",
@@ -27,6 +28,7 @@ describe("projectYouTubeLiveChatMessage", () => {
   it("sanitizes YouTube live chat messages for private streamer chat", () => {
     const result = projectYouTubeLiveChatMessage({
       authorName: " Michael \n ",
+      authorChannelId: " author-channel-1 ",
       channelName: " MaiksMC ",
       createdAt: "2026-07-04T12:00:00Z",
       messageId: " provider-message-1 ",
@@ -37,6 +39,7 @@ describe("projectYouTubeLiveChatMessage", () => {
       ok: true,
       message: expect.objectContaining({
         authorKind: "human",
+        authorChannelId: "author-channel-1",
         authorName: "Michael",
         channelName: "MaiksMC",
         createdAt: "2026-07-04T12:00:00.000Z",
@@ -73,6 +76,7 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
         }),
         listMessages: async () => ({
           messages: [{
+            authorChannelId: "author-channel-1",
             authorName: "Viewer",
             createdAt: "2026-07-04T12:00:00Z",
             id: "message-1",

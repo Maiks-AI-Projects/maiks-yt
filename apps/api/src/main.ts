@@ -5,6 +5,7 @@ import {
   DiscordChatReadOnlyIntakeService,
   TwitchChatWarningDeliveryService,
   TwitchChatReadOnlyIntakeService,
+  YouTubeChatWarningDeliveryService,
   YouTubeLiveChatReadOnlyIntakeService,
   type DiscordGatewayProjectedEvent,
   type DiscordChatProjectedMessage,
@@ -185,7 +186,13 @@ const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage):
 
 const recordYouTubeStreamerChatMessage = (message: YouTubeLiveChatProjectedMessage): StreamerChatMessage => {
   writeProviderChatIntakeLog(message);
-  return appendStreamerChatMessage({ ...message });
+  const activeLiveChatId = youtubeLiveChatIntakeRuntime.getStatus().activeLiveChatId;
+
+  return appendStreamerChatMessage({
+    ...message,
+    ...(activeLiveChatId ? { providerChannelId: activeLiveChatId } : {}),
+    ...(message.authorChannelId ? { providerUserId: message.authorChannelId } : {})
+  });
 };
 
 const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
@@ -225,6 +232,9 @@ const {
 streamerChatModerationStore = new StreamerChatModerationStoreService(getDatabasePool);
 const discordChatWarningDeliveryService = new DiscordChatWarningDeliveryService();
 const twitchChatWarningDeliveryService = new TwitchChatWarningDeliveryService();
+const youtubeChatWarningDeliveryService = new YouTubeChatWarningDeliveryService({
+  contextResolver: youtubeLiveChatContextRepository.resolveSelectedLiveChatContext
+});
 const streamerChatModerationAccessService = new StreamerChatModerationAccessService({
   getDatabasePool,
   validateUrlAccessToken: validateUrlAccessTokenForRequest,
@@ -348,6 +358,7 @@ registerApplicationRoutes({
   twitchChatIntakeRuntime,
   twitchChatWarningDeliveryService,
   validateUrlAccessTokenForRequest,
+  youtubeChatWarningDeliveryService,
   youtubeLiveChatIntakeRuntime
 });
 

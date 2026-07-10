@@ -133,7 +133,8 @@ const resolveSelectedLiveChatContext = async (
     credential: {
       accessToken: row.accessToken ?? null,
       refreshToken: row.refreshToken,
-      accessTokenExpiresAt: toDateOrNull(row.accessTokenExpiresAt)
+      accessTokenExpiresAt: toDateOrNull(row.accessTokenExpiresAt),
+      scopes: parseScopes(row.scopes)
     },
     selectedChannel: {
       id: row.channelId,

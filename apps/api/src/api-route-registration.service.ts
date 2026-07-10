@@ -96,6 +96,7 @@ type RegisterApplicationRoutesInput = {
   twitchChatIntakeRuntime: TwitchChatReadOnlyIntakeService;
   twitchChatWarningDeliveryService: import("@maiks-yt/integrations").TwitchChatWarningDeliveryService;
   validateUrlAccessTokenForRequest: ValidateUrlAccessTokenForRequest;
+  youtubeChatWarningDeliveryService: import("@maiks-yt/integrations").YouTubeChatWarningDeliveryService;
   youtubeLiveChatIntakeRuntime: YouTubeLiveChatReadOnlyIntakeService;
 };
 
@@ -118,6 +119,7 @@ export const registerApplicationRoutes = ({
   twitchChatIntakeRuntime,
   twitchChatWarningDeliveryService,
   validateUrlAccessTokenForRequest,
+  youtubeChatWarningDeliveryService,
   youtubeLiveChatIntakeRuntime
 }: RegisterApplicationRoutesInput): void => {
   registerActionPanelRoutes(server, {
@@ -279,7 +281,8 @@ export const registerApplicationRoutes = ({
     moderationRuntime: streamerChatModerationRuntime,
     moderationStore: streamerChatModerationStore,
     streamerChatRuntime,
-    twitchWarningDeliveryService: twitchChatWarningDeliveryService
+    twitchWarningDeliveryService: twitchChatWarningDeliveryService,
+    youtubeWarningDeliveryService: youtubeChatWarningDeliveryService
   });
   registerOverlayRoutes(server, {
     fakeLocalModerationRuntime,
