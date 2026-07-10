@@ -23,6 +23,8 @@ EOF
 
 for arg in "$@"; do
   case "$arg" in
+    --)
+      ;;
     --skip-review)
       RUN_REVIEW=0
       ;;
