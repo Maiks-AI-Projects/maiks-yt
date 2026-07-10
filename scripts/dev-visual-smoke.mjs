@@ -211,7 +211,7 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
 
   if (adminUrl) {
     for (const [name, path, expectedText] of [
-      ["admin-dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Recurring Smoke"]],
+      ["admin-dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Recurring Smoke", "Provider Intake", "Pending Approvals", "Active Helpers", "Active Moderation", "Money Ledger"]],
       ["admin-backup-health", "/admin/backup/health", ["Backup Health", "Required Tables", "Dump Tool", "Warnings"]],
       ["admin-connections", "/admin/connections", "Connections"],
       ["admin-event-routing", "/admin/event-routing", "Event"],
