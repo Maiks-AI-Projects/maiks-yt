@@ -406,6 +406,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - 2026-06-22 Browser plugin setup was still blocked and Computer Use was not exposed, so a new local headless Chromium fallback captured `/tools/actions`, token-missing control panel, authenticated control panel, scene designer section, overlay ready state, and `/dev/test-console` at 1920x1080, 1600x900, and 1366x768. No horizontal overflow or obvious overlap was found. `/dev/test-console` is readable and preview-only, but it keeps the normal website navbar because it is not a standalone `/tools/*` surface. True installed-window/browser-chrome-free QA remains open.
   - 2026-07-10 added an Installed Window Checklist to `/admin/testing` and `reports/dev-manual-testing-guide.md`, with recurring and visual smoke assertions so the manual PWA pass remains visible during next-week testing.
   - 2026-07-10 added a Copy template action to the `/admin/testing` breakage note so testing issues can be pasted quickly into follow-up threads or issue trackers.
+  - 2026-07-10 added local browser-only checklist marks to `/admin/testing`, so the manual pass can be tracked during a session without adding API/database state.
 
 ## 14B. Stream-Safe Music, Future Phase
 

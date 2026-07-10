@@ -1,5 +1,6 @@
 import { TestingGuideQuickOpenClient } from "./testing-guide-quick-open-client";
 import { TestingNoteCopyClient } from "./testing-note-copy-client";
+import { TestingPassChecklistClient } from "./testing-pass-checklist-client";
 
 export const dynamic = "force-dynamic";
 
@@ -181,23 +182,7 @@ const TestingGuidePage = (): React.ReactNode => (
         </ol>
       </section>
 
-      <div className="project-admin-grid">
-        {testingPasses.map((testingPass) => (
-          <section className="project-admin-preview" key={testingPass.title}>
-            <h2>{testingPass.title}</h2>
-            <p>{testingPass.goal}</p>
-            <ol className="project-admin-record-list">
-              {testingPass.checks.map((check) => (
-                <li key={check}>
-                  <div>
-                    <p>{check}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-        ))}
-      </div>
+      <TestingPassChecklistClient passes={testingPasses} />
 
       <section className="project-admin-panel project-admin-note">
         <div className="project-admin-panel-heading">

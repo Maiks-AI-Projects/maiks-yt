@@ -1561,6 +1561,36 @@ button:disabled {
   font-size: 0.9rem;
 }
 
+.testing-checklist-panel {
+  background: #f7f9fb;
+}
+
+.testing-checklist-pass {
+  align-content: start;
+}
+
+.testing-checklist-items {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.testing-checklist-item {
+  align-items: flex-start;
+  background: #ffffff;
+  border: 1px solid #d9e1e8;
+  border-radius: 8px;
+  color: #24313d;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: auto 1fr;
+  line-height: 1.45;
+  padding: 0.7rem 0.8rem;
+}
+
+.testing-checklist-item input {
+  margin-top: 0.2rem;
+}
+
 .page-creator-preview-panel .project-admin-panel-heading span {
   color: #4b5966;
   font-size: 0.9rem;

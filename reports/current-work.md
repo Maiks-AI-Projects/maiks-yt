@@ -287,6 +287,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 53. `/admin/testing` and `reports/dev-manual-testing-guide.md` now include an Installed Window Checklist for chat, moderation, control, notifications, route persistence, token recovery, target window sizes, overflow/action-button checks, and private-provider-chat boundaries. Recurring and visual smoke assert the checklist remains visible.
 54. Added owner-gated, read-only `/admin/testing/smoke-state` and a Recurring Smoke dashboard card so Michael can see the last recorded cron smoke state from the app. The recurring smoke baseline is now 78 checks and verifies this endpoint without exposing the state file path or failure signature.
 55. `/admin/testing` now has a Copy template action for the breakage note so manual testing issues can be pasted quickly with the expected surface/action/actual/expected/severity fields. Recurring and visual smoke assert the action remains visible.
+56. `/admin/testing` now renders the manual pass list as a local browser-only checklist with Reset marks, so a testing session can be tracked without adding API/database state. Recurring and visual smoke assert the checklist remains visible.
 
 ## Known State
 
