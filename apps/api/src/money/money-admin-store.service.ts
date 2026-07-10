@@ -375,6 +375,11 @@ export const createMoneyAdminRepository = (
       params.push(toSqlTimestamp(filters.accountingTo));
     }
 
+    if (filters.postingStatus) {
+      whereClauses.push("posting_status = ?");
+      params.push(filters.postingStatus);
+    }
+
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
     const [transactionRows] = await pool.execute(
       `

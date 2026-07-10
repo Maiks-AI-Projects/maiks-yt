@@ -105,6 +105,7 @@ Goal: test private accounting mechanics without public money behavior.
 - Open `/admin/money`.
 - Add a dated rule such as a provider fee or platform split, then confirm it appears in the Dated Rules list and Rule Impact Preview with the expected provider, date basis, percentage, fixed amount, and reason.
 - Create draft entries from Rule Impact Preview, confirm they stay draft, and run it again to confirm existing suggestions are skipped instead of duplicated.
+- Use the ledger Status filter to show only drafts while reviewing imported or rule-impact entries.
 - Post one reviewed rule-impact draft and confirm it counts as posted while mistakes can still be voided.
 - Create one private test income entry.
 - Create one private test spending/cost entry.

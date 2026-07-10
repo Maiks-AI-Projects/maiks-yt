@@ -137,8 +137,17 @@ const moneyImportPreviewPayloadSchema = z.object({
 
 const moneyLedgerFilterQuerySchema = z.object({
   accountingFrom: z.string().trim().datetime({ offset: true }).optional(),
-  accountingTo: z.string().trim().datetime({ offset: true }).optional()
+  accountingTo: z.string().trim().datetime({ offset: true }).optional(),
+  postingStatus: z.enum(moneyPostingStatuses).optional()
 }).strict();
+
+type MoneyLedgerFilterQuery = z.infer<typeof moneyLedgerFilterQuerySchema>;
+
+const toLedgerFilters = (filters: MoneyLedgerFilterQuery) => ({
+  accountingFrom: filters.accountingFrom ?? null,
+  accountingTo: filters.accountingTo ?? null,
+  postingStatus: filters.postingStatus ?? null
+});
 
 const sendMutationResult = (
   result: MoneyAdminMutationResult,
@@ -288,10 +297,7 @@ export const registerMoneyAdminRoutes = (
     try {
       const result = await getService().previewRuleImpact({
         authUserId: session.user.id,
-        filters: {
-          accountingFrom: filters.data.accountingFrom ?? null,
-          accountingTo: filters.data.accountingTo ?? null
-        }
+        filters: toLedgerFilters(filters.data)
       });
 
       if (!result.ok) {
@@ -332,10 +338,7 @@ export const registerMoneyAdminRoutes = (
     try {
       const result = await getService().createRuleImpactDrafts({
         authUserId: session.user.id,
-        filters: {
-          accountingFrom: filters.data.accountingFrom ?? null,
-          accountingTo: filters.data.accountingTo ?? null
-        }
+        filters: toLedgerFilters(filters.data)
       });
 
       if (!result.ok) {
@@ -376,10 +379,7 @@ export const registerMoneyAdminRoutes = (
     try {
       const result = await getService().listTransactions({
         authUserId: session.user.id,
-        filters: {
-          accountingFrom: filters.data.accountingFrom ?? null,
-          accountingTo: filters.data.accountingTo ?? null
-        }
+        filters: toLedgerFilters(filters.data)
       });
 
       if (!result.ok) {
@@ -420,10 +420,7 @@ export const registerMoneyAdminRoutes = (
     try {
       const result = await getService().exportLedgerCsv({
         authUserId: session.user.id,
-        filters: {
-          accountingFrom: filters.data.accountingFrom ?? null,
-          accountingTo: filters.data.accountingTo ?? null
-        }
+        filters: toLedgerFilters(filters.data)
       });
 
       if (!result.ok) {
@@ -472,10 +469,7 @@ export const registerMoneyAdminRoutes = (
     try {
       const result = await getService().buildJsonReport({
         authUserId: session.user.id,
-        filters: {
-          accountingFrom: filters.data.accountingFrom ?? null,
-          accountingTo: filters.data.accountingTo ?? null
-        }
+        filters: toLedgerFilters(filters.data)
       });
 
       if (!result.ok) {
@@ -526,10 +520,7 @@ export const registerMoneyAdminRoutes = (
     try {
       const result = await getService().exportReviewPackageJson({
         authUserId: session.user.id,
-        filters: {
-          accountingFrom: filters.data.accountingFrom ?? null,
-          accountingTo: filters.data.accountingTo ?? null
-        }
+        filters: toLedgerFilters(filters.data)
       });
 
       if (!result.ok) {
@@ -580,10 +571,7 @@ export const registerMoneyAdminRoutes = (
     try {
       const result = await getService().exportWarningsCsv({
         authUserId: session.user.id,
-        filters: {
-          accountingFrom: filters.data.accountingFrom ?? null,
-          accountingTo: filters.data.accountingTo ?? null
-        }
+        filters: toLedgerFilters(filters.data)
       });
 
       if (!result.ok) {

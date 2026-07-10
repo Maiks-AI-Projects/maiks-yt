@@ -3,6 +3,7 @@ import type {
   MoneyDirection,
   MoneyLedgerTransaction,
   MoneyLedgerTransactionInput,
+  MoneyPostingStatus,
   MoneyProvider,
   MoneyReceiptReferenceInput,
   MoneyRuleVersion,
@@ -17,6 +18,7 @@ export type MoneyAdminActor = {
 export type MoneyAdminLedgerFilters = {
   accountingFrom: string | null;
   accountingTo: string | null;
+  postingStatus: MoneyPostingStatus | null;
 };
 
 export type MoneyAdminListResult =

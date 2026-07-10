@@ -5,7 +5,8 @@ import path from "node:path";
 import {
   canManageMoneyLedger,
   isValidMoneyLedgerTransactionInput,
-  isValidMoneyRuleVersionInput
+  isValidMoneyRuleVersionInput,
+  moneyPostingStatuses
 } from "@maiks-yt/domain";
 import type {
   MoneyAccountingWarning,
@@ -158,6 +159,9 @@ const normalizeCurrency = (value: string | null | undefined): string | null => {
 const normalizeLedgerFilters = (filters?: Partial<MoneyAdminLedgerFilters>): MoneyAdminLedgerFilters | null => {
   const accountingFrom = normalizeNullableText(filters?.accountingFrom, 40);
   const accountingTo = normalizeNullableText(filters?.accountingTo, 40);
+  const postingStatus = filters?.postingStatus && moneyPostingStatuses.includes(filters.postingStatus)
+    ? filters.postingStatus
+    : null;
 
   if (
     (accountingFrom && !Number.isFinite(Date.parse(accountingFrom)))
@@ -172,7 +176,8 @@ const normalizeLedgerFilters = (filters?: Partial<MoneyAdminLedgerFilters>): Mon
 
   return {
     accountingFrom,
-    accountingTo
+    accountingTo,
+    postingStatus
   };
 };
 
@@ -1014,7 +1019,8 @@ export class MoneyAdminService {
         export: "manual-ledger-csv",
         transactionLimit: 100,
         accountingFrom: filters.accountingFrom,
-        accountingTo: filters.accountingTo
+        accountingTo: filters.accountingTo,
+        postingStatus: filters.postingStatus
       },
       warningCounts: countWarningsByKind(warnings),
       ruleVersionIds: getRuleVersionIds(applicableRules),
@@ -1078,7 +1084,8 @@ export class MoneyAdminService {
         export: "manual-accounting-json-summary",
         transactionLimit: 100,
         accountingFrom: filters.accountingFrom,
-        accountingTo: filters.accountingTo
+        accountingTo: filters.accountingTo,
+        postingStatus: filters.postingStatus
       },
       warningCounts: report.warningCounts,
       ruleVersionIds: getRuleVersionIds(applicableRules),
@@ -1131,7 +1138,8 @@ export class MoneyAdminService {
         export: "manual-warning-review-csv",
         transactionLimit: 100,
         accountingFrom: filters.accountingFrom,
-        accountingTo: filters.accountingTo
+        accountingTo: filters.accountingTo,
+        postingStatus: filters.postingStatus
       },
       warningCounts: countWarningsByKind(warnings),
       ruleVersionIds: getRuleVersionIds(applicableRules),
@@ -1223,7 +1231,8 @@ export class MoneyAdminService {
         export: "manual-accounting-review-package-json",
         transactionLimit: 100,
         accountingFrom: filters.accountingFrom,
-        accountingTo: filters.accountingTo
+        accountingTo: filters.accountingTo,
+        postingStatus: filters.postingStatus
       },
       warningCounts: summary.warningCounts,
       ruleVersionIds: getRuleVersionIds(applicableRules),
@@ -1427,7 +1436,8 @@ export class MoneyAdminService {
 
     const existingTransactions = await this.repository.listTransactions({
       accountingFrom: null,
-      accountingTo: null
+      accountingTo: null,
+      postingStatus: null
     });
     const preview = buildMoneyImportPreview({
       csv: input.csv,
@@ -1469,7 +1479,8 @@ export class MoneyAdminService {
 
     const existingTransactions = await this.repository.listTransactions({
       accountingFrom: null,
-      accountingTo: null
+      accountingTo: null,
+      postingStatus: null
     });
     const preview = buildMoneyImportPreview({
       csv: input.csv,

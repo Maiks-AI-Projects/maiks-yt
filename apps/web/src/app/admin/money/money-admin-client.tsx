@@ -198,6 +198,7 @@ type MoneyFormState = {
 type MoneyFilterState = {
   accountingFrom: string;
   accountingTo: string;
+  postingStatus: MoneyPostingStatus | "";
 };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
@@ -250,7 +251,8 @@ const currentMonthFilters = (): MoneyFilterState => {
 
   return {
     accountingFrom: start.toISOString().slice(0, 10),
-    accountingTo: next.toISOString().slice(0, 10)
+    accountingTo: next.toISOString().slice(0, 10),
+    postingStatus: ""
   };
 };
 
@@ -504,10 +506,14 @@ const MoneyAdminClient = (): React.ReactNode => {
       params.set("accountingTo", accountingTo);
     }
 
+    if (filters.postingStatus) {
+      params.set("postingStatus", filters.postingStatus);
+    }
+
     const query = params.toString();
 
     return query ? `?${query}` : "";
-  }, [filters.accountingFrom, filters.accountingTo]);
+  }, [filters.accountingFrom, filters.accountingTo, filters.postingStatus]);
 
   const loadRules = useCallback(async (): Promise<void> => {
     const [rulesResponse, impactResponse] = await Promise.all([
@@ -1516,14 +1522,29 @@ const MoneyAdminClient = (): React.ReactNode => {
                   }))}
                 />
               </label>
+              <label>
+                Status
+                <select
+                  value={filters.postingStatus}
+                  onChange={(event) => setFilters((current) => ({
+                    ...current,
+                    postingStatus: event.target.value as MoneyFilterState["postingStatus"]
+                  }))}
+                >
+                  <option value="">All</option>
+                  <option value="draft">Draft</option>
+                  <option value="posted">Posted</option>
+                  <option value="voided">Voided</option>
+                </select>
+              </label>
               <button type="button" onClick={() => void loadLedger()} disabled={busy}>
-                Apply dates
+                Apply filters
               </button>
               <button type="button" onClick={() => setFilters(currentMonthFilters())}>
                 This month
               </button>
-              <button type="button" onClick={() => setFilters({ accountingFrom: "", accountingTo: "" })}>
-                Clear dates
+              <button type="button" onClick={() => setFilters({ accountingFrom: "", accountingTo: "", postingStatus: "" })}>
+                Clear filters
               </button>
             </div>
             <div className="admin-metric-grid">

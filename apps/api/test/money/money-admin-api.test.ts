@@ -61,6 +61,36 @@ const createTransaction = (overrides: Partial<MoneyLedgerTransaction> = {}): Mon
   ...overrides
 });
 
+const createDraftTransaction = (
+  id = "draft-transaction",
+  overrides: Partial<MoneyLedgerTransaction> = {}
+): MoneyLedgerTransaction =>
+  createTransaction({
+    id,
+    postingStatus: "draft",
+    lines: [
+      {
+        id: `${id}-line`,
+        transactionId: id,
+        lineKind: "gross_income",
+        direction: "in",
+        amountMinor: 12345,
+        currency: "EUR",
+        valueSource: "eur",
+        isEstimate: false,
+        categoryKey: "support,manual",
+        projectId: null,
+        projectItemId: null,
+        ruleVersionId: null,
+        receiptReferenceId: null,
+        receiptReference: null,
+        notesPrivate: "Draft line note",
+        createdAt: "2026-07-09T10:05:00.000Z"
+      }
+    ],
+    ...overrides
+  });
+
 class FakeMoneyAdminRepository implements MoneyAdminRepository {
   public actor: MoneyAdminActor | null = {
     domainUserId: "domain-user",
@@ -81,7 +111,8 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
       const accountingTime = Date.parse(transaction.accountingAt);
 
       return (!filters.accountingFrom || accountingTime >= Date.parse(filters.accountingFrom))
-        && (!filters.accountingTo || accountingTime < Date.parse(filters.accountingTo));
+        && (!filters.accountingTo || accountingTime < Date.parse(filters.accountingTo))
+        && (!filters.postingStatus || transaction.postingStatus === filters.postingStatus);
     }));
   }
 
@@ -326,6 +357,55 @@ describe("MoneyAdminService", () => {
       filters: {
         accountingFrom: "2026-07-01T00:00:00.000Z",
         accountingTo: "2026-08-01T00:00:00.000Z"
+      }
+    });
+  });
+
+  it("filters ledger list and exports by posting status", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.unshift(createDraftTransaction());
+    const service = new MoneyAdminService(repository);
+
+    const listResult = await service.listTransactions({
+      authUserId: "auth-user",
+      filters: {
+        postingStatus: "draft"
+      }
+    });
+
+    expect(listResult).toMatchObject({
+      ok: true,
+      transactions: [
+        {
+          id: "draft-transaction",
+          postingStatus: "draft"
+        }
+      ]
+    });
+    expect(listResult.ok && listResult.transactions).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        postingStatus: "posted"
+      })
+    ]));
+
+    const exportResult = await service.exportLedgerCsv({
+      authUserId: "auth-user",
+      filters: {
+        postingStatus: "draft"
+      }
+    });
+
+    expect(exportResult).toMatchObject({
+      ok: true,
+      export: {
+        transactionCount: 1
+      }
+    });
+    expect(exportResult.ok && exportResult.export.csv).toContain("draft-transaction");
+    expect(exportResult.ok && exportResult.export.csv).not.toContain("transaction-1");
+    expect(repository.lastExportAudit).toMatchObject({
+      filters: {
+        postingStatus: "draft"
       }
     });
   });
@@ -1165,9 +1245,7 @@ describe("MoneyAdminService", () => {
 
   it("posts reviewed draft entries without changing non-draft rows", async () => {
     const repository = new FakeMoneyAdminRepository();
-    repository.transactions.unshift(createTransaction({
-      id: "draft-transaction",
-      postingStatus: "draft",
+    repository.transactions.unshift(createDraftTransaction("draft-transaction", {
       notesPrivate: "Imported draft"
     }));
     const service = new MoneyAdminService(repository);
@@ -1804,9 +1882,7 @@ describe("MoneyAdminService", () => {
 
   it("posts draft entries for an owner", async () => {
     const repository = new FakeMoneyAdminRepository();
-    repository.transactions.unshift(createTransaction({
-      id: "draft-transaction",
-      postingStatus: "draft",
+    repository.transactions.unshift(createDraftTransaction("draft-transaction", {
       notesPrivate: "Imported draft"
     }));
     const server = Fastify();
@@ -2502,6 +2578,40 @@ describe("Money admin route boundary", () => {
     });
   });
 
+  it("applies posting status query filters to list routes", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.transactions.unshift(createDraftTransaction());
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/ledger?postingStatus=draft"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      transactions: [
+        {
+          id: "draft-transaction",
+          postingStatus: "draft"
+        }
+      ]
+    });
+    expect(JSON.stringify(response.json())).not.toContain("transaction-1");
+  });
+
   it("rejects invalid accounting date filters", async () => {
     const repository = new FakeMoneyAdminRepository();
     const server = Fastify();
@@ -2520,6 +2630,33 @@ describe("Money admin route boundary", () => {
     const response = await server.inject({
       method: "GET",
       url: "/admin/money/ledger?accountingFrom=not-a-date"
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "money_admin_invalid_input"
+    });
+  });
+
+  it("rejects invalid posting status filters", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/money/ledger?postingStatus=settled"
     });
 
     expect(response.statusCode).toBe(400);
