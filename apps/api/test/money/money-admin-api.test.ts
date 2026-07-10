@@ -999,6 +999,57 @@ describe("MoneyAdminService", () => {
     expect(repository.exportAuditCount).toBe(0);
   });
 
+  it("imports CSV preview rows as draft ledger entries only", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const service = new MoneyAdminService(repository);
+
+    const result = await service.importCsvDrafts({
+      authUserId: "auth-user",
+      filename: "kofi-export.csv",
+      csv: [
+        "date,description,amount,currency,direction,category,provider,reference",
+        "2026-07-10,Ko-fi support,25.00,EUR,in,support,kofi,kofi-001",
+        "bad-date,Missing date,4.20,EUR,in,support,kofi,kofi-bad-date"
+      ].join("\n")
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      importedRowNumbers: [2],
+      skippedRowNumbers: [3],
+      transactions: [
+        expect.objectContaining({
+          transactionType: "income",
+          moneyMode: "real",
+          sourceKind: "provider_intake",
+          sourceProvider: "kofi",
+          postingStatus: "draft",
+          notesPrivate: expect.stringContaining("Imported as draft from CSV preview"),
+          lines: [
+            expect.objectContaining({
+              lineKind: "gross_income",
+              direction: "in",
+              amountMinor: 2500,
+              currency: "EUR",
+              categoryKey: "support",
+              receiptReference: expect.objectContaining({
+                referenceType: "provider_statement",
+                storageKind: "local_reference",
+                privateReference: "kofi-001"
+              })
+            })
+          ]
+        })
+      ]
+    });
+    expect(repository.transactions).toHaveLength(2);
+    expect(repository.transactions[0]).toMatchObject({
+      id: "created-transaction",
+      postingStatus: "draft"
+    });
+    expect(repository.exportAuditCount).toBe(0);
+  });
+
   it("rejects invalid CSV import previews", async () => {
     const repository = new FakeMoneyAdminRepository();
     const service = new MoneyAdminService(repository);
@@ -1437,6 +1488,76 @@ describe("Money admin route boundary", () => {
     });
     expect(repository.transactions).toHaveLength(1);
     expect(repository.exportAuditCount).toBe(0);
+  });
+
+  it("requires an auth session before importing CSV drafts", async () => {
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      }
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/import-drafts",
+      payload: {
+        csv: "date,amount\n2026-07-10,1.00"
+      }
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+  });
+
+  it("imports CSV drafts for an owner route", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    const server = Fastify();
+    registerMoneyAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new MoneyAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/money/import-drafts",
+      payload: {
+        filename: "provider.csv",
+        csv: "date,amount,currency,direction,category,provider,reference\n2026-07-10,-2.50,EUR,out,provider-fee,kofi,fee-001"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      importedRowNumbers: [2],
+      skippedRowNumbers: [],
+      transactions: [
+        expect.objectContaining({
+          transactionType: "fee",
+          postingStatus: "draft",
+          lines: [
+            expect.objectContaining({
+              lineKind: "transaction_cost",
+              amountMinor: 250,
+              direction: "out"
+            })
+          ]
+        })
+      ]
+    });
+    expect(repository.transactions).toHaveLength(2);
   });
 
   it("applies accounting date query filters to list and export routes", async () => {

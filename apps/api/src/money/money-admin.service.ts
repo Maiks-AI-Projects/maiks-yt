@@ -16,6 +16,7 @@ import type {
 
 import type {
   MoneyAdminExportResult,
+  MoneyAdminImportDraftResult,
   MoneyAdminImportPreviewResult,
   MoneyAdminJsonReportResult,
   MoneyAdminLedgerFilters,
@@ -30,7 +31,10 @@ import type {
   MoneyAdminWarningExportResult,
   MoneyAdminWarningResolveResult
 } from "./money-admin.types.js";
-import { buildMoneyImportPreview } from "./money-import-preview.service.js";
+import {
+  buildMoneyImportDraftInputs,
+  buildMoneyImportPreview
+} from "./money-import-preview.service.js";
 
 const receiptUploadMaxBytes = 5 * 1024 * 1024;
 const receiptUploadStorageDir = path.resolve(process.cwd(), ".private", "money-receipts");
@@ -1068,6 +1072,63 @@ export class MoneyAdminService {
     return {
       ok: true,
       preview
+    };
+  }
+
+  public async importCsvDrafts(input: {
+    authUserId: string;
+    csv: string;
+    filename?: string | null;
+  }): Promise<MoneyAdminImportDraftResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    if (input.csv.trim().length === 0 || input.csv.length > 200_000) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const preview = buildMoneyImportPreview({
+      csv: input.csv,
+      filename: input.filename ?? null
+    });
+
+    if (!preview) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const draftInputs = buildMoneyImportDraftInputs(preview);
+
+    if (draftInputs.transactions.length === 0 || draftInputs.transactions.length > 50) {
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    const transactions: MoneyLedgerTransaction[] = [];
+
+    for (const transaction of draftInputs.transactions) {
+      transactions.push(await this.repository.createTransaction({
+        ...transaction,
+        actorUserId: actor.domainUserId
+      }));
+    }
+
+    return {
+      ok: true,
+      preview,
+      transactions,
+      importedRowNumbers: draftInputs.importedRowNumbers,
+      skippedRowNumbers: draftInputs.skippedRowNumbers
     };
   }
 

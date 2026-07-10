@@ -110,6 +110,19 @@ type MoneyImportPreviewResponse =
     reason: string;
   };
 
+type MoneyImportDraftResponse =
+  | {
+    ok: true;
+    preview: MoneyImportPreview;
+    transactions: readonly MoneyLedgerTransaction[];
+    importedRowNumbers: readonly number[];
+    skippedRowNumbers: readonly number[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 type MoneyFormState = {
@@ -797,6 +810,66 @@ const MoneyAdminClient = (): React.ReactNode => {
     }
   };
 
+  const importDraftEntries = async (): Promise<void> => {
+    if (!importCsvText.trim()) {
+      setImportMessage("Paste and preview CSV text before creating draft entries.");
+      return;
+    }
+
+    if (!importPreview) {
+      setImportMessage("Preview the CSV before creating draft entries.");
+      return;
+    }
+
+    const importableRows = importPreview.rows.filter((row) =>
+      row.status !== "skipped"
+      && row.amountMinor !== null
+      && row.direction !== null
+      && row.occurredAt !== null
+      && row.accountingAt !== null
+      && row.currency !== null
+    );
+
+    if (importableRows.length === 0) {
+      setImportMessage("No preview rows have enough data to create draft entries.");
+      return;
+    }
+
+    if (!window.confirm(`Create ${importableRows.length} draft ledger entr${importableRows.length === 1 ? "y" : "ies"} from this preview? They will stay draft until you review them.`)) {
+      return;
+    }
+
+    setBusy(true);
+    setImportMessage("Creating draft ledger entries...");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/money/import-drafts`, {
+        method: "POST",
+        headers: createApiHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          filename: "manual-preview.csv",
+          csv: importCsvText
+        })
+      });
+      const payload = await parseJson<MoneyImportDraftResponse>(response);
+
+      if (response.ok && payload?.ok) {
+        setImportPreview(payload.preview);
+        await loadLedger();
+        setImportMessage(`Created ${payload.transactions.length} draft entr${payload.transactions.length === 1 ? "y" : "ies"} from rows ${payload.importedRowNumbers.join(", ")}${payload.skippedRowNumbers.length > 0 ? `; skipped rows ${payload.skippedRowNumbers.join(", ")}` : ""}.`);
+        return;
+      }
+
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setImportMessage(getFailureMessage(response, reason));
+    } catch (error) {
+      setImportMessage(error instanceof Error ? error.message : "Money draft import failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const voidTransaction = async (transaction: MoneyLedgerTransaction): Promise<void> => {
     const reason = window.prompt("Why should this private money entry be voided?");
 
@@ -1250,6 +1323,9 @@ const MoneyAdminClient = (): React.ReactNode => {
               <div className="admin-inline-actions">
                 <button type="button" onClick={() => void previewImportCsv()} disabled={busy}>
                   Preview CSV
+                </button>
+                <button type="button" onClick={() => void importDraftEntries()} disabled={busy || !importPreview}>
+                  Create draft entries
                 </button>
                 <button
                   type="button"

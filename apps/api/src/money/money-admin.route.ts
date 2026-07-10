@@ -32,6 +32,7 @@ type MoneyAdminRouteService = Pick<
   | "resolveWarning"
   | "voidTransaction"
   | "previewImportCsv"
+  | "importCsvDrafts"
 >;
 
 type MoneyAdminAuthSession = {
@@ -537,6 +538,48 @@ export const registerMoneyAdminRoutes = (
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Money import preview failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "money_admin_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/money/import-drafts", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "money_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = moneyImportPreviewPayloadSchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "money_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().importCsvDrafts({
+        authUserId: session.user.id,
+        filename: parsedBody.data.filename ?? null,
+        csv: parsedBody.data.csv
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "money_admin_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Money draft import failed.");
       reply.code(503);
       return {
         ok: false,

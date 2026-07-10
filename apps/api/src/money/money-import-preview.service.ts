@@ -1,5 +1,11 @@
 import { moneyProviders } from "@maiks-yt/domain";
-import type { MoneyDirection, MoneyProvider } from "@maiks-yt/domain";
+import type {
+  MoneyDirection,
+  MoneyLedgerLineKind,
+  MoneyLedgerTransactionInput,
+  MoneyProvider,
+  MoneyTransactionType
+} from "@maiks-yt/domain";
 
 import type {
   MoneyAdminImportPreview,
@@ -303,5 +309,112 @@ export const buildMoneyImportPreview = (input: {
       "Preview only. No ledger rows, warnings, receipts, provider payouts, or audit records were created.",
       parsed.rows.length >= maxPreviewRows ? `Only the first ${maxPreviewRows} CSV rows are previewed.` : "All CSV rows are previewed."
     ]
+  };
+};
+
+const inferDraftKinds = (row: MoneyAdminImportPreviewRow): {
+  transactionType: MoneyTransactionType;
+  lineKind: MoneyLedgerLineKind;
+} => {
+  const text = `${row.categoryKey ?? ""} ${row.description ?? ""}`.toLowerCase();
+
+  if (row.direction === "in") {
+    return {
+      transactionType: "income",
+      lineKind: "gross_income"
+    };
+  }
+
+  if (text.includes("payout")) {
+    return {
+      transactionType: "payout",
+      lineKind: "payout"
+    };
+  }
+
+  if (text.includes("fee") || text.includes("kosten") || text.includes("transaction cost")) {
+    return {
+      transactionType: "fee",
+      lineKind: "transaction_cost"
+    };
+  }
+
+  return {
+    transactionType: "cost",
+    lineKind: "cost"
+  };
+};
+
+export const buildMoneyImportDraftInputs = (preview: MoneyAdminImportPreview): {
+  transactions: readonly MoneyLedgerTransactionInput[];
+  importedRowNumbers: readonly number[];
+  skippedRowNumbers: readonly number[];
+} => {
+  const transactions: MoneyLedgerTransactionInput[] = [];
+  const importedRowNumbers: number[] = [];
+  const skippedRowNumbers: number[] = [];
+
+  for (const row of preview.rows) {
+    if (
+      row.status === "skipped"
+      || row.amountMinor === null
+      || row.direction === null
+      || row.occurredAt === null
+      || row.accountingAt === null
+      || row.currency === null
+    ) {
+      skippedRowNumbers.push(row.rowNumber);
+      continue;
+    }
+
+    const kinds = inferDraftKinds(row);
+    const noteParts = [
+      "Imported as draft from CSV preview.",
+      row.description ? `Description: ${row.description}` : null,
+      row.reference ? `Reference: ${row.reference}` : null,
+      row.warnings.length > 0 ? `Preview warnings: ${row.warnings.join(", ")}` : null
+    ].filter((part): part is string => part !== null);
+
+    importedRowNumbers.push(row.rowNumber);
+    transactions.push({
+      transactionType: kinds.transactionType,
+      moneyMode: "real",
+      sourceKind: row.sourceProvider && row.sourceProvider !== "manual" ? "provider_intake" : "manual",
+      sourceProvider: row.sourceProvider ?? "manual",
+      postingStatus: "draft",
+      occurredAt: row.occurredAt,
+      accountingAt: row.accountingAt,
+      correctsTransactionId: null,
+      correctionReason: null,
+      notesPrivate: noteParts.join("\n").slice(0, 2_000),
+      lines: [
+        {
+          lineKind: kinds.lineKind,
+          direction: row.direction,
+          amountMinor: row.amountMinor,
+          currency: row.currency,
+          valueSource: "eur",
+          isEstimate: false,
+          categoryKey: row.categoryKey,
+          projectId: null,
+          projectItemId: null,
+          receiptReference: row.reference
+            ? {
+              referenceType: "provider_statement",
+              storageKind: "local_reference",
+              label: `${row.sourceProvider ?? "CSV"} row ${row.rowNumber}`.slice(0, 191),
+              privateReference: row.reference
+            }
+            : null,
+          notesPrivate: row.description
+        }
+      ]
+    });
+  }
+
+  return {
+    transactions,
+    importedRowNumbers,
+    skippedRowNumbers
   };
 };

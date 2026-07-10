@@ -208,6 +208,19 @@ export type MoneyAdminImportPreviewResult =
     reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
   };
 
+export type MoneyAdminImportDraftResult =
+  | {
+    ok: true;
+    preview: MoneyAdminImportPreview;
+    transactions: readonly MoneyLedgerTransaction[];
+    importedRowNumbers: readonly number[];
+    skippedRowNumbers: readonly number[];
+  }
+  | {
+    ok: false;
+    reason: "money_admin_user_unlinked" | "money_admin_forbidden" | "money_admin_invalid_input";
+  };
+
 export type MoneyAdminExportResult =
   | {
     ok: true;
