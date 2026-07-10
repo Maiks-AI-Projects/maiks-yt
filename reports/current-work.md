@@ -253,6 +253,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 19. Visual smoke now also asserts standalone stream-tool routes do not render the normal website navbar.
 20. Recurring smoke now validates the stream-tool and control-panel PWA icon assets referenced by the install manifests.
 21. Recurring smoke now asserts the standalone control, chat, and moderation PWA windows do not render the normal website navbar.
+22. Visual smoke now also rejects the normal website navbar on the standalone control, chat, and moderation PWA windows while checking their client-rendered content.
 
 ## Known State
 

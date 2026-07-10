@@ -240,7 +240,8 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       allowAuthRequired: true,
       name: "streamer-chat",
       url: addQueryValue(chatUrl, "devAuthToken", devAuthToken),
-      expectedText: ["Chat", "Twitch"]
+      expectedText: ["Chat", "Twitch"],
+      rejectNavbar: true
     });
   }
 
@@ -249,13 +250,15 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       allowAuthRequired: true,
       name: "control-panel",
       url: addQueryValue(withPath(controlUrl, "/control"), "devAuthToken", devAuthToken),
-      expectedText: ["Control Panel"]
+      expectedText: ["Control Panel"],
+      rejectNavbar: true
     });
     surfaces.push({
       allowAuthRequired: true,
       name: "moderation-window",
       url: addQueryValue(withPath(controlUrl, "/moderation"), "devAuthToken", devAuthToken),
-      expectedText: ["Moderation", "Chat"]
+      expectedText: ["Moderation", "Chat"],
+      rejectNavbar: true
     });
   }
 
