@@ -28,6 +28,14 @@ const readinessCommands = [
   }
 ] as const;
 
+const installedWindowChecks = [
+  "Install or open Streamer Chat, Moderation, Control Panel, and Notifications as separate app windows where the browser supports it.",
+  "Confirm each installed window opens without the normal website navbar and keeps the expected route after restart.",
+  "Confirm the chat and moderation windows stay signed in or show the Access Required recovery path clearly.",
+  "Resize chat and moderation to 1366x768, 1600x900, and 1920x1080 if practical, and check for horizontal overflow or clipped action buttons.",
+  "Confirm provider chat remains private to chat/moderation windows and does not appear on the OBS overlay by default."
+] as const;
+
 const testingPasses: readonly TestingPass[] = [
   {
     title: "Access And Recovery",
@@ -153,6 +161,24 @@ const TestingGuidePage = (): React.ReactNode => (
       </section>
 
       <TestingGuideQuickOpenClient />
+
+      <section className="project-admin-panel">
+        <div className="project-admin-panel-heading">
+          <div>
+            <h2>Installed Window Checklist</h2>
+            <p>Use this pass for PWA/browser-window behavior that headless smoke cannot fully prove.</p>
+          </div>
+        </div>
+        <ol className="project-admin-record-list">
+          {installedWindowChecks.map((check) => (
+            <li key={check}>
+              <div>
+                <p>{check}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <div className="project-admin-grid">
         {testingPasses.map((testingPass) => (

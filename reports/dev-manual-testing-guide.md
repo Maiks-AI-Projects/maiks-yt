@@ -59,6 +59,16 @@ Goal: verify the windows Michael needs while live.
 - Confirm hidden/banned local messages do not show in overlay chat.
 - Use emergency clear only as a deliberate test and then restore normal state.
 
+## Pass 2A: Installed Window Checklist
+
+Goal: verify the PWA/browser-window behavior that headless smoke cannot fully prove.
+
+- Install or open Streamer Chat, Moderation, Control Panel, and Notifications as separate app windows where the browser supports it.
+- Confirm each installed window opens without the normal website navbar and keeps the expected route after restart.
+- Confirm the chat and moderation windows stay signed in or show the Access Required recovery path clearly.
+- Resize chat and moderation to 1366x768, 1600x900, and 1920x1080 if practical, and check for horizontal overflow or clipped action buttons.
+- Confirm provider chat remains private to chat/moderation windows and does not appear on the OBS overlay by default.
+
 ## Pass 3: Provider Intake
 
 Goal: confirm real provider intake is visible privately before any overlay routing.

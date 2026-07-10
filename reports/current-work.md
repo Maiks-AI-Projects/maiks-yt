@@ -284,6 +284,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 50. Visual smoke now also expects the in-app `/admin/testing` launchpad to render Quick Open, Stream Windows, the testing-note template, and the severity template, matching the recurring smoke guard with screenshot-backed coverage.
 51. The exact non-dry cron command was manually run inside the current dev container on commit `2e3cf85`: it executed the 77-check baseline with 77 passing, 0 failures, posted no alert because the run was healthy, and wrote `/tmp/maiks-yt-dev-smoke-state.json` with `hadActiveFailure: false` plus a fresh `lastSuccessAt`.
 52. The recurring smoke state writer now creates its parent directory, and the installed server cron state path was moved from container `/tmp` to `/app/.private/maiks-yt-dev-smoke-state.json` so duplicate-failure cooldown and recovery state survive dev container recreation. After deploying commit `93c557c`, the exact non-dry cron command passed 77/77 and wrote the bind-mounted ignored state file with `hadActiveFailure: false`.
+53. `/admin/testing` and `reports/dev-manual-testing-guide.md` now include an Installed Window Checklist for chat, moderation, control, notifications, route persistence, token recovery, target window sizes, overflow/action-button checks, and private-provider-chat boundaries. Recurring and visual smoke assert the checklist remains visible.
 
 ## Known State
 
