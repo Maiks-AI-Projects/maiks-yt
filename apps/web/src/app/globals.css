@@ -1596,8 +1596,55 @@ button:disabled {
   background: #f7f9fb;
 }
 
+.testing-checklist-progress {
+  background: #ffffff;
+  border: 1px solid #d8e0e8;
+  border-radius: 8px;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.85rem;
+}
+
+.testing-checklist-progress-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.testing-checklist-progress-summary strong {
+  color: #102131;
+}
+
+.testing-checklist-progress-summary span,
+.testing-checklist-pass-count {
+  color: #4b5966;
+  font-size: 0.9rem;
+}
+
+.testing-checklist-progress-track {
+  background: #e8eef4;
+  border-radius: 999px;
+  height: 0.65rem;
+  overflow: hidden;
+}
+
+.testing-checklist-progress-track span {
+  background: #287c56;
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width 160ms ease;
+}
+
 .testing-checklist-pass {
   align-content: start;
+}
+
+.testing-checklist-pass.complete {
+  background: #edf8f0;
+  border-color: #9bcfa9;
 }
 
 .testing-checklist-pass-heading {

@@ -10,6 +10,13 @@ type TestingPassChecklistClientProps = {
   }[];
 };
 
+type TestingPassProgress = {
+  title: string;
+  checkedCount: number;
+  totalCount: number;
+  remainingCount: number;
+};
+
 const checkedStorageKey = "maiks-yt-testing-guide-checked-v1";
 const notesStorageKey = "maiks-yt-testing-guide-notes-v1";
 const sessionStartedStorageKey = "maiks-yt-testing-guide-session-started-v1";
@@ -101,13 +108,36 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
     () => passes.reduce((total, testingPass) => total + testingPass.checks.length, 0),
     [passes]
   );
+  const currentCheckIds = useMemo(
+    () => new Set(passes.flatMap((testingPass) => (
+      testingPass.checks.map((check) => getCheckId(testingPass.title, check))
+    ))),
+    [passes]
+  );
+  const remainingChecks = Math.max(0, totalChecks - checked.size);
+  const completionPercent = totalChecks === 0 ? 0 : Math.round((checked.size / totalChecks) * 100);
+  const passProgress = useMemo<readonly TestingPassProgress[]>(
+    () => passes.map((testingPass) => {
+      const checkedCount = testingPass.checks
+        .filter((check) => checked.has(getCheckId(testingPass.title, check)))
+        .length;
+
+      return {
+        title: testingPass.title,
+        checkedCount,
+        totalCount: testingPass.checks.length,
+        remainingCount: Math.max(0, testingPass.checks.length - checkedCount)
+      };
+    }),
+    [checked, passes]
+  );
 
   useEffect(() => {
-    setChecked(readChecked());
+    setChecked(new Set([...readChecked()].filter((id) => currentCheckIds.has(id))));
     setNotes(readNotes());
     setSessionStartedAt(readSessionStartedAt());
     setLoaded(true);
-  }, []);
+  }, [currentCheckIds]);
 
   useEffect(() => {
     if (loaded) {
@@ -190,7 +220,7 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
       <div className="project-admin-panel-heading">
         <div>
           <h2>Manual Testing Checklist</h2>
-          <p>{checked.size}/{totalChecks} checks marked in this browser.</p>
+          <p>{checked.size}/{totalChecks} checks marked in this browser. {remainingChecks} remaining.</p>
           <p>Session started: {formatSessionStartedAt(sessionStartedAt)}</p>
         </div>
         <div className="admin-inline-actions testing-checklist-actions">
@@ -204,6 +234,16 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
             Reset marks
           </button>
           <span>{message}</span>
+        </div>
+      </div>
+
+      <div className="testing-checklist-progress" aria-label="Manual testing progress">
+        <div className="testing-checklist-progress-summary">
+          <strong>{completionPercent}% complete</strong>
+          <span>{remainingChecks === 0 ? "All checks marked." : `${remainingChecks} checks left.`}</span>
+        </div>
+        <div className="testing-checklist-progress-track" aria-hidden="true">
+          <span style={{ width: `${completionPercent}%` }} />
         </div>
       </div>
 
@@ -222,40 +262,51 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
       </div>
 
       <div className="project-admin-grid">
-        {passes.map((testingPass) => (
-          <section className="project-admin-preview testing-checklist-pass" key={testingPass.title}>
-            <div className="testing-checklist-pass-heading">
-              <div>
-                <h2>{testingPass.title}</h2>
-                <p>{testingPass.goal}</p>
-              </div>
-              <div className="admin-inline-actions testing-checklist-pass-actions">
-                <button type="button" className="secondary-action" onClick={() => markPass(testingPass)}>
-                  Mark section done
-                </button>
-                <button type="button" className="secondary-action" onClick={() => clearPass(testingPass)}>
-                  Clear section
-                </button>
-              </div>
-            </div>
-            <div className="testing-checklist-items">
-              {testingPass.checks.map((check) => {
-                const id = getCheckId(testingPass.title, check);
+        {passes.map((testingPass) => {
+          const progress = passProgress.find((candidate) => candidate.title === testingPass.title);
+          const checkedInPass = progress?.checkedCount ?? 0;
+          const totalInPass = progress?.totalCount ?? testingPass.checks.length;
+          const remainingInPass = progress?.remainingCount ?? totalInPass;
+          const passComplete = totalInPass > 0 && remainingInPass === 0;
 
-                return (
-                  <label className="testing-checklist-item" key={id}>
-                    <input
-                      checked={checked.has(id)}
-                      onChange={() => toggleCheck(id)}
-                      type="checkbox"
-                    />
-                    <span>{check}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+          return (
+            <section className={`project-admin-preview testing-checklist-pass${passComplete ? " complete" : ""}`} key={testingPass.title}>
+              <div className="testing-checklist-pass-heading">
+                <div>
+                  <h2>{testingPass.title}</h2>
+                  <p>{testingPass.goal}</p>
+                  <p className="testing-checklist-pass-count">
+                    {checkedInPass}/{totalInPass} done · {passComplete ? "Complete" : `${remainingInPass} left`}
+                  </p>
+                </div>
+                <div className="admin-inline-actions testing-checklist-pass-actions">
+                  <button type="button" className="secondary-action" onClick={() => markPass(testingPass)}>
+                    Mark section done
+                  </button>
+                  <button type="button" className="secondary-action" onClick={() => clearPass(testingPass)}>
+                    Clear section
+                  </button>
+                </div>
+              </div>
+              <div className="testing-checklist-items">
+                {testingPass.checks.map((check) => {
+                  const id = getCheckId(testingPass.title, check);
+
+                  return (
+                    <label className="testing-checklist-item" key={id}>
+                      <input
+                        checked={checked.has(id)}
+                        onChange={() => toggleCheck(id)}
+                        type="checkbox"
+                      />
+                      <span>{check}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </section>
   );
