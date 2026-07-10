@@ -7,6 +7,43 @@ import { formatChatTime } from "./chat-time.service.js";
 import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
 import type { FakeLocalModerationResponse, StreamerChatMessagesResponse, StreamerChatModerationResponse, StreamerChatViewerProps } from "./streamer-chat-viewer.types.js";
 
+const getPrimaryUnavailableReasons = (
+  actionAccess: StreamerChatViewerProps["actionAccess"],
+  showUnavailableActions: boolean
+): string[] => {
+  if (!showUnavailableActions || !actionAccess) {
+    return [];
+  }
+
+  return [
+    !actionAccess.canHide ? "Hide needs chat:hide-message." : null,
+    !actionAccess.canBan ? "Ban needs chat:ban-user-local." : null
+  ].filter((reason): reason is string => reason !== null);
+};
+
+const getOptionUnavailableReasons = (
+  message: StreamerChatMessage,
+  actionAccess: StreamerChatViewerProps["actionAccess"],
+  showUnavailableActions: boolean
+): string[] => {
+  if (!showUnavailableActions || !actionAccess) {
+    return [];
+  }
+
+  return [
+    !actionAccess.canWarn ? "Warn needs chat:warn-user." : null,
+    message.source !== "fake-local" ? "Note and Mute are fake/local drills until provider-write moderation is reviewed." : null,
+    "Provider warn/timeout are gated until provider-write clients and permission checks exist.",
+    "Allow controls need reviewed allowlist persistence."
+  ].filter((reason): reason is string => reason !== null);
+};
+
+const ActionUnavailableHint = ({ reasons }: { reasons: readonly string[] }): ReactNode => reasons.length > 0 ? (
+  <p className="streamer-chat-action-hint">
+    {reasons.join(" ")}
+  </p>
+) : null;
+
 export const StreamerChatViewer = ({
   actionAccess = defaultActionAccess,
   apiBaseUrl,
@@ -229,6 +266,8 @@ export const StreamerChatViewer = ({
         <ol className={`streamer-chat-list ${newestOnTop ? "newest-on-top" : "newest-on-bottom"}`}>
           {visibleMessages.map((message) => {
             const optionsOpen = openOptionsMessageId === message.id;
+            const primaryUnavailableReasons = getPrimaryUnavailableReasons(actionAccess, showUnavailableActions);
+            const optionUnavailableReasons = getOptionUnavailableReasons(message, actionAccess, showUnavailableActions);
 
             return (
               <li
@@ -280,6 +319,7 @@ export const StreamerChatViewer = ({
                     </button>
                   ) : null}
                 </div>
+                <ActionUnavailableHint reasons={primaryUnavailableReasons} />
                 {optionsOpen ? (
                   <div className="streamer-chat-options">
                     {actionAccess.canWarn || showUnavailableActions ? (
@@ -329,6 +369,7 @@ export const StreamerChatViewer = ({
                     <button type="button" disabled title="Needs timed allowlist persistence.">
                       Allow x hours
                     </button>
+                    <ActionUnavailableHint reasons={optionUnavailableReasons} />
                   </div>
                 ) : null}
               </li>

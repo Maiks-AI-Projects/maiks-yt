@@ -618,6 +618,11 @@ a {
   opacity: 0.65;
 }
 
+.streamer-chat-list p.streamer-chat-action-hint {
+  color: #a8b7c5;
+  font-size: 0.78rem;
+}
+
 .streamer-chat-options {
   background: rgba(10, 15, 20, 0.5);
   border: 1px solid #354555;
