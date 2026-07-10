@@ -132,6 +132,7 @@ const checkTextEndpointOnce = async ({
   name,
   url,
   expectedText = [],
+  forbiddenText = [],
   scanInjection = false,
   rejectNavbar = false,
   critical = false
@@ -156,6 +157,17 @@ const checkTextEndpointOnce = async ({
         critical,
         name,
         message: `${name} is missing expected text: ${missingExpectedText.join(", ")}.`
+      };
+    }
+
+    const foundForbiddenText = forbiddenText.filter((text) => result.body.includes(text));
+
+    if (foundForbiddenText.length > 0) {
+      return {
+        ok: false,
+        critical,
+        name,
+        message: `${name} contains forbidden text: ${foundForbiddenText.join(", ")}.`
       };
     }
 
@@ -1125,6 +1137,14 @@ const checkOwnerAdminPage = async ({ config, expectedText, getDevOwnerToken, htt
   return checkTextEndpoint({
     attempts: config.textEndpointAttempts,
     expectedText,
+    forbiddenText: path === "/admin"
+      ? [
+        "https://control-dev.maiks.yt/chat?devAuthToken=",
+        "https://control-dev.maiks.yt/moderation?devAuthToken=",
+        "https://control-dev.maiks.yt/control?devAuthToken=",
+        "https://overlay-dev.maiks.yt/?devAuthToken="
+      ]
+      : [],
     http,
     name,
     retryDelayMs: config.textEndpointRetryDelayMs,
