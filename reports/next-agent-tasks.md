@@ -58,6 +58,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
   - Phase C20 includes report-period-overlapping dated rules in JSON accounting summaries, review packages, and export audit `rule_version_ids_json`. It still does not create automatic fee/split ledger lines.
   - Phase C21 adds a no-write Rule Impact Preview for current ledger/date filters. It suggests fee/split amounts from matching dated rules but does not create ledger rows.
   - Phase C22 adds owner-confirmed draft creation from Rule Impact Preview suggestions with duplicate-source skipping. It does not post entries automatically or settle provider money.
+  - Phase C22 follow-up makes rule evidence visible in `/admin/money`: preview suggestions show rule version and source line ids, and created draft ledger lines show their `ruleVersionId` before posting/export review.
   - Phase C23 adds owner-confirmed posting for reviewed private draft ledger entries. It only changes private bookkeeping status from `draft` to `posted`; it does not settle provider money, create payments, or publish money data.
   - Phase C24 adds private ledger posting-status filtering for all/draft/posted/voided views, and exports/reports use the same current filter.
   - Phase C25 adds local Import Preview row filtering and show-more controls so provider CSV previews can be reviewed by ready/warning/skipped state before creating draft entries.

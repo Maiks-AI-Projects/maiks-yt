@@ -254,6 +254,9 @@ export const MoneyDatedRulesPanel = ({
                 <span>{suggestion.sourceProvider ?? "manual"} · {formatDate(suggestion.basisDate)}</span>
               </div>
               <p>
+                Rule {suggestion.ruleId} · source line {suggestion.lineId}
+              </p>
+              <p>
                 {formatAmount(suggestion.sourceAmountMinor, suggestion.currency)} source
                 {" -> "}
                 {formatAmount(suggestion.suggestedAmountMinor, suggestion.currency)} suggested out
