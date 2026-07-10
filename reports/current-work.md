@@ -259,7 +259,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 25. Recurring smoke now verifies `/admin/testing` includes the current readiness baseline text, so stale in-app testing guidance fails fast.
 26. `pnpm dev:smoke:notify` now has an explicit expected-check-count guard, so adding/removing smoke checks requires an intentional readiness-baseline update.
 27. `pnpm test:readiness` now scans active testing docs/app copy for stale smoke-count wording, including the next-agent handoff.
-28. `/admin/testing` now includes a Quick Open section for the stream windows, private tools, and public pages used during a first manual test pass.
+28. `/admin/testing` now includes a Quick Open section for the stream windows, private tools, and public pages used during a first manual test pass. The web-side private links preserve short-lived `devAuthToken` access during coordinator/testing sessions.
 
 ## Known State
 

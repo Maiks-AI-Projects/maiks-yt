@@ -1,3 +1,5 @@
+import { TestingGuideQuickOpenClient } from "./testing-guide-quick-open-client";
+
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -9,15 +11,6 @@ type TestingPass = {
   title: string;
   goal: string;
   checks: readonly string[];
-};
-
-type QuickOpenGroup = {
-  title: string;
-  links: readonly {
-    href: string;
-    label: string;
-    description: string;
-  }[];
 };
 
 const readinessCommands = [
@@ -32,84 +25,6 @@ const readinessCommands = [
   {
     command: "pnpm test:readiness -- --skip-review",
     description: "Container/server-friendly gate when the full local review shell is not needed."
-  }
-] as const;
-
-const quickOpenGroups: readonly QuickOpenGroup[] = [
-  {
-    title: "Stream Windows",
-    links: [
-      {
-        href: "https://control-dev.maiks.yt/chat",
-        label: "Streamer Chat",
-        description: "Standalone private chat PWA for Twitch, YouTube, Discord, and fake/local messages."
-      },
-      {
-        href: "https://control-dev.maiks.yt/moderation",
-        label: "Moderation",
-        description: "Separate moderation PWA with chat-first controls, applied rules, and helper context."
-      },
-      {
-        href: "https://control-dev.maiks.yt/control",
-        label: "Control Panel",
-        description: "Overlay controls, scene designer, testing controls, and advanced stream operations."
-      },
-      {
-        href: "https://overlay-dev.maiks.yt/",
-        label: "OBS Overlay",
-        description: "Current shared overlay surface for OBS/browser-source checks."
-      }
-    ]
-  },
-  {
-    title: "Private Tools",
-    links: [
-      {
-        href: "/tools/notifications",
-        label: "Notifications",
-        description: "Installed phone/PWA notification panel for dev alerts and smoke failures."
-      },
-      {
-        href: "/admin/connections",
-        label: "Connections",
-        description: "Provider intake health, recent received events, and provider event catalog."
-      },
-      {
-        href: "/admin/money",
-        label: "Money Ledger",
-        description: "Private accounting entries, corrections, warnings, and exports."
-      },
-      {
-        href: "/admin/pages",
-        label: "Page Creator",
-        description: "Draft, preview, publish, unpublish, and clean up test pages."
-      }
-    ]
-  },
-  {
-    title: "Public Pages",
-    links: [
-      {
-        href: "/links",
-        label: "Links",
-        description: "Public Creator Hub link list."
-      },
-      {
-        href: "/projects",
-        label: "Projects",
-        description: "Public project list and project-detail entry point."
-      },
-      {
-        href: "/schedule",
-        label: "Schedule",
-        description: "Public stream schedule with focus/project/game links."
-      },
-      {
-        href: "/games",
-        label: "Games",
-        description: "Public curated game library."
-      }
-    ]
   }
 ] as const;
 
@@ -227,32 +142,7 @@ const TestingGuidePage = (): React.ReactNode => (
         </ol>
       </section>
 
-      <section className="project-admin-panel">
-        <div className="project-admin-panel-heading">
-          <div>
-            <h2>Quick Open</h2>
-            <p>Open the windows and pages used most during a first testing pass.</p>
-          </div>
-        </div>
-        <div className="project-admin-grid">
-          {quickOpenGroups.map((group) => (
-            <section className="project-admin-preview" key={group.title}>
-              <h3>{group.title}</h3>
-              <div className="admin-list">
-                {group.links.map((link) => (
-                  <a className="admin-list-item admin-dashboard-link" href={link.href} key={link.href}>
-                    <div>
-                      <strong>{link.label}</strong>
-                      <span>{link.href}</span>
-                    </div>
-                    <p>{link.description}</p>
-                  </a>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      </section>
+      <TestingGuideQuickOpenClient />
 
       <div className="project-admin-grid">
         {testingPasses.map((testingPass) => (
