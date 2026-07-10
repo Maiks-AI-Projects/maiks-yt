@@ -231,6 +231,7 @@ Move from foundation work into active feature lanes on `dev`, starting with a pr
 - Added Phase C17 duplicate-reference protection for CSV imports: preview rows whose provider/reference value already exists in private receipt references are marked skipped with `duplicate_reference`, shown with the existing transaction id, and blocked from draft import.
 - Added Phase C18 conservative possible-duplicate warnings for reference-less CSV rows that exactly match an active ledger row by date, amount, direction, currency, provider, and category. These rows remain importable warnings, while voided rows no longer block duplicate-reference reimports.
 - Added the money CSV import workflow to `/admin/testing` and `reports/dev-manual-testing-guide.md`, including preview, draft creation, duplicate-reference blocking, possible-duplicate warnings, and cleanup expectations. Recurring and visual smoke now assert those instructions remain visible.
+- Ran `pnpm dev:visual-smoke` after the money import/testing-guide work. The 2026-07-10T06-22-21Z report captured 76 deployed dev surfaces with zero failures, horizontal overflow, injection markers, or rejected-navbar hits.
 
 ## Current Task
 
