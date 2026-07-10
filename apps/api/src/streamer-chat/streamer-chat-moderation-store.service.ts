@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
 import type { StreamerChatMessage } from "@maiks-yt/events";
+import type { DiscordChatWarningDeliveryResult } from "@maiks-yt/integrations";
 
 import type {
   StreamerChatModerationAuditEntry,
@@ -232,6 +233,75 @@ export class StreamerChatModerationStoreService {
         now
       ]
     );
+  }
+
+  public async appendProviderWarningAudit({
+    deliveryResult,
+    message,
+    providerMessage
+  }: {
+    deliveryResult: DiscordChatWarningDeliveryResult;
+    message: {
+      authorName: string;
+      id: string;
+      providerChannelId?: string;
+      providerMessageId?: string;
+      providerUserId?: string;
+      source: StreamerChatMessage["source"];
+    };
+    providerMessage: string;
+  }): Promise<{ id: string; at: string }> {
+    const id = randomUUID();
+    const at = new Date().toISOString();
+    const providerActionId = deliveryResult.providerMessageId ?? `provider-warning-${id}`;
+
+    await this.getDatabasePool().execute(
+      `
+        INSERT INTO moderation_audit_logs
+          (
+            id,
+            source,
+            action,
+            outcome,
+            actor_display_name,
+            target_author_name,
+            target_message_id,
+            target_external_id,
+            reason,
+            note,
+            provider_action,
+            provider_action_id,
+            is_test,
+            is_simulated,
+            test_resettable,
+            redacted_context,
+            created_at
+          )
+        VALUES (?, ?, 'warn_author', ?, 'Control chat window', ?, ?, ?, ?, ?, true, ?, false, false, false, ?, ?)
+      `,
+      [
+        id,
+        message.source,
+        deliveryResult.ok ? "applied" : "provider_failed",
+        message.authorName,
+        message.id,
+        message.providerMessageId ?? message.providerUserId ?? null,
+        deliveryResult.ok ? "streamer_chat_provider_warning_sent" : deliveryResult.reason,
+        deliveryResult.ok ? "Provider warning message sent." : "Provider warning message failed or was skipped.",
+        providerActionId,
+        JSON.stringify({
+          provider: message.source,
+          providerAction: true,
+          providerChannelId: message.providerChannelId ?? null,
+          providerMessage,
+          providerMessageSent: deliveryResult.providerMessageSent,
+          providerWarningReason: deliveryResult.ok ? null : deliveryResult.reason
+        }),
+        new Date(at)
+      ]
+    );
+
+    return { id, at };
   }
 
   public async getWarningCount(

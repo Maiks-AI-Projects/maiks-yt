@@ -292,7 +292,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 - [x] Add applied chat-rules management window.
   - 2026-06-30 added a separate `/moderation` control-window route for active local chat hide/ban/warning rules and retraction. Hide/ban now write durable active moderation rows, warnings write durable audit rows with counts derived from history, and startup hydrates active local rules into the chat filter. Provider-side enforcement remains a future persistence/provider-write phase.
 - [ ] Send warning messages to originating platform chat.
-  - Required provider-write behavior: when Warn is used, send a message in the originating Twitch/YouTube/Discord chat tagging the user and saying they have a warning and the third warning results in an automatic ban. Current local endpoint returns the intended provider message text but does not send it until provider write clients, permissions, audit, and failure handling are implemented.
+  - Required provider-write behavior: when Warn is used, send a message in the originating Twitch/YouTube/Discord chat tagging the user and saying they have a warning and the third warning results in an automatic ban.
+  - 2026-07-10 first provider-write slice adds Discord warning delivery for Discord-sourced streamer chat messages that carry provider channel/user context. The existing local warning still applies first; Discord delivery uses the configured bot token, allowed user mentions only, sanitized failure responses, and a separate provider-action moderation audit row. Twitch and YouTube warning delivery remain future provider-write slices.
 - [ ] Add typed moderation commands for ban, mute, warning, and rank/status changes.
 - [ ] Add basic stream bot command parser.
 - [ ] Add commands for website links.

@@ -1,6 +1,7 @@
 import { createRuntimeConfig } from "@maiks-yt/config";
 import { createDatabasePool, type DatabasePool } from "@maiks-yt/database";
 import {
+  DiscordChatWarningDeliveryService,
   DiscordChatReadOnlyIntakeService,
   TwitchChatReadOnlyIntakeService,
   YouTubeLiveChatReadOnlyIntakeService,
@@ -170,7 +171,10 @@ const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage):
   writeProviderChatIntakeLog(message);
   return appendStreamerChatMessage({
     ...message,
-    channelName: message.channelName
+    channelName: message.channelName,
+    providerChannelId: message.channelId,
+    providerGuildId: message.guildId,
+    providerUserId: message.userId
   });
 };
 
@@ -214,6 +218,7 @@ const {
   validateUrlAccessTokenForRequest
 } = createApiAuthRuntime({ getDatabasePool });
 streamerChatModerationStore = new StreamerChatModerationStoreService(getDatabasePool);
+const discordChatWarningDeliveryService = new DiscordChatWarningDeliveryService();
 const streamerChatModerationAccessService = new StreamerChatModerationAccessService({
   getDatabasePool,
   validateUrlAccessToken: validateUrlAccessTokenForRequest,
@@ -320,6 +325,7 @@ const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) 
 
 registerApplicationRoutes({
   discordChatIntakeRuntime,
+  discordChatWarningDeliveryService,
   fakeLocalModerationRuntime,
   getAuthSession,
   getDatabasePool,

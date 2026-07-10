@@ -1,4 +1,8 @@
 import type { FastifyInstance } from "fastify";
+import type {
+  DiscordChatWarningDeliveryResult,
+  DiscordChatWarningDeliveryService
+} from "@maiks-yt/integrations";
 import { z } from "zod";
 
 import {
@@ -41,6 +45,7 @@ export const registerStreamerChatModerationRoutes = (
   server: FastifyInstance,
   dependencies: {
     accessService: StreamerChatModerationAccessService;
+    discordWarningDeliveryService: Pick<DiscordChatWarningDeliveryService, "sendWarning">;
     moderationRuntime: InMemoryStreamerChatModerationRuntime;
     moderationStore: StreamerChatModerationStoreService;
     streamerChatRuntime: StreamerChatRuntime;
@@ -205,14 +210,33 @@ export const registerStreamerChatModerationRoutes = (
       previousWarningCount
     );
 
+    let providerDelivery: DiscordChatWarningDeliveryResult | null = null;
+
     if (result?.message) {
+      const providerMessage = `@${result.message.authorName} this is warning ${result.warningCount}/${result.warningThreshold}. A third warning results in an automatic Maiks.yt stream-surface ban.`;
       await dependencies.moderationStore.appendAudit({
         action: "warn_author",
         message: result.message,
-        note: `Provider warning message pending: @${result.message.authorName} this is warning ${result.warningCount}/${result.warningThreshold}. A third warning results in an automatic Maiks.yt stream-surface ban.`,
+        note: `Provider warning message prepared: ${providerMessage}`,
         outcome: "applied",
         reason: "streamer_chat_author_warned"
       });
+
+      if (result.message.source === "discord") {
+        providerDelivery = await dependencies.discordWarningDeliveryService.sendWarning({
+          authorName: result.message.authorName,
+          channelId: result.message.providerChannelId,
+          userId: result.message.providerUserId,
+          warningCount: result.warningCount,
+          warningThreshold: result.warningThreshold
+        });
+
+        await dependencies.moderationStore.appendProviderWarningAudit({
+          deliveryResult: providerDelivery,
+          message: result.message,
+          providerMessage
+        });
+      }
 
       if (result.autoBanned) {
         const audit = await dependencies.moderationStore.appendAudit({
@@ -238,11 +262,12 @@ export const registerStreamerChatModerationRoutes = (
       autoBanned: result?.autoBanned ?? false,
       warningCount: result?.warningCount ?? 0,
       warningThreshold: result?.warningThreshold ?? 3,
-      providerAction: false,
-      providerMessageSent: false,
-      providerMessage: result
+      providerAction: providerDelivery?.providerAction ?? false,
+      providerMessageSent: providerDelivery?.providerMessageSent ?? false,
+      providerMessage: providerDelivery?.providerMessage ?? (result
         ? `@${result.message.authorName} this is warning ${result.warningCount}/${result.warningThreshold}. A third warning results in an automatic Maiks.yt stream-surface ban.`
-        : null
+        : null),
+      providerWarningReason: providerDelivery?.ok === false ? providerDelivery.reason : null
     };
   });
 

@@ -6,7 +6,10 @@ export type StreamerChatMessage = Omit<OverlayFakeChatMessage, "source"> & {
   source: StreamerChatSource;
   visibleOnOverlayByDefault: boolean;
   channelName?: string;
+  providerChannelId?: string;
+  providerGuildId?: string;
   providerMessageId?: string;
+  providerUserId?: string;
 };
 
 export type StreamerChatMessageReceivedEvent = {

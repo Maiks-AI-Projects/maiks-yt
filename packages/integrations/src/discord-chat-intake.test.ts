@@ -49,6 +49,7 @@ class FakeDiscordClient {
       author: {
         bot: false,
         displayName: "  Discord\u0000 Viewer  ",
+        id: "user-1",
         username: "discord_viewer"
       },
       channelId: "channel-1",
@@ -81,6 +82,7 @@ describe("projectDiscordChatMessage", () => {
   it("trims and sanitizes Discord chat messages for streamer chat", () => {
     const result = projectDiscordChatMessage({
       authorDisplayName: "  Display\u0000 Name  ",
+      authorUserId: "user-1",
       authorUsername: "fallback_user",
       channelId: "channel-1",
       channelName: "  live\u0007 chat  ",
@@ -102,6 +104,7 @@ describe("projectDiscordChatMessage", () => {
         message: "Hello there",
         providerMessageId: "discord-message-1",
         source: "discord",
+        userId: "user-1",
         visibleOnOverlayByDefault: false
       })
     });
@@ -110,6 +113,7 @@ describe("projectDiscordChatMessage", () => {
   it("rejects empty messages and resolves env targets", () => {
     expect(projectDiscordChatMessage({
       authorUsername: "viewer",
+      authorUserId: "user-1",
       channelId: "channel-1",
       guildId: "guild-1",
       messageId: "message-1",
@@ -231,7 +235,7 @@ describe("DiscordChatReadOnlyIntakeService", () => {
     await Promise.resolve();
     fakeClient.emitMessage();
     fakeClient.emitMessage({ channelId: "other-channel" });
-    fakeClient.emitMessage({ author: { bot: true, username: "bot" } });
+    fakeClient.emitMessage({ author: { bot: true, id: "bot-user-1", username: "bot" } });
 
     expect(onMessage).toHaveBeenCalledTimes(1);
     expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({

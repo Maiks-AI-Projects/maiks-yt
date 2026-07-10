@@ -8,6 +8,7 @@ export type DiscordChatProjectedMessage = {
   guildId: string;
   message: string;
   providerMessageId: string;
+  userId: string;
   source: "discord";
   visibleOnOverlayByDefault: false;
 };
@@ -27,6 +28,7 @@ export type DiscordGatewayProjectedEvent = {
 
 export type DiscordChatProjectionInput = {
   authorDisplayName?: string | null;
+  authorUserId: string;
   authorUsername: string;
   channelId: string;
   channelName?: string | null;

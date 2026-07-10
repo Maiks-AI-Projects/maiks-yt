@@ -28,6 +28,7 @@ export type DiscordReadableMessage = {
   author: {
     bot?: boolean;
     displayName?: string | null;
+    id: string;
     username: string;
   };
   channelId: string;
@@ -103,6 +104,7 @@ const mapDiscordMessage = (message: Message): DiscordReadableMessage => ({
   author: {
     bot: message.author.bot,
     displayName: message.member?.displayName ?? message.author.globalName ?? message.author.username,
+    id: message.author.id,
     username: message.author.username
   },
   channelId: message.channelId,
@@ -354,6 +356,7 @@ export class DiscordChatReadOnlyIntakeService {
 
     const projection = projectDiscordChatMessage({
       ...(message.author.displayName !== undefined ? { authorDisplayName: message.author.displayName } : {}),
+      authorUserId: message.author.id,
       authorUsername: message.author.username,
       channelId: message.channelId,
       ...(message.channelName !== undefined ? { channelName: message.channelName } : {}),

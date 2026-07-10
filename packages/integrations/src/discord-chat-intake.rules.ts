@@ -85,6 +85,7 @@ export const projectDiscordChatMessage = (
 ): DiscordChatProjectionResult => {
   const guildId = normalizeId(input.guildId);
   const channelId = normalizeId(input.channelId);
+  const userId = normalizeId(input.authorUserId);
   const channelName = normalizeText(input.channelName ?? channelId, maxChannelNameLength);
   const authorName = normalizeText(input.authorDisplayName || input.authorUsername, maxAuthorNameLength);
   const message = normalizeText(input.text, maxMessageLength);
@@ -110,6 +111,13 @@ export const projectDiscordChatMessage = (
     };
   }
 
+  if (!userId) {
+    return {
+      ok: false,
+      reason: "empty_author"
+    };
+  }
+
   if (!message) {
     return {
       ok: false,
@@ -129,6 +137,7 @@ export const projectDiscordChatMessage = (
       guildId,
       message,
       providerMessageId: normalizeId(input.messageId) || randomUUID(),
+      userId,
       source: "discord",
       visibleOnOverlayByDefault: false
     }

@@ -79,6 +79,7 @@ type RequireStreamerChatModerationPermission = (
 
 type RegisterApplicationRoutesInput = {
   discordChatIntakeRuntime: DiscordChatReadOnlyIntakeService;
+  discordChatWarningDeliveryService: import("@maiks-yt/integrations").DiscordChatWarningDeliveryService;
   fakeLocalModerationRuntime: InMemoryFakeLocalModerationRuntime;
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
   getDatabasePool: () => DatabasePool;
@@ -99,6 +100,7 @@ type RegisterApplicationRoutesInput = {
 
 export const registerApplicationRoutes = ({
   discordChatIntakeRuntime,
+  discordChatWarningDeliveryService,
   fakeLocalModerationRuntime,
   getAuthSession,
   getDatabasePool,
@@ -271,6 +273,7 @@ export const registerApplicationRoutes = ({
   });
   registerStreamerChatModerationRoutes(server, {
     accessService: streamerChatModerationAccessService,
+    discordWarningDeliveryService: discordChatWarningDeliveryService,
     moderationRuntime: streamerChatModerationRuntime,
     moderationStore: streamerChatModerationStore,
     streamerChatRuntime
