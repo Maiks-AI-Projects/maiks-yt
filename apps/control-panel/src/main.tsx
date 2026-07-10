@@ -105,7 +105,11 @@ const updateManifestForRoute = (): void => {
   const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
 
   if (manifestLink) {
-    manifestLink.href = isStandaloneChatRoute ? "/chat-manifest.webmanifest" : "/manifest.webmanifest";
+    manifestLink.href = isStandaloneChatRoute
+      ? "/chat-manifest.webmanifest"
+      : isModerationRulesRoute
+        ? "/moderation-manifest.webmanifest"
+        : "/manifest.webmanifest";
   }
 };
 

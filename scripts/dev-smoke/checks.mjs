@@ -1254,6 +1254,16 @@ export const runChecks = async ({ config, getDevOwnerToken, http }) => Promise.a
     name: "streamer chat manifest",
     url: http.makeUrl(config.controlUrl, "/chat-manifest.webmanifest")
   }),
+  checkManifestEndpoint({
+    expected: {
+      id: "/moderation",
+      scope: "/moderation",
+      startUrl: "/moderation"
+    },
+    http,
+    name: "moderation window manifest",
+    url: http.makeUrl(config.controlUrl, "/moderation-manifest.webmanifest")
+  }),
   checkStreamerChatMessages({ config, http }),
   ...createProviderChatStatusChecks({ config, http }),
   checkStreamerChatModerationAccess({ config, getDevOwnerToken, http }),

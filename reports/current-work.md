@@ -243,7 +243,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 9. Before any future `dev` to `main` or production release, use the refreshed `reports/production-readiness-checklist.md` as the design gate and record release ownership, migration order, backup restore verification, smoke surfaces, rollback decision points, and accepted unresolved risks.
 10. Session review/revoke is available for owner testing on `/admin/sessions`, including a "revoke others" action that preserves the current real browser session. Future hardening can add deeper audit logging if testing shows the need.
 11. `/admin` now provides a testing dashboard for the growing admin surface list and is covered by `pnpm dev:smoke:notify`. It also shows live status cards for API/database health, notifications, provider intake, and session-admin reachability when opened with owner auth.
-12. Recurring smoke now validates installable PWA manifest shape for stream tools, control panel, and standalone chat, plus the public updates RSS feed and affiliate disclosure page.
+12. Recurring smoke now validates installable PWA manifest shape for stream tools, control panel, standalone chat, and standalone moderation, plus the public updates RSS feed and affiliate disclosure page.
 13. Recurring smoke now validates key owner-only operational read models behind the testing dashboard: backup health, notifications, push config, provider status, and sessions.
 14. Recurring smoke now validates owner-only workflow read models for manual testing: money ledger, live helper, event routing rules, manual pages, and games/suggestions.
 15. Recurring smoke now validates additional owner-only admin lists for manual testing: creator links, projects, schedule, moderators, tokens, and provider intake rows.
@@ -254,6 +254,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 20. Recurring smoke now validates the stream-tool and control-panel PWA icon assets referenced by the install manifests.
 21. Recurring smoke now asserts the standalone control, chat, and moderation PWA windows do not render the normal website navbar.
 22. Visual smoke now also rejects the normal website navbar on the standalone control, chat, and moderation PWA windows while checking their client-rendered content.
+23. `/moderation` now has a dedicated standalone PWA manifest and recurring smoke coverage instead of inheriting the control-panel install identity.
 
 ## Known State
 
@@ -294,7 +295,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 - Production owner-account mapping must be explicit; never auto-promote the first login.
 - Dev owner claims require `DEV_OWNER_EMAILS`; production owner assignment still needs an explicit admin process later.
 - Production OAuth keys and other clean secrets will be created near final release.
-- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, the existing control panel has same-origin install metadata, `/tools/notifications` has a first private polling panel, and `control-dev/chat` now has a separate streamer chat PWA manifest. Web Push delivery/service-worker strategy and visual installed-window QA remain open.
+- Full PWA installability is partially started: `/tools/actions` has verified manifest/installability metadata and no normal website navbar, the existing control panel has same-origin install metadata, `/tools/notifications` has a first private polling panel, and `control-dev/chat` plus `control-dev/moderation` now have separate PWA manifests. Web Push delivery/service-worker strategy and visual installed-window QA remain open.
 - Streamer chat has fake/local plus read-only Twitch and Discord messages in a private control-panel feed and standalone chat PWA. YouTube owner consent/token storage, selected-channel persistence, and read-only live-chat polling are deployed on dev; real YouTube message capture still needs an active YouTube live chat. Moderation, ranks, profiles, bot commands, AI reading, provider writes, and overlay routing remain separate deferred work.
 - Control-panel service-worker work remains deferred; private stream-tool data must stay network-only until a reviewed static-assets-only strategy exists.
 - Manual admin pages should exist before AI-assisted publishing or content generation can modify public content.

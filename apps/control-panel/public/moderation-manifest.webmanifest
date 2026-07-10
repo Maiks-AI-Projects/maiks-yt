@@ -1,0 +1,26 @@
+{
+  "name": "Maiks.yt Moderation",
+  "short_name": "Maiks Mod",
+  "description": "Standalone moderation window for Maiks.yt streamer chat, active rules, and helper context.",
+  "id": "/moderation",
+  "start_url": "/moderation",
+  "scope": "/moderation",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#141920",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/maiks-tools-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maiks-tools-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
