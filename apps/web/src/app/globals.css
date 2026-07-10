@@ -1877,6 +1877,12 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.connections-intake-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .connections-action-card h3,
 .connections-action-card p {
   margin: 0;

@@ -18,7 +18,7 @@ type ProviderEventIntakeAdminAuthSession = {
 type ProviderEventIntakeAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<ProviderEventIntakeAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<ProviderEventIntakeAdminService, "getHealth" | "listRecent">;
+  createService?: () => Pick<ProviderEventIntakeAdminService, "getHealth" | "listRecent" | "review">;
 };
 
 const optionalBooleanQuery = z.preprocess((value) => {
@@ -46,6 +46,14 @@ const intakeQuerySchema = z.object({
   moneyShaped: optionalBooleanQuery.optional(),
   processingStatus: z.enum(["any", "stored", "normalized", "mapped_to_event_history", "ignored", "failed"]).optional(),
   provider: z.enum(["any", ...providerEventPlatforms]).optional()
+}).strict();
+
+const reviewParamsSchema = z.object({
+  id: z.string().trim().min(1).max(36)
+}).strict();
+
+const reviewPayloadSchema = z.object({
+  action: z.enum(["map_internal", "ignore"])
 }).strict();
 
 const omitUndefinedFilters = (
@@ -88,7 +96,7 @@ export const registerProviderEventIntakeAdminRoutes = (
   server: FastifyInstance,
   dependencies: ProviderEventIntakeAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<ProviderEventIntakeAdminService, "getHealth" | "listRecent"> =>
+  const getService = (): Pick<ProviderEventIntakeAdminService, "getHealth" | "listRecent" | "review"> =>
     dependencies.createService?.()
     ?? new ProviderEventIntakeAdminService(
       createProviderEventIntakeAdminRepository(dependencies.getDatabasePool())
@@ -157,6 +165,49 @@ export const registerProviderEventIntakeAdminRoutes = (
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Provider event intake list failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "provider_event_intake_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/connections/intake/:id/review", async (request, reply) => {
+    const session = await getSession(server, dependencies, request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "provider_event_intake_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = reviewParamsSchema.safeParse(request.params);
+    const parsedBody = reviewPayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "provider_event_intake_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().review({
+        action: parsedBody.data.action,
+        authUserId: session.user.id,
+        rowId: parsedParams.data.id
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "provider_event_intake_forbidden" ? 403 : 400);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Provider event intake review failed.");
       reply.code(503);
       return {
         ok: false,

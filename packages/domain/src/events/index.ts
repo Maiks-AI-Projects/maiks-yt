@@ -14,3 +14,5 @@ export * from "./provider-event-catalog.rules.js";
 export * from "./provider-event-catalog.types.js";
 export * from "./provider-event-intake.rules.js";
 export * from "./provider-event-intake.types.js";
+export * from "./provider-intake-event-routing-review.rules.js";
+export * from "./provider-intake-event-routing-review.types.js";
