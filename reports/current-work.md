@@ -271,6 +271,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 37. Visual smoke now asserts that `/admin/backup/health` renders loaded backup details, not just the page shell: Backup Health, Required Tables, Dump Tool, and Warnings.
 38. `/admin/testing` now includes a compact testing-note template for recording breakage with surface, attempted action, actual/expected behavior, severity, screenshot/recording, and follow-up owner; recurring smoke asserts the template remains visible.
 39. `/admin/testing` Quick Open now includes the main first-pass admin workflow links as well as stream windows and public pages, so testing can move through sessions, provider integrations, event routing, live helper, moderators, money, pages, games, projects, schedule, links, backup health, and notifications from one guide. Recurring smoke asserts several of those shortcuts remain visible.
+40. A fresh `pnpm dev:visual-smoke` pass against deployed dev commit `e133add` completed 76 Playwright captures with 0 failures, no known injection markers, no detected horizontal overflow, and no rejected-navbar failures. Ignored artifacts were written under `reports/visual-qa/current-dev-smoke/2026-07-10T03-28-22Z/`.
 
 ## Known State
 
