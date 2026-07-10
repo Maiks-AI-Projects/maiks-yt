@@ -261,6 +261,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 27. `pnpm test:readiness` now scans active testing docs/app copy for stale smoke-count wording, including the next-agent handoff.
 28. `/admin/testing` now includes a Quick Open section for the stream windows, private tools, and public pages used during a first manual test pass. The web-side private links preserve short-lived `devAuthToken` access during coordinator/testing sessions.
 29. `/admin/testing` and the manual testing guide now call out that standalone control/chat/moderation windows require the current Control Panel access URL from `/admin/tokens`.
+30. The standalone chat window's Open dropdown now preserves stored `devAuthToken` access when jumping to web-dev private tools from a token-based testing session.
 
 ## Known State
 
