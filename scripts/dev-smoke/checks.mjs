@@ -616,6 +616,7 @@ const checkBackupHealth = async () => {
 
 const publicPageChecks = [
   ["web home", "/", ["Maiks.yt"], true],
+  ["account", "/account", ["Account"], false],
   ["public accountability", "/accountability", ["Accountability"], false],
   ["public actions", "/actions", ["Action Panel", "Persistent Actions"], false],
   ["community rules", "/community-rules", ["Community Rules"], false],

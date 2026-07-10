@@ -136,6 +136,11 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       expectedText: ["Maiks.yt"]
     },
     {
+      name: "account",
+      url: `${webBaseUrl}/account`,
+      expectedText: ["Account"]
+    },
+    {
       name: "accountability",
       url: `${webBaseUrl}/accountability`,
       expectedText: ["Accountability"]
