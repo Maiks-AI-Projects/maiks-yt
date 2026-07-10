@@ -445,7 +445,7 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
         || json?.readOnly !== true
         || typeof json?.healthOk !== "boolean"
         || typeof json?.checkedAt !== "string"
-        || !Array.isArray(json?.tables)
+        || !Array.isArray(json?.requiredTables)
         || !Array.isArray(json?.warnings)
       ) {
         return "backup health API returned an unexpected payload.";
