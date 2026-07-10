@@ -22,6 +22,7 @@ type ProviderEventIntakeRow = {
   authOrTokenShaped: boolean;
   highVolume: boolean;
   processingStatus: ProcessingStatus;
+  eventHistoryId: string | null;
   redactedPayloadPreview: Record<string, unknown>;
   occurredAt: string | null;
   receivedAt: string;
@@ -57,6 +58,24 @@ type IntakeHealthResponse =
     generatedAt: string;
     staleAfterMinutes: number;
     entries: ProviderIntakeHealthEntry[];
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
+type ReviewResponse =
+  | {
+    ok: true;
+    action: "map_internal" | "ignore";
+    rowId: string;
+    processingStatus: "ignored" | "mapped_to_event_history";
+    publicPlayback: false;
+    eventHistory: {
+      id: string;
+      eventKind: string;
+      destination: "internal_audit";
+    } | null;
   }
   | {
     ok: false;
@@ -105,6 +124,7 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
   const [filter, setFilter] = useState<Provider | "any">("any");
   const [healthEntries, setHealthEntries] = useState<ProviderIntakeHealthEntry[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [reviewMessage, setReviewMessage] = useState<string>("Review actions stay internal-only until Event Routing rules explicitly allow more.");
   const [rows, setRows] = useState<ProviderEventIntakeRow[]>([]);
 
   useEffect(() => {
@@ -167,6 +187,42 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
     void loadRows();
   }, [loadRows]);
 
+  const reviewRow = useCallback(async (row: ProviderEventIntakeRow, action: "map_internal" | "ignore") => {
+    setReviewMessage(action === "map_internal" ? "Mapping intake row to internal audit..." : "Marking intake row ignored...");
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/connections/intake/${encodeURIComponent(row.id)}/review`, {
+        body: JSON.stringify({ action }),
+        cache: "no-store",
+        credentials: "include",
+        headers: createApiHeaders({
+          "Content-Type": "application/json"
+        }),
+        method: "POST"
+      });
+      const payload = await response.json() as ReviewResponse;
+
+      if (!response.ok || !payload.ok) {
+        setReviewMessage(payload.ok ? `Review failed with ${response.status}.` : `Review blocked: ${payload.reason}`);
+        return;
+      }
+
+      setRows((currentRows) => currentRows.map((currentRow) =>
+        currentRow.id === payload.rowId
+          ? {
+            ...currentRow,
+            eventHistoryId: payload.eventHistory?.id ?? currentRow.eventHistoryId,
+            processingStatus: payload.processingStatus
+          }
+          : currentRow
+      ));
+      setReviewMessage(payload.action === "map_internal"
+        ? `Mapped to ${payload.eventHistory?.eventKind ?? "internal event"} as internal audit.`
+        : "Intake row marked ignored.");
+    } catch (error) {
+      setReviewMessage(error instanceof Error ? error.message : "Review action failed.");
+    }
+  }, []);
+
   return (
     <section className="project-admin-panel connections-intake-panel">
       <div className="project-admin-panel-heading">
@@ -190,6 +246,7 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
           </button>
         </div>
       </div>
+      <p className="form-note">{reviewMessage}</p>
 
       {healthEntries.length > 0 ? (
         <div className="connections-intake-health-grid">
@@ -240,11 +297,30 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
               <div className="dev-test-console-badges">
                 <span>{row.catalogKnown ? "known" : "unknown"}</span>
                 <span>{row.processingStatus}</span>
+                {row.eventHistoryId ? <span>event history</span> : null}
                 {row.moneyShaped ? <span className="warning">money</span> : null}
                 {row.moderationShaped ? <span className="warning">moderation</span> : null}
                 {row.authOrTokenShaped ? <span className="warning">auth/token</span> : null}
                 {row.highVolume ? <span className="warning">high-volume</span> : null}
                 <span>{formatDate(row.receivedAt)}</span>
+              </div>
+              <div className="connections-intake-row-actions">
+                <button
+                  className="secondary-action"
+                  disabled={Boolean(row.eventHistoryId) || row.processingStatus === "mapped_to_event_history" || row.processingStatus === "ignored"}
+                  type="button"
+                  onClick={() => void reviewRow(row, "map_internal")}
+                >
+                  Map internal
+                </button>
+                <button
+                  className="secondary-action"
+                  disabled={Boolean(row.eventHistoryId) || row.processingStatus === "mapped_to_event_history" || row.processingStatus === "ignored"}
+                  type="button"
+                  onClick={() => void reviewRow(row, "ignore")}
+                >
+                  Ignore
+                </button>
               </div>
             </article>
           ))}

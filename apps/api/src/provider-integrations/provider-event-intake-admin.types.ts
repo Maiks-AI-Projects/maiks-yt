@@ -1,7 +1,9 @@
 import type {
+  EventKind,
   ProviderEventCategory,
   ProviderEventMechanism,
-  ProviderEventPlatform
+  ProviderEventPlatform,
+  ProviderIntakeEventRoutingReviewRejection
 } from "@maiks-yt/domain/events";
 
 export type ProviderEventIntakeAdminActor = {
@@ -63,6 +65,22 @@ export type ProviderEventIntakeAdminRow = {
   receivedAt: string;
 };
 
+export type ProviderEventIntakeReviewAction = "map_internal" | "ignore";
+
+export type ProviderEventIntakeReviewCandidate = ProviderEventIntakeAdminRow & {
+  redactedPayloadPreview: Record<string, unknown>;
+};
+
+export type ProviderEventIntakeReviewHistory = {
+  id: string;
+  eventKind: EventKind;
+  sourcePlatform: ProviderEventPlatform;
+  routingOutcome: "stored_internal";
+  destination: "internal_audit";
+  publicPlayback: false;
+  createdAt: string;
+};
+
 export type ProviderEventIntakeHealthStatus = "healthy" | "stale" | "missing";
 
 export type ProviderEventIntakeHealthMechanism = {
@@ -87,8 +105,15 @@ export type ProviderEventIntakeHealthEntry = ProviderEventIntakeHealthMechanism 
 };
 
 export type ProviderEventIntakeAdminRepository = {
+  findReviewCandidate(id: string): Promise<ProviderEventIntakeReviewCandidate | null>;
   listHealthRows(): Promise<ProviderEventIntakeHealthRow[]>;
   listRecent(filters: NormalizedProviderEventIntakeAdminFilters): Promise<ProviderEventIntakeAdminRow[]>;
+  markIgnored(input: { id: string }): Promise<boolean>;
+  mapToEventHistory(input: {
+    row: ProviderEventIntakeReviewCandidate;
+    eventKind: EventKind;
+    reviewedByUserId: string;
+  }): Promise<ProviderEventIntakeReviewHistory | null>;
   resolveActor(authUserId: string): Promise<ProviderEventIntakeAdminActor | null>;
 };
 
@@ -115,4 +140,24 @@ export type ProviderEventIntakeHealthResult =
   | {
     ok: false;
     reason: "provider_event_intake_user_unlinked" | "provider_event_intake_forbidden";
+  };
+
+export type ProviderEventIntakeReviewResult =
+  | {
+    ok: true;
+    action: ProviderEventIntakeReviewAction;
+    rowId: string;
+    processingStatus: "ignored" | "mapped_to_event_history";
+    eventHistory: ProviderEventIntakeReviewHistory | null;
+    publicPlayback: false;
+  }
+  | {
+    ok: false;
+    reason:
+      | "provider_event_intake_user_unlinked"
+      | "provider_event_intake_forbidden"
+      | "provider_event_intake_not_found"
+      | "provider_event_intake_already_reviewed"
+      | "provider_event_intake_review_unavailable"
+      | ProviderIntakeEventRoutingReviewRejection;
   };

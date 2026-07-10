@@ -1,3 +1,5 @@
+import { reviewProviderIntakeForInternalEventRouting } from "@maiks-yt/domain/events";
+
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   NormalizedProviderEventIntakeAdminFilters,
@@ -8,7 +10,9 @@ import type {
   ProviderEventIntakeHealthEntry,
   ProviderEventIntakeHealthMechanism,
   ProviderEventIntakeHealthResult,
-  ProviderEventIntakeHealthRow
+  ProviderEventIntakeHealthRow,
+  ProviderEventIntakeReviewAction,
+  ProviderEventIntakeReviewResult
 } from "./provider-event-intake-admin.types.js";
 
 const staleAfterMinutes = 60 * 24 * 7;
@@ -130,6 +134,91 @@ export class ProviderEventIntakeAdminService {
       ok: true,
       readOnly: true,
       staleAfterMinutes
+    };
+  }
+
+  public async review(input: {
+    action: ProviderEventIntakeReviewAction;
+    authUserId: string;
+    rowId: string;
+  }): Promise<ProviderEventIntakeReviewResult> {
+    const actor = await this.repository.resolveActor(input.authUserId);
+
+    if (!actor) {
+      return {
+        ok: false,
+        reason: "provider_event_intake_user_unlinked"
+      };
+    }
+
+    if (!canViewProviderEventIntake(actor)) {
+      return {
+        ok: false,
+        reason: "provider_event_intake_forbidden"
+      };
+    }
+
+    const row = await this.repository.findReviewCandidate(input.rowId);
+
+    if (!row) {
+      return {
+        ok: false,
+        reason: "provider_event_intake_not_found"
+      };
+    }
+
+    if (row.eventHistoryId || row.processingStatus === "mapped_to_event_history" || row.processingStatus === "ignored") {
+      return {
+        ok: false,
+        reason: "provider_event_intake_already_reviewed"
+      };
+    }
+
+    if (input.action === "ignore") {
+      return await this.repository.markIgnored({ id: row.id })
+        ? {
+          action: "ignore",
+          eventHistory: null,
+          ok: true,
+          processingStatus: "ignored",
+          publicPlayback: false,
+          rowId: row.id
+        }
+        : {
+          ok: false,
+          reason: "provider_event_intake_review_unavailable"
+        };
+    }
+
+    const review = reviewProviderIntakeForInternalEventRouting(row);
+
+    if (!review.ok) {
+      return {
+        ok: false,
+        reason: review.reason
+      };
+    }
+
+    const eventHistory = await this.repository.mapToEventHistory({
+      eventKind: review.candidate.eventKind,
+      reviewedByUserId: actor.domainUserId,
+      row
+    });
+
+    if (!eventHistory) {
+      return {
+        ok: false,
+        reason: "provider_event_intake_review_unavailable"
+      };
+    }
+
+    return {
+      action: "map_internal",
+      eventHistory,
+      ok: true,
+      processingStatus: "mapped_to_event_history",
+      publicPlayback: false,
+      rowId: row.id
     };
   }
 }

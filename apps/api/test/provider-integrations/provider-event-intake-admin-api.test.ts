@@ -8,7 +8,10 @@ import type {
   ProviderEventIntakeAdminActor,
   ProviderEventIntakeAdminRepository,
   ProviderEventIntakeAdminResult,
-  ProviderEventIntakeHealthResult
+  ProviderEventIntakeHealthResult,
+  ProviderEventIntakeReviewCandidate,
+  ProviderEventIntakeReviewHistory,
+  ProviderEventIntakeReviewResult
 } from "../../src/provider-integrations/provider-event-intake-admin.types.js";
 
 class FakeProviderEventIntakeRepository implements ProviderEventIntakeAdminRepository {
@@ -16,10 +19,62 @@ class FakeProviderEventIntakeRepository implements ProviderEventIntakeAdminRepos
     domainUserId: "owner-user",
     rolePermissionValues: [["*"]]
   };
+  public candidate: ProviderEventIntakeReviewCandidate | null = {
+    actorDisplayName: "Viewer",
+    actorExternalId: "viewer-1",
+    authOrTokenShaped: false,
+    catalogKnown: true,
+    category: "community",
+    eventHistoryId: null,
+    highVolume: false,
+    id: "intake-1",
+    internalTrigger: "provider.twitch.eventsub.channel-follow",
+    mechanism: "twitch-eventsub",
+    moderationShaped: false,
+    moneyShaped: false,
+    occurredAt: "2026-07-04T16:00:00.000Z",
+    overlayEligibleByDefault: false,
+    processingStatus: "stored",
+    provider: "twitch",
+    providerChannelId: "maiksmc",
+    providerEventName: "channel.follow",
+    providerMessageId: null,
+    receivedAt: "2026-07-04T16:00:01.000Z",
+    redactedPayloadPreview: {
+      userName: "Viewer"
+    },
+    sourceEventId: "follow-1"
+  };
   public lastFilters: NormalizedProviderEventIntakeAdminFilters | null = null;
+  public markIgnoredCalls = 0;
+  public mappedEventKind: string | null = null;
 
   public async resolveActor(): Promise<ProviderEventIntakeAdminActor | null> {
     return this.actor;
+  }
+
+  public async findReviewCandidate(): Promise<ProviderEventIntakeReviewCandidate | null> {
+    return this.candidate;
+  }
+
+  public async markIgnored(): Promise<boolean> {
+    this.markIgnoredCalls += 1;
+    return true;
+  }
+
+  public async mapToEventHistory(input: {
+    eventKind: ProviderEventIntakeReviewHistory["eventKind"];
+  }): Promise<ProviderEventIntakeReviewHistory> {
+    this.mappedEventKind = input.eventKind;
+    return {
+      createdAt: "2026-07-04T16:00:02.000Z",
+      destination: "internal_audit",
+      eventKind: input.eventKind,
+      id: "history-1",
+      publicPlayback: false,
+      routingOutcome: "stored_internal",
+      sourcePlatform: "twitch"
+    };
   }
 
   public async listHealthRows() {
@@ -154,6 +209,87 @@ describe("ProviderEventIntakeAdminService", () => {
       reason: "provider_event_intake_forbidden"
     });
   });
+
+  it("maps a known intake row to internal event history without public playback", async () => {
+    const repository = new FakeProviderEventIntakeRepository();
+    const service = new ProviderEventIntakeAdminService(repository);
+
+    await expect(service.review({
+      action: "map_internal",
+      authUserId: "auth-owner",
+      rowId: "intake-1"
+    })).resolves.toEqual({
+      action: "map_internal",
+      eventHistory: {
+        createdAt: "2026-07-04T16:00:02.000Z",
+        destination: "internal_audit",
+        eventKind: "twitch.follow",
+        id: "history-1",
+        publicPlayback: false,
+        routingOutcome: "stored_internal",
+        sourcePlatform: "twitch"
+      },
+      ok: true,
+      processingStatus: "mapped_to_event_history",
+      publicPlayback: false,
+      rowId: "intake-1"
+    });
+    expect(repository.mappedEventKind).toBe("twitch.follow");
+  });
+
+  it("ignores intake rows without writing event history", async () => {
+    const repository = new FakeProviderEventIntakeRepository();
+    const service = new ProviderEventIntakeAdminService(repository);
+
+    await expect(service.review({
+      action: "ignore",
+      authUserId: "auth-owner",
+      rowId: "intake-1"
+    })).resolves.toEqual({
+      action: "ignore",
+      eventHistory: null,
+      ok: true,
+      processingStatus: "ignored",
+      publicPlayback: false,
+      rowId: "intake-1"
+    });
+    expect(repository.markIgnoredCalls).toBe(1);
+    expect(repository.mappedEventKind).toBeNull();
+  });
+
+  it("rejects already reviewed or unsafe intake rows", async () => {
+    const repository = new FakeProviderEventIntakeRepository();
+    const service = new ProviderEventIntakeAdminService(repository);
+
+    repository.candidate = {
+      ...repository.candidate!,
+      eventHistoryId: "history-1",
+      processingStatus: "mapped_to_event_history"
+    };
+    await expect(service.review({
+      action: "map_internal",
+      authUserId: "auth-owner",
+      rowId: "intake-1"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "provider_event_intake_already_reviewed"
+    });
+
+    repository.candidate = {
+      ...repository.candidate,
+      authOrTokenShaped: true,
+      eventHistoryId: null,
+      processingStatus: "stored"
+    };
+    await expect(service.review({
+      action: "map_internal",
+      authUserId: "auth-owner",
+      rowId: "intake-1"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "provider_intake_review_auth_or_token_shaped"
+    });
+  });
 });
 
 describe("provider event intake admin routes", () => {
@@ -225,6 +361,96 @@ describe("provider event intake admin routes", () => {
         provider: "youtube"
       },
       ok: true
+    });
+  });
+
+  it("accepts owner review actions for provider intake rows", async () => {
+    const server = Fastify();
+    const service = {
+      getHealth: async (): Promise<ProviderEventIntakeHealthResult> => {
+        throw new Error("health service should not be used");
+      },
+      listRecent: async (): Promise<ProviderEventIntakeAdminResult> => {
+        throw new Error("list service should not be used");
+      },
+      review: async (): Promise<ProviderEventIntakeReviewResult> => ({
+        action: "map_internal",
+        eventHistory: {
+          createdAt: "2026-07-04T16:00:02.000Z",
+          destination: "internal_audit",
+          eventKind: "twitch.follow",
+          id: "history-1",
+          publicPlayback: false,
+          routingOutcome: "stored_internal",
+          sourcePlatform: "twitch"
+        },
+        ok: true,
+        processingStatus: "mapped_to_event_history",
+        publicPlayback: false,
+        rowId: "intake-1"
+      })
+    };
+
+    registerProviderEventIntakeAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => service
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      payload: {
+        action: "map_internal"
+      },
+      url: "/admin/connections/intake/intake-1/review"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      eventHistory: {
+        destination: "internal_audit",
+        eventKind: "twitch.follow"
+      },
+      ok: true,
+      publicPlayback: false
+    });
+  });
+
+  it("rejects invalid review actions", async () => {
+    const server = Fastify();
+
+    registerProviderEventIntakeAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => ({
+        getHealth: async () => {
+          throw new Error("service should not be used");
+        },
+        listRecent: async () => {
+          throw new Error("service should not be used");
+        },
+        review: async () => {
+          throw new Error("service should not be used");
+        }
+      })
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      payload: {
+        action: "publish_now"
+      },
+      url: "/admin/connections/intake/intake-1/review"
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "provider_event_intake_invalid_input"
     });
   });
 

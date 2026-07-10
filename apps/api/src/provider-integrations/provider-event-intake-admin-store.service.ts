@@ -1,11 +1,16 @@
+import { randomUUID } from "node:crypto";
+
 import type { DatabasePool } from "@maiks-yt/database";
+import type { EventKind } from "@maiks-yt/domain/events";
 
 import type {
   ProviderEventIntakeAdminActor,
   NormalizedProviderEventIntakeAdminFilters,
   ProviderEventIntakeAdminRepository,
   ProviderEventIntakeAdminRow,
-  ProviderEventIntakeHealthRow
+  ProviderEventIntakeHealthRow,
+  ProviderEventIntakeReviewCandidate,
+  ProviderEventIntakeReviewHistory
 } from "./provider-event-intake-admin.types.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
@@ -15,6 +20,10 @@ type IntakeRow = Omit<ProviderEventIntakeAdminRow, "redactedPayloadPreview" | "o
   redactedPayloadPreview: unknown;
   occurredAt: Date | string | null;
   receivedAt: Date | string;
+};
+
+type MutationResult = {
+  affectedRows?: number;
 };
 
 const booleanToSql = (value: boolean): 0 | 1 => value ? 1 : 0;
@@ -148,6 +157,43 @@ const buildWhere = (filters: NormalizedProviderEventIntakeAdminFilters): {
 export const createProviderEventIntakeAdminRepository = (
   pool: QueryExecutor
 ): ProviderEventIntakeAdminRepository => ({
+  async findReviewCandidate(id) {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          id,
+          provider,
+          mechanism,
+          provider_event_name AS providerEventName,
+          internal_trigger AS internalTrigger,
+          category,
+          source_event_id AS sourceEventId,
+          provider_channel_id AS providerChannelId,
+          provider_message_id AS providerMessageId,
+          actor_external_id AS actorExternalId,
+          actor_display_name AS actorDisplayName,
+          catalog_known AS catalogKnown,
+          money_shaped AS moneyShaped,
+          moderation_shaped AS moderationShaped,
+          auth_or_token_shaped AS authOrTokenShaped,
+          high_volume AS highVolume,
+          overlay_eligible_by_default AS overlayEligibleByDefault,
+          processing_status AS processingStatus,
+          event_history_id AS eventHistoryId,
+          redacted_payload AS redactedPayloadPreview,
+          occurred_at AS occurredAt,
+          received_at AS receivedAt
+        FROM provider_event_intake_logs
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [id]
+    );
+
+    return Array.isArray(rows) && rows.length > 0
+      ? mapRow(rows[0] as IntakeRow) as ProviderEventIntakeReviewCandidate
+      : null;
+  },
   async listHealthRows() {
     const [rows] = await pool.execute(
       `
@@ -219,6 +265,144 @@ export const createProviderEventIntakeAdminRepository = (
     return Array.isArray(rows)
       ? (rows as IntakeRow[]).map(mapRow)
       : [];
+  },
+  async markIgnored(input) {
+    const [result] = await pool.execute(
+      `
+        UPDATE provider_event_intake_logs
+        SET processing_status = 'ignored'
+        WHERE id = ?
+          AND event_history_id IS NULL
+          AND processing_status IN ('stored', 'failed')
+        LIMIT 1
+      `,
+      [input.id]
+    );
+
+    return Number((result as MutationResult).affectedRows ?? 0) > 0;
+  },
+  async mapToEventHistory(input: {
+    row: ProviderEventIntakeReviewCandidate;
+    eventKind: EventKind;
+    reviewedByUserId: string;
+  }): Promise<ProviderEventIntakeReviewHistory | null> {
+    const eventHistoryId = randomUUID();
+    const createdAt = new Date();
+    const [markResult] = await pool.execute(
+      `
+        UPDATE provider_event_intake_logs
+        SET processing_status = 'normalized'
+        WHERE id = ?
+          AND event_history_id IS NULL
+          AND processing_status IN ('stored', 'failed')
+        LIMIT 1
+      `,
+      [input.row.id]
+    );
+
+    if (Number((markResult as MutationResult).affectedRows ?? 0) === 0) {
+      return null;
+    }
+
+    try {
+      await pool.execute(
+        `
+          INSERT INTO event_history
+            (
+              id,
+              source_platform,
+              event_kind,
+              source_event_id,
+              routing_rule_id,
+              routing_outcome,
+              destination,
+              actor_user_id,
+              actor_external_id,
+              actor_display_name,
+              user_id,
+              stream_session_id,
+              stream_schedule_entry_id,
+              session_id,
+              is_test,
+              is_simulated,
+              is_real_money,
+              test_resettable,
+              redacted_payload,
+              occurred_at,
+              created_at
+            )
+          VALUES (?, ?, ?, ?, null, 'stored_internal', 'internal_audit', null, ?, ?, null, null, null, ?, false, false, false, false, ?, ?, ?)
+        `,
+        [
+          eventHistoryId,
+          input.row.provider,
+          input.eventKind,
+          input.row.sourceEventId ?? input.row.id,
+          input.row.actorExternalId,
+          input.row.actorDisplayName,
+          `provider-intake:${input.row.id}`,
+          JSON.stringify({
+            ...input.row.redactedPayloadPreview,
+            providerIntakeId: input.row.id,
+            providerEventName: input.row.providerEventName,
+            providerMechanism: input.row.mechanism,
+            providerInternalTrigger: input.row.internalTrigger,
+            providerReview: "internal_audit",
+            reviewedByUserId: input.reviewedByUserId
+          }),
+          input.row.occurredAt ? new Date(input.row.occurredAt) : new Date(input.row.receivedAt),
+          createdAt
+        ]
+      );
+
+      const [mapResult] = await pool.execute(
+        `
+          UPDATE provider_event_intake_logs
+          SET
+            processing_status = 'mapped_to_event_history',
+            event_history_id = ?
+          WHERE id = ?
+            AND processing_status = 'normalized'
+          LIMIT 1
+        `,
+        [eventHistoryId, input.row.id]
+      );
+
+      if (Number((mapResult as MutationResult).affectedRows ?? 0) === 0) {
+        await pool.execute(
+          `
+            UPDATE provider_event_intake_logs
+            SET processing_status = 'failed'
+            WHERE id = ?
+            LIMIT 1
+          `,
+          [input.row.id]
+        );
+        return null;
+      }
+
+      return {
+        createdAt: createdAt.toISOString(),
+        destination: "internal_audit",
+        eventKind: input.eventKind,
+        id: eventHistoryId,
+        publicPlayback: false,
+        routingOutcome: "stored_internal",
+        sourcePlatform: input.row.provider
+      };
+    } catch (error) {
+      await pool.execute(
+        `
+          UPDATE provider_event_intake_logs
+          SET processing_status = 'failed'
+          WHERE id = ?
+            AND processing_status = 'normalized'
+          LIMIT 1
+        `,
+        [input.row.id]
+      );
+      throw error;
+    }
   },
   resolveActor: (authUserId) => resolveActor(pool, authUserId)
 });
