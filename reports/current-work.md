@@ -277,6 +277,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 43. `/admin` now includes a Stream Windows launch group for standalone chat, moderation, control panel, OBS overlay, and notifications. Internal web links still preserve short-lived `devAuthToken` access, while external `control-dev`/`overlay-dev` URLs are left clean for their own access-token recovery flow. Recurring smoke asserts the group remains visible and fails if dashboard external stream-window links are accidentally rendered with `devAuthToken` query strings.
 44. The shared dev smoke injection scan now explicitly includes the old `bsc-dataseed`/`bsc-dataseed.binance.org` signature, matching the manual probes used after the Cloudflare-side injection incident.
 45. A full local `pnpm test:readiness` pass completed on 2026-07-10 after the dashboard and injection-scan follow-ups: shared package builds, 17 domain test files / 106 tests, 38 API test files / 269 tests, database/API/overlay/control typechecks, web build, architecture rules, diff whitespace check, 77-check dev smoke dry-run, and readiness docs all passed. Visual screenshots were intentionally skipped in that command; the latest visual pass remains item 40.
+46. `pnpm test:readiness` now waits for `https://api-dev.maiks.yt/health` to return a healthy JSON response before starting the 77-check smoke dry-run. This avoids false walls of `502` failures immediately after a dev container restart while still failing if the API does not become ready within the bounded wait.
 
 ## Known State
 
