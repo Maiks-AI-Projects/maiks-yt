@@ -17,6 +17,9 @@ const activeReadinessFiles = [
 const stalePatterns = [
   /\b44-check\b/i,
   /\b44 checks\b/i,
+  /\b76 passing checks\b/i,
+  /\b76\/76\b/i,
+  /\b76-check\b/i,
   /\b75 passing checks\b/i,
   /\b75\/75\b/i,
   /\b75-check\b/i

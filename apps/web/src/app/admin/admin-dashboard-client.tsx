@@ -105,6 +105,11 @@ const groups: readonly AdminDashboardGroup[] = [
         href: "/admin/live-helper",
         label: "Live Helper",
         description: "Read-only helper snapshot for moderation and stream state."
+      },
+      {
+        href: "/admin/backup/health",
+        label: "Backup Health",
+        description: "Read-only backup/export readiness checks."
       }
     ]
   },

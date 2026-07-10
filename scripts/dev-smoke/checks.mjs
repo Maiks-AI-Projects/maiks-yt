@@ -1079,6 +1079,7 @@ const createPwaIconChecks = ({ config, http }) => pwaIconChecks.map(([name, conf
 
 const ownerAdminPageChecks = [
   ["admin dashboard", "/admin", ["Admin"]],
+  ["admin backup health", "/admin/backup/health", ["Backup Health"]],
   ["admin connections", "/admin/connections", ["Connections"]],
   ["admin event routing", "/admin/event-routing", ["Event"]],
   ["admin games", "/admin/games", ["Game"]],
@@ -1091,7 +1092,7 @@ const ownerAdminPageChecks = [
   ["admin provider integrations", "/admin/provider-integrations", ["Provider"]],
   ["admin schedule", "/admin/schedule", ["Schedule"]],
   ["admin sessions", "/admin/sessions", ["Session"]],
-  ["admin testing", "/admin/testing", ["Testing Guide", "76 passing checks", "Quick Open", "Access Required"]],
+  ["admin testing", "/admin/testing", ["Testing Guide", "77 passing checks", "Quick Open", "Access Required", "Backup Health"]],
   ["admin tokens", "/admin/tokens", ["Token"]]
 ];
 

@@ -212,6 +212,7 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
   if (adminUrl) {
     for (const [name, path, expectedText] of [
       ["admin-dashboard", "/admin", "Admin"],
+      ["admin-backup-health", "/admin/backup/health", "Backup Health"],
       ["admin-connections", "/admin/connections", "Connections"],
       ["admin-event-routing", "/admin/event-routing", "Event"],
       ["admin-games", "/admin/games", "Game"],

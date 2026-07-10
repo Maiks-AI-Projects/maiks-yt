@@ -255,7 +255,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 21. Recurring smoke now asserts the standalone control, chat, and moderation PWA windows do not render the normal website navbar.
 22. Visual smoke now also rejects the normal website navbar on the standalone control, chat, and moderation PWA windows while checking their client-rendered content.
 23. `/moderation` now has a dedicated standalone PWA manifest and recurring smoke coverage instead of inheriting the control-panel install identity.
-24. `/admin/testing` now reflects the current 76-check readiness baseline instead of the older smoke count.
+24. `/admin/testing` reflects the current guarded readiness baseline instead of older smoke counts.
 25. Recurring smoke now verifies `/admin/testing` includes the current readiness baseline text, so stale in-app testing guidance fails fast.
 26. `pnpm dev:smoke:notify` now has an explicit expected-check-count guard, so adding/removing smoke checks requires an intentional readiness-baseline update.
 27. `pnpm test:readiness` now scans active testing docs/app copy for stale smoke-count wording, including the next-agent handoff.
@@ -267,6 +267,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 33. `pnpm test:readiness -- --visual` passed on 2026-07-10 with 68 fresh Chromium captures across public pages, owner admin surfaces, `/chat`, `/control`, `/moderation`, and overlay; the summary reported no auth-required stops, no known injection markers, no rejected navbars, and no horizontal overflow.
 34. Bare `control-dev` `/control`, `/chat`, and `/moderation` Access Required screens now show route-aware recovery actions for Access Tokens and the Testing Guide. Recurring smoke still checks the SPA routes exist, and visual smoke now asserts the client-rendered recovery copy on all three bare routes before tokenized window captures.
 35. The expanded visual readiness pass now covers 74 captures, including bare Access Required recovery screens for `/control`, `/chat`, and `/moderation`; the 2026-07-10 run passed with no missing recovery copy and no horizontal overflow on those routes.
+36. `/admin/backup/health` now has a real owner-facing web page matching the manual testing guide, and the recurring smoke baseline is intentionally bumped to 77 checks to cover that page.
 
 ## Known State
 

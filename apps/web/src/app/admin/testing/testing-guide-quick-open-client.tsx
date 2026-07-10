@@ -58,6 +58,11 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
         description: "Provider intake health, recent received events, and provider event catalog."
       },
       {
+        href: "/admin/backup/health",
+        label: "Backup Health",
+        description: "Read-only backup/export readiness checks before testing."
+      },
+      {
         href: "/admin/money",
         label: "Money Ledger",
         description: "Private accounting entries, corrections, warnings, and exports."
