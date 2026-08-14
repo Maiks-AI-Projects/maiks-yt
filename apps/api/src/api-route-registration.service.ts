@@ -57,6 +57,7 @@ import {
   type StreamerChatModerationAction
 } from "./streamer-chat/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
+import { registerPublicUpdateReadRoutes } from "./updates/index.js";
 import type {
   DiscordChatReadOnlyIntakeService,
   TwitchChatReadOnlyIntakeService,
@@ -140,6 +141,9 @@ export const registerApplicationRoutes = ({
     getDatabasePool
   });
   registerProjectReadRoutes(server, {
+    getDatabasePool
+  });
+  registerPublicUpdateReadRoutes(server, {
     getDatabasePool
   });
   registerCreatorLinkReadRoutes(server, {

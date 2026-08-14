@@ -10,4 +10,5 @@ export * from "./pages/index.js";
 export * from "./projects/index.js";
 export * from "./schedule/index.js";
 export * from "./security/index.js";
+export * from "./updates/index.js";
 export * from "./value/index.js";

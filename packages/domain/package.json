@@ -15,6 +15,7 @@
     "./notifications": "./dist/notifications/index.js",
     "./schedule": "./dist/schedule/index.js",
     "./security": "./dist/security/index.js",
+    "./updates": "./dist/updates/index.js",
     "./value": "./dist/value/index.js"
   },
   "scripts": {

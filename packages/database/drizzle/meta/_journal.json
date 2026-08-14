@@ -183,6 +183,13 @@
       "when": 1783685196862,
       "tag": "0025_breezy_red_shift",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1786746589415,
+      "tag": "0026_polite_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

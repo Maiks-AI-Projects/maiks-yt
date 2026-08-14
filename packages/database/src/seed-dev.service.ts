@@ -14,6 +14,7 @@ import {
   projectItems,
   projectMilestones,
   projects,
+  publicUpdates,
   roleRankPaths,
   roles,
   streamScheduleEntries,
@@ -259,6 +260,76 @@ const creatorLinkSeeds = [
     isPrimary: false,
     sortOrder: 150,
     isPublished: true
+  }
+] as const;
+const publicUpdateSeeds = [
+  {
+    id: "00000000-0000-4000-8000-000000000200",
+    slug: "production-site-taking-shape",
+    title: "The production site is taking shape",
+    summary: "An example announcement showing how major website changes can be explained without turning the update feed into a technical changelog.",
+    body: [
+      "The public website is being rebuilt one page at a time, using the working backend where it is ready and honest placeholders where it is not.",
+      "",
+      "This example announcement demonstrates the format planned for larger changes: what became available, what remains unfinished, and where visitors can follow the work.",
+      "",
+      "The [build progress page](/progress) remains the fuller source for system-level status."
+    ].join("\n"),
+    kind: "announcement",
+    status: "published",
+    visibility: "public",
+    publishedAt: new Date("2026-08-14T17:00:00.000Z"),
+    isPinned: true,
+    isExample: true,
+    createdByUserId: creatorUserId,
+    updatedByUserId: creatorUserId
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000201",
+    slug: "example-stream-recap-building-in-public",
+    title: "Example recap: building the platform in public",
+    summary: "A sample stream recap for collecting what changed, what was learned, and what should happen before the next stream.",
+    body: [
+      "This is example content for the future stream-recap format, not a record of a completed broadcast.",
+      "",
+      "## What the recap can capture",
+      "",
+      "- the goal at the start of the stream",
+      "- the work that was completed",
+      "- decisions or problems worth remembering",
+      "- links to related projects and the next scheduled stream",
+      "",
+      "Recaps should remain readable even for someone who did not watch live."
+    ].join("\n"),
+    kind: "stream-recap",
+    status: "published",
+    visibility: "public",
+    publishedAt: new Date("2026-08-13T12:00:00.000Z"),
+    isPinned: false,
+    isExample: true,
+    createdByUserId: creatorUserId,
+    updatedByUserId: creatorUserId
+  },
+  {
+    id: "00000000-0000-4000-8000-000000000202",
+    slug: "why-updates-live-here",
+    title: "Why updates should live here",
+    summary: "A sample post about keeping project notes, announcements, and creator context available outside social-platform timelines.",
+    body: [
+      "Social platforms are useful for reaching people, but they should not be the only place where project and stream context exists.",
+      "",
+      "A post on Maiks.yt can stay linked to the relevant schedule, project, or public record. Short social messages can point back here later without becoming the permanent source of truth.",
+      "",
+      "For now this is example content used to test the real update backend and public presentation."
+    ].join("\n"),
+    kind: "post",
+    status: "published",
+    visibility: "public",
+    publishedAt: new Date("2026-08-12T07:00:00.000Z"),
+    isPinned: false,
+    isExample: true,
+    createdByUserId: creatorUserId,
+    updatedByUserId: creatorUserId
   }
 ] as const;
 const actionItemSeeds = [
@@ -531,6 +602,21 @@ await database.insert(creatorLinks).values([...creatorLinkSeeds]).onDuplicateKey
     isPrimary: sql`VALUES(is_primary)`,
     sortOrder: sql`VALUES(sort_order)`,
     isPublished: sql`VALUES(is_published)`
+  }
+});
+
+await database.insert(publicUpdates).values([...publicUpdateSeeds]).onDuplicateKeyUpdate({
+  set: {
+    title: sql`VALUES(title)`,
+    summary: sql`VALUES(summary)`,
+    body: sql`VALUES(body)`,
+    kind: sql`VALUES(kind)`,
+    status: sql`VALUES(status)`,
+    visibility: sql`VALUES(visibility)`,
+    publishedAt: sql`VALUES(published_at)`,
+    isPinned: sql`VALUES(is_pinned)`,
+    isExample: sql`VALUES(is_example)`,
+    updatedByUserId: sql`VALUES(updated_by_user_id)`
   }
 });
 

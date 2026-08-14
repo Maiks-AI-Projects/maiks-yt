@@ -3,6 +3,7 @@ export * from "./database-auth.schema.js";
 export * from "./database-community.schema.js";
 export * from "./database-access.schema.js";
 export * from "./database-projects.schema.js";
+export * from "./database-content.schema.js";
 export * from "./database-streaming.schema.js";
 export * from "./database-events.schema.js";
 export * from "./database-games.schema.js";
