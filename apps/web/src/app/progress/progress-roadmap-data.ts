@@ -43,9 +43,9 @@ export const publicRoadmap: readonly RoadmapItem[] = [
     href: "/projects"
   },
   {
-    title: "Creator hub and open feeds",
-    description: "Official links, current destinations, community entry points, and open RSS feeds for people who do not want another account or algorithm.",
-    status: "partial",
+    title: "Creator links and open feeds",
+    description: "A live Linktree-style hub now collects official channels, community entry points, public pages, account access, and the open RSS feed.",
+    status: "usable",
     href: "/links"
   },
   {

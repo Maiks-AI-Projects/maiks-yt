@@ -10,7 +10,7 @@ const navigationItems = [
   { href: "/games", label: "Games" },
   { href: "/projects", label: "Projects" },
   { href: "/updates", label: "Updates" },
-  { href: "/links", label: "Community" },
+  { href: "/links", label: "Creator links" },
   { href: "/progress", label: "Build progress" },
   { href: "/about", label: "About" }
 ] as const;

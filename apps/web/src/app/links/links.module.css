@@ -1,0 +1,252 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-active: #17272a;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  min-height: 100vh;
+  padding: clamp(54px, 7vw, 88px) 18px 68px;
+}
+
+.shell {
+  margin: 0 auto;
+  max-width: 720px;
+}
+
+.profile {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.portrait {
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  height: 104px;
+  object-fit: cover;
+  width: 104px;
+}
+
+.eyebrow,
+.linkIdentity > span {
+  color: var(--mint);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin: 20px 0 0;
+}
+
+.profile h1 {
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  line-height: 1.05;
+  margin: 8px 0 0;
+}
+
+.profile > p:last-child {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 14px auto 0;
+  max-width: 590px;
+}
+
+.directory {
+  display: grid;
+  gap: 10px;
+  margin-top: 36px;
+}
+
+.linkRow {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  min-height: 74px;
+  padding: 12px 14px;
+  text-decoration: none;
+  transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+a.linkRow:hover,
+a.linkRow:focus-visible {
+  background: var(--surface-active);
+  border-color: var(--mint);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.linkRow[data-primary="true"] {
+  background: var(--surface-active);
+  border-color: color-mix(in srgb, var(--mint) 70%, var(--line));
+}
+
+.linkRow[data-unavailable="true"] {
+  color: var(--muted);
+}
+
+.linkIcon {
+  align-items: center;
+  border: 1px solid var(--line);
+  color: var(--mint);
+  display: flex;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.linkIcon[data-icon="twitch"] {
+  color: #a970ff;
+}
+
+.linkIcon[data-icon="youtube"],
+.linkIcon[data-icon="stream"] {
+  color: #ff5b5b;
+}
+
+.linkIcon[data-icon="discord"],
+.linkIcon[data-icon="community"] {
+  color: #8ea1ff;
+}
+
+.linkIcon svg {
+  height: 19px;
+  width: 19px;
+}
+
+.linkIdentity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.linkIdentity strong {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.linkDescription {
+  color: var(--muted);
+  display: none;
+}
+
+.linkAction {
+  align-items: center;
+  color: var(--mint);
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 800;
+  gap: 6px;
+  justify-content: flex-end;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.linkRow[data-unavailable="true"] .linkAction {
+  color: var(--quiet);
+  font-size: 0.68rem;
+  max-width: 150px;
+}
+
+.loadState {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  margin-top: 36px;
+  padding: 24px;
+  text-align: center;
+}
+
+.loadState span {
+  color: var(--muted);
+}
+
+.note {
+  align-items: center;
+  color: var(--quiet);
+  display: flex;
+  font-size: 0.78rem;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 24px;
+  text-align: center;
+}
+
+.note > span {
+  align-items: center;
+  border: 1px solid var(--line);
+  color: var(--mint);
+  display: flex;
+  font-weight: 800;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.note p {
+  margin: 0;
+}
+
+@media (min-width: 680px) {
+  .linkRow {
+    grid-template-columns: 42px minmax(170px, 0.7fr) minmax(220px, 1fr) auto;
+  }
+
+  .linkDescription {
+    display: block;
+    font-size: 0.84rem;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 42px;
+  }
+
+  .portrait {
+    height: 88px;
+    width: 88px;
+  }
+
+  .directory {
+    margin-top: 28px;
+  }
+
+  .linkRow {
+    gap: 10px;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    min-height: 66px;
+    padding: 10px;
+  }
+
+  .linkIcon {
+    height: 38px;
+    width: 38px;
+  }
+
+  .linkRow[data-unavailable="true"] {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .linkRow[data-unavailable="true"] .linkAction {
+    grid-column: 2;
+    justify-content: flex-start;
+    max-width: none;
+    text-align: left;
+  }
+}
