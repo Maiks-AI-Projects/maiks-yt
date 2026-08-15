@@ -68,6 +68,8 @@ const mapGame = (row: GameLibraryRow): GameLibrarySource => ({
   platformLabel: row.platformLabel ?? null,
   storeProvider: row.storeProvider ?? null,
   storeUrl: row.storeUrl ?? null,
+  artworkUrl: null,
+  popularityScore: null,
   ownershipStatus: row.ownershipStatus,
   interestStatus: row.interestStatus,
   streamFitNote: row.streamFitNote ?? null,
