@@ -22,7 +22,11 @@
   padding-right: max(20px, calc((100% - 1180px) / 2));
 }
 
-.intro,
+.intro {
+  padding-bottom: clamp(48px, 6vw, 76px);
+  padding-top: clamp(54px, 7vw, 88px);
+}
+
 .detailHeader {
   padding-bottom: clamp(66px, 9vw, 112px);
   padding-top: clamp(72px, 10vw, 132px);
@@ -38,7 +42,15 @@
   text-transform: uppercase;
 }
 
-.intro h1,
+.intro h1 {
+  font-size: clamp(2.65rem, 6vw, 5.4rem);
+  letter-spacing: 0;
+  line-height: 1.04;
+  margin: 0;
+  max-width: 980px;
+  text-wrap: balance;
+}
+
 .detailHeader h1,
 .stateBand h1 {
   font-size: clamp(3rem, 7vw, 6.3rem);
@@ -58,7 +70,11 @@
   max-width: 760px;
 }
 
-.updateSection,
+.intro > p:last-child {
+  line-height: 1.5;
+  margin-top: 20px;
+}
+
 .detailBody,
 .stateBand {
   background: var(--surface);
@@ -67,12 +83,19 @@
   padding-top: clamp(72px, 9vw, 118px);
 }
 
+.updateSection {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(52px, 7vw, 82px);
+  padding-top: clamp(48px, 6vw, 72px);
+}
+
 .sectionHeading {
   align-items: end;
   display: flex;
   gap: 30px;
   justify-content: space-between;
-  margin-bottom: 42px;
+  margin-bottom: 28px;
 }
 
 .sectionHeading h2,
@@ -116,9 +139,9 @@
 .updateRow {
   border-bottom: 1px solid var(--line);
   display: grid;
-  gap: clamp(24px, 4vw, 56px);
+  gap: clamp(18px, 3vw, 38px);
   grid-template-columns: 48px minmax(220px, 0.65fr) minmax(280px, 1fr) auto;
-  padding: clamp(30px, 4vw, 48px) 0;
+  padding: clamp(22px, 3vw, 32px) 0;
 }
 
 .number {
@@ -128,7 +151,7 @@
 }
 
 .updateTitle h3 {
-  font-size: clamp(1.5rem, 2.8vw, 2.55rem);
+  font-size: clamp(1.35rem, 2.3vw, 2rem);
   letter-spacing: 0;
   line-height: 1.06;
   margin: 8px 0 0;
@@ -147,7 +170,7 @@
 
 .updateSummary {
   color: var(--muted);
-  line-height: 1.65;
+  line-height: 1.5;
   margin: 0;
 }
 
@@ -190,7 +213,7 @@
 }
 
 .rssLink {
-  margin-top: 32px;
+  margin-top: 24px;
 }
 
 .detailMeta {
@@ -255,16 +278,25 @@
   .sectionHeading {
     align-items: start;
     flex-direction: column;
+    gap: 18px;
   }
 
   .updateRow {
+    gap: 10px 14px;
     grid-template-columns: 34px minmax(0, 1fr);
+    padding: 20px 0;
   }
 
   .updateSummary,
   .updateMeta {
     grid-column: 2;
     text-align: left;
+  }
+
+  .updateMeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
   }
 
   .detailBody {
