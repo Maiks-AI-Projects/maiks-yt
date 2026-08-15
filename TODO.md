@@ -271,6 +271,8 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
   - 2026-07-10 follow-up adds a one-click admin path to create a private game record from a pending suggestion and accept/link it for review.
   - 2026-07-10 follow-up adds a no-schema gifted-game shortcut in `/admin/games`: pending suggestions can create private records with `ownershipStatus: gifted` and accept/link the suggestion in one action. Rich gift metadata such as giver credit, key/redeem state, value, and accounting remains future schema/provider-store work.
   - 2026-07-10 follow-up adds a reviewed suggestions panel in `/admin/games` so accepted/maybe-later/rejected suggestions remain visible during manual testing after leaving the pending queue.
+  - 2026-08-15 expanded the bounded Steam discovery slice for coordinator review: server-only `STEAM_WEB_API_KEY`/`STEAM_OWNER_ID` configuration status, owner-wildcard or `game-library:manage` gated read-only owned-game and wishlist previews, strict sanitized AppID/title/icon/playtime/priority/date projection, and manual `Open in Steam` links for suggestions. It does not import, persist, publish, purchase, or update Steam state.
+  - Next reviewed Steam step: add an on-demand provider-neutral catalog cache for searched, owned, wishlisted, suggested, scheduled, or owner-confirmed games only. Keep cached metadata searchable during provider outages, retain provider IDs and internal-use artwork URLs without downloading artwork files, and require explicit owner confirmation before merging ambiguous editions or providers.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.
 

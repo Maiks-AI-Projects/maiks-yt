@@ -2322,6 +2322,106 @@ button:disabled {
   color: #6d3f00;
 }
 
+.steam-library-preview-panel .game-library-warning {
+  background: #fff7e5;
+  border: 1px solid #e5bf68;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.steam-library-preview-panel .project-admin-panel-heading > div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.steam-library-preview-list {
+  border: 1px solid #d8e0e8;
+  border-radius: 6px;
+  display: grid;
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+.steam-library-preview-game {
+  align-items: center;
+  border-top: 1px solid #d8e0e8;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  padding: 0.65rem 0.75rem;
+}
+
+.steam-library-preview-game:first-child {
+  border-top: 0;
+}
+
+.steam-library-preview-game img,
+.steam-library-preview-icon {
+  background: #243646;
+  border-radius: 4px;
+  height: 2rem;
+  object-fit: cover;
+  width: 2rem;
+}
+
+.steam-library-preview-icon {
+  align-items: center;
+  color: #ffffff;
+  display: flex;
+  font-weight: 800;
+  justify-content: center;
+}
+
+.steam-library-preview-game > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.steam-library-preview-game strong {
+  overflow-wrap: anywhere;
+}
+
+.steam-library-preview-game span {
+  color: #4b5966;
+  font-size: 0.82rem;
+}
+
+.steam-library-preview-playtime {
+  justify-items: end;
+  text-align: right;
+}
+
+.steam-wishlist-preview {
+  border-top: 1px solid #d8e0e8;
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+}
+
+.steam-wishlist-preview h3,
+.steam-wishlist-preview p {
+  margin: 0;
+}
+
+.steam-store-link {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 48rem) {
+  .steam-wishlist-preview-item {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .steam-wishlist-preview-item .steam-store-link {
+    grid-column: 1 / -1;
+  }
+}
+
 .dev-test-console-page {
   max-width: 82rem;
 }

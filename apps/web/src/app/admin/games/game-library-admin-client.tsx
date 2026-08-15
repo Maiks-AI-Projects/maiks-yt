@@ -19,6 +19,8 @@ import type {
 } from "@maiks-yt/domain/games";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import SteamLibraryPreviewPanel from "./steam-library-preview-panel";
+import { getSteamSuggestionUrl } from "./steam-store-links.rules";
 
 type AdminGamesResponse =
   | {
@@ -538,6 +540,8 @@ const GameLibraryAdminClient = (): React.ReactNode => {
           </aside>
 
           <section className="project-admin-workspace" aria-label="Game editor">
+            <SteamLibraryPreviewPanel apiBaseUrl={apiBaseUrl} />
+
             <section className="project-admin-panel">
               <div className="project-admin-panel-heading">
                 <h2>Suggestions</h2>
@@ -559,6 +563,9 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                           Store Page
                         </a>
                       ) : null}
+                      <a href={getSteamSuggestionUrl(suggestion)} rel="noreferrer" target="_blank">
+                        Open in Steam
+                      </a>
                       {suggestion.tags.length > 0 ? <p>{suggestion.tags.join(", ")}</p> : null}
                       <div className="project-admin-form-grid">
                         <label>
@@ -621,6 +628,9 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                       ) : null}
                       {suggestion.reviewerNote ? <p>{suggestion.reviewerNote}</p> : null}
                       {suggestion.suggestedByName ? <p>Suggested by {suggestion.suggestedByName}</p> : null}
+                      <a href={getSteamSuggestionUrl(suggestion)} rel="noreferrer" target="_blank">
+                        Open in Steam
+                      </a>
                     </article>
                   ))}
                 </div>

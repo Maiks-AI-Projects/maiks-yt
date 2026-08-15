@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-07-09
+Updated: 2026-08-14
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -63,7 +63,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
   - Phase C23 adds owner-confirmed posting for reviewed private draft ledger entries. It only changes private bookkeeping status from `draft` to `posted`; it does not settle provider money, create payments, or publish money data.
   - Phase C24 adds private ledger posting-status filtering for all/draft/posted/voided views, and exports/reports use the same current filter.
   - Phase C25 adds local Import Preview row filtering and show-more controls so provider CSV previews can be reviewed by ready/warning/skipped state before creating draft entries.
-- Phase D1 content planning adds Page Creator client-side validation copy and records the content completion chunks: page polish, support destination after Michael approval, project/policy polish, and Game Library/play schedule. Page Creator now also has hidden/draft cleanup for test records. Game Library persistence is dev-applied as `0024_overjoyed_wrecker.sql`; runtime slices add typed rules, owner-gated `/admin/games`, public read-only `/games`, public `GET /games`, admin navigation, smoke coverage, a deployed and dev-smoked schedule-to-game linking editor/API, deployed and dev-smoked private pending game suggestions, a one-click private-game-from-suggestion admin shortcut, a no-schema private gifted-game-from-suggestion shortcut, a reviewed suggestions panel for manual QA, a no-schema private/mothballed project archive shortcut, and manual project-item price estimates over existing columns. Rich gifted-game metadata, provider/store sync, price history, and money behavior stay separate.
+- Phase D1 content planning adds Page Creator client-side validation copy and records the content completion chunks: page polish, support destination after Michael approval, project/policy polish, and Game Library/play schedule. Page Creator now also has hidden/draft cleanup for test records. Game Library persistence is dev-applied as `0024_overjoyed_wrecker.sql`; runtime slices add typed rules, owner-gated `/admin/games`, public read-only `/games`, public `GET /games`, admin navigation, smoke coverage, a deployed and dev-smoked schedule-to-game linking editor/API, deployed and dev-smoked private pending game suggestions, a one-click private-game-from-suggestion admin shortcut, a no-schema private gifted-game-from-suggestion shortcut, a reviewed suggestions panel for manual QA, a no-schema private/mothballed project archive shortcut, and manual project-item price estimates over existing columns. The first Steam integration worker slice is review-ready and adds server-only connection status plus owner-gated read-only import preview without database/provider writes. Rich gifted-game metadata, reviewed Steam import/mapping, other provider/store sync, price history, and money behavior stay separate.
 - Phase E1 backup/export planning is captured in `reports/backup-restore-runbook.md`, and `pnpm dev:backup:health` now checks dev database reachability/core table presence through recurring smoke without exporting data. Owner-gated `/admin/backup/health` feeds a Backup Health card on `/admin`, and owner-gated `/admin/backup/key-data-export` provides a manual JSON key-data snapshot for testing-critical editable rows while excluding auth/session/token/provider credential secrets, raw provider payloads, push secrets, env/config, uploads, and full dump/restore automation. A 2026-07-10 dev key-data restore dry run is recorded in `reports/backup-restore-drills/2026-07-10-dev-key-data-restore-dry-run.md`: it validated 24 sections / 101 rows through a temporary JSON reconstruction path and deleted the raw export. Production backup automation remains blocked on retention, encryption, restore-owner, dump-tool installation, full SQL restore testing, and destructive-restore decisions.
   - Recurring smoke now validates the key-data export payload shape and checks that obvious token field markers are absent. It can also validate `/streamer-chat/moderation/audit` when `DEV_CONTROL_ACCESS_TOKEN` or `CONTROL_PANEL_ACCESS_TOKEN` is available in the smoke environment.
 - Phase F1 refreshes `reports/production-readiness-checklist.md` into a staged dev-to-prod gate checklist. It is not production approval.
@@ -73,6 +73,22 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
   - Control-panel/chat/moderation now capture `devAuthToken` from the URL and attach it as a bearer for session/moderation API calls, matching the web admin testing pattern while preserving normal cookie login.
 - Session admin foundation is deployed-ready: owner-only `/admin/sessions` can list Better Auth sessions with safe metadata, revoke selected rows, and revoke all other real browser sessions while preserving the current one. It intentionally does not expose session tokens. Future follow-up can add explicit audit history if needed.
 - Testing navigation note: `/admin` now groups the active admin surfaces, preserves `devAuthToken` in links during smoke testing, includes live status/count badges for notifications, provider intake, sessions, backup health, pending approvals, active helper grants, active local moderation, and private ledger warnings, and is covered by `pnpm dev:smoke:notify`.
+
+## Steam Game-Library Discovery Slice (Ready For Coordinator Review)
+
+Completed boundary:
+
+- Added a focused server-side Steam module in `@maiks-yt/integrations` using the public HTTPS `api.steampowered.com` `IPlayerService/GetOwnedGames` endpoint with `include_appinfo` and `include_played_free_games` enabled.
+- Added strict preview-only projection for AppID, title, safe icon URL, lifetime playtime, and recent playtime. Missing configuration, invalid configuration/credentials, private game details, rate limits, malformed responses, network failures, and provider failures return fixed typed states without raw payloads, stack traces, credentials, or key-bearing URLs.
+- Added private/no-store `GET /admin/games/steam/status`, `GET /admin/games/steam/preview`, and `GET /admin/games/steam/wishlist`, gated by owner wildcard or `game-library:manage`, plus compact owned-game/wishlist previews and manual Steam links for suggestions.
+- Added no schema, migration, persistence, public output, Steam login/OpenID, account linking, recurring sync, automatic import, provider write, purchasing, achievement, friend, gift, or money behavior. Wishlist changes remain manual in Steam, and existing games, interest/visibility/notes/categories, suggestions, schedule links, and gift state are untouched.
+
+Next reviewed import/mapping step:
+
+- Add a provider-neutral, on-demand catalog cache keyed by canonical game plus provider identities. Cache only games surfaced through search, owned library, wishlist, suggestions, schedule links, or explicit owner confirmation; do not bulk crawl provider catalogs.
+- Preserve Steam AppID, Twitch category ID, IGDB ID, aliases, store URL, internal-use remote artwork URL, source timestamps, and owner-confirmed match state. Keep stale metadata searchable when providers fail and use a local placeholder instead of downloading artwork files.
+- Require explicit per-game owner confirmation for ambiguous matching and never overwrite existing manual metadata or links implicitly.
+- Keep bulk/automatic import, recurring synchronization, deletions, provider writes, Steam login/OpenID, public publishing, and money behavior out until separately approved.
 
 ## Phase 6A: Provider Integration Foundation (Completed On Dev)
 
