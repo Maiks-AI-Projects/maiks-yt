@@ -1,3 +1,4 @@
+import styles from "./testing-guide.module.css";
 import { TestingGuideQuickOpenClient } from "./testing-guide-quick-open-client";
 import { TestingNoteCopyClient } from "./testing-note-copy-client";
 import { TestingPassChecklistClient } from "./testing-pass-checklist-client";
@@ -159,30 +160,32 @@ Screenshot or recording:
 Follow-up owner:`;
 
 const TestingGuidePage = (): React.ReactNode => (
-  <main className="project-admin-page testing-guide-page">
-    <section className="project-admin-shell">
-      <header className="project-admin-header">
+  <main className={`${styles.page} project-admin-page testing-guide-page`}>
+    <section className={`${styles.surface} project-admin-shell`}>
+      <header className={`${styles.header} project-admin-header`}>
         <div>
-          <p className="eyebrow">Dev Testing</p>
-          <h1>Testing Guide</h1>
-          <p>First-pass manual test order for getting the dev build ready for repeated use.</p>
-          <p>Current recurring smoke baseline: 79 passing checks.</p>
+          <p className={styles.eyebrow}>Owner Testing</p>
+          <h1>Owner Testing Dashboard</h1>
+          <p className={styles.mutedText}>
+            First-pass manual testing order for the current dev build. This surface is for owner-only operations and quick run-throughs.
+          </p>
+          <p className={styles.mutedText}>Current recurring smoke baseline: 79 passing checks.</p>
         </div>
-        <a className="admin-dashboard-link" href="/admin">
+        <a className={`${styles.backLink} admin-dashboard-link`} href="/admin">
           Back to admin
         </a>
       </header>
 
-      <section className="project-admin-panel">
-        <div className="project-admin-panel-heading">
+      <section className={`${styles.panel} project-admin-panel`}>
+        <div className={`${styles.sectionHeading} project-admin-panel-heading`}>
           <div>
             <h2>Latest Readiness Evidence</h2>
             <p>Use this as the current confidence snapshot before manual testing starts.</p>
           </div>
         </div>
-        <ol className="project-admin-record-list">
+        <ol className={`${styles.tightRecordList} project-admin-record-list`}>
           {readinessEvidence.map((item) => (
-            <li key={item.label}>
+            <li className={styles.record} key={item.label}>
               <div>
                 <strong>{item.label}: {item.value}</strong>
                 <p>{item.note}</p>
@@ -192,16 +195,16 @@ const TestingGuidePage = (): React.ReactNode => (
         </ol>
       </section>
 
-      <section className="project-admin-panel">
-        <div className="project-admin-panel-heading">
+      <section className={`${styles.panel} project-admin-panel`}>
+        <div className={`${styles.sectionHeading} project-admin-panel-heading`}>
           <div>
             <h2>Readiness Commands</h2>
-            <p>Run these before or after a testing session depending on how much coverage is needed.</p>
+            <p>Run these before or after a testing session depending on coverage needs.</p>
           </div>
         </div>
-        <ol className="project-admin-record-list">
+        <ol className={`${styles.tightRecordList} project-admin-record-list`}>
           {readinessCommands.map((item) => (
-            <li key={item.command}>
+            <li className={styles.record} key={item.command}>
               <div>
                 <strong><code>{item.command}</code></strong>
                 <p>{item.description}</p>
@@ -213,35 +216,39 @@ const TestingGuidePage = (): React.ReactNode => (
 
       <TestingGuideQuickOpenClient />
 
-      <section className="project-admin-panel">
-        <div className="project-admin-panel-heading">
-          <div>
-            <h2>Installed Window Checklist</h2>
-            <p>Use this pass for PWA/browser-window behavior that headless smoke cannot fully prove.</p>
-          </div>
-        </div>
-        <ol className="project-admin-record-list">
-          {installedWindowChecks.map((check) => (
-            <li key={check}>
-              <div>
+      <section className={`${styles.panel} project-admin-panel`}>
+        <details className={styles.disclosure} open>
+          <summary className={styles.disclosureSummary}>
+            <div>
+              <h2>Installed Window Checklist</h2>
+              <p>Use this pass for PWA/browser-window behavior that headless smoke cannot fully prove.</p>
+            </div>
+            <span>{installedWindowChecks.length} checks</span>
+          </summary>
+
+          <ol className={`${styles.tightRecordList} project-admin-record-list`}>
+            {installedWindowChecks.map((check) => (
+              <li className={styles.record} key={check}>
                 <p>{check}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+              </li>
+            ))}
+          </ol>
+        </details>
       </section>
 
       <TestingPassChecklistClient passes={testingPasses} />
 
-      <section className="project-admin-panel project-admin-note">
-        <div className="project-admin-panel-heading">
+      <section className={`${styles.panel} project-admin-panel project-admin-note`}>
+        <div className={`${styles.sectionHeading} project-admin-panel-heading`}>
           <div>
             <h2>Record Breakage</h2>
-            <p>For each problem, record the page or window, whether it blocks streaming, and attach screenshots for visual/layout issues.</p>
+            <p className={styles.mutedText}>
+              For each problem, record the page or window, whether it blocks streaming, and attach screenshots for visual/layout issues.
+            </p>
           </div>
           <TestingNoteCopyClient template={testingNoteTemplate} />
         </div>
-        <pre><code>{testingNoteTemplate}</code></pre>
+        <pre className={styles.noteTemplate}><code>{testingNoteTemplate}</code></pre>
       </section>
     </section>
   </main>

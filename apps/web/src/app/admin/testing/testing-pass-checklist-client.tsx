@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import styles from "./testing-guide.module.css";
+
 type TestingPassChecklistClientProps = {
   passes: readonly {
     title: string;
@@ -216,14 +218,14 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
   };
 
   return (
-    <section className="project-admin-panel testing-checklist-panel">
-      <div className="project-admin-panel-heading">
+    <section className={`${styles.checklistPanel} project-admin-panel testing-checklist-panel`}>
+      <div className={`${styles.sectionHeading} project-admin-panel-heading`}>
         <div>
           <h2>Manual Testing Checklist</h2>
           <p>{checked.size}/{totalChecks} checks marked in this browser. {remainingChecks} remaining.</p>
-          <p>Session started: {formatSessionStartedAt(sessionStartedAt)}</p>
+          <p className={styles.mutedText}>Session started: {formatSessionStartedAt(sessionStartedAt)}</p>
         </div>
-        <div className="admin-inline-actions testing-checklist-actions">
+        <div className={`${styles.actionsRow} admin-inline-actions testing-checklist-actions`}>
           <button type="button" className="secondary-action" onClick={startNewSession}>
             Start new session
           </button>
@@ -237,17 +239,17 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
         </div>
       </div>
 
-      <div className="testing-checklist-progress" aria-label="Manual testing progress">
-        <div className="testing-checklist-progress-summary">
+      <div className={styles.checklistProgress} aria-label="Manual testing progress">
+        <div className={styles.checklistProgressSummary}>
           <strong>{completionPercent}% complete</strong>
           <span>{remainingChecks === 0 ? "All checks marked." : `${remainingChecks} checks left.`}</span>
         </div>
-        <div className="testing-checklist-progress-track" aria-hidden="true">
+        <div className={styles.checklistProgressTrack} aria-hidden="true">
           <span style={{ width: `${completionPercent}%` }} />
         </div>
       </div>
 
-      <label className="testing-session-notes">
+      <label className={styles.sessionNotes}>
         <span>Session Notes</span>
         <textarea
           onChange={(event) => setNotes(event.target.value)}
@@ -255,13 +257,13 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
           value={notes}
         />
       </label>
-      <div className="admin-inline-actions testing-checklist-actions">
+      <div className={styles.actionsRow}>
         <button type="button" className="secondary-action" onClick={clearNotes} disabled={!notes.trim()}>
           Clear notes
         </button>
       </div>
 
-      <div className="project-admin-grid">
+      <div className={styles.passGrid}>
         {passes.map((testingPass) => {
           const progress = passProgress.find((candidate) => candidate.title === testingPass.title);
           const checkedInPass = progress?.checkedCount ?? 0;
@@ -270,16 +272,24 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
           const passComplete = totalInPass > 0 && remainingInPass === 0;
 
           return (
-            <section className={`project-admin-preview testing-checklist-pass${passComplete ? " complete" : ""}`} key={testingPass.title}>
-              <div className="testing-checklist-pass-heading">
+            <details
+              className={`${styles.checklistPass} project-admin-preview testing-checklist-pass${passComplete ? " complete" : ""}`}
+              key={testingPass.title}
+              open={!passComplete}
+            >
+              <summary className={`${styles.passHeading} testing-checklist-pass-heading`}>
                 <div>
                   <h2>{testingPass.title}</h2>
-                  <p>{testingPass.goal}</p>
+                  <p className={styles.mutedText}>{testingPass.goal}</p>
                   <p className="testing-checklist-pass-count">
                     {checkedInPass}/{totalInPass} done · {passComplete ? "Complete" : `${remainingInPass} left`}
                   </p>
                 </div>
-                <div className="admin-inline-actions testing-checklist-pass-actions">
+                <span className={styles.passBadge}>{passComplete ? "Done" : "In progress"}</span>
+              </summary>
+
+              <div className={styles.passBody}>
+                <div className={`${styles.actionsRow} admin-inline-actions testing-checklist-pass-actions`}>
                   <button type="button" className="secondary-action" onClick={() => markPass(testingPass)}>
                     Mark section done
                   </button>
@@ -287,24 +297,24 @@ export const TestingPassChecklistClient = ({ passes }: TestingPassChecklistClien
                     Clear section
                   </button>
                 </div>
-              </div>
-              <div className="testing-checklist-items">
-                {testingPass.checks.map((check) => {
-                  const id = getCheckId(testingPass.title, check);
+                <div className={styles.passItems}>
+                  {testingPass.checks.map((check) => {
+                    const id = getCheckId(testingPass.title, check);
 
-                  return (
-                    <label className="testing-checklist-item" key={id}>
-                      <input
-                        checked={checked.has(id)}
-                        onChange={() => toggleCheck(id)}
-                        type="checkbox"
-                      />
-                      <span>{check}</span>
-                    </label>
-                  );
-                })}
+                    return (
+                      <label className="testing-checklist-item" key={id}>
+                        <input
+                          checked={checked.has(id)}
+                          onChange={() => toggleCheck(id)}
+                          type="checkbox"
+                        />
+                        <span>{check}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </section>
+            </details>
           );
         })}
       </div>

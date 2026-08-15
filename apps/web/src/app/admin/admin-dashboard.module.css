@@ -1,0 +1,308 @@
+.pageShell {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-raised: #182329;
+  --line: #304047;
+  --text: #f4f8f7;
+  --muted: #a6b6be;
+  --mint: #45d6ad;
+  --coral: #ff6b72;
+  --yellow: #f4c95d;
+
+  background: transparent;
+  color: var(--text);
+  margin: 0 auto;
+  max-width: min(1120px, calc(100vw - 2.5rem));
+  padding-bottom: 1.5rem;
+  padding-top: 1.2rem;
+  width: 100%;
+}
+
+.adminShell {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboardHeader {
+  align-items: flex-start;
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboardHeader h1 {
+  font-size: clamp(1.65rem, 3vw, 2.2rem);
+  margin: 0;
+}
+
+.eyebrow {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.dashboardHeader p {
+  color: var(--muted);
+  margin: 0.45rem 0 0;
+  max-width: 62ch;
+}
+
+.statusPill {
+  background: rgb(10 18 22 / 82%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 650;
+  justify-self: start;
+  margin: 0;
+  padding: 0.35rem 0.72rem;
+}
+
+.controlPanel {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 0;
+}
+
+.controlPanelHeader {
+  align-items: flex-start;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.controlPanelHeader h2 {
+  margin: 0;
+}
+
+.controlPanelHeader p {
+  color: var(--muted);
+  margin: 0.35rem 0 0;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: 1px solid;
+  border-radius: 8px;
+  color: #f5f9f8;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 37px;
+  padding: 0 0.95rem;
+}
+
+.primaryButton {
+  background: var(--mint);
+  border-color: var(--mint);
+  color: #0a1716;
+}
+
+.secondaryButton {
+  background: var(--surface-raised);
+  border-color: var(--line);
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  filter: brightness(1.04);
+}
+
+.statusGrid {
+  display: grid;
+  gap: 0.62rem;
+  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+}
+
+.statusCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.38rem;
+  min-height: 78px;
+  padding: 0.75rem 0.75rem;
+}
+
+.statusCard span {
+  color: var(--muted);
+  font-size: 0.79rem;
+}
+
+.statusCard strong {
+  color: #f4f8f6;
+  font-size: 1.05rem;
+}
+
+.statusCard p {
+  color: var(--muted);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.statusLoading {
+  background: #101922;
+}
+
+.statusOk {
+  background: #14271f;
+  border-color: #2f6b53;
+}
+
+.statusWarn {
+  background: #332913;
+  border-color: #9e7921;
+}
+
+.statusBad {
+  background: #362020;
+  border-color: #8d3b43;
+}
+
+.exportStatus {
+  border-radius: 7px;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+}
+
+.exportStatus span {
+  color: #f7fdf9;
+  display: inline-block;
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+.exportStatus {
+  background: #17212a;
+  border: 1px solid #2b3a46;
+}
+
+.exportIdle,
+.exportWorking {
+  background: #17212a;
+  border: 1px solid #2b3a46;
+}
+
+.exportOk {
+  background: #153126;
+  border: 1px solid #2f6b53;
+}
+
+.exportBad {
+  background: #3a1d1d;
+  border: 1px solid #9a454f;
+}
+
+.groupGrid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(16.5rem, 1fr));
+}
+
+.groupCard {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.95rem 0 0;
+}
+
+.groupCard h2 {
+  margin: 0;
+}
+
+.linkGrid {
+  display: grid;
+  gap: 0.62rem;
+}
+
+.toolLink {
+  background: #11181e;
+  border: 1px solid #2a3b43;
+  border-radius: 8px;
+  color: inherit;
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.7rem;
+  text-decoration: none;
+}
+
+.toolLink:hover {
+  border-color: #5e8090;
+}
+
+.toolTitleRow {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.toolLink strong {
+  color: #f4f8f6;
+}
+
+.toolLink p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.badge {
+  border-radius: 999px;
+  border: 1px solid #4d636e;
+  color: #dfe8ec;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+}
+
+.badgeOk {
+  background: #143d2e;
+  border-color: #2f6b53;
+}
+
+.badgeWarn {
+  background: #493b16;
+  border-color: #9e7921;
+}
+
+.badgeBad {
+  background: #47222a;
+  border-color: #8d3b43;
+}
+
+@media (max-width: 900px) {
+  .pageShell {
+    max-width: calc(100vw - 1.3rem);
+  }
+
+  .statusGrid,
+  .groupGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .statusGrid,
+  .groupGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .controlPanel,
+  .groupCard,
+  .toolLink {
+    padding: 0.78rem;
+  }
+}

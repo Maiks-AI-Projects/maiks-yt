@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import styles from "./testing-guide.module.css";
 import { captureDevAuthTokenFromUrl, getDevAuthToken, withDevAuthToken } from "../../dev-auth-token";
 import { createControlUrl, overlayBaseUrl } from "../../tool-surface-urls.service";
 
@@ -182,6 +183,13 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
   }
 ] as const;
 
+const groupDefaultsByTitle: Readonly<Record<string, boolean>> = {
+  "Stream Windows": true,
+  "Private Tools": true,
+  "Admin Workflows": false,
+  "Account And Public Pages": false
+};
+
 export const TestingGuideQuickOpenClient = (): React.ReactNode => {
   const [devAuthToken, setDevAuthToken] = useState<string | null>(null);
 
@@ -191,29 +199,42 @@ export const TestingGuideQuickOpenClient = (): React.ReactNode => {
   }, []);
 
   return (
-    <section className="project-admin-panel">
-      <div className="project-admin-panel-heading">
+    <section className={`${styles.quickOpenPanel} project-admin-panel`}>
+      <div className={`${styles.sectionHeading} project-admin-panel-heading`}>
         <div>
           <h2>Quick Open</h2>
           <p>Open the windows and pages used most during a first testing pass.</p>
         </div>
       </div>
-      <div className="project-admin-grid">
+      <div className={styles.quickOpenGrid}>
         {quickOpenGroups.map((group) => (
-          <section className="project-admin-preview" key={group.title}>
-            <h3>{group.title}</h3>
-            <div className="admin-list">
-              {group.links.map((link) => (
-                <a className="admin-list-item admin-dashboard-link" href={withDevAuthToken(link.href, devAuthToken)} key={link.href}>
-                  <div>
-                    <strong>{link.label}</strong>
-                    <span>{link.href}</span>
-                  </div>
-                  <p>{link.description}</p>
-                </a>
-              ))}
+          <details
+            className={styles.groupDisclosure}
+            key={group.title}
+            open={groupDefaultsByTitle[group.title] ?? false}
+          >
+            <summary className={styles.groupSummary}>
+              <span>{group.title}</span>
+              <span>{group.links.length} links</span>
+            </summary>
+            <div className={styles.groupCardContent}>
+              <div className={styles.adminList}>
+                {group.links.map((link) => (
+                  <a
+                    className={`${styles.quickOpenLink} admin-list-item admin-dashboard-link`}
+                    href={withDevAuthToken(link.href, devAuthToken)}
+                    key={link.href}
+                  >
+                    <div>
+                      <strong>{link.label}</strong>
+                      <span>{link.href}</span>
+                    </div>
+                    <p>{link.description}</p>
+                  </a>
+                ))}
+              </div>
             </div>
-          </section>
+          </details>
         ))}
       </div>
     </section>

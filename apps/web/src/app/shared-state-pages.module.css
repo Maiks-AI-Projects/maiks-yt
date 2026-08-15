@@ -1,0 +1,133 @@
+.pageShell {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-raised: #182329;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  min-height: 100%;
+  padding: clamp(38px, 6vw, 74px) max(20px, calc((100% - 1080px) / 2)) clamp(48px, 7vw, 80px);
+}
+
+.stateCard {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 1.1rem;
+  max-width: 900px;
+  padding: clamp(1.5rem, 3.3vw, 2.6rem);
+}
+
+.stateCard p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.stateCard p + p {
+  margin-top: 0;
+}
+
+.eyebrow {
+  color: var(--mint);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.stateTitle {
+  font-size: clamp(1.95rem, 4.8vw, 3.35rem);
+  line-height: 1.05;
+  margin: 0;
+}
+
+.stateActions {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0.4rem;
+}
+
+.stateAction,
+.stateButton {
+  align-items: center;
+  border: 1px solid var(--line);
+  color: var(--text);
+  display: inline-flex;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 0.85rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.stateAction {
+  border-color: var(--mint);
+}
+
+.stateButton {
+  background: var(--surface-raised);
+  cursor: pointer;
+  width: 100%;
+}
+
+.stateButton:hover,
+.stateAction:hover {
+  border-color: var(--text);
+}
+
+.primaryAction {
+  background: var(--mint);
+  border-color: var(--mint);
+  color: #07110e;
+  font-weight: 700;
+}
+
+.stateButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.spinnerWrap {
+  display: inline-flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.spinner {
+  animation: spin 720ms linear infinite;
+  border: 2px solid rgb(244 248 247 / 24%);
+  border-top-color: var(--mint);
+  border-radius: 50%;
+  height: 16px;
+  width: 16px;
+}
+
+.statusText {
+  color: var(--muted);
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 760px) {
+  .pageShell {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .stateActions {
+    grid-template-columns: 1fr;
+  }
+}

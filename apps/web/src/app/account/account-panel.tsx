@@ -1,307 +1,152 @@
 "use client";
 
-import * as Switch from "@radix-ui/react-switch";
-import * as Tooltip from "@radix-ui/react-tooltip";
-import { useEffect, useState } from "react";
-import type { IconType } from "react-icons";
-import { SiDiscord, SiGithub, SiGoogle, SiTwitch } from "react-icons/si";
 import type { StreamVisibilityPreferenceScope } from "@maiks-yt/domain/events";
+import { useEffect, useState } from "react";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../dev-auth-token";
-
-type OAuthProviderId = "google" | "github" | "discord" | "twitch";
-
-type AuthSession = {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    emailVerified?: boolean | null;
-  };
-  session: {
-    id?: string;
-    userId?: string;
-    expiresAt?: string | Date | null;
-  };
-} | null;
-
-type AuthAccount = {
-  id: string;
-  providerId: string;
-  accountId: string;
-  userId: string;
-  scopes?: string[];
-  createdAt?: string | Date;
-  updatedAt?: string | Date;
-};
-
-type DomainLinkedAccount = {
-  id: string;
-  provider: string;
-  providerAccountId: string;
-  displayName: string;
-  purposeLabel: string | null;
-  audienceKey: string | null;
-  channelKey: string | null;
-  allowLogin: boolean;
-  capabilities: unknown[];
-  verifiedAt?: string | Date | null;
-  createdAt?: string | Date | null;
-};
-
-type ProfileVisibility = "private" | "minimal" | "public";
-
-type DomainAccountSnapshot = {
-  ok: true;
-  authUserId: string;
-  domainUser: {
-    id: string;
-    displayName: string;
-    profileVisibility: ProfileVisibility;
-  } | null;
-  linkedAccounts: DomainLinkedAccount[];
-  needsSync: boolean;
-} | {
-  ok: false;
-  reason: string;
-};
-
-type StreamVisibilityPreference = {
-  scope: StreamVisibilityPreferenceScope;
-  label: string;
-  description: string;
-  optedOut: boolean;
-};
-
-type StreamVisibilityPreferencesSnapshot = {
-  ok: true;
-  domainUser: {
-    id: string;
-    displayName: string;
-    profileVisibility: ProfileVisibility;
-  };
-  preferences: readonly StreamVisibilityPreference[];
-} | {
-  ok: false;
-  reason: string;
-};
-
-type LinkSocialResponse = {
-  url?: string;
-  redirect?: boolean;
-  status?: boolean;
-};
-
-type ProviderRow = {
-  id: OAuthProviderId;
-  label: string;
-  Icon: IconType;
-  description: string;
-};
-
-type ControlTooltipProps = {
-  children: React.ReactNode;
-  text: string;
-};
+import "./account.module.css";
+import ProfilePrivacySettings from "./profile-privacy-settings";
+import ProviderConnections from "./provider-connections";
+import StreamVisibilitySettings from "./stream-visibility-settings";
+import type {
+  AuthAccount,
+  AuthConfigurationStatus,
+  AuthSession,
+  DomainAccountSnapshot,
+  LinkSocialResponse,
+  OAuthProviderId,
+  ProfileVisibility,
+  StreamVisibilityPreferencesSnapshot
+} from "./account.types";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
-
-const providers: ProviderRow[] = [
-  { id: "google", label: "Google", Icon: SiGoogle, description: "Primary login and YouTube identity." },
-  { id: "twitch", label: "Twitch", Icon: SiTwitch, description: "Streaming identity, chat, subs, and channel routing." },
-  { id: "github", label: "GitHub", Icon: SiGithub, description: "Code and project contributor identity." },
-  { id: "discord", label: "Discord", Icon: SiDiscord, description: "Community identity, roles, and perks." }
-];
-
-const profileVisibilityOptions: Array<{
-  value: ProfileVisibility;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "private",
-    label: "Private",
-    description: "Only you and trusted admin tools can see profile details."
-  },
-  {
-    value: "minimal",
-    label: "Minimal",
-    description: "Show a basic community identity without linked account details."
-  },
-  {
-    value: "public",
-    label: "Public",
-    description: "Allow public profile surfaces to show community identity details later."
-  }
-];
-
-const streamVisibilityGlobalScope = "all_stream_visible_website_events" satisfies StreamVisibilityPreferenceScope;
-
-const ControlTooltip = ({ children, text }: ControlTooltipProps): React.ReactNode => (
-  <Tooltip.Root delayDuration={250}>
-    <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
-    <Tooltip.Portal>
-      <Tooltip.Content className="control-tooltip" side="top" sideOffset={8}>
-        {text}
-        <Tooltip.Arrow className="control-tooltip-arrow" />
-      </Tooltip.Content>
-    </Tooltip.Portal>
-  </Tooltip.Root>
-);
+const globalStreamVisibilityScope = "all_stream_visible_website_events" satisfies StreamVisibilityPreferenceScope;
 
 const AccountPanel = (): React.ReactNode => {
   const [session, setSession] = useState<AuthSession>(null);
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
+  const [configuredProviders, setConfiguredProviders] = useState<OAuthProviderId[]>([]);
   const [domainSnapshot, setDomainSnapshot] = useState<DomainAccountSnapshot | null>(null);
-  const [streamVisibilitySnapshot, setStreamVisibilitySnapshot] = useState<StreamVisibilityPreferencesSnapshot | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [syncingDomain, setSyncingDomain] = useState<boolean>(false);
-  const [claimingDevOwner, setClaimingDevOwner] = useState<boolean>(false);
-  const [busyLinkedAccountId, setBusyLinkedAccountId] = useState<string | null>(null);
+  const [streamSnapshot, setStreamSnapshot] = useState<StreamVisibilityPreferencesSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [busyProvider, setBusyProvider] = useState<OAuthProviderId | null>(null);
-  const [savingProfileVisibility, setSavingProfileVisibility] = useState<boolean>(false);
-  const [savingStreamVisibilityScope, setSavingStreamVisibilityScope] = useState<StreamVisibilityPreferenceScope | null>(null);
-  const [message, setMessage] = useState<string>("Loading account...");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingStreamScope, setSavingStreamScope] = useState<StreamVisibilityPreferenceScope | null>(null);
+  const [message, setMessage] = useState("Loading your account...");
 
-  const loadAccount = async (): Promise<void> => {
-    setLoading(true);
-
-    try {
-      const sessionResponse = await fetch(`${apiBaseUrl}/account/session`, {
-        headers: createApiHeaders(),
-        credentials: "include"
-      });
-
-      if (!sessionResponse.ok) {
-        throw new Error(`Session check failed with ${sessionResponse.status}`);
-      }
-
-      const nextSession = await sessionResponse.json() as AuthSession;
-      setSession(nextSession);
-
-      if (!nextSession) {
-        setAccounts([]);
-        setDomainSnapshot(null);
-        setStreamVisibilitySnapshot(null);
-        setMessage("Sign in to manage linked accounts.");
-        return;
-      }
-
-      const accountsResponse = await fetch(`${apiBaseUrl}/account/auth-accounts`, {
-        headers: createApiHeaders(),
-        credentials: "include"
-      });
-
-      if (!accountsResponse.ok) {
-        throw new Error(`Account list failed with ${accountsResponse.status}`);
-      }
-
-      setAccounts(await accountsResponse.json() as AuthAccount[]);
-      const streamVisibilityResponse = await fetch(`${apiBaseUrl}/account/stream-visibility-preferences`, {
-        headers: createApiHeaders(),
-        credentials: "include"
-      });
-
-      if (streamVisibilityResponse.ok) {
-        setStreamVisibilitySnapshot(await streamVisibilityResponse.json() as StreamVisibilityPreferencesSnapshot);
-      } else if (streamVisibilityResponse.status === 401) {
-        setStreamVisibilitySnapshot(null);
-      } else {
-        throw new Error(`Stream visibility preferences failed with ${streamVisibilityResponse.status}`);
-      }
-
-      const domainResponse = await fetch(`${apiBaseUrl}/account/domain`, {
-        headers: createApiHeaders(),
-        credentials: "include"
-      });
-
-      if (domainResponse.ok) {
-        setDomainSnapshot(await domainResponse.json() as DomainAccountSnapshot);
-      } else if (domainResponse.status === 401) {
-        setDomainSnapshot(null);
-      } else {
-        throw new Error(`Domain account snapshot failed with ${domainResponse.status}`);
-      }
-
-      setMessage("Account loaded.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Account loading failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const syncDomainAccounts = async (): Promise<void> => {
-    setSyncingDomain(true);
-    setMessage("Syncing domain accounts...");
+  const syncDomainAccounts = async (): Promise<DomainAccountSnapshot | null> => {
+    setSyncing(true);
 
     try {
       const response = await fetch(`${apiBaseUrl}/account/domain/sync`, {
         method: "POST",
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
-        }),
+        headers: createApiHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
         body: JSON.stringify({})
       });
 
       if (!response.ok) {
-        throw new Error(`Domain sync failed with ${response.status}`);
+        return null;
       }
 
-      setDomainSnapshot(await response.json() as DomainAccountSnapshot);
-      setMessage("Domain accounts synced.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Domain sync failed.");
+      const snapshot = await response.json() as DomainAccountSnapshot;
+      setDomainSnapshot(snapshot);
+      return snapshot;
     } finally {
-      setSyncingDomain(false);
+      setSyncing(false);
     }
   };
 
-  const claimDevOwnerRole = async (): Promise<void> => {
-    setClaimingDevOwner(true);
-    setMessage("Claiming dev owner role...");
+  const loadAccount = async (): Promise<void> => {
+    setLoading(true);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/identity/dev/claim-owner`, {
-        method: "POST",
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
+      const [sessionResponse, configurationResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/account/session`, {
+          headers: createApiHeaders(),
+          credentials: "include"
         }),
-        credentials: "include",
-        body: JSON.stringify({
-          confirm: "claim-dev-owner"
+        fetch(`${apiBaseUrl}/auth/dev/status`, {
+          headers: createApiHeaders(),
+          credentials: "include"
         })
-      });
+      ]);
 
-      if (response.status === 403) {
-        throw new Error("This signed-in email is not listed in DEV_OWNER_EMAILS.");
+      if (!sessionResponse.ok) {
+        throw new Error("We could not check your sign-in right now.");
       }
 
-      if (!response.ok) {
-        throw new Error(`Dev owner claim failed with ${response.status}`);
+      const nextSession = await sessionResponse.json() as AuthSession;
+      setSession(nextSession);
+
+      if (configurationResponse.ok) {
+        const configuration = await configurationResponse.json() as AuthConfigurationStatus;
+        setConfiguredProviders(configuration.configuredProviders);
       }
 
-      await loadAccount();
-      setMessage("Dev owner role claimed. The Action Panel should now be available.");
+      if (!nextSession) {
+        setAccounts([]);
+        setDomainSnapshot(null);
+        setStreamSnapshot(null);
+        setMessage("Sign in to manage your account.");
+        return;
+      }
+
+      const [accountsResponse, domainResponse, streamResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/account/auth-accounts`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        }),
+        fetch(`${apiBaseUrl}/account/domain`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        }),
+        fetch(`${apiBaseUrl}/account/stream-visibility-preferences`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        })
+      ]);
+
+      if (!accountsResponse.ok) {
+        throw new Error("We could not load your connected accounts.");
+      }
+
+      setAccounts(await accountsResponse.json() as AuthAccount[]);
+
+      if (domainResponse.ok) {
+        const nextDomainSnapshot = await domainResponse.json() as DomainAccountSnapshot;
+        setDomainSnapshot(nextDomainSnapshot);
+
+        if (nextDomainSnapshot.ok && nextDomainSnapshot.needsSync) {
+          await syncDomainAccounts();
+        }
+      } else {
+        setDomainSnapshot(null);
+      }
+
+      if (streamResponse.ok) {
+        setStreamSnapshot(await streamResponse.json() as StreamVisibilityPreferencesSnapshot);
+      } else {
+        setStreamSnapshot(null);
+      }
+
+      setMessage("Account settings are up to date.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Dev owner claim failed.");
+      setMessage(error instanceof Error ? error.message : "We could not load your account.");
     } finally {
-      setClaimingDevOwner(false);
+      setLoading(false);
     }
   };
 
   const linkProvider = async (providerId: OAuthProviderId): Promise<void> => {
     setBusyProvider(providerId);
-    setMessage(`Opening ${providerId} account linking...`);
+    setMessage(`Opening ${providerId} sign-in...`);
 
     try {
       const response = await fetch(`${apiBaseUrl}/auth/link-social`, {
         method: "POST",
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
-        }),
+        headers: createApiHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
         body: JSON.stringify({
           provider: providerId,
@@ -311,119 +156,75 @@ const AccountPanel = (): React.ReactNode => {
       });
 
       if (!response.ok) {
-        throw new Error(`Linking failed with ${response.status}`);
+        throw new Error(`Could not connect ${providerId}.`);
       }
 
-      const data = await response.json() as LinkSocialResponse;
+      const result = await response.json() as LinkSocialResponse;
 
-      if (data.status && !data.url) {
+      if (result.status && !result.url) {
         await loadAccount();
         return;
       }
 
-      if (!data.url) {
-        throw new Error("Linking response did not include a redirect URL.");
+      if (!result.url) {
+        throw new Error(`Could not open ${providerId} sign-in.`);
       }
 
-      window.location.assign(data.url);
+      window.location.assign(result.url);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Account linking failed.");
+      setMessage(error instanceof Error ? error.message : "Could not connect that account.");
       setBusyProvider(null);
     }
   };
 
-  const updateAllowLogin = async (account: DomainLinkedAccount, allowLogin: boolean): Promise<void> => {
-    setBusyLinkedAccountId(account.id);
-    setMessage(`${allowLogin ? "Enabling" : "Disabling"} login for ${account.provider}...`);
-
-    try {
-      const response = await fetch(`${apiBaseUrl}/account/domain/linked-accounts/${account.id}/allow-login`, {
-        method: "POST",
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
-        }),
-        credentials: "include",
-        body: JSON.stringify({ allowLogin })
-      });
-
-      if (response.status === 409) {
-        throw new Error("Cannot disable the last login-capable account.");
-      }
-
-      if (!response.ok) {
-        throw new Error(`Allow-login update failed with ${response.status}`);
-      }
-
-      setDomainSnapshot(await response.json() as DomainAccountSnapshot);
-      setMessage("Allow login updated.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Allow-login update failed.");
-    } finally {
-      setBusyLinkedAccountId(null);
-    }
-  };
-
   const updateProfileVisibility = async (profileVisibility: ProfileVisibility): Promise<void> => {
-    setSavingProfileVisibility(true);
-    setMessage(`Saving ${profileVisibility} profile visibility...`);
+    setSavingProfile(true);
 
     try {
       const response = await fetch(`${apiBaseUrl}/account/domain/profile-visibility`, {
         method: "POST",
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
-        }),
+        headers: createApiHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
         body: JSON.stringify({ profileVisibility })
       });
 
       if (!response.ok) {
-        throw new Error(`Profile visibility update failed with ${response.status}`);
+        throw new Error("Could not save profile privacy.");
       }
 
       setDomainSnapshot(await response.json() as DomainAccountSnapshot);
-      setMessage("Profile visibility updated.");
+      setMessage("Profile privacy saved.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Profile visibility update failed.");
+      setMessage(error instanceof Error ? error.message : "Could not save profile privacy.");
     } finally {
-      setSavingProfileVisibility(false);
+      setSavingProfile(false);
     }
   };
 
-  const updateStreamVisibilityPreference = async (
+  const updateStreamVisibility = async (
     scope: StreamVisibilityPreferenceScope,
     optedOut: boolean
   ): Promise<void> => {
-    setSavingStreamVisibilityScope(scope);
-    setMessage("Saving stream visibility preference...");
+    setSavingStreamScope(scope);
 
     try {
       const response = await fetch(`${apiBaseUrl}/account/stream-visibility-preferences`, {
         method: "PUT",
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
-        }),
+        headers: createApiHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
-        body: JSON.stringify({
-          preferences: [
-            {
-              scope,
-              optedOut
-            }
-          ]
-        })
+        body: JSON.stringify({ preferences: [{ scope, optedOut }] })
       });
 
       if (!response.ok) {
-        throw new Error(`Stream visibility update failed with ${response.status}`);
+        throw new Error("Could not save stream visibility.");
       }
 
-      setStreamVisibilitySnapshot(await response.json() as StreamVisibilityPreferencesSnapshot);
-      setMessage("Stream visibility preference updated.");
+      setStreamSnapshot(await response.json() as StreamVisibilityPreferencesSnapshot);
+      setMessage("Stream visibility saved.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Stream visibility update failed.");
+      setMessage(error instanceof Error ? error.message : "Could not save stream visibility.");
     } finally {
-      setSavingStreamVisibilityScope(null);
+      setSavingStreamScope(null);
     }
   };
 
@@ -432,407 +233,126 @@ const AccountPanel = (): React.ReactNode => {
     void loadAccount();
   }, []);
 
-  const domainLinkedAccounts = domainSnapshot?.ok ? domainSnapshot.linkedAccounts : [];
-  const streamVisibilityPreferences = streamVisibilitySnapshot?.ok ? streamVisibilitySnapshot.preferences : [];
-  const globalStreamVisibilityPreference = streamVisibilityPreferences.find(
-    (preference) => preference.scope === streamVisibilityGlobalScope
-  );
-  const perEventStreamVisibilityPreferences = streamVisibilityPreferences.filter(
-    (preference) => preference.scope !== streamVisibilityGlobalScope
-  );
-
-  const getAuthAccountsForProvider = (providerId: OAuthProviderId): AuthAccount[] =>
-    accounts.filter((account) => account.providerId === providerId);
-
-  const getDomainAccountsForProvider = (providerId: OAuthProviderId): DomainLinkedAccount[] =>
-    domainLinkedAccounts.filter((account) => account.provider === providerId);
+  const domainAccounts = domainSnapshot?.ok ? domainSnapshot.linkedAccounts : [];
+  const preferences = streamSnapshot?.ok ? streamSnapshot.preferences : [];
+  const globalPreference = preferences.find((preference) => preference.scope === globalStreamVisibilityScope);
+  const perEventPreferences = preferences.filter((preference) => preference.scope !== globalStreamVisibilityScope);
+  const displayName = domainSnapshot?.ok
+    ? domainSnapshot.domainUser?.displayName ?? session?.user.name
+    : session?.user.name;
 
   return (
-    <Tooltip.Provider>
-      <section className="account-page-panel" aria-labelledby="account-page-title">
-      <div className="account-page-header">
+    <main className="account-page-panel">
+      <header className="account-page-header">
         <div>
-          <h1 id="account-page-title">Account</h1>
-          <p>{message}</p>
+          <p className="eyebrow">Your Maiks.yt identity</p>
+          <h1>Account</h1>
+          <p>Manage how you sign in and how your community identity may appear.</p>
         </div>
         <button type="button" className="secondary-action" onClick={() => void loadAccount()} disabled={loading}>
-          Refresh
+          {loading ? "Loading..." : "Refresh"}
         </button>
-      </div>
+      </header>
 
-      {session ? (
+      <p className="account-section-note" role="status">{message}</p>
+
+      {loading ? (
+        <section className="account-section" aria-labelledby="account-loading-title">
+          <h2 id="account-loading-title">Loading account</h2>
+          <p className="account-section-note">Checking your current sign-in and saved settings.</p>
+        </section>
+      ) : session ? (
         <>
-          <section className="account-section" aria-labelledby="account-identity-title">
-            <h2 id="account-identity-title">Signed-in Identity</h2>
+          <section className="account-section" aria-labelledby="identity-title">
+            <h2 id="identity-title">Signed in as</h2>
             <div className="session-card">
               {session.user.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img alt="" src={session.user.image} />
               ) : (
-                <div aria-hidden="true" className="session-avatar-placeholder">
-                  {(session.user.name ?? session.user.email ?? "?").slice(0, 1).toUpperCase()}
-                </div>
+                <span className="session-avatar-placeholder" aria-hidden="true">
+                  {(displayName ?? session.user.email ?? "?").slice(0, 1).toUpperCase()}
+                </span>
               )}
               <dl>
                 <div>
                   <dt>Name</dt>
-                  <dd>{session.user.name ?? "Unknown"}</dd>
+                  <dd>{displayName ?? "Maiks.yt member"}</dd>
                 </div>
                 <div>
                   <dt>Email</dt>
-                  <dd>{session.user.email ?? "No email returned"}</dd>
-                </div>
-                <div>
-                  <dt>User ID</dt>
-                  <dd>{session.user.id}</dd>
+                  <dd>{session.user.email ?? "No email shared by the provider"}</dd>
                 </div>
               </dl>
             </div>
           </section>
 
-          <section className="account-section" aria-labelledby="domain-accounts-title">
+          <section className="account-section" aria-labelledby="connections-title">
             <div className="account-section-heading-row">
               <div>
-                <h2 id="domain-accounts-title">Linked Accounts</h2>
-                <p className="account-section-note">
-                  Link providers here, then choose which linked accounts are allowed to sign in.
-                </p>
+                <h2 id="connections-title">Connected accounts</h2>
+                <p className="account-section-note">Only sign-in providers available on Maiks.yt are shown.</p>
               </div>
-              <button
-                type="button"
-                className="secondary-action"
-                onClick={() => void syncDomainAccounts()}
-                disabled={syncingDomain}
-              >
-                {syncingDomain ? "Syncing..." : "Sync domain accounts"}
-              </button>
-              <button
-                type="button"
-                className="secondary-action"
-                onClick={() => void claimDevOwnerRole()}
-                disabled={claimingDevOwner}
-              >
-                {claimingDevOwner ? "Claiming..." : "Claim dev owner"}
-              </button>
             </div>
-            {domainSnapshot?.ok ? (
-              <>
-                {domainSnapshot.domainUser ? (
-                  <div className="domain-user-strip">
-                    <span>Domain user</span>
-                    <strong>{domainSnapshot.domainUser.displayName}</strong>
-                    <span>{domainSnapshot.domainUser.profileVisibility}</span>
-                  </div>
-                ) : null}
-                <div className="provider-account-list">
-                  {providers.map((provider) => {
-                    const authProviderAccounts = getAuthAccountsForProvider(provider.id);
-                    const domainProviderAccounts = getDomainAccountsForProvider(provider.id);
-                    const isLinked = authProviderAccounts.length > 0 || domainProviderAccounts.length > 0;
-                    const providerAccountCount = Math.max(authProviderAccounts.length, domainProviderAccounts.length);
-                    const ProviderIcon = provider.Icon;
-
-                    return (
-                      <article className="provider-account-row" key={provider.id}>
-                        <div className="provider-account-summary">
-                          <div className="provider-identity">
-                            <div className={`provider-mark ${provider.id}`} aria-hidden="true">
-                              <ProviderIcon />
-                            </div>
-                            <div>
-                              <h3>{provider.label}</h3>
-                              <p>{provider.description}</p>
-                              {providerAccountCount > 0 ? (
-                                <span className="provider-count">
-                                  {providerAccountCount} {providerAccountCount === 1 ? "account" : "accounts"} connected
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="provider-controls" aria-label={`${provider.label} account controls`}>
-                            <div className="provider-control">
-                              <span>Linked</span>
-                              <div className="switch-control-row">
-                                <ControlTooltip
-                                  text={
-                                    isLinked
-                                      ? `${provider.label} is connected. Unlinking will be added later; use Add another for extra accounts.`
-                                      : `Connect a ${provider.label} account to this profile.`
-                                  }
-                                >
-                                  <span className="tooltip-trigger-wrap">
-                                    <Switch.Root
-                                      className="account-switch"
-                                      checked={isLinked}
-                                      disabled={busyProvider !== null || isLinked}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) {
-                                          void linkProvider(provider.id);
-                                        }
-                                      }}
-                                      aria-label={`${provider.label} linked`}
-                                    >
-                                      <Switch.Thumb className="account-switch-thumb" />
-                                    </Switch.Root>
-                                  </span>
-                                </ControlTooltip>
-                                <span className="switch-state">
-                                  {busyProvider === provider.id ? "Opening" : isLinked ? "Linked" : "Not linked"}
-                                </span>
-                              </div>
-                              {isLinked ? (
-                                <ControlTooltip
-                                  text={`Connect another ${provider.label} account without removing the existing one.`}
-                                >
-                                  <span className="tooltip-trigger-wrap">
-                                    <button
-                                      type="button"
-                                      className="inline-action"
-                                      onClick={() => void linkProvider(provider.id)}
-                                      disabled={busyProvider !== null}
-                                    >
-                                      Add another
-                                    </button>
-                                  </span>
-                                </ControlTooltip>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                        {domainProviderAccounts.length > 0 ? (
-                          <div className="linked-account-sublist" aria-label={`${provider.label} linked accounts`}>
-                            {domainProviderAccounts.map((account) => {
-                              const isLoginCapable = account.capabilities.includes("login");
-
-                              return (
-                                <div className="linked-account-row" key={account.id}>
-                                  <div className="linked-account-details">
-                                    <strong>{account.displayName}</strong>
-                                    <span>{account.purposeLabel ?? "Linked account"}</span>
-                                    <code>{account.providerAccountId}</code>
-                                  </div>
-                                  <div className="provider-control linked-account-login-control">
-                                    <span>Login</span>
-                                    <div className="switch-control-row">
-                                      <ControlTooltip
-                                        text={
-                                          isLoginCapable
-                                            ? `Allow or block this ${provider.label} account from being used to sign in.`
-                                            : `${provider.label} is connected, but it is not marked as login-capable yet.`
-                                        }
-                                      >
-                                        <span className="tooltip-trigger-wrap">
-                                          <Switch.Root
-                                            className="account-switch"
-                                            checked={account.allowLogin}
-                                            disabled={busyLinkedAccountId !== null || !isLoginCapable}
-                                            onCheckedChange={(checked) => void updateAllowLogin(account, checked)}
-                                            aria-label={`${provider.label} ${account.displayName} login allowed`}
-                                          >
-                                            <Switch.Thumb className="account-switch-thumb" />
-                                          </Switch.Root>
-                                        </span>
-                                      </ControlTooltip>
-                                      <span className="switch-state">
-                                        {busyLinkedAccountId === account.id
-                                          ? "Updating"
-                                          : account.allowLogin
-                                            ? "Enabled"
-                                            : "Disabled"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : isLinked ? (
-                          <div className="linked-account-sublist">
-                            <div className="linked-account-row">
-                              <div className="linked-account-details">
-                                <strong>Domain record missing</strong>
-                                <span>Sync this provider before login settings can be managed.</span>
-                              </div>
-                              <ControlTooltip
-                                text="Sync this provider into the domain account table so login settings can be managed."
-                              >
-                                <span className="tooltip-trigger-wrap">
-                                  <button
-                                    type="button"
-                                    className="inline-action"
-                                    onClick={() => void syncDomainAccounts()}
-                                    disabled={!isLinked || syncingDomain}
-                                  >
-                                    {isLinked ? "Sync" : "Unavailable"}
-                                  </button>
-                                </span>
-                              </ControlTooltip>
-                            </div>
-                          </div>
-                        ) : null}
-                      </article>
-                    );
-                  })}
-                </div>
-              </>
-            ) : (
-              <p className="account-section-note">
-                Domain account data is not available yet. Refresh this page or sign in again if the problem keeps happening.
-              </p>
-            )}
+            <ProviderConnections
+              accounts={accounts}
+              busyProvider={busyProvider}
+              configuredProviderIds={configuredProviders}
+              domainAccounts={domainAccounts}
+              syncing={syncing}
+              onLinkProvider={(providerId) => void linkProvider(providerId)}
+              onSync={() => void syncDomainAccounts()}
+            />
           </section>
 
-          <section className="account-section" aria-labelledby="profile-privacy-title">
+          <section className="account-section" aria-labelledby="privacy-title">
             <div className="account-section-heading-row">
               <div>
-                <h2 id="profile-privacy-title">Profile Privacy</h2>
+                <h2 id="privacy-title">Profile privacy</h2>
                 <p className="account-section-note">
-                  New profiles start private. Choose how visible your community profile should become.
+                  This choice is saved now. Real community profiles are still being connected to it.
                 </p>
               </div>
             </div>
             {domainSnapshot?.ok && domainSnapshot.domainUser ? (
-              <div className="privacy-choice-list" role="radiogroup" aria-label="Profile visibility">
-                {profileVisibilityOptions.map((option) => {
-                  const isSelected = domainSnapshot.domainUser?.profileVisibility === option.value;
-
-                  return (
-                    <button
-                      type="button"
-                      className={isSelected ? "privacy-choice selected" : "privacy-choice"}
-                      key={option.value}
-                      onClick={() => void updateProfileVisibility(option.value)}
-                      disabled={savingProfileVisibility || isSelected}
-                      role="radio"
-                      aria-checked={isSelected}
-                    >
-                      <span className="privacy-choice-indicator" aria-hidden="true" />
-                      <span>
-                        <strong>{option.label}</strong>
-                        <span>{option.description}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <ProfilePrivacySettings
+                currentValue={domainSnapshot.domainUser.profileVisibility}
+                saving={savingProfile}
+                onChange={(value) => void updateProfileVisibility(value)}
+              />
             ) : (
-              <div className="empty-state-actions">
-                <p className="account-section-note">Sync domain accounts before choosing profile privacy.</p>
-                <button
-                  type="button"
-                  className="secondary-action"
-                  onClick={() => void syncDomainAccounts()}
-                  disabled={syncingDomain}
-                >
-                  {syncingDomain ? "Syncing..." : "Sync domain accounts"}
-                </button>
-              </div>
+              <p className="account-section-note">Profile privacy is unavailable right now.</p>
             )}
           </section>
 
-          <section className="account-section" aria-labelledby="stream-visibility-title">
+          <section className="account-section" aria-labelledby="stream-title">
             <div className="account-section-heading-row">
               <div>
-                <h2 id="stream-visibility-title">Stream Visibility</h2>
+                <h2 id="stream-title">Appearance on stream</h2>
                 <p className="account-section-note">
-                  Choose whether website and community moments may use your public name or profile image on stream.
+                  Opt out of website moments that could use your public name or image during a stream.
                 </p>
               </div>
             </div>
-            {streamVisibilitySnapshot?.ok ? (
-              <div className="stream-visibility-settings">
-                {globalStreamVisibilityPreference ? (
-                  <article className="stream-visibility-row primary">
-                    <div>
-                      <strong>{globalStreamVisibilityPreference.label}</strong>
-                      <span>{globalStreamVisibilityPreference.description}</span>
-                    </div>
-                    <div className="switch-control-row">
-                      <ControlTooltip text="Turn this on to hide your website/community activity from stream-visible moments.">
-                        <span className="tooltip-trigger-wrap">
-                          <Switch.Root
-                            className="account-switch"
-                            checked={globalStreamVisibilityPreference.optedOut}
-                            disabled={savingStreamVisibilityScope !== null}
-                            onCheckedChange={(checked) => {
-                              void updateStreamVisibilityPreference(globalStreamVisibilityPreference.scope, checked);
-                            }}
-                            aria-label="Hide all website and community moments on stream"
-                          >
-                            <Switch.Thumb className="account-switch-thumb" />
-                          </Switch.Root>
-                        </span>
-                      </ControlTooltip>
-                      <span className="switch-state">
-                        {savingStreamVisibilityScope === globalStreamVisibilityPreference.scope
-                          ? "Saving"
-                          : globalStreamVisibilityPreference.optedOut
-                            ? "Hidden"
-                            : "Allowed"}
-                      </span>
-                    </div>
-                  </article>
-                ) : null}
-                <div className="stream-visibility-event-list" aria-label="Per-event stream visibility preferences">
-                  {perEventStreamVisibilityPreferences.map((preference) => (
-                    <article className="stream-visibility-row" key={preference.scope}>
-                      <div>
-                        <strong>{preference.label}</strong>
-                        <span>{preference.description}</span>
-                      </div>
-                      <div className="switch-control-row">
-                        <ControlTooltip text={`Turn this on to hide ${preference.label.toLowerCase()} from stream-visible moments.`}>
-                          <span className="tooltip-trigger-wrap">
-                            <Switch.Root
-                              className="account-switch"
-                              checked={preference.optedOut}
-                              disabled={savingStreamVisibilityScope !== null}
-                              onCheckedChange={(checked) => {
-                                void updateStreamVisibilityPreference(preference.scope, checked);
-                              }}
-                              aria-label={`Hide ${preference.label} on stream`}
-                            >
-                              <Switch.Thumb className="account-switch-thumb" />
-                            </Switch.Root>
-                          </span>
-                        </ControlTooltip>
-                        <span className="switch-state">
-                          {savingStreamVisibilityScope === preference.scope
-                            ? "Saving"
-                            : preference.optedOut
-                              ? "Hidden"
-                              : "Allowed"}
-                        </span>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
+            {streamSnapshot?.ok ? (
+              <StreamVisibilitySettings
+                globalPreference={globalPreference}
+                perEventPreferences={perEventPreferences}
+                savingScope={savingStreamScope}
+                onChange={(scope, optedOut) => void updateStreamVisibility(scope, optedOut)}
+              />
             ) : (
-              <div className="empty-state-actions">
-                <p className="account-section-note">
-                  Sign in or sync your domain account before choosing stream visibility preferences.
-                </p>
-                <button
-                  type="button"
-                  className="secondary-action"
-                  onClick={() => void loadAccount()}
-                  disabled={loading}
-                >
-                  Refresh
-                </button>
-              </div>
+              <p className="account-section-note">Stream appearance settings are unavailable right now.</p>
             )}
           </section>
         </>
       ) : (
-        <section className="account-section" aria-labelledby="account-signin-title">
-          <h2 id="account-signin-title">Sign In Required</h2>
-          <p className="account-section-note">Use the account menu in the navigation bar to sign in first.</p>
+        <section className="account-section" aria-labelledby="signed-out-title">
+          <h2 id="signed-out-title">Sign in to continue</h2>
+          <p className="account-section-note">Use the account button in the site navigation to sign in.</p>
         </section>
       )}
-      </section>
-    </Tooltip.Provider>
+    </main>
   );
 };
 

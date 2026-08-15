@@ -1,0 +1,677 @@
+:global(.account-page-panel) {
+  --account-canvas: #0a1115;
+  --account-surface: #111a20;
+  --account-surface-raised: #18232a;
+  --account-line: #2e3f48;
+  --account-text: #eff3f2;
+  --account-muted: #9eabb0;
+  --account-quiet: #72818a;
+  --account-mint: #45d6ad;
+  --account-mint-weak: rgb(69 214 173 / 20%);
+  --account-danger: #ff6b72;
+
+  align-content: start;
+  background: var(--account-canvas);
+  color: var(--account-text);
+  min-height: 100%;
+  display: grid;
+  gap: 0.95rem;
+  margin: 0;
+  max-width: none;
+  min-height: calc(100vh - 76px);
+  padding: clamp(2rem, 5vw, 4.5rem) max(1.25rem, calc((100% - 1180px) / 2)) clamp(4rem, 8vw, 7rem);
+}
+
+:global(.account-page-header) {
+  align-items: start;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+:global(.account-page-header h1) {
+  font-size: clamp(1.5rem, 3vw, 1.95rem);
+  margin: 0;
+}
+
+:global(.account-page-header) :global(p),
+:global(.account-section-note) {
+  color: var(--account-muted);
+  margin: 0;
+}
+
+:global(.account-section) {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--account-line);
+  border-radius: 0;
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+  padding: clamp(1.8rem, 4vw, 3.25rem) 0;
+}
+
+:global(.account-section h2) {
+  margin: 0;
+}
+
+:global(.account-section-heading-row) {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  justify-content: space-between;
+}
+
+:global(.secondary-action),
+.textButton {
+  align-items: center;
+  background: #e6ebf1;
+  border: 1px solid transparent;
+  color: #0d151b;
+  display: inline-flex;
+  font-weight: 700;
+  min-height: 2.2rem;
+  padding-inline: 0.85rem;
+}
+
+:global(.secondary-action):hover,
+.textButton:hover,
+:global(.textButton):focus-visible,
+.textButton:focus-visible {
+  border-color: var(--account-mint);
+  color: #0d151b;
+}
+
+:global(.inline-action) {
+  background: transparent;
+  border: 0;
+  color: var(--account-mint);
+  min-height: auto;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
+:global(.session-card),
+:global(.domain-user-strip),
+:global(.provider-account-row),
+:global(.linked-account-row),
+:global(.privacy-choice),
+:global(.stream-visibility-row),
+.connection,
+.visibilityRow {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+:global(.session-card) {
+  align-items: start;
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 0;
+}
+
+:global(.session-card img),
+:global(.session-avatar-placeholder),
+:global(.provider-mark) {
+  border-radius: 50%;
+  height: 3rem;
+  width: 3rem;
+}
+
+:global(.session-avatar-placeholder) {
+  align-items: center;
+  background: var(--account-mint-weak);
+  color: var(--account-text);
+  display: inline-flex;
+  justify-content: center;
+}
+
+:global(.session-card dl) {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  min-width: 0;
+}
+
+:global(.session-card dt) {
+  color: var(--account-quiet);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+:global(.session-card dd) {
+  color: var(--account-text);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+:global(.domain-user-strip) {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.75rem;
+}
+
+:global(.domain-user-strip span) {
+  color: var(--account-muted);
+}
+
+:global(.domain-user-strip strong) {
+  font-size: 1.02rem;
+}
+
+:global(.provider-account-list) {
+  display: grid;
+  gap: 0.7rem;
+}
+
+:global(.provider-account-row),
+:global(.stream-visibility-row),
+.connection {
+  border-top: 1px solid var(--account-line);
+  padding: 0.85rem 0;
+}
+
+:global(.provider-account-summary) {
+  align-items: center;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+:global(.provider-identity) {
+  align-items: center;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: 3.4rem minmax(0, 1fr);
+  min-width: 0;
+}
+
+:global(.provider-identity h3) {
+  color: var(--account-text);
+  margin: 0;
+}
+
+:global(.provider-identity p) {
+  color: var(--account-muted);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+:global(.provider-mark) {
+  align-items: center;
+  background: #0f171d;
+  border: 1px solid var(--account-line);
+  color: var(--account-text);
+  display: inline-flex;
+  justify-content: center;
+  margin-right: 0.25rem;
+}
+
+:global(.provider-mark svg),
+.providerMark svg {
+  height: 1.55rem;
+  width: 1.55rem;
+}
+
+:global(.provider-mark.google),
+:global(.providerMark.google),
+.providerMark.google {
+  color: #1a73e8;
+}
+
+:global(.provider-mark.twitch),
+:global(.providerMark.twitch),
+.providerMark.twitch {
+  color: #9146ff;
+}
+
+:global(.provider-mark.github),
+:global(.providerMark.github),
+.providerMark.github {
+  color: #ffffff;
+}
+
+:global(.provider-mark.discord),
+:global(.providerMark.discord),
+.providerMark.discord {
+  color: #5865f2;
+}
+
+:global(.provider-count) {
+  color: var(--account-muted);
+  display: inline-block;
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+:global(.provider-controls),
+.switchGroup {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+}
+
+:global(.provider-control),
+.visibilityRow {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+:global(.provider-control > span),
+.visibilityRow strong {
+  color: var(--account-text);
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+:global(.switch-control-row),
+.switchGroup {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+  min-height: 2.1rem;
+}
+
+:global(.account-switch),
+.switch {
+  background: #27343c;
+  border: 1px solid #495a65;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 1.72rem;
+  padding: 0;
+  position: relative;
+  transition: background-color 140ms ease, border-color 140ms ease;
+  width: 3.2rem;
+}
+
+:global(.account-switch[data-state="checked"]),
+.switch[data-state="checked"] {
+  background: var(--account-mint);
+  border-color: var(--account-mint);
+}
+
+:global(.account-switch:disabled),
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+:global(.account-switch:focus-visible),
+.switch:focus-visible {
+  outline: 3px solid rgb(69 214 173 / 28%);
+  outline-offset: 2px;
+}
+
+:global(.account-switch-thumb),
+.switchThumb {
+  background: #f5fbfa;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
+  display: block;
+  height: 1.2rem;
+  width: 1.2rem;
+  transform: translateX(0.18rem);
+  transition: transform 140ms ease;
+}
+
+:global(.account-switch-thumb[data-state="checked"]),
+.switchThumb[data-state="checked"] {
+  transform: translateX(1.82rem);
+}
+
+:global(.switch-state) {
+  color: var(--account-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+:global(.tooltip-trigger-wrap),
+.tooltipTrigger {
+  display: inline-flex;
+}
+
+:global(.control-tooltip),
+.tooltip {
+  background: #111e24;
+  border-radius: 8px;
+  box-shadow: 0 18px 36px rgb(0 0 0 / 26%);
+  color: #f6faf9;
+  font-size: 0.84rem;
+  max-width: min(18rem, calc(100vw - 2rem));
+  padding: 0.55rem 0.75rem;
+  z-index: 50;
+}
+
+:global(.control-tooltip-arrow),
+.tooltipArrow {
+  fill: #111e24;
+}
+
+:global(.linked-account-sublist),
+.linkedAccounts,
+.visibilityList {
+  border-top: 1px solid var(--account-line);
+  display: grid;
+  gap: 0.6rem;
+  padding-top: 0.8rem;
+}
+
+:global(.linked-account-row),
+.linkedAccount {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 0;
+  padding: 0.72rem 0.85rem;
+}
+
+:global(.linked-account-details),
+.visibilityRow > div:first-child {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+:global(.linked-account-details strong),
+:global(.linked-account-details span),
+:global(.linked-account-details code),
+.linkedAccount strong,
+.visibilityRow strong {
+  overflow-wrap: anywhere;
+}
+
+:global(.linked-account-details span),
+.linkedAccount span {
+  color: var(--account-muted);
+  font-size: 0.88rem;
+}
+
+:global(.linked-account-details code) {
+  color: #a5adb3;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 0.8rem;
+}
+
+:global(.linked-account-login-control),
+.setupNotice {
+  justify-items: start;
+}
+
+:global(.privacy-choice-list),
+.choiceList,
+.visibilitySettings,
+.visibilityList {
+  display: grid;
+  gap: 0.6rem;
+}
+
+:global(.privacy-choice),
+.choice {
+  align-items: center;
+  background: #151e25;
+  border: 0;
+  border-top: 1px solid var(--account-line);
+  border-radius: 0;
+  color: var(--account-text);
+  cursor: pointer;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: auto minmax(0, 1fr);
+  justify-items: start;
+  padding: 0.85rem 0;
+  text-align: left;
+}
+
+:global(.privacy-choice.selected),
+.choiceSelected,
+.choice:hover {
+  background: rgb(69 214 173 / 7%);
+}
+
+:global(.privacy-choice:focus-visible),
+.choice:focus-visible {
+  outline: 3px solid rgb(69 214 173 / 28%);
+  outline-offset: 3px;
+}
+
+:global(.privacy-choice-indicator),
+.choiceIndicator {
+  border: 2px solid #60717c;
+  border-radius: 50%;
+  height: 0.96rem;
+  width: 0.96rem;
+}
+
+:global(.privacy-choice.selected .privacy-choice-indicator),
+.choiceSelected .choiceIndicator {
+  background: var(--account-mint);
+  border-color: var(--account-mint);
+  box-shadow: inset 0 0 0 0.16rem #111a20;
+}
+
+:global(.privacy-choice strong),
+:global(.privacy-choice span span),
+.choice strong,
+.choice span span {
+  display: block;
+}
+
+:global(.privacy-choice span span),
+.choice span span {
+  color: var(--account-muted);
+  margin-top: 0.2rem;
+}
+
+:global(.empty-state-actions) {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: space-between;
+}
+
+:global(.stream-visibility-settings),
+:global(.stream-visibility-event-list),
+.visibilityList {
+  display: grid;
+  gap: 0.6rem;
+}
+
+:global(.stream-visibility-row),
+.visibilityRow {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-top: 1px solid var(--account-line);
+  padding: 0.85rem 0;
+}
+
+:global(.stream-visibility-row.primary),
+.globalVisibility {
+  border-color: #2b4a44;
+}
+
+:global(.stream-visibility-row strong),
+:global(.stream-visibility-row span),
+.visibilityRow strong,
+.visibilityRow span {
+  display: block;
+}
+
+:global(.stream-visibility-row span),
+.visibilityRow span {
+  color: var(--account-muted);
+  overflow-wrap: anywhere;
+}
+
+.actionButton {
+  background: var(--account-mint);
+  border: 1px solid var(--account-mint);
+  color: #06110f;
+  font-weight: 700;
+}
+
+.actionButton:hover,
+.actionButton:focus-visible {
+  background: #51e1b6;
+}
+
+.connected {
+  color: #6ec8a7;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.notConnected {
+  color: #ff8d92;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.connectionList,
+.choiceList {
+  list-style: none;
+}
+
+.connectionList {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.connectionMain {
+  align-items: start;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.connectionIdentity {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.connectionTitle {
+  align-items: baseline;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.connectionTitle p {
+  margin: 0;
+}
+
+.connectionTitle h3 {
+  margin: 0;
+}
+
+.setupNotice {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.details {
+  border: 1px solid var(--account-line);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem 0.8rem;
+}
+
+.details > summary {
+  cursor: pointer;
+  color: var(--account-text);
+  font-weight: 700;
+}
+
+.details > summary::marker {
+  color: var(--account-mint);
+}
+
+@media (max-width: 860px) {
+  :global(.account-page-panel) {
+    max-width: none;
+  }
+
+  :global(.account-section),
+  :global(.account-page-panel) {
+    gap: 0.8rem;
+  }
+
+  :global(.account-page-header),
+  :global(.account-section-heading-row),
+  :global(.stream-visibility-row),
+  :global(.provider-account-summary),
+  :global(.linked-account-row),
+  .visibilityRow,
+  .connection {
+    grid-template-columns: 1fr;
+  }
+
+  .connection {
+    padding: 0.75rem;
+  }
+
+  .setupNotice {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  :global(.account-page-panel) {
+    max-width: none;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  :global(.account-section),
+  :global(.stream-visibility-row),
+  .connection,
+  .visibilityRow {
+    padding: 0.72rem;
+  }
+
+  :global(.provider-identity),
+  :global(.session-card) {
+    grid-template-columns: 2.7rem minmax(0, 1fr);
+  }
+
+  :global(.provider-mark),
+  :global(.session-card img),
+  :global(.session-avatar-placeholder) {
+    height: 2.7rem;
+    width: 2.7rem;
+  }
+
+  :global(.account-switch),
+  .switch {
+    width: 3rem;
+  }
+
+  :global(.account-switch-thumb),
+  .switchThumb {
+    transform: translateX(0.16rem);
+  }
+
+  :global(.account-switch-thumb[data-state="checked"]),
+  .switchThumb[data-state="checked"] {
+    transform: translateX(1.6rem);
+  }
+
+  .connectionTitle {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.12rem;
+  }
+}

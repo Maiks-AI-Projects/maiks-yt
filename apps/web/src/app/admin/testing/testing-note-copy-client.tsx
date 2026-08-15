@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import styles from "./testing-guide.module.css";
+
 type TestingNoteCopyClientProps = {
   template: string;
 };
@@ -19,7 +21,7 @@ export const TestingNoteCopyClient = ({ template }: TestingNoteCopyClientProps):
   };
 
   return (
-    <div className="admin-inline-actions testing-note-copy-actions">
+    <div className={`${styles.noteCopy} admin-inline-actions testing-note-copy-actions`}>
       <button type="button" onClick={() => void copyTemplate()}>
         Copy template
       </button>

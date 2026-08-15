@@ -1,5 +1,7 @@
 import AdminDashboardClient from "./admin-dashboard-client";
 
+import styles from "./admin-dashboard.module.css";
+
 export const dynamic = "force-dynamic";
 
 export const metadata = {
@@ -8,7 +10,7 @@ export const metadata = {
 };
 
 const AdminDashboardPage = (): React.ReactNode => (
-  <main className="project-admin-page">
+  <main className={styles.pageShell}>
     <AdminDashboardClient />
   </main>
 );
