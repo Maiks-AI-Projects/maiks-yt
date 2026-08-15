@@ -17,6 +17,7 @@ export type GameLibraryCapability =
 
 export type GameLibrarySource = {
   id: string;
+  catalogGameId: string | null;
   slug: string;
   title: string;
   platformLabel: string | null;
@@ -36,6 +37,7 @@ export type GameLibrarySource = {
 };
 
 export type GameLibraryAdminInput = {
+  catalogGameId?: string | null | undefined;
   title: string;
   slug?: string | null | undefined;
   platformLabel?: string | null | undefined;

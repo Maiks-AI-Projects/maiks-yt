@@ -16,6 +16,7 @@ import {
 
 const createGame = (overrides: Partial<GameLibrarySource> = {}): GameLibrarySource => ({
   id: "game-1",
+  catalogGameId: null,
   slug: "satisfactory",
   title: "Satisfactory",
   platformLabel: "Steam",

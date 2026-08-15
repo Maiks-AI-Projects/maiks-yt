@@ -2412,6 +2412,98 @@ button:disabled {
   white-space: nowrap;
 }
 
+.game-catalog-combobox {
+  position: relative;
+}
+
+.game-catalog-combobox > input {
+  width: 100%;
+}
+
+.game-catalog-combobox-list {
+  background: #ffffff;
+  border: 1px solid #b8c4cf;
+  border-radius: 6px;
+  box-shadow: 0 0.75rem 1.5rem rgba(20, 25, 32, 0.14);
+  display: grid;
+  left: 0;
+  max-height: 18rem;
+  overflow-y: auto;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 20;
+}
+
+.game-catalog-combobox-list button {
+  align-items: center;
+  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  color: #141920;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: 2.9rem minmax(0, 1fr);
+  min-height: 3rem;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  width: 100%;
+}
+
+.game-catalog-combobox-list button + button {
+  border-top: 1px solid #e2e8ee;
+}
+
+.game-catalog-combobox-list button:hover,
+.game-catalog-combobox-list button.active {
+  background: #edf7f2;
+}
+
+.game-catalog-combobox-placeholder {
+  background: #243646;
+  border-radius: 3px;
+  height: 1.5rem;
+  object-fit: cover;
+  width: 2.9rem;
+}
+
+.game-catalog-combobox-placeholder {
+  align-items: center;
+  color: #ffffff;
+  display: flex;
+  font-size: 0.75rem;
+  font-weight: 800;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.game-catalog-combobox-placeholder img {
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
+}
+
+.game-catalog-combobox-list button > span:last-child {
+  display: grid;
+  min-width: 0;
+}
+
+.game-catalog-combobox-list strong,
+.game-catalog-combobox-list small {
+  overflow-wrap: anywhere;
+}
+
+.game-catalog-combobox-status {
+  color: #4b5966;
+  display: block;
+  font-weight: 400;
+  margin-top: 0.25rem;
+  min-height: 1.1rem;
+}
+
 @media (max-width: 48rem) {
   .steam-wishlist-preview-item {
     grid-template-columns: 2rem minmax(0, 1fr);

@@ -61,6 +61,9 @@ export const normalizeGameLibraryPermissions = (
 const normalizeOptionalText = (value: string | null | undefined): string | null | undefined =>
   value === undefined ? undefined : value?.trim() || null;
 
+const normalizeOptionalId = (value: string | null | undefined): string | null | undefined =>
+  value === undefined ? undefined : value?.trim() || null;
+
 const normalizeSortOrder = (value: number | undefined): number =>
   value ?? 0;
 
@@ -75,6 +78,7 @@ const normalizeInput = (
   }
 
   const game = {
+    catalogGameId: normalizeOptionalId(input.catalogGameId),
     title: input.title.trim(),
     slug: slug.slug,
     platformLabel: normalizeOptionalText(input.platformLabel),
@@ -143,13 +147,23 @@ export class GameLibraryService {
       };
     }
 
+    if (game.catalogGameId && !await this.repository.catalogGameExists(game.catalogGameId)) {
+      return { ok: false, reason: "game_library_invalid_input" };
+    }
+
     try {
+      const created = await this.repository.createGame({
+        ...game,
+        actorUserId: actor.domainUserId
+      });
+
+      if (game.catalogGameId) {
+        await this.repository.confirmCatalogGame(game.catalogGameId);
+      }
+
       return {
         ok: true,
-        game: await this.repository.createGame({
-          ...game,
-          actorUserId: actor.domainUserId
-        })
+        game: created
       };
     } catch (error) {
       if (error instanceof Error && error.message === "game_library_slug_conflict") {
@@ -191,6 +205,7 @@ export class GameLibraryService {
     }
 
     const merged = mergeDefinedUpdate({
+      catalogGameId: existing.catalogGameId,
       title: existing.title,
       slug: existing.slug,
       platformLabel: existing.platformLabel,
@@ -211,6 +226,10 @@ export class GameLibraryService {
         ok: false,
         reason: "game_library_invalid_input"
       };
+    }
+
+    if (game.catalogGameId && !await this.repository.catalogGameExists(game.catalogGameId)) {
+      return { ok: false, reason: "game_library_invalid_input" };
     }
 
     const repositoryUpdate = {
@@ -239,6 +258,10 @@ export class GameLibraryService {
         ok: false,
         reason: "game_library_slug_conflict"
       };
+    }
+
+    if (game.catalogGameId) {
+      await this.repository.confirmCatalogGame(game.catalogGameId);
     }
 
     return {

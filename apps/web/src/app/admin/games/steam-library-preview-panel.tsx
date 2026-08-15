@@ -149,7 +149,7 @@ const SteamLibraryPreviewPanel = ({ apiBaseUrl }: { apiBaseUrl: string }): React
       if (response.ok && payload?.ok) {
         setPreview(payload);
         setPanelState("ready");
-        setMessage(`Previewed ${payload.gameCount} Steam games. Nothing was imported or published.`);
+        setMessage(`Previewed ${payload.gameCount} Steam games and refreshed their catalog metadata. Nothing was added to your personal library or published.`);
         return;
       }
 
@@ -182,7 +182,7 @@ const SteamLibraryPreviewPanel = ({ apiBaseUrl }: { apiBaseUrl: string }): React
       </div>
 
       <p className="game-library-warning">
-        <strong>Preview only.</strong> These games are not imported, saved to Maiks.yt, or made public.
+        <strong>Provider read-only.</strong> Sanitized metadata is cached locally for resilient search, but games are not added to your personal library or made public.
       </p>
       <div className="project-admin-actions">
         <p aria-live="polite">{message}</p>

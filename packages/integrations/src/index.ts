@@ -1,4 +1,7 @@
 export * from "./provider-status.rules.js";
+export * from "./steam-catalog-search.rules.js";
+export * from "./steam-catalog-search.service.js";
+export * from "./steam-catalog-search.types.js";
 export * from "./steam-game-library.rules.js";
 export * from "./steam-game-library.service.js";
 export * from "./steam-game-library.types.js";

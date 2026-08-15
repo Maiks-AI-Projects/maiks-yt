@@ -1,4 +1,4 @@
-import { canManageGameLibrary } from "@maiks-yt/domain/games";
+import { buildSteamCatalogCandidate, canManageGameLibrary } from "@maiks-yt/domain/games";
 import {
   fetchSteamOwnedGamesPreview,
   fetchSteamWishlistPreview,
@@ -39,12 +39,24 @@ export class SteamGameLibraryService {
       return accessFailure;
     }
 
-    return fetchSteamOwnedGamesPreview({
+    const result = await fetchSteamOwnedGamesPreview({
       env: this.options.env ?? process.env,
       ...(this.options.fetchOwnedGames
         ? { fetchOwnedGames: this.options.fetchOwnedGames }
         : {})
     });
+
+    if (result.ok) {
+      await this.repository.cacheCandidates(result.games
+        .map((game) => buildSteamCatalogCandidate({
+          appId: game.appId,
+          title: game.title,
+          artworkUrl: game.iconUrl
+        }))
+        .filter((candidate) => candidate !== null));
+    }
+
+    return result;
   }
 
   public async previewWishlist(input: {
@@ -56,7 +68,7 @@ export class SteamGameLibraryService {
       return accessFailure;
     }
 
-    return fetchSteamWishlistPreview({
+    const result = await fetchSteamWishlistPreview({
       env: this.options.env ?? process.env,
       ...(this.options.fetchWishlist
         ? { fetchWishlist: this.options.fetchWishlist }
@@ -65,6 +77,17 @@ export class SteamGameLibraryService {
         ? { fetchStoreApp: this.options.fetchStoreApp }
         : {})
     });
+
+    if (result.ok) {
+      await this.repository.cacheCandidates(result.items
+        .map((item) => buildSteamCatalogCandidate({
+          appId: item.appId,
+          title: item.title ?? `Steam App ${item.appId}`
+        }))
+        .filter((candidate) => candidate !== null));
+    }
+
+    return result;
   }
 
   private async getAccessFailure(

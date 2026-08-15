@@ -17,7 +17,7 @@ import {
 } from "./event-routing/index.js";
 import { registerDevOwnerTokenRoutes } from "./dev-testing/index.js";
 import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index.js";
-import { registerGameLibraryRoutes, registerSteamGameLibraryRoutes } from "./games/index.js";
+import { registerGameCatalogRoutes, registerGameLibraryRoutes, registerSteamGameLibraryRoutes } from "./games/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
@@ -166,6 +166,10 @@ export const registerApplicationRoutes = ({
     getDatabasePool
   });
   registerSteamGameLibraryRoutes(server, {
+    getAuthSession,
+    getDatabasePool
+  });
+  registerGameCatalogRoutes(server, {
     getAuthSession,
     getDatabasePool
   });

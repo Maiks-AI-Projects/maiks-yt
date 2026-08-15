@@ -7,6 +7,7 @@ import type {
   SteamWishlistFetch,
   SteamWishlistPreviewResult
 } from "@maiks-yt/integrations";
+import type { GameCatalogCandidate } from "@maiks-yt/domain/games";
 
 export type SteamGameLibraryActor = {
   domainUserId: string;
@@ -15,6 +16,7 @@ export type SteamGameLibraryActor = {
 
 export interface SteamGameLibraryRepository {
   resolveActor(authUserId: string): Promise<SteamGameLibraryActor | null>;
+  cacheCandidates(candidates: readonly GameCatalogCandidate[]): Promise<void>;
 }
 
 export type SteamGameLibraryAccessFailure = {

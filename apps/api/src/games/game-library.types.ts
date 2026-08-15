@@ -73,6 +73,8 @@ export type GameSuggestionReviewResult =
 
 export interface GameLibraryRepository {
   resolveActor(authUserId: string): Promise<GameLibraryAdminActor | null>;
+  catalogGameExists(id: string): Promise<boolean>;
+  confirmCatalogGame(id: string): Promise<void>;
   listGames(): Promise<readonly GameLibrarySource[]>;
   listSuggestions(): Promise<readonly GameSuggestionSource[]>;
   getGame(id: string): Promise<GameLibrarySource | null>;

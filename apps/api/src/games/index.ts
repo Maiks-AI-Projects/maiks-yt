@@ -1,3 +1,7 @@
+export * from "./game-catalog.route.js";
+export * from "./game-catalog.service.js";
+export * from "./game-catalog-store.service.js";
+export * from "./game-catalog.types.js";
 export * from "./game-library.route.js";
 export * from "./game-library.service.js";
 export * from "./game-library-store.service.js";

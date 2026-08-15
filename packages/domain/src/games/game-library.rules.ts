@@ -115,10 +115,16 @@ const isValidSortOrder = (value: unknown): boolean =>
   value === undefined
   || (typeof value === "number" && Number.isInteger(value) && value >= gameSortOrderMin && value <= gameSortOrderMax);
 
+const isValidOptionalId = (value: unknown): boolean =>
+  value === undefined
+  || value === null
+  || (typeof value === "string" && value.trim().length > 0 && value.trim().length <= 36);
+
 export const isValidGameLibraryAdminInput = (input: GameLibraryAdminInput): boolean => {
   const rawSlug = input.slug?.trim() || createGameSlugFromTitle(input.title);
 
   return isValidRequiredText(input.title, gameTitleMaxLength)
+    && isValidOptionalId(input.catalogGameId)
     && normalizeGameSlug(rawSlug).ok
     && isValidOptionalText(input.platformLabel, gamePlatformLabelMaxLength)
     && isValidOptionalText(input.storeProvider, gameStoreProviderMaxLength)

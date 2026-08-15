@@ -4,6 +4,7 @@ import type {
   SteamGameLibraryActor,
   SteamGameLibraryRepository
 } from "./steam-game-library.types.js";
+import { createGameCatalogRepository } from "./game-catalog-store.service.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
 
@@ -48,8 +49,12 @@ const resolveActor = async (
 };
 
 export const createSteamGameLibraryRepository = (
-  pool: QueryExecutor
-): SteamGameLibraryRepository => ({
-  resolveActor: (authUserId) => resolveActor(pool, authUserId)
-});
+  pool: DatabasePool
+): SteamGameLibraryRepository => {
+  const catalogRepository = createGameCatalogRepository(pool);
 
+  return {
+    resolveActor: (authUserId) => resolveActor(pool, authUserId),
+    cacheCandidates: (candidates) => catalogRepository.cacheCandidates(candidates)
+  };
+};

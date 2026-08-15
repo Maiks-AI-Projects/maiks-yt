@@ -98,6 +98,14 @@ Gifted games may involve money/value, refunds, platform terms, public expectatio
 - optional project/theme/category links
 - future gift records and audit trail
 
+## On-Demand Game Catalog Cache
+
+The personal game library should reference a separate provider-neutral catalog when a reliable match exists. The catalog is populated only when a game appears in an explicit owner search, Steam owned-game preview, Steam wishlist preview, reviewed suggestion, schedule selection, or owner-confirmed library record. It must not bulk crawl or mirror provider catalogs.
+
+Catalog records keep canonical titles, normalized search text, provider identities such as Steam App ID, Twitch category ID, and IGDB ID, store links, internal-use remote artwork URLs, first/last-seen timestamps, and refresh timestamps. Provider failures leave stale records searchable. Artwork files are not downloaded; internal views use the remote URL and fall back to a local placeholder.
+
+Ambiguous editions, remasters, DLC, and similarly named games require explicit owner confirmation before identities are merged. YouTube has broad video category/topic identifiers rather than a reliable per-game catalog identity, so YouTube automation should use the confirmed canonical game title and routing metadata instead of inventing a Google game ID.
+
 ## Build Requirements
 
 - owner/admin game library page
@@ -132,6 +140,8 @@ The migration creates:
 This is persistence only. It does not add public suggestion intake, admin UI, public pages, gifted-game claims, provider/store sync, purchasing, wishlist automation, money behavior, moderation automation, or scheduling provider sync.
 
 The first runtime slice should be manual owner/admin game-library CRUD plus a read-only public curated list. Suggestions can follow after moderation/review wording is ready.
+
+2026-08-15: generated migration `0027_jazzy_odin.sql` for the first on-demand catalog cache. It adds canonical catalog entries, provider identities, nullable personal-library links, and owner-confirmed match state. Runtime search caches only explicit Steam search results plus owned/wishlist preview results, keeps stale rows searchable during provider failure, stores remote artwork URLs only, and adds a searchable title combobox to `/admin/games`.
 
 ## Related Cards
 

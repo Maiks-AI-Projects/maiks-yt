@@ -19,6 +19,7 @@ import type {
 } from "@maiks-yt/domain/games";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import GameCatalogCombobox, { type GameCatalogComboboxResult } from "./game-catalog-combobox";
 import SteamLibraryPreviewPanel from "./steam-library-preview-panel";
 import { getSteamSuggestionUrl } from "./steam-store-links.rules";
 
@@ -56,6 +57,7 @@ type AdminSuggestionMutationResponse =
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 type GameFormState = {
+  catalogGameId: string;
   title: string;
   slug: string;
   platformLabel: string;
@@ -78,6 +80,7 @@ type SuggestionReviewState = {
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const defaultGameForm: GameFormState = {
+  catalogGameId: "",
   title: "",
   slug: "",
   platformLabel: "",
@@ -98,6 +101,7 @@ const defaultSuggestionReviewState: SuggestionReviewState = {
 };
 
 const toGameForm = (game: GameLibrarySource): GameFormState => ({
+  catalogGameId: game.catalogGameId ?? "",
   title: game.title,
   slug: game.slug,
   platformLabel: game.platformLabel ?? "",
@@ -113,6 +117,7 @@ const toGameForm = (game: GameLibrarySource): GameFormState => ({
 });
 
 const toPayload = (form: GameFormState): Record<string, unknown> => ({
+  catalogGameId: form.catalogGameId || null,
   title: form.title.trim(),
   slug: form.slug.trim() || null,
   platformLabel: form.platformLabel.trim() || null,
@@ -128,6 +133,7 @@ const toPayload = (form: GameFormState): Record<string, unknown> => ({
 });
 
 const suggestionToGameForm = (suggestion: GameSuggestionSource): GameFormState => ({
+  catalogGameId: "",
   title: suggestion.title,
   slug: createGameSlugFromTitle(suggestion.title),
   platformLabel: suggestion.platformLabel ?? "",
@@ -160,6 +166,7 @@ const getLocalFormIssue = (form: GameFormState): string | null => {
   }
 
   if (!isValidGameLibraryAdminInput({
+    catalogGameId: form.catalogGameId || null,
     title,
     slug,
     platformLabel: form.platformLabel,
@@ -482,6 +489,19 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     setMessage("Suggestion copied into a private game draft. Save it before reviewing the suggestion.");
   };
 
+  const selectCatalogGame = (result: GameCatalogComboboxResult): void => {
+    setGameForm((current) => ({
+      ...current,
+      catalogGameId: result.catalogGameId,
+      title: result.title,
+      platformLabel: result.provider === "steam" ? "Steam" : current.platformLabel,
+      storeProvider: result.provider,
+      storeUrl: result.storeUrl ?? current.storeUrl,
+      slug: current.slug || createGameSlugFromTitle(result.title)
+    }));
+    setMessage(`${result.title} selected from the game catalog.`);
+  };
+
   const visibleGames = sortGames(games);
   const gameTitleById = new Map(visibleGames.map((game) => [game.id, game.title]));
   const pendingSuggestions = suggestions.filter((suggestion) => suggestion.status === "pending");
@@ -648,7 +668,17 @@ const GameLibraryAdminClient = (): React.ReactNode => {
               <div className="project-admin-form-grid">
                 <label>
                   Title
-                  <input value={gameForm.title} onChange={(event) => setGameForm((current) => ({ ...current, title: event.target.value }))} required maxLength={191} />
+                  <GameCatalogCombobox
+                    apiBaseUrl={apiBaseUrl}
+                    value={gameForm.title}
+                    selectedCatalogGameId={gameForm.catalogGameId}
+                    onValueChange={(title) => setGameForm((current) => ({
+                      ...current,
+                      title,
+                      catalogGameId: ""
+                    }))}
+                    onSelect={selectCatalogGame}
+                  />
                 </label>
                 <label>
                   Slug

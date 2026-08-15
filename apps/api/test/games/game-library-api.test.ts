@@ -21,6 +21,7 @@ const createGame = (
   overrides: Partial<GameLibrarySource> = {}
 ): GameLibrarySource => ({
   id,
+  catalogGameId: null,
   slug: id,
   title: `Game ${id}`,
   platformLabel: "Steam",
@@ -75,6 +76,12 @@ class FakeGameLibraryRepository implements GameLibraryRepository {
     return this.actor ? structuredClone(this.actor) : null;
   }
 
+  public async catalogGameExists(): Promise<boolean> {
+    return true;
+  }
+
+  public async confirmCatalogGame(): Promise<void> {}
+
   public async listGames(): Promise<readonly GameLibrarySource[]> {
     return [...this.games.values()].map((game) => structuredClone(game));
   }
@@ -97,6 +104,7 @@ class FakeGameLibraryRepository implements GameLibraryRepository {
     }
 
     const game = createGame(`game-${this.games.size + 1}`, {
+      catalogGameId: input.catalogGameId ?? null,
       slug: input.slug,
       title: input.title,
       platformLabel: input.platformLabel ?? null,
@@ -133,6 +141,7 @@ class FakeGameLibraryRepository implements GameLibraryRepository {
 
     const next = {
       ...existing,
+      ...(input.catalogGameId !== undefined ? { catalogGameId: input.catalogGameId?.trim() || null } : {}),
       ...(input.title !== undefined ? { title: input.title.trim() } : {}),
       ...(input.slug !== undefined ? { slug: input.slug } : {}),
       ...(input.platformLabel !== undefined ? { platformLabel: input.platformLabel?.trim() || null } : {}),

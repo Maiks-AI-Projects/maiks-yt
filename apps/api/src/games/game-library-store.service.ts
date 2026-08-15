@@ -21,6 +21,7 @@ type SqlValue = string | number | boolean | null;
 
 type GameLibraryRow = {
   id: string;
+  catalogGameId?: string | null;
   slug: string;
   title: string;
   platformLabel?: string | null;
@@ -63,6 +64,7 @@ const toIsoString = (value: Date | string): string =>
 
 const mapGame = (row: GameLibraryRow): GameLibrarySource => ({
   id: row.id,
+  catalogGameId: row.catalogGameId ?? null,
   slug: row.slug,
   title: row.title,
   platformLabel: row.platformLabel ?? null,
@@ -121,6 +123,7 @@ const mapSuggestion = (row: GameSuggestionRow): GameSuggestionSource => ({
 
 const selectGameFields = `
   id,
+  catalog_game_id AS catalogGameId,
   slug,
   title,
   platform_label AS platformLabel,
@@ -255,6 +258,10 @@ const updateGameFields = async (
     fields.push("title = ?");
     values.push(input.title.trim());
   }
+  if (input.catalogGameId !== undefined) {
+    fields.push("catalog_game_id = ?");
+    values.push(normalizedOptionalText(input.catalogGameId));
+  }
   if (input.slug !== undefined) {
     fields.push("slug = ?");
     values.push(input.slug);
@@ -337,6 +344,21 @@ export const createGameLibraryRepository = (
     return await resolveActor(pool, authUserId);
   },
 
+  async catalogGameExists(id) {
+    const [rows] = await pool.execute(
+      "SELECT id FROM game_catalog_entries WHERE id = ? LIMIT 1",
+      [id]
+    );
+    return Array.isArray(rows) && rows.length > 0;
+  },
+
+  async confirmCatalogGame(id) {
+    await pool.execute(
+      "UPDATE game_catalog_entries SET match_state = 'owner-confirmed', last_seen_at = NOW(), updated_at = NOW() WHERE id = ?",
+      [id]
+    );
+  },
+
   async listGames() {
     const [rows] = await pool.execute(
       `
@@ -374,11 +396,12 @@ export const createGameLibraryRepository = (
       await pool.execute(
         `
           INSERT INTO game_library_entries
-            (id, slug, title, platform_label, store_provider, store_url, ownership_status, interest_status, stream_fit_note, content_warnings, category_label, visibility, sort_order, created_by_user_id, updated_by_user_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, catalog_game_id, slug, title, platform_label, store_provider, store_url, ownership_status, interest_status, stream_fit_note, content_warnings, category_label, visibility, sort_order, created_by_user_id, updated_by_user_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           id,
+          normalizedOptionalText(input.catalogGameId),
           input.slug,
           input.title.trim(),
           normalizedOptionalText(input.platformLabel),

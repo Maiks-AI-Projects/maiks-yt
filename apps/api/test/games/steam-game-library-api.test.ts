@@ -17,10 +17,15 @@ class FakeSteamGameLibraryRepository implements SteamGameLibraryRepository {
     rolePermissionValues: [["*"]]
   };
   public resolveCount = 0;
+  public cachedCandidateCount = 0;
 
   public async resolveActor(): Promise<SteamGameLibraryActor | null> {
     this.resolveCount += 1;
     return this.actor ? structuredClone(this.actor) : null;
+  }
+
+  public async cacheCandidates(candidates: readonly unknown[]): Promise<void> {
+    this.cachedCandidateCount += candidates.length;
   }
 }
 

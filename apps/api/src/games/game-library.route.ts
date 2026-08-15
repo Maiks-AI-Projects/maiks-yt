@@ -33,6 +33,7 @@ const gameIdParamsSchema = z.object({
 }).strict();
 
 const gamePayloadSchema = z.object({
+  catalogGameId: z.string().trim().min(1).max(36).nullable().optional(),
   title: z.string().trim().min(1).max(191),
   slug: z.string().trim().min(1).max(191).nullable().optional(),
   platformLabel: z.string().trim().max(120).nullable().optional(),

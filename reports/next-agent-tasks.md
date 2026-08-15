@@ -1,6 +1,6 @@
 # Next Agent Tasks
 
-Updated: 2026-08-14
+Updated: 2026-08-15
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 
@@ -74,21 +74,24 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Session admin foundation is deployed-ready: owner-only `/admin/sessions` can list Better Auth sessions with safe metadata, revoke selected rows, and revoke all other real browser sessions while preserving the current one. It intentionally does not expose session tokens. Future follow-up can add explicit audit history if needed.
 - Testing navigation note: `/admin` now groups the active admin surfaces, preserves `devAuthToken` in links during smoke testing, includes live status/count badges for notifications, provider intake, sessions, backup health, pending approvals, active helper grants, active local moderation, and private ledger warnings, and is covered by `pnpm dev:smoke:notify`.
 
-## Steam Game-Library Discovery Slice (Ready For Coordinator Review)
+## Steam Game Library And On-Demand Catalog (Ready For Coordinator Review)
 
 Completed boundary:
 
 - Added a focused server-side Steam module in `@maiks-yt/integrations` using the public HTTPS `api.steampowered.com` `IPlayerService/GetOwnedGames` endpoint with `include_appinfo` and `include_played_free_games` enabled.
 - Added strict preview-only projection for AppID, title, safe icon URL, lifetime playtime, and recent playtime. Missing configuration, invalid configuration/credentials, private game details, rate limits, malformed responses, network failures, and provider failures return fixed typed states without raw payloads, stack traces, credentials, or key-bearing URLs.
 - Added private/no-store `GET /admin/games/steam/status`, `GET /admin/games/steam/preview`, and `GET /admin/games/steam/wishlist`, gated by owner wildcard or `game-library:manage`, plus compact owned-game/wishlist previews and manual Steam links for suggestions.
-- Added no schema, migration, persistence, public output, Steam login/OpenID, account linking, recurring sync, automatic import, provider write, purchasing, achievement, friend, gift, or money behavior. Wishlist changes remain manual in Steam, and existing games, interest/visibility/notes/categories, suggestions, schedule links, and gift state are untouched.
+- Wishlist changes remain manual in Steam, and existing game interest/visibility/notes/categories, suggestions, schedule links, and gift state are not overwritten by provider data.
+- Generated `0027_jazzy_odin.sql` for `game_catalog_entries`, `game_catalog_provider_identities`, and nullable `game_library_entries.catalog_game_id`.
+- Added owner-gated `GET /admin/games/catalog/search`: an explicit query fetches a bounded Steam Store result set, caches sanitized provider metadata, and returns matching local rows. If Steam fails, matching cached rows still return with `cacheOnly: true`.
+- Added the `/admin/games` searchable title combobox with keyboard navigation, free-text fallback, internal remote thumbnails, local placeholders, and owner-confirmed catalog linking on save.
 
-Next reviewed import/mapping step:
+Next reviewed matching step:
 
-- Add a provider-neutral, on-demand catalog cache keyed by canonical game plus provider identities. Cache only games surfaced through search, owned library, wishlist, suggestions, schedule links, or explicit owner confirmation; do not bulk crawl provider catalogs.
-- Preserve Steam AppID, Twitch category ID, IGDB ID, aliases, store URL, internal-use remote artwork URL, source timestamps, and owner-confirmed match state. Keep stale metadata searchable when providers fail and use a local placeholder instead of downloading artwork files.
-- Require explicit per-game owner confirmation for ambiguous matching and never overwrite existing manual metadata or links implicitly.
-- Keep bulk/automatic import, recurring synchronization, deletions, provider writes, Steam login/OpenID, public publishing, and money behavior out until separately approved.
+- Review and apply `0027_jazzy_odin.sql` on dev before runtime smoke.
+- Add Twitch category/IGDB discovery and an explicit owner merge/match editor in a later slice. YouTube does not provide a dependable per-game catalog ID.
+- Require explicit owner confirmation for ambiguous cross-provider matching and never overwrite existing manual metadata or links implicitly.
+- Keep bulk catalog crawling, local artwork-file downloads, provider writes, Steam login/OpenID, automatic public publishing, and money behavior out until separately approved.
 
 ## Phase 6A: Provider Integration Foundation (Completed On Dev)
 
