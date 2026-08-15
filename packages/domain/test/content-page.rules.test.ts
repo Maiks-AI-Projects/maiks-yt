@@ -56,6 +56,15 @@ describe("content page path rules", () => {
     expect(normalizeContentPagePath("/community-rules")).toMatchObject({ ok: false, reason: "reserved_path" });
     expect(normalizeContentPagePath("/projects/maiks-yt-v2")).toMatchObject({ ok: false, reason: "reserved_path" });
     expect(normalizeContentPagePath("/games/satisfactory")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/about/history")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/progress")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/profiles/michael")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/channels/minecraft")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/music")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/interactions")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/support")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/sponsors")).toMatchObject({ ok: false, reason: "reserved_path" });
+    expect(normalizeContentPagePath("/languages")).toMatchObject({ ok: false, reason: "reserved_path" });
     expect(normalizeContentPagePath("/manifest.webmanifest")).toMatchObject({ ok: false, reason: "malformed_path" });
     expect(normalizeContentPagePath("/bad path")).toMatchObject({ ok: false, reason: "malformed_path" });
     expect(normalizeContentPagePath("/bad?draft=true")).toMatchObject({ ok: false, reason: "malformed_path" });

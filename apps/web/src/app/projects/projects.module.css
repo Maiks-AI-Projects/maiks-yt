@@ -1,0 +1,436 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  --yellow: #f4c95d;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  padding: 0;
+}
+
+.intro,
+.projectSection,
+.stateBand,
+.detailHeader,
+.detailSection {
+  padding-left: max(20px, calc((100% - 1180px) / 2));
+  padding-right: max(20px, calc((100% - 1180px) / 2));
+}
+
+.intro {
+  padding-bottom: clamp(66px, 9vw, 112px);
+  padding-top: clamp(72px, 10vw, 132px);
+}
+
+.eyebrow,
+.sectionLabel {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+}
+
+.intro h1,
+.detailHeader h1 {
+  font-size: clamp(3rem, 7vw, 6.3rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+  max-width: 1080px;
+  text-wrap: balance;
+}
+
+.intro > p:last-child,
+.detailSummary {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  margin: 28px 0 0;
+  max-width: 760px;
+}
+
+.projectSection,
+.detailSection {
+  padding-bottom: clamp(72px, 9vw, 118px);
+  padding-top: clamp(72px, 9vw, 118px);
+}
+
+.projectSection,
+.detailSection:nth-of-type(even) {
+  background: var(--surface);
+}
+
+.sectionHeading {
+  display: grid;
+  gap: clamp(32px, 7vw, 96px);
+  grid-template-columns: minmax(230px, 0.68fr) minmax(0, 1.32fr);
+  margin-bottom: 48px;
+}
+
+.sectionHeading h2,
+.detailSection h2,
+.stateBand h2,
+.stateBand h1 {
+  font-size: clamp(1.9rem, 4.5vw, 4rem);
+  line-height: 1.04;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sectionHeading > p,
+.stateBand > p {
+  color: var(--muted);
+  font-size: 1.04rem;
+  margin: 0;
+  max-width: 680px;
+}
+
+.stateBand > p:last-of-type {
+  margin-top: 18px;
+}
+
+.projectList {
+  display: grid;
+}
+
+.projectRow {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: clamp(36px, 7vw, 92px);
+  grid-template-columns: minmax(280px, 1fr) minmax(340px, 0.9fr);
+  padding: clamp(34px, 5vw, 58px) 0;
+}
+
+.projectRow:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.projectNumber {
+  color: var(--quiet);
+}
+
+.projectSummary h2 {
+  font-size: clamp(1.55rem, 3vw, 2.75rem);
+  line-height: 1.04;
+  margin: 12px 0 0;
+}
+
+.projectSummary h2 a {
+  color: var(--text);
+  text-decoration-color: transparent;
+  text-underline-offset: 5px;
+}
+
+.projectSummary h2 a:hover,
+.projectSummary h2 a:focus-visible {
+  text-decoration-color: var(--mint);
+}
+
+.projectSummary > p,
+.milestoneSummary p,
+.item > p,
+.update > p,
+.milestone > p {
+  color: var(--muted);
+  margin: 14px 0 0;
+}
+
+.projectMeta,
+.itemMeta {
+  color: var(--quiet);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  font-weight: 800;
+  gap: 14px;
+  text-transform: uppercase;
+}
+
+.status,
+.itemMeta span:last-child {
+  color: var(--mint);
+}
+
+.projectRow[data-status="planning"] .status {
+  color: var(--yellow);
+}
+
+.projectRow[data-status="completed"] .status {
+  color: var(--quiet);
+}
+
+.projectProgress {
+  border-left: 1px solid var(--line);
+  padding-left: 24px;
+}
+
+.milestoneSummary > span,
+.rowStats dt,
+.detailStats dt,
+.itemFacts,
+.update time {
+  color: var(--quiet);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.milestoneSummary strong {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.35;
+  margin-top: 10px;
+}
+
+.rowStats,
+.detailStats {
+  display: grid;
+  margin: 0;
+}
+
+.rowStats {
+  border-top: 1px solid var(--line);
+  gap: 0;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 28px;
+  padding-top: 20px;
+}
+
+.rowStats div {
+  padding: 0 14px;
+}
+
+.rowStats div:first-child {
+  padding-left: 0;
+}
+
+.rowStats div + div {
+  border-left: 1px solid var(--line);
+}
+
+.rowStats dd,
+.detailStats dd {
+  font-size: 1.2rem;
+  font-weight: 800;
+  margin: 6px 0 0;
+}
+
+.stateBand {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(54px, 7vw, 82px);
+  padding-top: clamp(54px, 7vw, 82px);
+}
+
+.backLink {
+  color: var(--muted);
+  display: inline-block;
+  font-size: 0.82rem;
+  font-weight: 800;
+  margin-bottom: 48px;
+  text-decoration-color: var(--line);
+  text-underline-offset: 5px;
+  text-transform: uppercase;
+}
+
+.stateBand .backLink {
+  margin: 28px 0 0;
+}
+
+.detailHeader {
+  padding-bottom: clamp(72px, 10vw, 126px);
+  padding-top: clamp(54px, 8vw, 96px);
+}
+
+.detailMeta {
+  color: var(--mint);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  font-weight: 800;
+  gap: 18px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+
+.detailStats {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 54px;
+}
+
+.detailStats div {
+  padding: 20px 18px;
+}
+
+.detailStats div + div {
+  border-left: 1px solid var(--line);
+}
+
+.detailStats dd {
+  font-size: 1rem;
+}
+
+.detailSection h2 {
+  margin-bottom: 42px;
+}
+
+.updateList,
+.milestoneList,
+.itemList,
+.nestedItemList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.updateList,
+.milestoneList,
+.itemList {
+  display: grid;
+}
+
+.update,
+.milestone,
+.item {
+  border-top: 1px solid var(--line);
+  padding: 30px 0;
+}
+
+.update:last-child,
+.milestone:last-child,
+.item:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.update strong,
+.milestone strong,
+.item > strong {
+  display: block;
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+  line-height: 1.25;
+  margin-top: 8px;
+}
+
+.updateHeader,
+.milestoneHeader {
+  align-items: start;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.updateBadge,
+.milestoneHeader > span {
+  color: var(--mint);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.emptyCopy {
+  color: var(--quiet);
+  margin: 0;
+}
+
+.itemFacts,
+.itemLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.itemLinks a {
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  display: inline-grid;
+  gap: 2px;
+  padding-bottom: 5px;
+  text-decoration: none;
+}
+
+.itemLinks a span {
+  color: var(--quiet);
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.nestedItemList {
+  border-left: 1px solid var(--line);
+  margin: 24px 0 0 18px;
+  padding-left: 24px;
+}
+
+@media (max-width: 980px) {
+  .projectRow {
+    gap: 38px;
+    grid-template-columns: minmax(260px, 1fr) minmax(300px, 0.85fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .sectionHeading,
+  .projectRow {
+    grid-template-columns: 1fr;
+  }
+
+  .projectProgress {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding-left: 0;
+    padding-top: 22px;
+  }
+
+  .detailStats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .detailStats div:nth-child(3) {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .detailStats div:nth-child(4) {
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 480px) {
+  .intro,
+  .projectSection,
+  .stateBand,
+  .detailHeader,
+  .detailSection {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .rowStats {
+    grid-template-columns: 1fr;
+  }
+
+  .rowStats div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 10px 0 0;
+  }
+
+  .rowStats div + div {
+    border-left: 0;
+  }
+
+  .updateHeader,
+  .milestoneHeader {
+    gap: 10px;
+    grid-template-columns: 1fr;
+  }
+}

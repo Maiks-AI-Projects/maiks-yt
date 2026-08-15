@@ -1,0 +1,253 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-raised: #182329;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  --yellow: #f4c95d;
+  --cyan: #80d5ef;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  padding: 0;
+}
+
+.page section {
+  margin: 0;
+}
+
+.intro,
+.current,
+.aboutPlan,
+.roadmapSection,
+.note {
+  margin: 0 auto;
+  padding-left: max(20px, calc((100% - 1180px) / 2));
+  padding-right: max(20px, calc((100% - 1180px) / 2));
+}
+
+.intro {
+  padding-bottom: clamp(64px, 9vw, 112px);
+  padding-top: clamp(72px, 10vw, 132px);
+}
+
+.intro h1 {
+  font-size: clamp(3rem, 8vw, 7rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+  max-width: 980px;
+  text-wrap: balance;
+}
+
+.intro > p:last-child {
+  color: var(--muted);
+  font-size: clamp(1rem, 2vw, 1.3rem);
+  margin: 28px 0 0;
+  max-width: 720px;
+}
+
+.eyebrow {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+}
+
+.current,
+.aboutPlan,
+.roadmapSection {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: clamp(36px, 7vw, 100px);
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.28fr);
+  padding-bottom: clamp(68px, 8vw, 106px);
+  padding-top: clamp(68px, 8vw, 106px);
+}
+
+.aboutPlan,
+.roadmapSection:nth-of-type(even) {
+  background: var(--surface);
+}
+
+.sectionHeading h2,
+.roadmapHeading h2,
+.note h2 {
+  font-size: clamp(1.8rem, 4vw, 3.8rem);
+  line-height: 1.04;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.currentBody > p:first-child,
+.roadmapHeading > p:last-child {
+  color: var(--muted);
+  font-size: 1.05rem;
+  margin: 0;
+  max-width: 680px;
+}
+
+.roadmapHeading > p:last-child {
+  margin-top: 20px;
+}
+
+.activeMarker {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  color: var(--mint);
+  display: flex;
+  font-size: 0.86rem;
+  gap: 10px;
+  margin-top: 34px;
+  padding-top: 18px;
+}
+
+.activeMarker span {
+  background: var(--mint);
+  border-radius: 50%;
+  height: 9px;
+  width: 9px;
+}
+
+.plannedList,
+.roadmapList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plannedList li,
+.roadmapList article,
+.roadmapList a {
+  align-items: start;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 22px;
+  padding: 25px 0;
+}
+
+.plannedList li {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+}
+
+.roadmapList article,
+.roadmapList a {
+  grid-template-columns: minmax(0, 1fr) auto;
+  text-decoration: none;
+}
+
+.roadmapList > [id] {
+  scroll-margin-top: 82px;
+}
+
+.plannedList li:last-child,
+.roadmapList > :last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.plannedList > li > span,
+.plannedList strong {
+  color: var(--mint);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.plannedList h3,
+.roadmapList h3 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.plannedList h3 a {
+  text-decoration: none;
+}
+
+.plannedList h3 a:hover {
+  color: var(--mint);
+}
+
+.plannedList p,
+.roadmapList p,
+.note > p:last-child {
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
+.roadmapList a:hover h3 {
+  color: var(--mint);
+}
+
+.status {
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 5px 8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status[data-status="building"] {
+  border-color: var(--mint);
+  color: var(--mint);
+}
+
+.status[data-status="usable"] {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.status[data-status="partial"] {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+
+.status[data-status="later"] {
+  color: var(--quiet);
+}
+
+.note {
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(72px, 9vw, 118px);
+  padding-top: clamp(72px, 9vw, 118px);
+}
+
+.note h2 {
+  max-width: 840px;
+}
+
+.note > p:last-child {
+  max-width: 650px;
+}
+
+@media (max-width: 760px) {
+  .current,
+  .aboutPlan,
+  .roadmapSection {
+    gap: 34px;
+    grid-template-columns: 1fr;
+  }
+
+  .plannedList li {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .plannedList strong {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .roadmapList article,
+  .roadmapList a {
+    grid-template-columns: 1fr;
+  }
+
+  .status {
+    justify-self: start;
+  }
+}

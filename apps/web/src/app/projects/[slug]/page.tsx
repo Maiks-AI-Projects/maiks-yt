@@ -1,58 +1,27 @@
-import type { PublicProjectItem } from "@maiks-yt/domain/projects";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  formatProjectLabel,
-  getPublicProject
-} from "../project-read-data";
+import { ProjectItemList } from "../project-item-list";
+import { formatProjectLabel, getPublicProject } from "../project-read-data";
+import styles from "../projects.module.css";
 
 type ProjectPageProps = {
-  params: Promise<{
-    slug: string;
-  }>;
+  params: Promise<{ slug: string }>;
 };
 
 export const dynamic = "force-dynamic";
 
-const formatEstimate = (item: PublicProjectItem): string | null =>
-  item.estimatedMinorAmount !== undefined && item.currencyCode
-    ? new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: item.currencyCode
-    }).format(item.estimatedMinorAmount / 100)
-    : null;
+export const metadata: Metadata = {
+  title: "Project",
+  description: "A public Maiks.yt project with milestones, work items, and updates."
+};
 
-const ProjectItemList = ({
-  items
-}: {
-  items: readonly PublicProjectItem[];
-}): React.ReactNode => (
-  <ul className="project-item-list">
-    {items.map((item) => (
-      <li key={item.id}>
-        <div className="project-item-row">
-          <span>{formatProjectLabel(item.kind)}</span>
-          <strong>{item.title}</strong>
-          <em>{formatProjectLabel(item.status)}</em>
-          {item.description ? <p>{item.description}</p> : null}
-          {item.quantity > 1 ? <small>Quantity: {item.quantity}</small> : null}
-          {formatEstimate(item) ? <small>Estimate: {formatEstimate(item)}</small> : null}
-          {item.links.length > 0 ? (
-            <p>
-              {item.links.map((link, index) => (
-                <span key={link.id}>
-                  {index > 0 ? " / " : null}
-                  <a href={link.url} rel="noreferrer" target="_blank">{link.label}</a>
-                </span>
-              ))}
-            </p>
-          ) : null}
-        </div>
-        {item.children.length > 0 ? <ProjectItemList items={item.children} /> : null}
-      </li>
-    ))}
-  </ul>
-);
+const formatPublishedDate = (value: string): string =>
+  new Intl.DateTimeFormat("en", {
+    dateStyle: "long",
+    timeZone: "Europe/Amsterdam"
+  }).format(new Date(value));
 
 const ProjectDetailPage = async ({ params }: ProjectPageProps): Promise<React.ReactNode> => {
   const { slug } = await params;
@@ -64,11 +33,12 @@ const ProjectDetailPage = async ({ params }: ProjectPageProps): Promise<React.Re
 
   if (result.status === "error") {
     return (
-      <main className="projects-page">
-        <section className="project-state-card failed" aria-live="polite">
-          <a className="inline-action" href="/projects">Back to projects</a>
-          <h1>Project temporarily unavailable</h1>
-          <p>The public project API did not respond. Try again after the dev services settle.</p>
+      <main className={styles.page}>
+        <section className={styles.stateBand} aria-live="polite">
+          <p className={styles.eyebrow}>Temporarily unavailable</p>
+          <h1>Project could not be loaded.</h1>
+          <p>The projects service did not respond. Try returning to the project list.</p>
+          <Link className={styles.backLink} href="/projects">Back to projects</Link>
         </section>
       </main>
     );
@@ -77,74 +47,78 @@ const ProjectDetailPage = async ({ params }: ProjectPageProps): Promise<React.Re
   const { project } = result;
 
   return (
-    <main className="project-detail-page">
-      <article className="project-detail">
-        <a className="inline-action" href="/projects">Back to projects</a>
-        <header className="project-detail-header">
-          <p className="eyebrow">{formatProjectLabel(project.category)}</p>
-          <h1>{project.title}</h1>
-          <p>{project.summary}</p>
-          <dl className="project-card-stats">
-            <div>
-              <dt>Status</dt>
-              <dd>{formatProjectLabel(project.status)}</dd>
-            </div>
-            <div>
-              <dt>Type</dt>
-              <dd>{formatProjectLabel(project.type)}</dd>
-            </div>
-            <div>
-              <dt>Items</dt>
-              <dd>{project.itemCount}</dd>
-            </div>
-          </dl>
-        </header>
+    <main className={styles.page}>
+      <header className={styles.detailHeader}>
+        <Link className={styles.backLink} href="/projects">Back to all projects</Link>
+        <div className={styles.detailMeta}>
+          <span>{formatProjectLabel(project.category)}</span>
+          <span>{formatProjectLabel(project.status)}</span>
+        </div>
+        <h1>{project.title}</h1>
+        <p className={styles.detailSummary}>{project.summary}</p>
+        <dl className={styles.detailStats}>
+          <div><dt>Type</dt><dd>{formatProjectLabel(project.type)}</dd></div>
+          <div><dt>Milestones</dt><dd>{project.milestoneCount}</dd></div>
+          <div><dt>Work items</dt><dd>{project.itemCount}</dd></div>
+          <div><dt>Updates</dt><dd>{project.updateCount}</dd></div>
+        </dl>
+      </header>
 
-        <section className="project-detail-section">
-          <h2>Updates</h2>
-          {project.updates.length === 0 ? (
-            <p className="project-muted">No public updates are available yet.</p>
-          ) : (
-            <ol className="project-milestone-list">
-              {project.updates.map((update) => (
-                <li key={update.id}>
-                  <span>{update.isPinned ? "Pinned" : "Update"}</span>
-                  <strong>{update.title}</strong>
-                  {update.summary ? <p>{update.summary}</p> : null}
-                  <p>{update.body}</p>
-                  {update.publishedAt ? <small>{new Date(update.publishedAt).toLocaleDateString()}</small> : null}
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-
-        <section className="project-detail-section">
-          <h2>Milestones</h2>
-          {project.milestones.length === 0 ? (
-            <p className="project-muted">No public milestones are available yet.</p>
-          ) : (
-            <ol className="project-milestone-list">
-              {project.milestones.map((milestone) => (
-                <li key={milestone.id}>
-                  <span>{formatProjectLabel(milestone.status)}</span>
+      <section className={styles.detailSection} aria-labelledby="milestones-title">
+        <p className={styles.sectionLabel}>Progress</p>
+        <h2 id="milestones-title">Milestones</h2>
+        {project.milestones.length === 0 ? (
+          <p className={styles.emptyCopy}>No public milestones are available yet.</p>
+        ) : (
+          <ol className={styles.milestoneList}>
+            {project.milestones.map((milestone) => (
+              <li className={styles.milestone} key={milestone.id}>
+                <div className={styles.milestoneHeader}>
                   <strong>{milestone.title}</strong>
-                  {milestone.description ? <p>{milestone.description}</p> : null}
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+                  <span>{formatProjectLabel(milestone.status)}</span>
+                </div>
+                {milestone.description ? <p>{milestone.description}</p> : null}
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
 
-        <section className="project-detail-section">
-          <h2>Project Items</h2>
-          {project.items.length === 0 ? (
-            <p className="project-muted">No public project items are available yet.</p>
-          ) : (
-            <ProjectItemList items={project.items} />
-          )}
-        </section>
-      </article>
+      <section className={styles.detailSection} aria-labelledby="items-title">
+        <p className={styles.sectionLabel}>The work</p>
+        <h2 id="items-title">Project items</h2>
+        {project.items.length === 0 ? (
+          <p className={styles.emptyCopy}>No public work items are available yet.</p>
+        ) : (
+          <ProjectItemList items={project.items} />
+        )}
+      </section>
+
+      <section className={styles.detailSection} aria-labelledby="updates-title">
+        <p className={styles.sectionLabel}>Public record</p>
+        <h2 id="updates-title">Updates</h2>
+        {project.updates.length === 0 ? (
+          <p className={styles.emptyCopy}>No public updates have been published yet.</p>
+        ) : (
+          <ol className={styles.updateList}>
+            {project.updates.map((update) => (
+              <li className={styles.update} key={update.id}>
+                <div className={styles.updateHeader}>
+                  <div>
+                    {update.isPinned ? <span className={styles.updateBadge}>Pinned update</span> : null}
+                    <strong>{update.title}</strong>
+                  </div>
+                  {update.publishedAt ? (
+                    <time dateTime={update.publishedAt}>{formatPublishedDate(update.publishedAt)}</time>
+                  ) : null}
+                </div>
+                {update.summary ? <p>{update.summary}</p> : null}
+                <p>{update.body}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
     </main>
   );
 };

@@ -21,8 +21,8 @@ export type StreamScheduleLoadResult =
     streams: readonly StreamScheduleEntry[];
   }
   | {
-    status: "fallback";
-    streams: readonly StreamScheduleEntry[];
+    status: "error";
+    streams: readonly [];
   };
 
 export const cancellationReasonLabels = {
@@ -47,51 +47,6 @@ export const formatScheduleDate = (value: string): string =>
     timeZone: "Europe/Amsterdam"
   }).format(new Date(value));
 
-export const fallbackScheduleStreams = [
-  {
-    id: "fallback-build-stream",
-    title: "Maiks.yt V2 build stream",
-    description: "Fallback schedule entry shown while the dev API or database migration is unavailable.",
-    startsAt: "2026-06-20T18:00:00.000Z",
-    endsAt: "2026-06-20T20:00:00.000Z",
-    channelKey: "coding",
-    topicKey: "maiks-yt",
-    themeKey: "default",
-    projectId: null,
-    focusLabel: null,
-    focusNote: null,
-    focusProject: null,
-    gameLinks: [],
-    visibility: "public",
-    status: "planned",
-    cancellationReasonCode: null,
-    cancellationReason: null,
-    createdAt: "2026-06-19T12:00:00.000Z",
-    updatedAt: "2026-06-19T12:00:00.000Z"
-  },
-  {
-    id: "fallback-cancelled-layout",
-    title: "Late night layout polish",
-    description: "Fallback cancelled entry so cancellation wording remains inspectable.",
-    startsAt: "2026-06-21T20:00:00.000Z",
-    endsAt: "2026-06-21T21:30:00.000Z",
-    channelKey: "coding",
-    topicKey: "overlays",
-    themeKey: "default",
-    projectId: null,
-    focusLabel: null,
-    focusNote: null,
-    focusProject: null,
-    gameLinks: [],
-    visibility: "public",
-    status: "cancelled",
-    cancellationReasonCode: "energy",
-    cancellationReason: "I need to save energy and will pick this up another day.",
-    createdAt: "2026-06-19T12:00:00.000Z",
-    updatedAt: "2026-06-19T12:00:00.000Z"
-  }
-] satisfies readonly StreamScheduleEntry[];
-
 export const getPublicStreamSchedule = async (): Promise<StreamScheduleLoadResult> => {
   try {
     const response = await fetch(`${apiBaseUrl}/schedule`, {
@@ -99,29 +54,15 @@ export const getPublicStreamSchedule = async (): Promise<StreamScheduleLoadResul
     });
 
     if (!response.ok) {
-      return {
-        status: "fallback",
-        streams: fallbackScheduleStreams
-      };
+      return { status: "error", streams: [] };
     }
 
     const payload = await response.json() as StreamScheduleApiResponse;
 
-    if (!payload.ok) {
-      return {
-        status: "fallback",
-        streams: fallbackScheduleStreams
-      };
-    }
-
-    return {
-      status: "loaded",
-      streams: payload.streams
-    };
+    return payload.ok
+      ? { status: "loaded", streams: payload.streams }
+      : { status: "error", streams: [] };
   } catch {
-    return {
-      status: "fallback",
-      streams: fallbackScheduleStreams
-    };
+    return { status: "error", streams: [] };
   }
 };

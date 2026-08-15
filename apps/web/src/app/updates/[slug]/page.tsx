@@ -1,7 +1,17 @@
+import { createDateFormatter, defaultLocale } from "@maiks-yt/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { publicUpdates } from "../../../content/public-updates";
+import { PageMarkdown } from "../../page-markdown";
+import {
+  formatPublicUpdateKind,
+  getPublicUpdate
+} from "../public-update-data";
+import styles from "../updates.module.css";
+
+export const dynamic = "force-dynamic";
+
+const dateFormatter = createDateFormatter(defaultLocale);
 
 type UpdatePageProps = {
   params: Promise<{
@@ -9,27 +19,59 @@ type UpdatePageProps = {
   }>;
 };
 
-export const generateStaticParams = (): Array<{ slug: string }> =>
-  publicUpdates.map((update) => ({ slug: update.slug }));
-
 const UpdatePage = async ({ params }: UpdatePageProps): Promise<React.ReactNode> => {
   const { slug } = await params;
-  const update = publicUpdates.find((candidate) => candidate.slug === slug);
+  const result = await getPublicUpdate(slug);
 
-  if (!update) {
+  if (result.status === "not-found") {
     notFound();
   }
 
+  if (result.status === "error") {
+    return (
+      <main className={styles.page}>
+        <section className={styles.stateBand}>
+          <p className={styles.eyebrow}>Updates</p>
+          <h1>This update is temporarily unavailable.</h1>
+          <p>The website could not reach the updates service. Please try again later.</p>
+          <Link className={styles.backLink} href="/updates">Back to all updates</Link>
+        </section>
+      </main>
+    );
+  }
+
+  const { update } = result;
+
   return (
-    <main className="updates-page">
-      <article className="update-detail">
-        <Link className="inline-action" href="/updates">Back to updates</Link>
-        <p className="eyebrow">{update.kind}</p>
-        <h1>{update.title}</h1>
-        <time dateTime={update.publishedAt}>
-          {new Intl.DateTimeFormat("en", { dateStyle: "long" }).format(new Date(update.publishedAt))}
-        </time>
-        <p>{update.summary}</p>
+    <main className={styles.page}>
+      <article>
+        <header className={styles.detailHeader}>
+          <Link className={styles.backLink} href="/updates">Back to all updates</Link>
+          <p className={styles.eyebrow}>{formatPublicUpdateKind(update.kind)}</p>
+          <h1>{update.title}</h1>
+          <p className={styles.detailSummary}>{update.summary}</p>
+          <div className={styles.detailMeta}>
+            <time dateTime={update.publishedAt}>
+              {dateFormatter.format(new Date(update.publishedAt))}
+            </time>
+            {update.isPinned ? <span className={styles.pinned}>Pinned</span> : null}
+            {update.isExample ? <span className={styles.example}>Example record</span> : null}
+          </div>
+        </header>
+
+        <div className={styles.detailBody}>
+          <aside className={styles.bodyLabel} aria-label="Publication note">
+            <p className={styles.sectionLabel}>The update</p>
+            <p>
+              {update.isExample
+                ? "This is example content used to build and test the public update system."
+                : "Published as part of the permanent Maiks.yt update archive."}
+            </p>
+          </aside>
+          <div className={styles.articleBody}>
+            <PageMarkdown body={update.body} />
+          </div>
+        </div>
       </article>
     </main>
   );

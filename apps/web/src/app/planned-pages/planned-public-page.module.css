@@ -1,0 +1,142 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  --yellow: #f4c95d;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  padding: 0;
+}
+
+.intro,
+.plan,
+.current {
+  padding-left: max(20px, calc((100% - 1180px) / 2));
+  padding-right: max(20px, calc((100% - 1180px) / 2));
+}
+
+.intro {
+  padding-bottom: clamp(68px, 9vw, 112px);
+  padding-top: clamp(72px, 10vw, 132px);
+}
+
+.eyebrow {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  font-size: clamp(2.8rem, 7vw, 6.4rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+  max-width: 1040px;
+  text-wrap: balance;
+}
+
+.intro > p:last-child {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  margin: 28px 0 0;
+  max-width: 760px;
+}
+
+.status {
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-bottom: 24px;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
+
+.plan,
+.current {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: clamp(36px, 8vw, 116px);
+  grid-template-columns: minmax(240px, 0.72fr) minmax(0, 1.28fr);
+  padding-bottom: clamp(68px, 9vw, 112px);
+  padding-top: clamp(68px, 9vw, 112px);
+}
+
+.current {
+  background: var(--surface);
+}
+
+.sectionHeading h2 {
+  font-size: clamp(1.9rem, 4.5vw, 4rem);
+  line-height: 1.04;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.featureList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.featureList li {
+  border-top: 1px solid var(--line);
+  color: var(--text);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  padding: 22px 0;
+}
+
+.featureList li:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.featureList span {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.currentBody {
+  color: var(--muted);
+  font-size: 1.05rem;
+  max-width: 720px;
+}
+
+.currentBody p {
+  margin: 0;
+}
+
+.progressLink {
+  color: var(--mint);
+  display: inline-block;
+  font-weight: 750;
+  margin-top: 30px;
+  text-underline-offset: 5px;
+}
+
+@media (max-width: 760px) {
+  .plan,
+  .current {
+    gap: 36px;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .intro,
+  .plan,
+  .current {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}

@@ -1,0 +1,243 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-raised: #182329;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  --yellow: #f4c95d;
+  --red: #f17878;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  padding: 0;
+}
+
+.intro,
+.stateBand,
+.scheduleSection {
+  padding-left: max(20px, calc((100% - 1180px) / 2));
+  padding-right: max(20px, calc((100% - 1180px) / 2));
+}
+
+.intro {
+  padding-bottom: clamp(66px, 9vw, 112px);
+  padding-top: clamp(72px, 10vw, 132px);
+}
+
+.eyebrow {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  font-size: clamp(3rem, 7vw, 6.3rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+  max-width: 1050px;
+  text-wrap: balance;
+}
+
+.intro > p:last-child {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  margin: 28px 0 0;
+  max-width: 760px;
+}
+
+.stateBand {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(54px, 7vw, 82px);
+  padding-top: clamp(54px, 7vw, 82px);
+}
+
+.stateBand h2 {
+  font-size: clamp(1.8rem, 4vw, 3.5rem);
+  line-height: 1.06;
+  margin: 0;
+}
+
+.stateBand > p:last-child {
+  color: var(--muted);
+  font-size: 1rem;
+  margin: 18px 0 0;
+  max-width: 680px;
+}
+
+.scheduleSection {
+  padding-bottom: clamp(72px, 9vw, 118px);
+  padding-top: clamp(72px, 9vw, 118px);
+}
+
+.alternateSection {
+  background: var(--surface);
+}
+
+.sectionHeading {
+  display: grid;
+  gap: clamp(32px, 7vw, 96px);
+  grid-template-columns: minmax(230px, 0.68fr) minmax(0, 1.32fr);
+  margin-bottom: 48px;
+}
+
+.sectionHeading h2 {
+  font-size: clamp(1.9rem, 4.5vw, 4rem);
+  line-height: 1.04;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sectionHeading > p {
+  color: var(--muted);
+  font-size: 1.04rem;
+  margin: 0;
+  max-width: 680px;
+}
+
+.eventList {
+  display: grid;
+}
+
+.event {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: clamp(30px, 6vw, 88px);
+  grid-template-columns: minmax(210px, 0.55fr) minmax(0, 1.45fr);
+  padding: clamp(32px, 5vw, 58px) 0;
+}
+
+.event:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.event[data-featured="true"] {
+  padding-bottom: clamp(52px, 7vw, 82px);
+  padding-top: 0;
+}
+
+.eventTime {
+  align-content: start;
+  display: grid;
+  gap: 18px;
+}
+
+.eventTime > span:last-child {
+  color: var(--text);
+  display: grid;
+  font-size: 1rem;
+  gap: 6px;
+}
+
+.eventTime small {
+  color: var(--quiet);
+  font-size: 0.75rem;
+}
+
+.status {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.event[data-status="planned"] .status {
+  color: var(--yellow);
+}
+
+.event[data-status="cancelled"] .status {
+  color: var(--red);
+}
+
+.event[data-status="completed"] .status {
+  color: var(--quiet);
+}
+
+.eventBody h2 {
+  font-size: clamp(1.65rem, 3.6vw, 3.4rem);
+  line-height: 1.04;
+  margin: 12px 0 0;
+  text-wrap: balance;
+}
+
+.eventBody > p {
+  color: var(--muted);
+  font-size: 1.04rem;
+  margin: 18px 0 0;
+  max-width: 720px;
+}
+
+.eventMeta {
+  color: var(--quiet);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  font-weight: 750;
+  gap: 18px;
+  text-transform: uppercase;
+}
+
+.focus,
+.cancellation {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 5px;
+  margin-top: 28px;
+  max-width: 720px;
+  padding-top: 18px;
+}
+
+.focus strong,
+.cancellation strong {
+  color: var(--mint);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.focus a {
+  color: var(--text);
+  font-size: 1.02rem;
+  font-weight: 750;
+  text-underline-offset: 4px;
+}
+
+.focus span,
+.focus a span,
+.cancellation span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.cancellation strong {
+  color: var(--red);
+}
+
+@media (max-width: 760px) {
+  .sectionHeading,
+  .event {
+    gap: 30px;
+    grid-template-columns: 1fr;
+  }
+
+  .eventTime {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .intro,
+  .stateBand,
+  .scheduleSection {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}

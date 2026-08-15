@@ -1,10 +1,35 @@
 # Current Work
 
-Updated: 2026-07-10
+Updated: 2026-08-15
 
 ## Objective
 
-Move from foundation work into active feature lanes on `dev`, starting with a private notification panel for dev/system alerts.
+Build the production public website page by page on the dedicated `production` branch, reusing the reviewed dev backend while keeping one default visual theme.
+
+## Production Website Lane
+
+- Applied the first Page Viewer homepage concept as the real production homepage foundation.
+- Added a shared dark public site shell with responsive navigation and account access while preserving standalone tool surfaces.
+- Stored the generated workspace hero as a local temporary asset so the homepage does not depend on a Page Viewer capability URL.
+- Added `/progress` as a public construction map with honest usable, partial, building, planned, and later states.
+- Expanded the progress map with visitor-facing ideas from the project cards and broad platform-system titles for content, projects, finance, overlays, schedule/games, identity/community, chat/moderation, providers, events/notifications, creator tools, AI, and recovery.
+- Routed the not-yet-built About destination to `/progress#about`; working schedule, projects, updates, links, games, rules, and privacy destinations still link to their existing pages.
+- Copied the approved temporary annotated MRI image to `apps/web/public/images/health/latest-mri-annotated.png` for the future health page.
+- Added first general drafts for `/about` and `/about/health`, with a shared three-page About navigation and no invented medical details.
+- Added a public medical timeline to `/about/health` using reconciled records from two hospitals and Michael's GP: major events, exact documented imaging counts where available, lower-bound laboratory collection dates, and explicit incomplete-record wording. Conflicting portal visit totals are not presented as appointment counts.
+- Added `/about/history` as a normal page-scroll vertical timeline generated from Michael's confirmed birth date, 20 August 1986, with completed birthdays and privacy-trimmed residence changes from the available government registration history. Exact addresses and an explicit administrative non-move are omitted.
+- Reframed the About and medical-history copy as a factual public record rather than a defence or explanation, and added only one brief medical crossover to the general timeline: streaming stopped during therapy in 2025. No more precise stop date is claimed.
+- Added reusable unfinished-page plans for profiles, channels, music, website interactions, support, sponsors, and languages. Each keeps its intended public URL, imports the same plan used by `/progress`, and links back to its exact roadmap item. Page Creator now reserves these routes plus `/about` and `/progress` against content-record collisions.
+- Added an explicit source limitation to the public history and medical timelines: Michael's memories are fragmented, records provide the current structure, later recalled details may be added when they can be placed within a general period, and approximate dates must be labelled honestly.
+- Rebuilt public `/schedule` with the new dark production presentation and reconnected it directly to the existing public schedule API. Sample and fallback events were removed; the page now renders real public entries or an honest empty/unavailable state while preserving project/game focus, visitor-local times, cancellation context, and completed history.
+- Rebuilt `/projects` and `/projects/[slug]` over the existing live public projects API. The index emphasizes each project's current milestone and real counts; detail pages render live milestones, nested work items, references, and published updates with explicit empty/error states and no fixture projects.
+- Rebuilt `/games` over the live public game library and schedule APIs, kept the real reviewed-suggestion endpoint, and added explicit empty/unavailable states instead of sample games. The page now separates published library entries, schedule-linked play plans, and private-review visitor suggestions. `/progress` marks the visitor-facing game library as usable while naming the remaining content/provider work.
+- Rebuilt `/community-rules` as the production Community participation guide. It now presents open participation, six shared cross-surface rules, the manual-first moderation ladder, three-strike owner review rather than automatic banning, review/correction expectations, and an explicit boundary around unfinished account, appeal, and provider-enforcement systems.
+- Audited public hero headings at 1080px desktop and 390px mobile widths, reduced the oversized Community participation headline, and normalized large public heading line heights to prevent letter collisions across Home, About, Progress, Schedule, Projects, Games, and unfinished-page templates.
+- Replaced the `/profiles` plan placeholder with a clearly labelled static profile search. Every query currently returns two separate Michael examples: `/profiles/michael-public` demonstrates public identity, linked accounts, gaming names, recognition, perks, and privacy boundaries; `/profiles/michael-private` demonstrates that private profiles remain searchable while exposing only the account name and the message `This account is set to private`, with the profile image disabled. Neither route reads account/provider records or claims that verification, recognition persistence, or public profile APIs are live.
+- Replaced the hard-coded `/updates` fixture with a typed backend-backed public update archive for posts, stream recaps, and announcements. Generated and dev-applied migration `packages/database/drizzle/0026_polite_scarlet_witch.sql`, deployed public list/detail API routes on dev commit `f1f8fba`, seeded three explicitly labelled example records, rendered Markdown detail pages, and moved `/feed.xml` to the same API source. Manual update administration and social syndication are still separate work.
+- Moved public About navigation from the progress placeholder to `/about` and updated `/progress` to link all three first-draft destinations.
+- Next content task: review and revise the About wording with Michael, then add timeline events only from details he explicitly approves.
 
 ## Completed In This Pass
 

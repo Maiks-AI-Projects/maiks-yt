@@ -1,0 +1,457 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-raised: #182329;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  --yellow: #f4c95d;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  padding: 0;
+}
+
+.privatePage {
+  align-items: center;
+  background: #0c1215;
+  color: #f4f8f7;
+  display: flex;
+  justify-content: center;
+  max-width: none;
+  min-height: 72vh;
+  padding: 40px 20px;
+  width: 100%;
+}
+
+.privateProfile {
+  text-align: center;
+}
+
+.privateProfile h1 {
+  font-size: clamp(2.8rem, 6vw, 5.4rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+}
+
+.privateProfile p {
+  color: #aab9bc;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin: 18px 0 0;
+}
+
+.hero,
+.aboutSection,
+.identitySection,
+.gamingSection,
+.recognitionSection,
+.perksSection,
+.privacySection,
+.ownerSection,
+.publicBoundary,
+.privateProfileSection {
+  padding-left: max(20px, calc((100% - 1180px) / 2));
+  padding-right: max(20px, calc((100% - 1180px) / 2));
+}
+
+.hero {
+  padding-bottom: clamp(68px, 9vw, 112px);
+  padding-top: clamp(48px, 7vw, 84px);
+}
+
+.mockNotice {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.84rem;
+  gap: 14px;
+  margin-bottom: clamp(46px, 7vw, 82px);
+  padding-bottom: 18px;
+}
+
+.mockNotice strong {
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  font-size: 0.7rem;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
+
+.profileLead {
+  align-items: center;
+  display: grid;
+  gap: clamp(34px, 7vw, 88px);
+  grid-template-columns: minmax(230px, 330px) minmax(0, 1fr);
+}
+
+.portraitFrame {
+  aspect-ratio: 4 / 5;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  position: relative;
+}
+
+.portrait {
+  object-fit: cover;
+  object-position: center;
+}
+
+.eyebrow,
+.sectionLabel,
+.rowLabel {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin: 0 0 14px;
+  text-transform: uppercase;
+}
+
+.profileCopy h1 {
+  font-size: clamp(3rem, 7vw, 6rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+}
+
+.lead {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.6;
+  margin: 24px 0 0;
+  max-width: 690px;
+}
+
+.profileFacts {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 34px 0 0;
+}
+
+.profileFacts div {
+  padding: 18px 16px;
+}
+
+.profileFacts div:first-child {
+  padding-left: 0;
+}
+
+.profileFacts div + div {
+  border-left: 1px solid var(--line);
+}
+
+.profileFacts dt {
+  color: var(--quiet);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.profileFacts dd {
+  font-size: 0.94rem;
+  font-weight: 750;
+  margin: 7px 0 0;
+}
+
+.aboutSection,
+.identitySection,
+.gamingSection,
+.recognitionSection,
+.perksSection,
+.privacySection,
+.ownerSection,
+.publicBoundary,
+.privateProfileSection {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: clamp(38px, 8vw, 112px);
+  grid-template-columns: minmax(240px, 0.7fr) minmax(0, 1.3fr);
+  padding-bottom: clamp(68px, 9vw, 112px);
+  padding-top: clamp(68px, 9vw, 112px);
+}
+
+.identitySection,
+.perksSection,
+.ownerSection {
+  background: var(--surface);
+}
+
+.sectionHeading h2 {
+  font-size: clamp(1.9rem, 4.5vw, 4rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.aboutBody {
+  color: var(--muted);
+  font-size: 1.06rem;
+  line-height: 1.7;
+  max-width: 720px;
+}
+
+.aboutBody p {
+  margin: 0;
+}
+
+.aboutBody p + p {
+  margin-top: 20px;
+}
+
+.linkRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+  margin-top: 30px;
+}
+
+.linkRow a,
+.progressLink {
+  color: var(--mint);
+  font-weight: 800;
+  text-underline-offset: 5px;
+}
+
+.identityList,
+.gamingList,
+.badgeList,
+.recognitionList,
+.entitlementList,
+.privacyList,
+.ownerControlList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.identityRow,
+.gamingRow,
+.recognitionRow,
+.entitlementRow,
+.privacyRow,
+.ownerControlRow {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 24px;
+  padding: 24px 0;
+}
+
+.identityRow:last-child,
+.gamingRow:last-child,
+.recognitionRow:last-child,
+.entitlementRow:last-child,
+.privacyRow:last-child,
+.ownerControlRow:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.identityRow {
+  grid-template-columns: repeat(2, minmax(150px, 0.7fr)) minmax(170px, 0.85fr) minmax(180px, 1fr);
+}
+
+.recognitionRow {
+  grid-template-columns: minmax(190px, 0.55fr) minmax(0, 1fr) minmax(150px, 0.45fr);
+}
+
+.identityRow strong,
+.gamingRow strong,
+.recognitionRow strong,
+.entitlementRow strong,
+.privacyRow strong,
+.ownerControlRow strong {
+  font-size: 1rem;
+}
+
+.identityRow > div,
+.recognitionRow > div,
+.gamingRow > div {
+  display: grid;
+  gap: 6px;
+}
+
+.identityRow > div > span,
+.identityRow small,
+.gamingRow small,
+.recognitionRow small,
+.entitlementRow small,
+.ownerControlRow small {
+  display: block;
+}
+
+.identityRow span,
+.gamingRow span,
+.recognitionRow span,
+.entitlementRow span,
+.privacyRow span,
+.ownerControlRow span {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.identityRow span:last-child,
+.recognitionRow span:last-child,
+.gamingRow small,
+.entitlementRow small,
+.ownerControlRow small {
+  color: var(--quiet);
+  font-size: 0.82rem;
+}
+
+.privacyRow {
+  grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1fr);
+}
+
+.capabilityList {
+  align-content: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.capabilityList span,
+.badgeList li {
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.76rem;
+  padding: 7px 9px;
+}
+
+.selectedIdentity {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+  padding: 0 0 24px;
+}
+
+.selectedIdentity > span {
+  color: var(--mint);
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.selectedIdentity strong {
+  display: block;
+  font-size: clamp(1.8rem, 3vw, 2.8rem);
+  margin-top: 7px;
+}
+
+.selectedIdentity p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 9px 0 0;
+}
+
+.gamingRow {
+  grid-template-columns: minmax(120px, 0.45fr) minmax(150px, 0.65fr) minmax(180px, 1fr) minmax(150px, 0.7fr);
+}
+
+.badgeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.badgeList li {
+  display: grid;
+  gap: 3px;
+}
+
+.badgeList span {
+  color: var(--quiet);
+  font-size: 0.68rem;
+}
+
+.entitlementRow,
+.ownerControlRow {
+  grid-template-columns: minmax(170px, 0.55fr) minmax(170px, 0.65fr) minmax(0, 1fr);
+}
+
+.progressLink,
+.searchLink {
+  display: inline-block;
+  margin-top: 28px;
+}
+
+.searchLink {
+  color: var(--muted);
+  font-weight: 750;
+  margin-left: 24px;
+  text-underline-offset: 5px;
+}
+
+@media (max-width: 800px) {
+  .profileLead,
+  .aboutSection,
+  .identitySection,
+  .gamingSection,
+  .recognitionSection,
+  .perksSection,
+  .privacySection,
+  .ownerSection,
+  .publicBoundary,
+  .privateProfileSection {
+    grid-template-columns: 1fr;
+  }
+
+  .portraitFrame {
+    max-width: 320px;
+  }
+
+  .identityRow,
+  .gamingRow,
+  .recognitionRow,
+  .entitlementRow,
+  .privacyRow,
+  .ownerControlRow {
+    gap: 10px;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .profileFacts {
+    grid-template-columns: 1fr;
+  }
+
+  .profileFacts div,
+  .profileFacts div:first-child {
+    padding: 14px 0;
+  }
+
+  .profileFacts div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 480px) {
+  .hero,
+  .aboutSection,
+  .identitySection,
+  .gamingSection,
+  .recognitionSection,
+  .perksSection,
+  .privacySection,
+  .ownerSection,
+  .publicBoundary,
+  .privateProfileSection {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .searchLink {
+    display: block;
+    margin-left: 0;
+    margin-top: 16px;
+  }
+}

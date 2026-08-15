@@ -22,6 +22,8 @@ export type GameLibrarySource = {
   platformLabel: string | null;
   storeProvider: string | null;
   storeUrl: string | null;
+  artworkUrl: string | null;
+  popularityScore: number | null;
   ownershipStatus: GameOwnershipStatus;
   interestStatus: GameInterestStatus;
   streamFitNote: string | null;
@@ -57,6 +59,10 @@ export type PublicGameLibraryEntry = {
   slug: string;
   title: string;
   platformLabel: string | null;
+  storeProvider: string | null;
+  storeUrl: string | null;
+  artworkUrl: string | null;
+  popularityScore: number | null;
   ownershipStatus: GameOwnershipStatus;
   interestStatus: GameInterestStatus;
   streamFitNote: string | null;

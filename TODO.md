@@ -238,6 +238,30 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Add public accountability/history page.
 - [x] Add transparent affiliate pages.
 
+## 9B. Production Website Pages
+
+- [x] Create the dedicated `production` worktree without disturbing the active dev redesign branch.
+- [x] Apply the first reviewed homepage concept as the production homepage.
+- [x] Add a public `/progress` roadmap for usable, partial, active, planned, and later work.
+- [x] Route not-yet-built About navigation to `/progress#about` instead of a dead page.
+- [ ] Replace the temporary generated workspace hero with a photograph of Michael's real streaming desk.
+- [x] Build the first general `/about` draft as a mostly text-led page about who Michael is now.
+- [x] Build the first general `/about/health` draft with the approved temporary MRI image.
+- [x] Add a public-safe yearly medical summary using major events, deduplicated scan counts, and lower-bound laboratory collection counts from the currently available records.
+- [x] Build `/about/history` as a long page-scroll vertical timeline, initially containing only Michael's birth and completed birthdays.
+- [x] Add privacy-trimmed government residence history to `/about/history`, using dates and municipality/place names only while omitting exact addresses and administrative non-moves.
+- [x] Add one brief general-history entry recording that streaming stopped during therapy, while keeping detailed medical events on `/about/health`.
+- [x] Move the About navigation from `/progress#about` to `/about` after the first About page is ready.
+- [ ] Redesign the linked public schedule, projects, updates, links, games, rules, and privacy pages one at a time.
+  - [x] Redesign `/schedule` over the live public schedule API with no sample or fallback events.
+  - [x] Redesign `/projects` and `/projects/[slug]` over the live public projects API.
+  - [x] Redesign `/games` over the live game library, suggestion, and schedule-link APIs.
+  - [x] Redesign `/community-rules` as the production Community participation guide.
+  - [x] Replace the `/profiles` placeholder with a search mock plus separate searchable public and private Michael profile examples while live profile, identity, and recognition work continues separately.
+  - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API with clearly labelled backend example records.
+- [ ] Keep `/progress` synchronized as planned destinations become real pages.
+- [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.
+
 ## 9A. Manual Admin Content Tools
 
 - [x] Build admin shell for owner-only content management.
@@ -380,6 +404,7 @@ Gate note: AI public output must start in a private draft/shadow mode before any
   - 2026-07-10 default quick temporary mute is 10 minutes. The chat options menu exposes this for fake/local messages; Twitch/Discord provider timeout uses the same 10-minute quick duration after the provider-write moderation phase opened.
 - [x] Add abuse policy page, including police-report warning for serious abuse.
   - 2026-07-10 first draft is live as `/community-rules` for dev testing. Final production wording, policy-version records, strike records, and appeal workflow remain future work.
+  - 2026-08-14 rebuilt `/community-rules` for the production public website as a concise participation guide with six shared rules, the manual-first moderation ladder, a three-strike owner-review boundary, review/correction principles, and honest unfinished-system wording. Policy-version persistence, account-visible strikes, appeals, and complete provider enforcement remain future work.
 - [ ] Add offensive display name handling.
 - [ ] Add malicious linking/claiming handling.
 

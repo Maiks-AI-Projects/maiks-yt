@@ -1,0 +1,248 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  --yellow: #f4c95d;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  min-height: 72vh;
+  padding: 0;
+}
+
+.intro,
+.searchArea {
+  padding-left: max(20px, calc((100% - 1180px) / 2));
+  padding-right: max(20px, calc((100% - 1180px) / 2));
+}
+
+.intro {
+  padding-bottom: clamp(60px, 8vw, 96px);
+  padding-top: clamp(68px, 9vw, 112px);
+}
+
+.mockNotice {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.84rem;
+  gap: 14px;
+  margin-bottom: 44px;
+}
+
+.mockNotice strong {
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  font-size: 0.7rem;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
+
+.eyebrow,
+.resultHeading p {
+  color: var(--mint);
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin: 0 0 14px;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  font-size: clamp(2.8rem, 6vw, 5.4rem);
+  letter-spacing: 0;
+  line-height: 1.06;
+  margin: 0;
+}
+
+.intro > p:last-child {
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2vw, 1.3rem);
+  line-height: 1.6;
+  margin: 24px 0 0;
+  max-width: 720px;
+}
+
+.searchArea {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(72px, 9vw, 112px);
+  padding-top: clamp(54px, 7vw, 82px);
+}
+
+.searchForm label {
+  color: var(--muted);
+  display: block;
+  font-size: 0.84rem;
+  margin-bottom: 12px;
+}
+
+.searchControl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  max-width: 860px;
+}
+
+.searchControl input,
+.searchControl button {
+  border: 1px solid var(--line);
+  border-radius: 0;
+  font: inherit;
+  min-height: 50px;
+}
+
+.searchControl input {
+  background: var(--canvas);
+  color: var(--text);
+  padding: 0 16px;
+}
+
+.searchControl input:focus-visible {
+  border-color: var(--mint);
+  outline: 2px solid transparent;
+}
+
+.searchControl button {
+  align-items: center;
+  background: var(--mint);
+  border-color: var(--mint);
+  color: var(--canvas);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 9px;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.searchControl button svg {
+  height: 18px;
+  width: 18px;
+}
+
+.results {
+  margin-top: clamp(52px, 7vw, 82px);
+}
+
+.resultHeading {
+  align-items: end;
+  display: flex;
+  gap: 30px;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.resultHeading h2 {
+  font-size: clamp(1.7rem, 3vw, 2.7rem);
+  line-height: 1.06;
+  margin: 0;
+}
+
+.resultHeading > span {
+  color: var(--quiet);
+  font-size: 0.82rem;
+}
+
+.resultList {
+  border-top: 1px solid var(--line);
+}
+
+.resultRow {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  display: grid;
+  gap: 22px;
+  grid-template-columns: 84px minmax(180px, 0.75fr) minmax(180px, 1fr) auto;
+  padding: 18px 0;
+  text-decoration: none;
+}
+
+.resultRow:hover,
+.resultRow:focus-visible {
+  background: rgb(69 214 173 / 5%);
+}
+
+.resultPortrait {
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  position: relative;
+}
+
+.privatePortrait {
+  align-items: center;
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  color: var(--quiet);
+  display: flex;
+  justify-content: center;
+}
+
+.privatePortrait svg {
+  height: 22px;
+  width: 22px;
+}
+
+.resultPortrait img {
+  object-fit: cover;
+  object-position: center;
+}
+
+.resultIdentity,
+.resultIdentity span {
+  display: block;
+}
+
+.resultIdentity strong {
+  font-size: 1.14rem;
+}
+
+.resultIdentity span,
+.resultContext {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: 5px;
+}
+
+.openLabel {
+  color: var(--mint);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .resultHeading {
+    align-items: start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .resultRow {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .resultContext,
+  .openLabel {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .intro,
+  .searchArea {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .searchControl {
+    grid-template-columns: 1fr;
+  }
+
+  .searchControl button {
+    border-top: 0;
+  }
+}
