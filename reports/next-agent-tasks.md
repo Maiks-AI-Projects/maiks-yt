@@ -74,7 +74,7 @@ The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the d
 - Session admin foundation is deployed-ready: owner-only `/admin/sessions` can list Better Auth sessions with safe metadata, revoke selected rows, and revoke all other real browser sessions while preserving the current one. It intentionally does not expose session tokens. Future follow-up can add explicit audit history if needed.
 - Testing navigation note: `/admin` now groups the active admin surfaces, preserves `devAuthToken` in links during smoke testing, includes live status/count badges for notifications, provider intake, sessions, backup health, pending approvals, active helper grants, active local moderation, and private ledger warnings, and is covered by `pnpm dev:smoke:notify`.
 
-## Steam Game Library And On-Demand Catalog (Ready For Coordinator Review)
+## Steam Game Library And On-Demand Catalog (Completed On Dev)
 
 Completed boundary:
 
@@ -86,9 +86,14 @@ Completed boundary:
 - Added owner-gated `GET /admin/games/catalog/search`: an explicit query fetches a bounded Steam Store result set, caches sanitized provider metadata, and returns matching local rows. If Steam fails, matching cached rows still return with `cacheOnly: true`.
 - Added the `/admin/games` searchable title combobox with keyboard navigation, free-text fallback, internal remote thumbnails, local placeholders, and owner-confirmed catalog linking on save.
 
-Next reviewed matching step:
+Deployment and smoke result:
 
-- Review and apply `0027_jazzy_odin.sql` on dev before runtime smoke.
+- Coordinator review passed, migration `0027_jazzy_odin.sql` was applied on dev, and API health remained green after restart.
+- Live owner-authenticated smoke returned Steam search results for `Satisfactory`, loaded owned and wishlist previews, and wrote sanitized catalog/provider identity rows without importing personal library entries.
+- Authenticated browser interaction is still a manual check because the available QA browser sessions were signed out; package tests, typechecks, web build, architecture checks, and the live API smoke all passed.
+
+Next matching step:
+
 - Add Twitch category/IGDB discovery and an explicit owner merge/match editor in a later slice. YouTube does not provide a dependable per-game catalog ID.
 - Require explicit owner confirmation for ambiguous cross-provider matching and never overwrite existing manual metadata or links implicitly.
 - Keep bulk catalog crawling, local artwork-file downloads, provider writes, Steam login/OpenID, automatic public publishing, and money behavior out until separately approved.
