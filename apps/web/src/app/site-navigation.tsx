@@ -7,6 +7,7 @@ import styles from "./site-shell.module.css";
 
 const navigationItems = [
   { href: "/schedule", label: "Schedule" },
+  { href: "/games", label: "Games" },
   { href: "/projects", label: "Projects" },
   { href: "/updates", label: "Updates" },
   { href: "/links", label: "Community" },
