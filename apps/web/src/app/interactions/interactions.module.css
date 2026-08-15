@@ -1,0 +1,252 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-raised: #182329;
+  --text: #f4f8f7;
+  --muted: #adbdc0;
+  --quiet: #7c9196;
+  --line: #304047;
+  --mint: #45d6ad;
+  --cyan: #65c9df;
+  --yellow: #f4c95d;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  padding: 0;
+}
+
+.intro,
+.statusNotice,
+.paths,
+.visibility,
+.choice {
+  padding-left: max(20px, calc((100% - 1080px) / 2));
+  padding-right: max(20px, calc((100% - 1080px) / 2));
+}
+
+.intro {
+  padding-bottom: clamp(42px, 5vw, 62px);
+  padding-top: clamp(46px, 6vw, 70px);
+}
+
+.eyebrow,
+.sectionLabel,
+.number {
+  color: var(--mint);
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin: 0 0 11px;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  font-size: clamp(2.4rem, 5vw, 4.55rem);
+  line-height: 1.04;
+  margin: 0;
+  max-width: 980px;
+  text-wrap: balance;
+}
+
+.intro > p:last-child {
+  color: var(--muted);
+  font-size: clamp(1rem, 1.9vw, 1.2rem);
+  line-height: 1.52;
+  margin: 20px 0 0;
+  max-width: 800px;
+}
+
+.statusNotice {
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--mint);
+  display: grid;
+  gap: 7px;
+  padding-bottom: 20px;
+  padding-top: 20px;
+}
+
+.statusNotice .sectionLabel {
+  margin-bottom: 0;
+}
+
+.statusNotice strong {
+  font-size: clamp(1.1rem, 1.8vw, 1.4rem);
+  line-height: 1.3;
+}
+
+.statusNotice > p:last-child,
+.sectionHeading > p,
+.pathList > li > p,
+.promiseList p,
+.choiceContent p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.statusNotice > p:last-child {
+  max-width: 880px;
+}
+
+.paths,
+.visibility,
+.choice {
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(40px, 5vw, 60px);
+  padding-top: clamp(38px, 5vw, 56px);
+}
+
+.paths,
+.choice {
+  background: var(--surface);
+}
+
+.sectionHeading,
+.choice {
+  display: grid;
+  gap: clamp(26px, 7vw, 86px);
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+}
+
+.sectionHeading {
+  align-items: end;
+  margin-bottom: 24px;
+}
+
+.sectionHeading h2,
+.choice h2 {
+  font-size: clamp(1.8rem, 3.6vw, 3.05rem);
+  line-height: 1.08;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.pathList {
+  border-top: 1px solid var(--line);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pathList li {
+  align-items: start;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 38px minmax(190px, 0.7fr) minmax(0, 1.3fr);
+  padding: 19px 0;
+}
+
+.number {
+  color: var(--quiet);
+  margin: 3px 0 0;
+}
+
+.pathIdentity > span {
+  color: var(--cyan);
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.pathIdentity h3 {
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.promiseList {
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.promiseList li {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  padding: 21px 24px 21px 0;
+}
+
+.promiseList li:nth-child(odd) {
+  border-right: 1px solid var(--line);
+}
+
+.promiseList li:nth-child(even) {
+  padding-left: 24px;
+}
+
+.promiseList .number {
+  grid-row: 1 / span 2;
+}
+
+.promiseList strong {
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  line-height: 1.2;
+}
+
+.choiceContent {
+  display: grid;
+  gap: 18px;
+}
+
+.relatedLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  padding-top: 4px;
+}
+
+.relatedLinks a {
+  color: var(--mint);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 720px) {
+  .sectionHeading,
+  .choice {
+    grid-template-columns: 1fr;
+  }
+
+  .promiseList {
+    grid-template-columns: 1fr;
+  }
+
+  .promiseList li,
+  .promiseList li:nth-child(even) {
+    border-right: 0;
+    padding: 19px 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .intro,
+  .statusNotice,
+  .paths,
+  .visibility,
+  .choice {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .intro h1 {
+    font-size: clamp(2.2rem, 10.5vw, 2.9rem);
+  }
+
+  .pathList li {
+    gap: 8px 12px;
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .pathList > li > p {
+    grid-column: 2;
+  }
+}
