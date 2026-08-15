@@ -12,11 +12,12 @@ export const createPlannedPublicPageMetadata = (
 });
 
 type PlannedPublicPageProps = {
+  compact?: boolean;
   definition: PlannedPublicPageDefinition;
 };
 
-export const PlannedPublicPage = ({ definition }: PlannedPublicPageProps): React.ReactNode => (
-  <main className={styles.page}>
+export const PlannedPublicPage = ({ compact = false, definition }: PlannedPublicPageProps): React.ReactNode => (
+  <main className={`${styles.page} ${compact ? styles.compact : ""}`}>
     <header className={styles.intro}>
       <span className={styles.status}>{roadmapStatusLabels[definition.status]}</span>
       <p className={styles.eyebrow}>{definition.eyebrow}</p>

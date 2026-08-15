@@ -124,6 +124,42 @@
   text-underline-offset: 5px;
 }
 
+.compact .intro {
+  padding-bottom: clamp(38px, 5vw, 58px);
+  padding-top: clamp(40px, 6vw, 68px);
+}
+
+.compact .intro h1 {
+  font-size: clamp(2.6rem, 5.2vw, 4.8rem);
+}
+
+.compact .intro > p:last-child {
+  margin-top: 18px;
+}
+
+.compact .status {
+  margin-bottom: 16px;
+}
+
+.compact .plan,
+.compact .current {
+  gap: clamp(30px, 6vw, 76px);
+  padding-bottom: clamp(38px, 5vw, 58px);
+  padding-top: clamp(38px, 5vw, 58px);
+}
+
+.compact .sectionHeading h2 {
+  font-size: clamp(1.75rem, 3.2vw, 2.8rem);
+}
+
+.compact .featureList li {
+  padding: 15px 0;
+}
+
+.compact .progressLink {
+  margin-top: 20px;
+}
+
 @media (max-width: 760px) {
   .plan,
   .current {
