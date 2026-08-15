@@ -136,7 +136,14 @@ const selectGameFields = `
   (
     SELECT identity.artwork_url
     FROM game_catalog_provider_identities AS identity
-    WHERE identity.catalog_game_id = game_library_entries.catalog_game_id
+    WHERE (
+      identity.catalog_game_id = game_library_entries.catalog_game_id
+      OR (
+          game_library_entries.catalog_game_id IS NULL
+          AND identity.provider = 'steam'
+          AND identity.store_url = game_library_entries.store_url
+        )
+      )
       AND identity.artwork_url IS NOT NULL
     ORDER BY CASE WHEN identity.provider = 'steam' THEN 0 ELSE 1 END
     LIMIT 1
@@ -144,7 +151,14 @@ const selectGameFields = `
   (
     SELECT identity.popularity_score
     FROM game_catalog_provider_identities AS identity
-    WHERE identity.catalog_game_id = game_library_entries.catalog_game_id
+    WHERE (
+      identity.catalog_game_id = game_library_entries.catalog_game_id
+      OR (
+          game_library_entries.catalog_game_id IS NULL
+          AND identity.provider = 'steam'
+          AND identity.store_url = game_library_entries.store_url
+        )
+      )
       AND identity.popularity_score IS NOT NULL
     ORDER BY CASE WHEN identity.provider = 'steam' THEN 0 ELSE 1 END
     LIMIT 1
