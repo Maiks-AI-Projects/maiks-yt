@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Accountability record",
-  description: "Public Maiks.yt project outcomes, corrections, changes, and record boundaries."
+  description: "Public Maiks.yt project outcomes, corrections, and material changes."
 };
 
 const recordPrinciples = [
@@ -42,8 +42,8 @@ const AccountabilityPage = async (): Promise<React.ReactNode> => {
         <h1>Plans change. The record stays.</h1>
         <p>
           This page is the public index for material project outcomes, corrections, and changed
-          claims around Maiks.yt. It is deliberately separate from Michael's personal life history
-          and from private financial records.
+          claims around Maiks.yt. Published records stay available so later changes do not erase
+          what was previously said or planned.
         </p>
       </header>
 
@@ -126,26 +126,6 @@ const AccountabilityPage = async (): Promise<React.ReactNode> => {
         </div>
       </section>
 
-      <section className={styles.boundaries} aria-labelledby="record-boundaries-heading">
-        <div>
-          <p className={styles.sectionLabel}>Record boundaries</p>
-          <h2 id="record-boundaries-heading">Different records answer different questions.</h2>
-        </div>
-        <div className={styles.boundaryContent}>
-          <p>
-            <strong>Michael's personal history has its own timeline.</strong> It is based on records
-            and deliberately published memories, rather than being mixed into project corrections.
-          </p>
-          <p>
-            <strong>Financial records remain private while the public reporting layer is unfinished.</strong>
-            No withdrawal, donation, or spending activity is implied by an empty public section.
-          </p>
-          <nav className={styles.boundaryLinks} aria-label="Related public records">
-            <a className={styles.textLink} href="/about/history">Personal history &rarr;</a>
-            <a className={styles.textLink} href="/progress">Build progress &rarr;</a>
-          </nav>
-        </div>
-      </section>
     </main>
   );
 };
