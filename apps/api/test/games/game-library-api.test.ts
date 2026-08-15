@@ -27,6 +27,8 @@ const createGame = (
   platformLabel: "Steam",
   storeProvider: "steam",
   storeUrl: "https://example.com/game",
+  artworkUrl: null,
+  popularityScore: null,
   ownershipStatus: "owned",
   interestStatus: "interested",
   streamFitNote: "Good fit.",

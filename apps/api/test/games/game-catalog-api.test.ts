@@ -31,6 +31,10 @@ class FakeGameCatalogRepository implements GameCatalogRepository {
         providerGameId: candidate.providerGameId,
         storeUrl: candidate.storeUrl,
         artworkUrl: candidate.artworkUrl,
+        popularityScore: candidate.popularityScore,
+        popularityUpdatedAt: candidate.popularityScore === null
+          ? null
+          : "2026-08-15T12:00:00.000Z",
         lastRefreshedAt: "2026-08-15T12:00:00.000Z",
         stale: false
       }));
@@ -145,7 +149,8 @@ describe("game catalog API", () => {
       providerGameId: "526870",
       title: "Satisfactory",
       storeUrl: "https://store.steampowered.com/app/526870/",
-      artworkUrl: null
+      artworkUrl: null,
+      popularityScore: null
     }]);
     const { server } = createServer({
       repository,

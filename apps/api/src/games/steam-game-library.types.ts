@@ -3,6 +3,7 @@ import type {
   SteamGameLibraryEnvironment,
   SteamGameLibraryPreviewResult,
   SteamOwnedGamesFetch,
+  SteamPopularityFetch,
   SteamStoreAppFetch,
   SteamWishlistFetch,
   SteamWishlistPreviewResult
@@ -41,4 +42,5 @@ export type SteamGameLibraryServiceOptions = {
   fetchOwnedGames?: SteamOwnedGamesFetch;
   fetchWishlist?: SteamWishlistFetch;
   fetchStoreApp?: SteamStoreAppFetch;
+  fetchPopularity?: SteamPopularityFetch;
 };

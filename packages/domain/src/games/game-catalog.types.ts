@@ -14,6 +14,7 @@ export type GameCatalogCandidate = {
   title: string;
   storeUrl: string | null;
   artworkUrl: string | null;
+  popularityScore: number | null;
 };
 
 export type GameCatalogSearchResult = {
@@ -24,6 +25,8 @@ export type GameCatalogSearchResult = {
   providerGameId: string;
   storeUrl: string | null;
   artworkUrl: string | null;
+  popularityScore: number | null;
+  popularityUpdatedAt: string | null;
   lastRefreshedAt: string;
   stale: boolean;
 };

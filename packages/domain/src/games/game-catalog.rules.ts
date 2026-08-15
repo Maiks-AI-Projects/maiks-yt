@@ -51,6 +51,7 @@ export const buildSteamCatalogCandidate = (input: {
   appId: unknown;
   title: unknown;
   artworkUrl?: unknown;
+  popularityScore?: unknown;
 }): GameCatalogCandidate | null => {
   if (
     typeof input.appId !== "number"
@@ -72,7 +73,12 @@ export const buildSteamCatalogCandidate = (input: {
     providerGameId: String(input.appId),
     title,
     storeUrl: `https://store.steampowered.com/app/${input.appId}/`,
-    artworkUrl: normalizeSteamArtworkUrl(input.artworkUrl)
+    artworkUrl: normalizeSteamArtworkUrl(input.artworkUrl),
+    popularityScore: typeof input.popularityScore === "number"
+      && Number.isSafeInteger(input.popularityScore)
+      && input.popularityScore >= 0
+      ? input.popularityScore
+      : null
   };
 };
 

@@ -85,6 +85,7 @@ Completed boundary:
 - Generated `0027_jazzy_odin.sql` for `game_catalog_entries`, `game_catalog_provider_identities`, and nullable `game_library_entries.catalog_game_id`.
 - Added owner-gated `GET /admin/games/catalog/search`: an explicit query fetches a bounded Steam Store result set, caches sanitized provider metadata, and returns matching local rows. If Steam fails, matching cached rows still return with `cacheOnly: true`.
 - Added the `/admin/games` searchable title combobox with keyboard navigation, free-text fallback, internal remote thumbnails, local placeholders, and owner-confirmed catalog linking on save.
+- Added generated migration `0028_real_layla_miller.sql` plus cached Steam current-player counts, public sanitized icons/store links, and popularity-first public ordering. Steam failures preserve the last good count and fall back to manual order/title.
 
 Deployment and smoke result:
 

@@ -21,6 +21,8 @@ type CatalogRow = {
   providerGameId: string;
   storeUrl?: string | null;
   artworkUrl?: string | null;
+  popularityScore?: number | null;
+  popularityUpdatedAt?: Date | string | null;
   lastRefreshedAt: Date | string;
 };
 
@@ -40,6 +42,10 @@ const mapCatalogRow = (row: CatalogRow): GameCatalogSearchResult => {
     providerGameId: row.providerGameId,
     storeUrl: row.storeUrl ?? null,
     artworkUrl: row.artworkUrl ?? null,
+    popularityScore: row.popularityScore ?? null,
+    popularityUpdatedAt: row.popularityUpdatedAt
+      ? toIsoString(row.popularityUpdatedAt)
+      : null,
     lastRefreshedAt,
     stale: isGameCatalogResultStale(lastRefreshedAt)
   };
@@ -121,7 +127,9 @@ const cacheCandidate = async (
         SET
           provider_title = ?,
           store_url = ?,
-          artwork_url = ?,
+          artwork_url = COALESCE(?, artwork_url),
+          popularity_score = COALESCE(?, popularity_score),
+          popularity_updated_at = CASE WHEN ? IS NULL THEN popularity_updated_at ELSE NOW() END,
           last_seen_at = NOW(),
           last_refreshed_at = NOW(),
           updated_at = NOW()
@@ -132,6 +140,8 @@ const cacheCandidate = async (
         candidate.title,
         candidate.storeUrl,
         candidate.artworkUrl,
+        candidate.popularityScore,
+        candidate.popularityScore,
         candidate.provider,
         candidate.providerGameId
       ]
@@ -151,8 +161,8 @@ const cacheCandidate = async (
   await executor.execute(
     `
       INSERT INTO game_catalog_provider_identities
-        (id, catalog_game_id, provider, provider_game_id, provider_title, store_url, artwork_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+        (id, catalog_game_id, provider, provider_game_id, provider_title, store_url, artwork_url, popularity_score, popularity_updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IS NULL THEN NULL ELSE NOW() END)
     `,
     [
       randomUUID(),
@@ -161,7 +171,9 @@ const cacheCandidate = async (
       candidate.providerGameId,
       candidate.title,
       candidate.storeUrl,
-      candidate.artworkUrl
+      candidate.artworkUrl,
+      candidate.popularityScore,
+      candidate.popularityScore
     ]
   );
 };
@@ -185,6 +197,8 @@ export const createGameCatalogRepository = (
           game_catalog_provider_identities.provider_game_id AS providerGameId,
           game_catalog_provider_identities.store_url AS storeUrl,
           game_catalog_provider_identities.artwork_url AS artworkUrl,
+          game_catalog_provider_identities.popularity_score AS popularityScore,
+          game_catalog_provider_identities.popularity_updated_at AS popularityUpdatedAt,
           game_catalog_provider_identities.last_refreshed_at AS lastRefreshedAt
         FROM game_catalog_entries
         INNER JOIN game_catalog_provider_identities

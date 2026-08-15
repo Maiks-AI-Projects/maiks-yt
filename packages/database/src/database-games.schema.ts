@@ -43,6 +43,8 @@ export const gameCatalogProviderIdentities = mysqlTable(
     providerTitle: varchar("provider_title", { length: 191 }).notNull(),
     storeUrl: varchar("store_url", { length: 1024 }),
     artworkUrl: varchar("artwork_url", { length: 1024 }),
+    popularityScore: int("popularity_score"),
+    popularityUpdatedAt: timestamp("popularity_updated_at"),
     firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
     lastRefreshedAt: timestamp("last_refreshed_at").notNull().defaultNow(),
@@ -53,8 +55,10 @@ export const gameCatalogProviderIdentities = mysqlTable(
     uniqueIndex("game_catalog_provider_identity_uidx").on(table.provider, table.providerGameId),
     index("game_catalog_provider_catalog_idx").on(table.catalogGameId, table.provider),
     index("game_catalog_provider_title_idx").on(table.provider, table.providerTitle),
+    index("game_catalog_provider_popularity_idx").on(table.provider, table.popularityScore),
     check("game_catalog_provider_game_id_not_blank_check", sql`trim(${table.providerGameId}) <> ''`),
-    check("game_catalog_provider_title_not_blank_check", sql`trim(${table.providerTitle}) <> ''`)
+    check("game_catalog_provider_title_not_blank_check", sql`trim(${table.providerTitle}) <> ''`),
+    check("game_catalog_provider_popularity_nonnegative_check", sql`${table.popularityScore} is null or ${table.popularityScore} >= 0`)
   ]
 );
 

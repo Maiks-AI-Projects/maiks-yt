@@ -35,6 +35,7 @@ const createServer = (input: {
   fetchOwnedGames?: typeof fetch;
   fetchWishlist?: typeof fetch;
   fetchStoreApp?: typeof fetch;
+  fetchPopularity?: typeof fetch;
 } = {}) => {
   const server = Fastify();
   const repository = input.repository ?? new FakeSteamGameLibraryRepository();
@@ -61,6 +62,9 @@ const createServer = (input: {
     }), { status: 200 })),
     fetchStoreApp: input.fetchStoreApp ?? (async () => new Response(JSON.stringify({
       "440": { success: true, data: { name: "Team Fortress 2" } }
+    }), { status: 200 })),
+    fetchPopularity: input.fetchPopularity ?? (async () => new Response(JSON.stringify({
+      response: { player_count: 72_000, result: 1 }
     }), { status: 200 }))
   });
 

@@ -27,6 +27,8 @@ type GameLibraryRow = {
   platformLabel?: string | null;
   storeProvider?: string | null;
   storeUrl?: string | null;
+  artworkUrl?: string | null;
+  popularityScore?: number | null;
   ownershipStatus: GameOwnershipStatus;
   interestStatus: GameInterestStatus;
   streamFitNote?: string | null;
@@ -70,6 +72,8 @@ const mapGame = (row: GameLibraryRow): GameLibrarySource => ({
   platformLabel: row.platformLabel ?? null,
   storeProvider: row.storeProvider ?? null,
   storeUrl: row.storeUrl ?? null,
+  artworkUrl: row.artworkUrl ?? null,
+  popularityScore: row.popularityScore ?? null,
   ownershipStatus: row.ownershipStatus,
   interestStatus: row.interestStatus,
   streamFitNote: row.streamFitNote ?? null,
@@ -129,6 +133,22 @@ const selectGameFields = `
   platform_label AS platformLabel,
   store_provider AS storeProvider,
   store_url AS storeUrl,
+  (
+    SELECT identity.artwork_url
+    FROM game_catalog_provider_identities AS identity
+    WHERE identity.catalog_game_id = game_library_entries.catalog_game_id
+      AND identity.artwork_url IS NOT NULL
+    ORDER BY CASE WHEN identity.provider = 'steam' THEN 0 ELSE 1 END
+    LIMIT 1
+  ) AS artworkUrl,
+  (
+    SELECT identity.popularity_score
+    FROM game_catalog_provider_identities AS identity
+    WHERE identity.catalog_game_id = game_library_entries.catalog_game_id
+      AND identity.popularity_score IS NOT NULL
+    ORDER BY CASE WHEN identity.provider = 'steam' THEN 0 ELSE 1 END
+    LIMIT 1
+  ) AS popularityScore,
   ownership_status AS ownershipStatus,
   interest_status AS interestStatus,
   stream_fit_note AS streamFitNote,
@@ -439,7 +459,7 @@ export const createGameLibraryRepository = (
         SELECT ${selectGameFields}
         FROM game_library_entries
         WHERE visibility = 'public'
-        ORDER BY sort_order, title
+        ORDER BY popularityScore IS NULL, popularityScore DESC, sort_order, title
       `
     );
 

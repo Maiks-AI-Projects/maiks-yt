@@ -1,0 +1,4 @@
+ALTER TABLE `game_catalog_provider_identities` ADD `popularity_score` int;--> statement-breakpoint
+ALTER TABLE `game_catalog_provider_identities` ADD `popularity_updated_at` timestamp;--> statement-breakpoint
+ALTER TABLE `game_catalog_provider_identities` ADD CONSTRAINT `game_catalog_provider_popularity_nonnegative_check` CHECK (`game_catalog_provider_identities`.`popularity_score` is null or `game_catalog_provider_identities`.`popularity_score` >= 0);--> statement-breakpoint
+CREATE INDEX `game_catalog_provider_popularity_idx` ON `game_catalog_provider_identities` (`provider`,`popularity_score`);

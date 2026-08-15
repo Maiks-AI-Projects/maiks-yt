@@ -27,13 +27,19 @@ describe("game catalog rules", () => {
       providerGameId: "526870",
       title: "Satisfactory",
       storeUrl: "https://store.steampowered.com/app/526870/",
-      artworkUrl: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/526870/header.jpg"
+      artworkUrl: "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/526870/header.jpg",
+      popularityScore: null
     });
     expect(buildSteamCatalogCandidate({
       appId: 526870,
       title: "Satisfactory",
       artworkUrl: "https://example.com/tracker.png"
     })).toMatchObject({ artworkUrl: null });
+    expect(buildSteamCatalogCandidate({
+      appId: 526870,
+      title: "Satisfactory",
+      popularityScore: 12345
+    })).toMatchObject({ popularityScore: 12345 });
     expect(buildSteamCatalogCandidate({ appId: 0, title: "Invalid" })).toBeNull();
   });
 

@@ -14,6 +14,7 @@ import type {
   SteamGameLibraryStatusResult,
   SteamWishlistServicePreviewResult
 } from "./steam-game-library.types.js";
+import { enrichSteamCandidatesWithPopularity } from "./steam-game-popularity.service.js";
 
 export class SteamGameLibraryService {
   public constructor(
@@ -47,13 +48,17 @@ export class SteamGameLibraryService {
     });
 
     if (result.ok) {
-      await this.repository.cacheCandidates(result.games
+      const candidates = result.games
         .map((game) => buildSteamCatalogCandidate({
           appId: game.appId,
           title: game.title,
           artworkUrl: game.iconUrl
         }))
-        .filter((candidate) => candidate !== null));
+        .filter((candidate) => candidate !== null);
+      await this.repository.cacheCandidates(await enrichSteamCandidatesWithPopularity(
+        candidates,
+        this.options.fetchPopularity
+      ));
     }
 
     return result;
@@ -79,12 +84,16 @@ export class SteamGameLibraryService {
     });
 
     if (result.ok) {
-      await this.repository.cacheCandidates(result.items
+      const candidates = result.items
         .map((item) => buildSteamCatalogCandidate({
           appId: item.appId,
           title: item.title ?? `Steam App ${item.appId}`
         }))
-        .filter((candidate) => candidate !== null));
+        .filter((candidate) => candidate !== null);
+      await this.repository.cacheCandidates(await enrichSteamCandidatesWithPopularity(
+        candidates,
+        this.options.fetchPopularity
+      ));
     }
 
     return result;
