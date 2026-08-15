@@ -1,5 +1,6 @@
 .header,
-.footer {
+.footer,
+.contextBar {
   --canvas: #0c1215;
   --surface: #121b20;
   --surface-raised: #182329;
@@ -126,6 +127,49 @@
   flex: 0 0 auto;
 }
 
+.contextBar {
+  align-items: center;
+  background: #10181c;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  display: flex;
+  min-height: 44px;
+  padding: 0 max(20px, calc((100% - 1180px) / 2));
+  position: sticky;
+  top: 64px;
+  z-index: 29;
+}
+
+.contextLinks {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+}
+
+.contextLinks a {
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 0.84rem;
+  padding: 12px 11px 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.contextLinks a:hover,
+.contextLinks a:focus-visible {
+  color: var(--text);
+}
+
+.contextLinks a[aria-current="page"] {
+  border-bottom-color: var(--mint);
+  color: var(--text);
+}
+
+.contextSelectLabel {
+  display: none;
+}
+
 .footer {
   background: #090e10;
   border-top: 1px solid var(--line);
@@ -219,6 +263,40 @@
   .account {
     margin-left: auto;
     order: 1;
+  }
+
+  .contextBar {
+    min-height: 48px;
+    padding: 6px 14px;
+  }
+
+  .contextLinks {
+    display: none;
+  }
+
+  .contextSelectLabel {
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .contextSelectLabel span {
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .contextSelectLabel select {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--text);
+    flex: 1;
+    min-height: 34px;
+    min-width: 0;
+    padding: 5px 8px;
   }
 
   .footerInner {

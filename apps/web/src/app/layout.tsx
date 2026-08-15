@@ -3,6 +3,7 @@ import "./globals.css";
 import { headers } from "next/headers";
 
 import OAuthLoginPanel from "./oauth-login-panel";
+import { AuthenticatedNavigation } from "./authenticated-navigation";
 import { SiteNavigation } from "./site-navigation";
 import shellStyles from "./site-shell.module.css";
 
@@ -22,6 +23,11 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-maiks-pathname") ?? "";
   const isToolSurface = pathname.startsWith("/tools/");
+  const authenticatedContext = pathname === "/account"
+    ? "account"
+    : pathname === "/admin" || pathname.startsWith("/admin/")
+      ? "admin"
+      : null;
 
   return (
     <html lang="en">
@@ -41,6 +47,7 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
                 </div>
               </div>
             </header>
+            {authenticatedContext ? <AuthenticatedNavigation context={authenticatedContext} /> : null}
           </>
         )}
         <div className={isToolSurface ? undefined : shellStyles.mainContent} id="main-content">{children}</div>

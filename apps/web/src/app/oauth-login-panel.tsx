@@ -161,10 +161,6 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
                   <dt>Email</dt>
                   <dd>{session.user.email ?? "No email returned"}</dd>
                 </div>
-                <div>
-                  <dt>User ID</dt>
-                  <dd>{session.user.id}</dd>
-                </div>
               </dl>
               <div className="auth-actions compact">
                 <button type="button" className="secondary-action" onClick={() => void refreshSession()}>
