@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { formatChatTime } from "./chat-time.service.js";
 import { withDevAuthToken } from "../dev-auth-token.js";
+import { createWebUrl } from "../runtime-config.service.js";
 import {
   discordIntakeStateLabels,
   getDiscordIntakeStatusCopy,
@@ -38,7 +39,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
   const [discordActionPending, setDiscordActionPending] = useState(false);
   const [youtubeActionPending, setYouTubeActionPending] = useState(false);
   const openProviderAdmin = (): void => {
-    window.location.assign(withDevAuthToken("https://web-dev.maiks.yt/admin/provider-integrations"));
+    window.location.assign(withDevAuthToken(createWebUrl("/admin/provider-integrations")));
   };
 
   const loadStatus = async (isDisposed: () => boolean = () => false): Promise<void> => {

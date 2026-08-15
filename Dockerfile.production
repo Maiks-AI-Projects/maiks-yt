@@ -1,0 +1,44 @@
+FROM node:24-alpine AS build
+
+WORKDIR /app
+
+RUN apk add --no-cache git libc6-compat
+
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV PNPM_HOME=/pnpm
+ENV PATH=/pnpm:$PATH
+
+RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
+
+ARG NEXT_PUBLIC_API_BASE_URL=https://api.maiks.yt
+ARG NEXT_PUBLIC_CONTROL_BASE_URL=https://control.maiks.yt
+ARG NEXT_PUBLIC_OVERLAY_BASE_URL=https://overlay.maiks.yt
+ARG VITE_API_BASE_URL=https://api.maiks.yt
+ARG VITE_WEB_BASE_URL=https://maiks.yt
+
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_CONTROL_BASE_URL=$NEXT_PUBLIC_CONTROL_BASE_URL
+ENV NEXT_PUBLIC_OVERLAY_BASE_URL=$NEXT_PUBLIC_OVERLAY_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_WEB_BASE_URL=$VITE_WEB_BASE_URL
+
+COPY . .
+
+RUN pnpm install --frozen-lockfile && pnpm build
+
+FROM node:24-alpine AS runtime
+
+WORKDIR /app
+
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV NODE_ENV=production
+ENV PNPM_HOME=/pnpm
+ENV PATH=/pnpm:$PATH
+
+RUN corepack enable && corepack prepare pnpm@11.5.2 --activate
+
+COPY --from=build /app /app
+
+EXPOSE 3000 3001 3002 3003
+
+CMD ["pnpm", "--filter", "@maiks-yt/web", "start"]

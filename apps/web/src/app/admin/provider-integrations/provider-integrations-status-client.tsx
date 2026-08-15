@@ -48,7 +48,9 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [twitchEventSubCallbackUrl, setTwitchEventSubCallbackUrl] = useState<string | null>(null);
   const [youtubePubSubSubscription, setYouTubePubSubSubscription] = useState<Extract<YouTubePubSubSubscriptionResponse, { ok: true }> | null>(null);
   const [youtubeActivitiesPoll, setYouTubeActivitiesPoll] = useState<Extract<YouTubeActivitiesPollResponse, { ok: true }> | null>(null);
-  const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>("https://api-dev.maiks.yt/admin/provider-integrations/youtube/callback");
+  const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>(
+    `${apiBaseUrl}/admin/provider-integrations/youtube/callback`
+  );
   const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>(youtubeLiveChatReadScope);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading provider integration status...");

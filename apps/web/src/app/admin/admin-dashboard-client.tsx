@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken, withDevAuthToken } from "../dev-auth-token";
+import { createControlUrl, overlayBaseUrl } from "../tool-surface-urls.service";
 
 type AdminDashboardItem = {
   href: string;
@@ -139,27 +140,27 @@ const groups: readonly AdminDashboardGroup[] = [
     title: "Stream Windows",
     items: [
       {
-        href: "https://control-dev.maiks.yt/chat",
+        href: createControlUrl("/chat"),
         label: "Streamer Chat",
         description: "Standalone private chat window for live messages and quick local moderation."
       },
       {
-        href: "https://control-dev.maiks.yt/moderation",
+        href: createControlUrl("/moderation"),
         label: "Moderation Window",
         description: "Dedicated moderator/creator window for chat, rules, approvals, and helper context."
       },
       {
-        href: "https://control-dev.maiks.yt/control",
+        href: createControlUrl("/control"),
         label: "Control Panel",
         description: "Overlay controls, scene designer, and stream tool controls."
       },
       {
-        href: "https://control-dev.maiks.yt/ai",
+        href: createControlUrl("/ai"),
         label: "AI Controls",
         description: "Inert AI safety panel showing disabled public output, TTS, and moderation gates."
       },
       {
-        href: "https://overlay-dev.maiks.yt/",
+        href: overlayBaseUrl,
         label: "OBS Overlay",
         description: "Shared overlay browser-source surface for OBS checks."
       },
@@ -284,7 +285,7 @@ const getDashboardItemBadge = (
     "/admin/moderators": "active-helpers",
     "/admin/money": "money-ledger",
     "/admin/sessions": "sessions",
-    "https://control-dev.maiks.yt/moderation": "active-moderation",
+    [createControlUrl("/moderation")]: "active-moderation",
     "/tools/notifications": "notifications"
   };
   const statusKey = statusKeyByHref[item.href];

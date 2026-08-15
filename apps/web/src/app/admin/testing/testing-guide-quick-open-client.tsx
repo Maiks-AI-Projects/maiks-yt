@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { captureDevAuthTokenFromUrl, getDevAuthToken, withDevAuthToken } from "../../dev-auth-token";
+import { createControlUrl, overlayBaseUrl } from "../../tool-surface-urls.service";
 
 type QuickOpenGroup = {
   title: string;
@@ -18,27 +19,27 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
     title: "Stream Windows",
     links: [
       {
-        href: "https://control-dev.maiks.yt/chat",
+        href: createControlUrl("/chat"),
         label: "Streamer Chat",
         description: "Standalone private chat PWA. Requires the current control access token from Access Tokens."
       },
       {
-        href: "https://control-dev.maiks.yt/moderation",
+        href: createControlUrl("/moderation"),
         label: "Moderation",
         description: "Separate moderation PWA. Requires the current control access token plus signed-in rights."
       },
       {
-        href: "https://control-dev.maiks.yt/control",
+        href: createControlUrl("/control"),
         label: "Control Panel",
         description: "Overlay controls and scene designer. Requires the current control access token."
       },
       {
-        href: "https://control-dev.maiks.yt/ai",
+        href: createControlUrl("/ai"),
         label: "AI Controls",
         description: "Inert AI settings and safety panel. Requires the current control access token."
       },
       {
-        href: "https://overlay-dev.maiks.yt/",
+        href: overlayBaseUrl,
         label: "OBS Overlay",
         description: "Current shared overlay surface for OBS/browser-source checks."
       }

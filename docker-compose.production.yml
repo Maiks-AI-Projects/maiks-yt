@@ -1,0 +1,71 @@
+x-production-service: &production-service
+  image: maiks-yt-production:local
+  restart: unless-stopped
+  networks:
+    - br187
+
+services:
+  web:
+    <<: *production-service
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      args:
+        NEXT_PUBLIC_API_BASE_URL: https://api.maiks.yt
+        NEXT_PUBLIC_CONTROL_BASE_URL: https://control.maiks.yt
+        NEXT_PUBLIC_OVERLAY_BASE_URL: https://overlay.maiks.yt
+        VITE_API_BASE_URL: https://api.maiks.yt
+        VITE_WEB_BASE_URL: https://maiks.yt
+    container_name: maiks-yt-production-web
+    command: pnpm --filter @maiks-yt/web start
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  api:
+    <<: *production-service
+    container_name: maiks-yt-production-api
+    command: pnpm --filter @maiks-yt/api start
+    env_file:
+      - .env.production
+    environment:
+      API_PUBLIC_BASE_URL: https://api.maiks.yt
+      AUTH_TRUSTED_ORIGINS: https://maiks.yt,https://www.maiks.yt,https://control.maiks.yt,https://overlay.maiks.yt
+      BETTER_AUTH_URL: https://api.maiks.yt
+      NODE_ENV: production
+      WEB_PUBLIC_BASE_URL: https://maiks.yt
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  overlay:
+    <<: *production-service
+    container_name: maiks-yt-production-overlay
+    command: node scripts/serve-static.mjs apps/overlay/dist 3002
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3002/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  control:
+    <<: *production-service
+    container_name: maiks-yt-production-control
+    command: node scripts/serve-static.mjs apps/control-panel/dist 3003
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3003/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  br187:
+    external: true

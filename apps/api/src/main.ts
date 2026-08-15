@@ -53,9 +53,9 @@ import {
 } from "./streamer-chat/index.js";
 
 const config = createRuntimeConfig({
-  environment: "development",
+  environment: process.env.NODE_ENV === "production" ? "production" : "development",
   surface: "api",
-  publicBaseUrl: "http://localhost:3001"
+  publicBaseUrl: process.env.API_PUBLIC_BASE_URL ?? "http://localhost:3001"
 });
 
 const server = Fastify({ logger: true });

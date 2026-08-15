@@ -9,12 +9,12 @@ import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js
 import { OperationsPanel } from "./operations/OperationsPanel.js";
 import { SurfaceStatus } from "./overlay/SurfaceStatus.js";
 import { RealtimeProbe } from "./realtime/RealtimeProbe.js";
+import { apiBaseUrl, createWebUrl } from "./runtime-config.service.js";
 import { SimulatorPanel } from "./simulator/SimulatorPanel.js";
 import { SceneDesigner } from "./scene-designer/SceneDesigner.js";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const panelModeStorageKey = "maiks.yt.control.panelMode";
 const currentRoutePath = window.location.pathname.replace(/\/+$/, "") || "/";
 const isStandaloneChatRoute = currentRoutePath === "/chat";
@@ -139,10 +139,10 @@ const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }):
             Use the current generated Control Panel access URL from Access Tokens. Opening the bare route is expected to stop here.
           </p>
           <div className="access-required-actions">
-            <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/tokens")}>
+            <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin/tokens"))}>
               Access Tokens
             </a>
-            <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/testing")}>
+            <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin/testing"))}>
               Testing Guide
             </a>
           </div>

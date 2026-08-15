@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { withDevAuthToken } from "../dev-auth-token.js";
+import { createWebUrl } from "../runtime-config.service.js";
 import type { OverlayStatusResponse } from "../overlay/SurfaceStatus.types.js";
 
 type ChatWindowHeaderProps = {
@@ -98,9 +99,9 @@ export const ChatWindowHeader = ({ apiBaseUrl }: ChatWindowHeaderProps): ReactNo
           <option value="/control">Control panel</option>
           <option value="/moderation">Applied rules</option>
           <option value="/ai">AI controls</option>
-          <option value="https://web-dev.maiks.yt/tools/notifications">Notifications</option>
-          <option value="https://web-dev.maiks.yt/admin/provider-integrations">Provider admin</option>
-          <option value="https://web-dev.maiks.yt/admin/live-helper">Live helper</option>
+          <option value={createWebUrl("/tools/notifications")}>Notifications</option>
+          <option value={createWebUrl("/admin/provider-integrations")}>Provider admin</option>
+          <option value={createWebUrl("/admin/live-helper")}>Live helper</option>
         </select>
       </label>
       <span>{status}</span>
