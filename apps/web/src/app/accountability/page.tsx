@@ -1,35 +1,153 @@
-const AccountabilityPage = (): React.ReactNode => (
-  <main className="content-page">
-    <header className="links-header">
-      <p className="eyebrow">Public record</p>
-      <h1>Accountability and History</h1>
-      <p>This page provides a stable structure for public project history and corrections. No history entries have been published yet.</p>
-    </header>
+import type { Metadata } from "next";
 
-    <section>
-      <h2>Project history</h2>
-      <p>Completed, changed, paused, or cancelled projects can be recorded here with dates, outcomes, and links to the original public updates.</p>
-      <p className="content-empty-state">No project history entries yet.</p>
-    </section>
+import { getPublicProjects } from "../projects/project-read-data";
+import styles from "./accountability.module.css";
 
-    <section>
-      <h2>Withdrawals and spending</h2>
-      <p>If approved money features are introduced later, public records can explain relevant withdrawals and project spending without exposing private financial data.</p>
-      <p className="content-empty-state">No money features or records are active.</p>
-    </section>
+export const dynamic = "force-dynamic";
 
-    <section>
-      <h2>Corrections</h2>
-      <p>Material corrections to public claims or project records can be listed with the original statement, the correction, and the date of the change.</p>
-      <p className="content-empty-state">No corrections published.</p>
-    </section>
+export const metadata: Metadata = {
+  title: "Accountability record",
+  description: "Public Maiks.yt project outcomes, corrections, changes, and record boundaries."
+};
 
-    <section>
-      <h2>Archived outcomes</h2>
-      <p>Older outcomes can remain available here after they leave active project pages, including plans that did not proceed.</p>
-      <p className="content-empty-state">No archived outcomes yet.</p>
-    </section>
-  </main>
-);
+const recordPrinciples = [
+  {
+    title: "Plans stay labelled as plans",
+    description: "Unfinished work is not presented as a completed result."
+  },
+  {
+    title: "Material changes keep a date",
+    description: "A changed direction should leave enough context to understand when and why."
+  },
+  {
+    title: "Corrections do not erase history",
+    description: "The correction should sit beside the original public claim or record."
+  },
+  {
+    title: "Other people's privacy remains intact",
+    description: "Accountability does not require exposing unrelated private people or details."
+  }
+] as const;
+
+const AccountabilityPage = async (): Promise<React.ReactNode> => {
+  const projectResult = await getPublicProjects();
+  const completedProjects = projectResult.status === "loaded"
+    ? projectResult.projects.filter((project) => project.status === "completed")
+    : [];
+
+  return (
+    <main className={styles.page}>
+      <header className={styles.intro}>
+        <p className={styles.eyebrow}>Public accountability record</p>
+        <h1>Plans change. The record stays.</h1>
+        <p>
+          This page is the public index for material project outcomes, corrections, and changed
+          claims around Maiks.yt. It is deliberately separate from Michael's personal life history
+          and from private financial records.
+        </p>
+      </header>
+
+      <aside className={styles.statusNotice} aria-label="Accountability system status">
+        <p className={styles.sectionLabel}>System status</p>
+        <strong>This accountability system is still being built.</strong>
+        <p>
+          Completed public projects can already appear from the live project records. Dedicated
+          correction entries, archived outcomes, and public financial reporting are not connected
+          yet.
+        </p>
+      </aside>
+
+      <section className={styles.principles} aria-label="Accountability principles">
+        <ol className={styles.principleList}>
+          {recordPrinciples.map((principle, index) => (
+            <li key={principle.title}>
+              <span className={styles.principleNumber}>{String(index + 1).padStart(2, "0")}</span>
+              <strong>{principle.title}</strong>
+              <p>{principle.description}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className={styles.records} aria-labelledby="outcomes-heading">
+        <header className={styles.sectionHeading}>
+          <div>
+            <p className={styles.sectionLabel}>Project record</p>
+            <h2 id="outcomes-heading">Published outcomes</h2>
+          </div>
+          <p>
+            Completed public projects appear here from the same live project records used by the
+            rest of the website. Active and planned work remains on the projects page.
+          </p>
+        </header>
+
+        {projectResult.status === "error" ? (
+          <div className={styles.emptyState} aria-live="polite">
+            <strong>Project outcomes are temporarily unavailable.</strong>
+            <p>The project service could not be reached. No placeholder outcomes are shown.</p>
+          </div>
+        ) : completedProjects.length === 0 ? (
+          <div className={styles.emptyState}>
+            <strong>No completed public project outcomes yet.</strong>
+            <p>Current work is still active or in planning. This state will change when a public project is completed.</p>
+            <a href="/projects">Open current projects &rarr;</a>
+          </div>
+        ) : (
+          <div className={styles.recordList}>
+            {completedProjects.map((project) => (
+              <article className={styles.recordRow} key={project.id}>
+                <div className={styles.recordIdentity}>
+                  <p className={styles.recordStatus}>Completed project</p>
+                  <h3><a href={`/projects/${project.slug}`}>{project.title}</a></h3>
+                </div>
+                <p>{project.summary}</p>
+                <a className={styles.textLink} href={`/projects/${project.slug}`}>Read the outcome &rarr;</a>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className={styles.records} aria-labelledby="corrections-heading">
+        <header className={styles.sectionHeading}>
+          <div>
+            <p className={styles.sectionLabel}>Corrections</p>
+            <h2 id="corrections-heading">Material changes and corrections</h2>
+          </div>
+          <p>
+            A future correction record will identify the original statement, explain what changed,
+            and retain the date. Ordinary wording edits do not need to become public incidents.
+          </p>
+        </header>
+        <div className={styles.emptyState}>
+          <strong>No material corrections have been published.</strong>
+          <p>Project updates and announcements remain available in the public update archive.</p>
+          <a href="/updates">Open public updates &rarr;</a>
+        </div>
+      </section>
+
+      <section className={styles.boundaries} aria-labelledby="record-boundaries-heading">
+        <div>
+          <p className={styles.sectionLabel}>Record boundaries</p>
+          <h2 id="record-boundaries-heading">Different records answer different questions.</h2>
+        </div>
+        <div className={styles.boundaryContent}>
+          <p>
+            <strong>Michael's personal history has its own timeline.</strong> It is based on records
+            and deliberately published memories, rather than being mixed into project corrections.
+          </p>
+          <p>
+            <strong>Financial records remain private while the public reporting layer is unfinished.</strong>
+            No withdrawal, donation, or spending activity is implied by an empty public section.
+          </p>
+          <nav className={styles.boundaryLinks} aria-label="Related public records">
+            <a className={styles.textLink} href="/about/history">Personal history &rarr;</a>
+            <a className={styles.textLink} href="/progress">Build progress &rarr;</a>
+          </nav>
+        </div>
+      </section>
+    </main>
+  );
+};
 
 export default AccountabilityPage;
