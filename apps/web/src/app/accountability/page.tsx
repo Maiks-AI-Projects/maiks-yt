@@ -53,7 +53,9 @@ const AccountabilityPage = async (): Promise<React.ReactNode> => {
         <p>
           Completed public projects can already appear from the live project records. Dedicated
           correction entries, archived outcomes, and public financial reporting are not connected
-          yet.
+          yet. One or more ongoing court cases also need to conclude before this system can be used
+          as intended; no case details or conclusions are published here while those matters remain
+          ongoing.
         </p>
       </aside>
 
