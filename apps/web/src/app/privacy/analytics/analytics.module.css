@@ -1,0 +1,273 @@
+.page {
+  --canvas: #0c1215;
+  --surface: #121b20;
+  --surface-raised: #182329;
+  --text: #f4f8f7;
+  --muted: #aab9bc;
+  --quiet: #74868b;
+  --line: #304047;
+  --mint: #45d6ad;
+  background: var(--canvas);
+  color: var(--text);
+  max-width: none;
+  padding: 0;
+}
+
+.intro,
+.principles,
+.telemetry,
+.boundaries {
+  padding-left: max(20px, calc((100% - 1080px) / 2));
+  padding-right: max(20px, calc((100% - 1080px) / 2));
+}
+
+.intro {
+  padding-bottom: clamp(48px, 6vw, 76px);
+  padding-top: clamp(54px, 7vw, 88px);
+}
+
+.eyebrow,
+.sectionLabel,
+.factNumber {
+  color: var(--mint);
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin: 0 0 14px;
+  text-transform: uppercase;
+}
+
+.intro h1 {
+  font-size: clamp(2.7rem, 6vw, 5.4rem);
+  line-height: 1.04;
+  margin: 0;
+  max-width: 930px;
+  text-wrap: balance;
+}
+
+.intro > p:last-child {
+  color: var(--muted);
+  font-size: clamp(1.04rem, 2vw, 1.25rem);
+  line-height: 1.5;
+  margin: 20px 0 0;
+  max-width: 760px;
+}
+
+.principles {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(44px, 6vw, 66px);
+  padding-top: clamp(44px, 6vw, 66px);
+}
+
+.factList {
+  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.factList li {
+  min-width: 0;
+  padding: 20px;
+}
+
+.factList li + li {
+  border-left: 1px solid var(--line);
+}
+
+.factNumber {
+  color: var(--quiet);
+  display: block;
+  margin-bottom: 9px;
+}
+
+.factList strong {
+  display: block;
+  line-height: 1.25;
+}
+
+.factList p {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  margin: 8px 0 0;
+}
+
+.telemetry,
+.boundaries {
+  border-top: 1px solid var(--line);
+  padding-bottom: clamp(52px, 7vw, 82px);
+  padding-top: clamp(48px, 6vw, 72px);
+}
+
+.sectionHeading {
+  align-items: end;
+  display: grid;
+  gap: clamp(24px, 6vw, 72px);
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  margin-bottom: 28px;
+}
+
+.sectionHeading h2 {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  line-height: 1.06;
+  margin: 0;
+}
+
+.sectionHeading > p,
+.boundaryContent p {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.telemetryTable {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.telemetryTable th,
+.telemetryTable td {
+  border-bottom: 1px solid var(--line);
+  padding: 16px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.telemetryTable th {
+  border-top: 1px solid var(--line);
+  color: var(--quiet);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+}
+
+.telemetryTable code {
+  color: var(--text);
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
+}
+
+.telemetryTable td {
+  color: var(--muted);
+}
+
+.telemetryTable td:last-child {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.boundaries {
+  background: var(--surface);
+  display: grid;
+  gap: clamp(30px, 7vw, 86px);
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+}
+
+.boundaries h2 {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  line-height: 1.06;
+  margin: 0;
+}
+
+.boundaryContent {
+  display: grid;
+  gap: 22px;
+}
+
+.boundaryContent strong {
+  color: var(--text);
+}
+
+.boundaryNote {
+  border-left: 3px solid var(--mint);
+  padding-left: 16px;
+}
+
+@media (max-width: 760px) {
+  .factList {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .factList li:nth-child(3) {
+    border-left: 0;
+  }
+
+  .factList li:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+
+  .sectionHeading,
+  .boundaries {
+    grid-template-columns: 1fr;
+  }
+
+  .telemetryTable,
+  .telemetryTable tbody,
+  .telemetryTable tr,
+  .telemetryTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .telemetryTable thead {
+    border: 0;
+    clip: rect(0 0 0 0);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+  }
+
+  .telemetryTable tr {
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 16px 0;
+  }
+
+  .telemetryTable td {
+    border: 0;
+    padding: 0;
+  }
+
+  .telemetryTable td:first-child {
+    grid-column: 1;
+  }
+
+  .telemetryTable td:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .telemetryTable td:last-child {
+    font-size: 0.78rem;
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .intro,
+  .principles,
+  .telemetry,
+  .boundaries {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .factList {
+    grid-template-columns: 1fr;
+  }
+
+  .factList li + li {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
