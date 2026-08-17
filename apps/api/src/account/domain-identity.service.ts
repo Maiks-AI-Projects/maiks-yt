@@ -8,6 +8,7 @@ export type DomainUserRow = {
   id: string;
   displayName: string;
   profileVisibility: string;
+  avatarUrl: string | null;
 };
 
 type LinkedAccountRow = {
@@ -61,11 +62,11 @@ export const getDomainUserForAuthUser = async (
   createMissing: boolean
 ): Promise<{ user: DomainUserRow | null; created: boolean }> => {
   const [linkRows] = await pool.execute(
-    "SELECT auth_user_links.user_id AS userId, users.display_name AS displayName, users.profile_visibility AS profileVisibility FROM auth_user_links INNER JOIN users ON users.id = auth_user_links.user_id WHERE auth_user_links.auth_user_id = ? AND users.deleted_at IS NULL LIMIT 1",
+    "SELECT auth_user_links.user_id AS userId, users.display_name AS displayName, users.profile_visibility AS profileVisibility, users.avatar_url AS avatarUrl FROM auth_user_links INNER JOIN users ON users.id = auth_user_links.user_id WHERE auth_user_links.auth_user_id = ? AND users.deleted_at IS NULL LIMIT 1",
     [authUser.id]
   );
   const existingLink = Array.isArray(linkRows)
-    ? linkRows[0] as { userId: string; displayName: string; profileVisibility: string } | undefined
+    ? linkRows[0] as { userId: string; displayName: string; profileVisibility: string; avatarUrl?: string | null } | undefined
     : undefined;
 
   if (existingLink) {
@@ -74,7 +75,8 @@ export const getDomainUserForAuthUser = async (
       user: {
         id: existingLink.userId,
         displayName: existingLink.displayName,
-        profileVisibility: existingLink.profileVisibility
+        profileVisibility: existingLink.profileVisibility,
+        avatarUrl: existingLink.avatarUrl ?? null
       }
     };
   }
@@ -87,11 +89,11 @@ export const getDomainUserForAuthUser = async (
   }
 
   const userId = randomUUID();
-  const displayName = authUser.name ?? authUser.email ?? "Community Member";
+  const displayName = "Maiks.yt member";
 
   await pool.execute(
     "INSERT INTO users (id, display_name, profile_visibility, avatar_url) VALUES (?, ?, 'private', ?)",
-    [userId, displayName, authUser.image ?? null]
+    [userId, displayName, null]
   );
   await pool.execute(
     "INSERT INTO auth_user_links (id, auth_user_id, user_id) VALUES (?, ?, ?)",
@@ -103,7 +105,8 @@ export const getDomainUserForAuthUser = async (
     user: {
       id: userId,
       displayName,
-      profileVisibility: "private"
+      profileVisibility: "private",
+      avatarUrl: null
     }
   };
 };

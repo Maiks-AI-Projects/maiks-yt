@@ -69,8 +69,8 @@ const ProviderConnections = ({
                 {domainProviderAccounts.map((account) => (
                   <div className={styles.linkedAccount} key={account.id}>
                     <div>
-                      <strong>{account.displayName}</strong>
-                      <span>{account.purposeLabel ?? provider.label}</span>
+                      <strong>{provider.label} login</strong>
+                      <span>{account.purposeLabel ?? "Connected sign-in account"}</span>
                     </div>
                   </div>
                 ))}

@@ -32,6 +32,16 @@ type AccountDomainRouteDependencies = {
   getDatabasePool: () => DatabasePool;
 };
 
+const getProviderAccountLabel = (providerId: string): string => {
+  const normalized = providerId.trim().toLowerCase();
+
+  if (normalized.length === 0) {
+    return "Sign-in account";
+  }
+
+  return `${normalized.slice(0, 1).toUpperCase()}${normalized.slice(1)} account`;
+};
+
 const getDevOwnerEmailAllowlist = (): Set<string> =>
   new Set((process.env.DEV_OWNER_EMAILS ?? "")
     .split(",")
@@ -59,11 +69,11 @@ export const registerAccountDomainRoutes = (
       const pool = getDatabasePool();
       const creatorUserId = "00000000-0000-4000-8000-000000000001";
       const [userRows] = await pool.execute(
-        "SELECT id, display_name AS displayName, profile_visibility AS profileVisibility FROM users WHERE id = ? AND deleted_at IS NULL",
+        "SELECT id, display_name AS displayName, profile_visibility AS profileVisibility, avatar_url AS avatarUrl FROM users WHERE id = ? AND deleted_at IS NULL",
         [creatorUserId]
       );
       const user = Array.isArray(userRows)
-        ? userRows[0] as { id: string; displayName: string; profileVisibility: string } | undefined
+        ? userRows[0] as { id: string; displayName: string; profileVisibility: string; avatarUrl?: string | null } | undefined
         : undefined;
 
       if (!user) {
@@ -334,7 +344,7 @@ export const registerAccountDomainRoutes = (
             user.id,
             authAccount.providerId,
             authAccount.accountId,
-            session.user.name ?? session.user.email ?? authAccount.providerId,
+            getProviderAccountLabel(authAccount.providerId),
             JSON.stringify(["login"])
           ]
         );

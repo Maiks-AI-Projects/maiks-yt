@@ -38,6 +38,14 @@ type AuthSessionResponse = {
   };
 } | null;
 
+type DomainProfileResponse = {
+  ok: true;
+  domainUser: {
+    displayName: string;
+    avatarUrl: string | null;
+  } | null;
+};
+
 type OAuthLoginPanelProps = {
   variant?: "panel" | "nav";
 };
@@ -45,6 +53,7 @@ type OAuthLoginPanelProps = {
 const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.ReactNode => {
   const [busyProvider, setBusyProvider] = useState<OAuthProvider["id"] | null>(null);
   const [session, setSession] = useState<AuthSessionResponse>(null);
+  const [domainProfile, setDomainProfile] = useState<DomainProfileResponse["domainUser"]>(null);
   const [sessionLoading, setSessionLoading] = useState<boolean>(true);
   const [message, setMessage] = useState<string>("Checking session...");
 
@@ -98,6 +107,23 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
 
       const nextSession = await response.json() as AuthSessionResponse;
       setSession(nextSession);
+
+      if (nextSession) {
+        const profileResponse = await fetch(`${apiBaseUrl}/account/domain`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        });
+
+        if (profileResponse.ok) {
+          const profileSnapshot = await profileResponse.json() as DomainProfileResponse;
+          setDomainProfile(profileSnapshot.ok ? profileSnapshot.domainUser : null);
+        } else {
+          setDomainProfile(null);
+        }
+      } else {
+        setDomainProfile(null);
+      }
+
       setMessage(nextSession ? "Signed in" : "Not signed in");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Session check failed.");
@@ -125,6 +151,7 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
 
       clearDevAuthToken();
       setSession(null);
+      setDomainProfile(null);
       setMessage("Signed out");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sign-out failed.");
@@ -137,16 +164,16 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
   }, []);
 
   if (variant === "nav") {
-    const displayName = session?.user.name ?? session?.user.email ?? "Account";
+    const displayName = domainProfile?.displayName ?? "Account";
 
     return (
       <section className="auth-nav" aria-label="Account">
         {session ? (
           <details className="account-menu">
             <summary>
-              {session.user.image ? (
+              {domainProfile?.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" src={session.user.image} />
+                <img alt="" src={domainProfile.avatarUrl} />
               ) : (
                 <span aria-hidden="true" className="session-avatar-placeholder">
                   {displayName.slice(0, 1).toUpperCase()}
@@ -210,26 +237,22 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
       </div>
       {session ? (
         <div className="session-card">
-          {session.user.image ? (
+          {domainProfile?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" src={session.user.image} />
+            <img alt="" src={domainProfile.avatarUrl} />
           ) : (
             <div aria-hidden="true" className="session-avatar-placeholder">
-              {(session.user.name ?? session.user.email ?? "?").slice(0, 1).toUpperCase()}
+              {(domainProfile?.displayName ?? "Account").slice(0, 1).toUpperCase()}
             </div>
           )}
           <dl>
             <div>
-              <dt>Name</dt>
-              <dd>{session.user.name ?? "Unknown"}</dd>
+              <dt>Account name</dt>
+              <dd>{domainProfile?.displayName ?? "Set this on your account page"}</dd>
             </div>
             <div>
               <dt>Email</dt>
               <dd>{session.user.email ?? "No email returned"}</dd>
-            </div>
-            <div>
-              <dt>User ID</dt>
-              <dd>{session.user.id}</dd>
             </div>
           </dl>
         </div>

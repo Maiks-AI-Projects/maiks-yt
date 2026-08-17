@@ -1,6 +1,6 @@
 # Current Work
 
-Updated: 2026-08-15
+Updated: 2026-08-17
 
 ## Objective
 
@@ -8,6 +8,7 @@ Build the production public website page by page on the dedicated `production` b
 
 ## Production Website Lane
 
+- Added independent Maiks.yt account identity editing: authenticated members can set a custom account name, upload a cropped profile image, replace it atomically, or remove it. OAuth provider names and avatars are no longer used as the visible Maiks.yt identity, and linked providers are presented as login connections. Profile image bytes use a dedicated production volume and no provider image is copied into a new domain user.
 - Applied the first Page Viewer homepage concept as the real production homepage foundation.
 - Added a shared dark public site shell with responsive navigation and account access while preserving standalone tool surfaces.
 - Stored the generated workspace hero as a local temporary asset so the homepage does not depend on a Page Viewer capability URL.

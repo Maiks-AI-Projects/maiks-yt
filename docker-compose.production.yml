@@ -36,7 +36,10 @@ services:
       AUTH_TRUSTED_ORIGINS: https://maiks.yt,https://www.maiks.yt,https://control.maiks.yt,https://overlay.maiks.yt
       BETTER_AUTH_URL: https://api.maiks.yt
       NODE_ENV: production
+      PROFILE_IMAGE_STORAGE_DIR: /data/profile-images
       WEB_PUBLIC_BASE_URL: https://maiks.yt
+    volumes:
+      - profile-images:/data/profile-images
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3001/health"]
       interval: 30s
@@ -69,3 +72,7 @@ services:
 networks:
   br187:
     external: true
+
+volumes:
+  profile-images:
+    name: maiks-yt-production-profile-images

@@ -598,6 +598,96 @@
   color: var(--account-mint);
 }
 
+.profileEditor {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 6rem minmax(0, 30rem);
+}
+
+.profilePreview,
+.profilePreview img,
+.profilePreview span {
+  border-radius: 50%;
+  height: 6rem;
+  width: 6rem;
+}
+
+.profilePreview img {
+  display: block;
+  object-fit: cover;
+}
+
+.profilePreview span {
+  align-items: center;
+  background: var(--account-mint-weak);
+  display: flex;
+  font-size: 1.8rem;
+  justify-content: center;
+}
+
+.profileFields {
+  display: grid;
+  gap: 0.7rem;
+  justify-items: start;
+  width: 100%;
+}
+
+.profileFields label:not(.fileButton) {
+  display: grid;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.profileFields label > span {
+  color: var(--account-text);
+  font-weight: 700;
+}
+
+.profileFields input[type="text"] {
+  background: var(--account-surface-raised);
+  border: 1px solid var(--account-line);
+  border-radius: 6px;
+  color: var(--account-text);
+  min-height: 2.6rem;
+  padding: 0.55rem 0.7rem;
+  width: 100%;
+}
+
+.profileFields p {
+  color: var(--account-muted);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.imageActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.fileButton {
+  align-items: center;
+  background: var(--account-mint);
+  border: 1px solid var(--account-mint);
+  border-radius: 6px;
+  color: #06110f;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.8rem;
+}
+
+.fileButton input {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
 @media (max-width: 860px) {
   :global(.account-page-panel) {
     max-width: none;
@@ -673,5 +763,9 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 0.12rem;
+  }
+
+  .profileEditor {
+    grid-template-columns: 1fr;
   }
 }

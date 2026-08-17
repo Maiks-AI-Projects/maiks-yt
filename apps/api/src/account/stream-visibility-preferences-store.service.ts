@@ -54,11 +54,11 @@ export const createStreamVisibilityPreferencesRepository = (
     }
 
     const userId = randomUUID();
-    const displayName = authUser.name ?? authUser.email ?? "Community Member";
+    const displayName = "Maiks.yt member";
 
     await pool.execute(
       "INSERT INTO users (id, display_name, profile_visibility, avatar_url) VALUES (?, ?, 'private', ?)",
-      [userId, displayName, authUser.image ?? null]
+      [userId, displayName, null]
     );
     await pool.execute(
       "INSERT INTO auth_user_links (id, auth_user_id, user_id) VALUES (?, ?, ?)",
@@ -109,4 +109,3 @@ export const createStreamVisibilityPreferencesRepository = (
     }
   }
 });
-

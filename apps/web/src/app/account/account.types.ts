@@ -43,14 +43,17 @@ export type DomainLinkedAccount = {
 
 export type ProfileVisibility = "private" | "minimal" | "public";
 
+export type DomainUserProfile = {
+  id: string;
+  displayName: string;
+  profileVisibility: ProfileVisibility;
+  avatarUrl: string | null;
+};
+
 export type DomainAccountSnapshot = {
   ok: true;
   authUserId: string;
-  domainUser: {
-    id: string;
-    displayName: string;
-    profileVisibility: ProfileVisibility;
-  } | null;
+  domainUser: DomainUserProfile | null;
   linkedAccounts: DomainLinkedAccount[];
   needsSync: boolean;
 } | {

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../dev-auth-token";
 import "./account.module.css";
 import ProfilePrivacySettings from "./profile-privacy-settings";
+import ProfileIdentitySettings from "./profile-identity-settings";
 import ProviderConnections from "./provider-connections";
 import StreamVisibilitySettings from "./stream-visibility-settings";
 import type {
@@ -13,6 +14,7 @@ import type {
   AuthConfigurationStatus,
   AuthSession,
   DomainAccountSnapshot,
+  DomainUserProfile,
   LinkSocialResponse,
   OAuthProviderId,
   ProfileVisibility,
@@ -201,6 +203,12 @@ const AccountPanel = (): React.ReactNode => {
     }
   };
 
+  const updateDomainProfile = (domainUser: DomainUserProfile): void => {
+    setDomainSnapshot((current) => current?.ok
+      ? { ...current, domainUser }
+      : current);
+  };
+
   const updateStreamVisibility = async (
     scope: StreamVisibilityPreferenceScope,
     optedOut: boolean
@@ -238,8 +246,8 @@ const AccountPanel = (): React.ReactNode => {
   const globalPreference = preferences.find((preference) => preference.scope === globalStreamVisibilityScope);
   const perEventPreferences = preferences.filter((preference) => preference.scope !== globalStreamVisibilityScope);
   const displayName = domainSnapshot?.ok
-    ? domainSnapshot.domainUser?.displayName ?? session?.user.name
-    : session?.user.name;
+    ? domainSnapshot.domainUser?.displayName ?? "Maiks.yt member"
+    : "Maiks.yt member";
 
   return (
     <main className="account-page-panel">
@@ -266,9 +274,9 @@ const AccountPanel = (): React.ReactNode => {
           <section className="account-section" aria-labelledby="identity-title">
             <h2 id="identity-title">Signed in as</h2>
             <div className="session-card">
-              {session.user.image ? (
+              {domainSnapshot?.ok && domainSnapshot.domainUser?.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" src={session.user.image} />
+                <img alt="" src={domainSnapshot.domainUser.avatarUrl} />
               ) : (
                 <span className="session-avatar-placeholder" aria-hidden="true">
                   {(displayName ?? session.user.email ?? "?").slice(0, 1).toUpperCase()}
@@ -286,6 +294,24 @@ const AccountPanel = (): React.ReactNode => {
               </dl>
             </div>
           </section>
+
+          {domainSnapshot?.ok && domainSnapshot.domainUser ? (
+            <section className="account-section" aria-labelledby="profile-identity-title">
+              <div className="account-section-heading-row">
+                <div>
+                  <h2 id="profile-identity-title">Name and image</h2>
+                  <p className="account-section-note">
+                    Your Maiks.yt identity is independent from the accounts you use to sign in.
+                  </p>
+                </div>
+              </div>
+              <ProfileIdentitySettings
+                profile={domainSnapshot.domainUser}
+                onUpdated={updateDomainProfile}
+                onMessage={setMessage}
+              />
+            </section>
+          ) : null}
 
           <section className="account-section" aria-labelledby="connections-title">
             <div className="account-section-heading-row">

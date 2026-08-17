@@ -6,6 +6,7 @@ import { configuredAuthProviderIds } from "./auth/better-auth.service.js";
 import { registerBackupHealthRoutes, registerBackupKeyDataExportRoutes } from "./backup/index.js";
 import {
   registerAccountDomainRoutes,
+  registerAccountProfileRoutes,
   registerStreamVisibilityPreferencesRoutes,
   type AuthSessionSnapshot
 } from "./account/index.js";
@@ -137,6 +138,10 @@ export const registerApplicationRoutes = ({
   });
   registerAccountDomainRoutes(server, {
     configuredAuthProviderIds,
+    getAuthSession,
+    getDatabasePool
+  });
+  registerAccountProfileRoutes(server, {
     getAuthSession,
     getDatabasePool
   });
