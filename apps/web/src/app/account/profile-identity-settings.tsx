@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 
 import { createApiHeaders } from "../dev-auth-token";
 import styles from "./account.module.css";
-import type { DomainUserProfile } from "./account.types";
+import type { DomainUserProfile, ProviderProfileOption } from "./account.types";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const maxUploadBytes = 5 * 1024 * 1024;
 
 type ProfileIdentitySettingsProps = {
   profile: DomainUserProfile;
+  loadingProviderOptions: boolean;
+  providerOptions: readonly ProviderProfileOption[];
   onUpdated: (profile: DomainUserProfile) => void;
   onMessage: (message: string) => void;
 };
@@ -23,20 +24,7 @@ type ProfileUpdateResponse = {
   reason: string;
 };
 
-type ProviderProfileOption = {
-  accountId: string;
-  providerId: string;
-  displayName: string;
-  imageUrl: string | null;
-};
-
-type ProviderProfileOptionsResponse = {
-  ok: true;
-  options: ProviderProfileOption[];
-} | {
-  ok: false;
-  reason: string;
-};
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const providerLabels: Readonly<Record<string, string>> = {
   discord: "Discord",
@@ -66,38 +54,19 @@ const readFileAsBase64 = async (file: File): Promise<string> =>
 
 const ProfileIdentitySettings = ({
   profile,
+  loadingProviderOptions,
+  providerOptions,
   onUpdated,
   onMessage
 }: ProfileIdentitySettingsProps): React.ReactNode => {
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [savingName, setSavingName] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
-  const [providerOptions, setProviderOptions] = useState<ProviderProfileOption[]>([]);
-  const [loadingProviderOptions, setLoadingProviderOptions] = useState(true);
   const [applyingProviderAccountId, setApplyingProviderAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     setDisplayName(profile.displayName);
   }, [profile.displayName]);
-
-  useEffect(() => {
-    const loadProviderOptions = async (): Promise<void> => {
-      try {
-        const response = await fetch(`${apiBaseUrl}/account/domain/provider-profile-options`, {
-          headers: createApiHeaders(),
-          credentials: "include"
-        });
-        const result = await response.json() as ProviderProfileOptionsResponse;
-        setProviderOptions(response.ok && result.ok ? result.options : []);
-      } catch {
-        setProviderOptions([]);
-      } finally {
-        setLoadingProviderOptions(false);
-      }
-    };
-
-    void loadProviderOptions();
-  }, []);
 
   const saveDisplayName = async (): Promise<void> => {
     setSavingName(true);
@@ -291,7 +260,7 @@ const ProfileIdentitySettings = ({
               )}
               <div>
                 <strong>{option.displayName}</strong>
-                <span>{providerLabels[option.providerId] ?? option.providerId}</span>
+                <span>{option.email ? `${providerLabels[option.providerId] ?? option.providerId} - ${option.email}` : providerLabels[option.providerId] ?? option.providerId}</span>
               </div>
               <div className={styles.providerProfileActions}>
                 <button

@@ -38,7 +38,7 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-maiks-pathname") ?? "";
   const isToolSurface = pathname.startsWith("/tools/");
-  const authenticatedContext = pathname === "/account"
+  const authenticatedContext = pathname === "/account" || pathname.startsWith("/account/")
     ? "account"
     : pathname === "/admin" || pathname.startsWith("/admin/")
       ? "admin"

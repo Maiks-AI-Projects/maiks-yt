@@ -8,6 +8,7 @@ export type ProviderProfileOption = {
   accountId: string;
   providerId: string;
   displayName: string;
+  email: string | null;
   imageUrl: string | null;
 };
 
@@ -61,6 +62,7 @@ const fetchGoogleProfile = async (
     accountId: account.id,
     providerId: account.providerId,
     displayName,
+    email: readString(profile?.email),
     imageUrl: readString(profile?.picture)
   } : null;
 };
@@ -80,6 +82,7 @@ const fetchGitHubProfile = async (
     accountId: account.id,
     providerId: account.providerId,
     displayName,
+    email: readString(profile?.email),
     imageUrl: readString(profile?.avatar_url)
   } : null;
 };
@@ -101,6 +104,7 @@ const fetchDiscordProfile = async (
     accountId: account.id,
     providerId: account.providerId,
     displayName,
+    email: readString(profile?.email),
     imageUrl: id && avatar
       ? `https://cdn.discordapp.com/avatars/${id}/${avatar}.png?size=512`
       : null
@@ -129,6 +133,7 @@ const fetchTwitchProfile = async (
     accountId: account.id,
     providerId: account.providerId,
     displayName,
+    email: readString(profile?.email),
     imageUrl: readString(profile?.profile_image_url)
   } : null;
 };

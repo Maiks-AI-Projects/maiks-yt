@@ -40,7 +40,9 @@ const VisibilityToggle = ({ preference, saving, onChange }: VisibilityToggleProp
           </Switch.Root>
         </span>
       </AccountControlTooltip>
-      <span>{saving ? "Saving" : preference.optedOut ? "Hidden" : "Allowed"}</span>
+      <span className={preference.optedOut ? styles.statePillBlocked : styles.statePillAllowed}>
+        {saving ? "Saving" : preference.optedOut ? "Hidden" : "Allowed"}
+      </span>
     </div>
   </div>
 );

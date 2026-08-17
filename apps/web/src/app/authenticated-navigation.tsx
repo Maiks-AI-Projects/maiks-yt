@@ -19,9 +19,10 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maik
 
 const accountItems: readonly NavigationItem[] = [
   { href: "/account", label: "Overview" },
-  { href: "/account#connections-title", label: "Connections" },
-  { href: "/account#privacy-title", label: "Privacy" },
-  { href: "/account#stream-title", label: "Stream appearance" },
+  { href: "/account/profile", label: "Profile" },
+  { href: "/account/connections", label: "Connections" },
+  { href: "/account/privacy", label: "Privacy" },
+  { href: "/account/stream", label: "Stream appearance" },
   { href: "/tools/notifications", label: "Notifications" }
 ];
 
@@ -122,7 +123,7 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
 
   const currentItem = items.find((item) => (
     item.href === pathname
-    || (item.href !== "/admin" && pathname.startsWith(`${item.href}/`))
+    || (item.href !== "/admin" && item.href !== "/account" && pathname.startsWith(`${item.href}/`))
   )) ?? firstItem;
 
   return (

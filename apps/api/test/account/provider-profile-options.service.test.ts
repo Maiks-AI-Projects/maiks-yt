@@ -18,6 +18,7 @@ describe("provider profile options", () => {
         expect(new Headers(init?.headers).get("authorization")).toBe("Bearer private-token");
         return new Response(JSON.stringify({
           login: "maiks-account",
+          email: "maiks@example.test",
           avatar_url: "https://avatars.githubusercontent.com/u/123"
         }), {
           status: 200,
@@ -30,6 +31,7 @@ describe("provider profile options", () => {
       accountId: "auth-account-1",
       providerId: "github",
       displayName: "maiks-account",
+      email: "maiks@example.test",
       imageUrl: "https://avatars.githubusercontent.com/u/123"
     });
     expect(JSON.stringify(option)).not.toContain("private-token");

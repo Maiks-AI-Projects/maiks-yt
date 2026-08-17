@@ -50,6 +50,22 @@ export type DomainUserProfile = {
   avatarUrl: string | null;
 };
 
+export type ProviderProfileOption = {
+  accountId: string;
+  providerId: string;
+  displayName: string;
+  email: string | null;
+  imageUrl: string | null;
+};
+
+export type ProviderProfileOptionsResponse = {
+  ok: true;
+  options: ProviderProfileOption[];
+} | {
+  ok: false;
+  reason: string;
+};
+
 export type DomainAccountSnapshot = {
   ok: true;
   authUserId: string;
