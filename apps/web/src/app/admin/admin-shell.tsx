@@ -85,31 +85,28 @@ const AdminItemLink = ({
 const AdminGroupLink = ({
   group,
   current,
-  href,
   idPrefix
 }: {
   group: AdminNavigationGroup;
   current: boolean;
-  href: string;
   idPrefix: string;
 }): React.ReactNode => {
   const Icon = group.icon;
   const tooltipId = getTooltipId(idPrefix, group.href);
 
   return (
-    <a
+    <summary
       aria-describedby={tooltipId}
       aria-label={`${group.label}: ${group.description}`}
       className={styles.groupLink}
       data-current={current ? "true" : undefined}
-      href={href}
       title={group.description}
     >
       <Icon aria-hidden="true" className={styles.navIcon} />
       <span>{group.label}</span>
       <FiChevronDown aria-hidden="true" className={styles.groupChevron} />
       <AdminNavigationTooltip id={tooltipId}>{group.description}</AdminNavigationTooltip>
-    </a>
+    </summary>
   );
 };
 
@@ -192,11 +189,10 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
         const groupIsCurrent = currentGroup?.id === group.id;
 
         return (
-          <section className={styles.navGroup} data-current={groupIsCurrent ? "true" : undefined} key={group.id}>
+          <details className={styles.navGroup} data-current={groupIsCurrent ? "true" : undefined} key={group.id} open>
             <AdminGroupLink
               current={groupIsCurrent}
               group={group}
-              href={buildHref(group.href)}
               idPrefix={idPrefix}
             />
             <div className={styles.itemList}>
@@ -214,7 +210,7 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
                 );
               })}
             </div>
-          </section>
+          </details>
         );
       })}
     </>

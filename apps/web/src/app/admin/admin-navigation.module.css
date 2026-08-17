@@ -314,10 +314,16 @@
 .groupLink {
   border: 1px solid transparent;
   color: var(--admin-muted);
+  cursor: pointer;
   gap: 0.5rem;
   grid-template-columns: 1.2rem minmax(0, 1fr) 0.85rem;
+  list-style: none;
   min-height: 2.2rem;
   padding: 0.35rem 0.5rem;
+}
+
+.groupLink::-webkit-details-marker {
+  display: none;
 }
 
 .groupLink span,
@@ -339,7 +345,12 @@
   color: var(--admin-quiet);
   height: 0.9rem;
   justify-self: end;
+  transition: transform 140ms ease;
   width: 0.9rem;
+}
+
+.navGroup:not([open]) .groupChevron {
+  transform: rotate(-90deg);
 }
 
 .navGroup[data-current="true"] .groupLink {
