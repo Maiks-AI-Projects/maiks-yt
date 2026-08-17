@@ -274,7 +274,8 @@
   border-right: 1px solid var(--admin-line);
   grid-area: rail;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0.65rem 0.55rem;
 }
 
