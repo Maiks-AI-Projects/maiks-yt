@@ -1,0 +1,231 @@
+.adminLayout {
+  --admin-canvas: #0c1215;
+  --admin-surface: #111a20;
+  --admin-surface-raised: #182329;
+  --admin-line: #304047;
+  --admin-line-soft: rgb(255 255 255 / 8%);
+  --admin-text: #f4f8f7;
+  --admin-muted: #a6b6be;
+  --admin-quiet: #74858d;
+  --admin-mint: #45d6ad;
+  --admin-mint-soft: rgb(69 214 173 / 12%);
+
+  align-items: start;
+  color: var(--admin-text);
+  display: grid;
+  gap: 1.35rem;
+  grid-template-columns: minmax(13.5rem, 16.25rem) minmax(0, 1fr);
+  margin: 0 auto;
+  padding: 1.25rem 0 3rem;
+  width: min(calc(100% - 40px), 1280px);
+}
+
+.desktopRail {
+  align-self: start;
+  background: #0f171b;
+  border: 1px solid var(--admin-line);
+  display: grid;
+  gap: 0.85rem;
+  max-height: calc(100vh - 88px);
+  overflow: auto;
+  padding: 0.9rem;
+  position: sticky;
+  top: 76px;
+}
+
+.railHeader,
+.mobileContext {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.railHeader span,
+.mobileContext span {
+  color: var(--admin-mint);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.railHeader strong,
+.mobileContext strong {
+  color: var(--admin-text);
+  font-size: 1rem;
+}
+
+.railNavigation,
+.mobileDestinationList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.overviewLink,
+.groupLink,
+.itemLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.overviewLink {
+  border: 1px solid var(--admin-line-soft);
+  display: grid;
+  gap: 0.22rem;
+  padding: 0.62rem;
+}
+
+.overviewLink strong {
+  color: var(--admin-text);
+  font-size: 0.92rem;
+}
+
+.overviewLink span {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.navNotice {
+  border: 1px solid var(--admin-line-soft);
+  color: var(--admin-muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0.62rem;
+}
+
+.navGroup {
+  border-top: 1px solid var(--admin-line);
+  display: grid;
+  gap: 0.42rem;
+  padding-top: 0.55rem;
+}
+
+.groupLink {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.2rem 0.1rem;
+}
+
+.groupLink span {
+  color: var(--admin-text);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.groupLink small {
+  color: var(--admin-quiet);
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
+.itemList {
+  display: grid;
+  gap: 0.14rem;
+}
+
+.itemLink {
+  border-left: 2px solid transparent;
+  color: var(--admin-muted);
+  font-size: 0.84rem;
+  line-height: 1.2;
+  min-height: 2rem;
+  padding: 0.42rem 0.48rem;
+}
+
+.overviewLink:hover,
+.overviewLink:focus-visible,
+.groupLink:hover,
+.groupLink:focus-visible,
+.itemLink:hover,
+.itemLink:focus-visible {
+  background: var(--admin-surface-raised);
+  color: var(--admin-text);
+  outline: 2px solid rgb(69 214 173 / 24%);
+  outline-offset: 2px;
+}
+
+.overviewLink[aria-current="page"],
+.itemLink[aria-current="page"] {
+  background: var(--admin-mint-soft);
+  border-color: var(--admin-mint);
+  color: var(--admin-text);
+}
+
+.navGroup[data-current="true"] .groupLink span {
+  color: var(--admin-mint);
+}
+
+.content {
+  min-width: 0;
+}
+
+.content :global(.project-admin-page) {
+  max-width: none;
+}
+
+.mobileNavigation {
+  display: none;
+}
+
+@media (max-width: 920px) {
+  .adminLayout {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 0.85rem;
+    width: min(calc(100% - 28px), 1280px);
+  }
+
+  .desktopRail {
+    display: none;
+  }
+
+  .mobileNavigation {
+    background: #0f171b;
+    border: 1px solid var(--admin-line);
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    position: sticky;
+    top: 64px;
+    z-index: 20;
+  }
+
+  .mobileDisclosure {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .mobileDisclosure summary {
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-line);
+    color: var(--admin-text);
+    cursor: pointer;
+    font-weight: 800;
+    min-height: 2.4rem;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .mobileDisclosure summary:focus-visible {
+    outline: 3px solid rgb(69 214 173 / 26%);
+    outline-offset: 2px;
+  }
+
+  .mobileDestinationList {
+    margin-top: 0.65rem;
+    max-height: min(65vh, 32rem);
+    overflow: auto;
+    padding-right: 0.15rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .mobileNavigation {
+    top: 64px;
+  }
+
+  .overviewLink span,
+  .groupLink small {
+    display: none;
+  }
+}

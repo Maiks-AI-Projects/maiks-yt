@@ -2,21 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken, withDevAuthToken } from "../dev-auth-token";
+import { createApiHeaders, withDevAuthToken } from "../dev-auth-token";
+import { useAdminAccess } from "./admin-access";
+import { adminNavigationGroups, helperAdminNavigationItem, type AdminNavigationItem } from "./admin-navigation-data";
 import { createControlUrl, overlayBaseUrl } from "../tool-surface-urls.service";
 import styles from "./admin-dashboard.module.css";
-
-type AdminDashboardItem = {
-  href: string;
-  label: string;
-  description: string;
-  preserveDevAuth?: boolean;
-};
-
-type AdminDashboardGroup = {
-  title: string;
-  items: readonly AdminDashboardItem[];
-};
 
 type DashboardStatusTone = "loading" | "ok" | "warn" | "bad";
 
@@ -31,6 +21,21 @@ type DashboardStatusCard = {
 type AdminDashboardLinkBadge = {
   label: string;
   tone: Exclude<DashboardStatusTone, "loading">;
+};
+
+type LiveWindowLink = {
+  href: string;
+  label: string;
+  description: string;
+  statusKey?: string;
+};
+
+type DashboardStatusSummary = {
+  key: string;
+  label: string;
+  value: string;
+  detail: string;
+  tone: DashboardStatusTone;
 };
 
 type NotificationListResponse =
@@ -141,132 +146,39 @@ type DashboardToneState = {
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
-const groups: readonly AdminDashboardGroup[] = [
+const liveWindowLinks: readonly LiveWindowLink[] = [
   {
-    title: "Stream Windows",
-    items: [
-      {
-        href: createControlUrl("/chat"),
-        label: "Streamer Chat",
-        description: "Private live chat + moderation status."
-      },
-      {
-        href: createControlUrl("/moderation"),
-        label: "Moderation Window",
-        description: "Stream moderation tools and helper context."
-      },
-      {
-        href: createControlUrl("/control"),
-        label: "Control Panel",
-        description: "Scene controls, stream tools, and live status."
-      },
-      {
-        href: createControlUrl("/ai"),
-        label: "AI Controls",
-        description: "Safety-gated AI output controls (currently inert)."
-      },
-      {
-        href: overlayBaseUrl,
-        label: "OBS Overlay",
-        description: "Shared OBS browser-source check surface."
-      },
-      {
-        href: "/tools/notifications",
-        label: "Notifications",
-        description: "Owner device notices and smoke alerts.",
-        preserveDevAuth: true
-      }
-    ]
+    href: createControlUrl("/chat"),
+    label: "Streamer Chat",
+    description: "Private live chat and service dots.",
+    statusKey: "moderation"
   },
   {
-    title: "Testing",
-    items: [
-      {
-        href: "/admin/testing",
-        label: "Testing Guide",
-        description: "Manual test runbook and readiness commands."
-      },
-      {
-        href: "/admin/connections",
-        label: "Connections",
-        description: "Provider catalog and received intake checks."
-      },
-      {
-        href: "/admin/provider-integrations",
-        label: "Provider Integrations",
-        description: "Twitch, YouTube, and Discord controls."
-      },
-      {
-        href: "/admin/event-routing",
-        label: "Event Routing",
-        description: "Manual routing rules and simulated approvals."
-      },
-      {
-        href: "/admin/live-helper",
-        label: "Live Helper",
-        description: "Active helper grants, alerts, and moderation state."
-      },
-      {
-        href: "/admin/backup/health",
-        label: "Backup Health",
-        description: "Read-only backup readiness checks."
-      }
-    ]
+    href: createControlUrl("/moderation"),
+    label: "Moderation Window",
+    description: "Chat-first moderation and helper context.",
+    statusKey: "moderation"
   },
   {
-    title: "Stream Operations",
-    items: [
-      {
-        href: "/admin/schedule",
-        label: "Schedule",
-        description: "Plan, edit, cancel, and focus planned streams."
-      },
-      {
-        href: "/admin/tokens",
-        label: "Access Tokens",
-        description: "Create and rotate overlay/control URLs."
-      },
-      {
-        href: "/admin/sessions",
-        label: "Sessions",
-        description: "Review and revoke active browser sessions."
-      },
-      {
-        href: "/admin/moderators",
-        label: "Moderators",
-        description: "Manage helper ranks, rights, and grant state."
-      }
-    ]
+    href: createControlUrl("/control"),
+    label: "Control Panel",
+    description: "Scene controls and live stream tools."
   },
   {
-    title: "Content",
-    items: [
-      {
-        href: "/admin/pages",
-        label: "Pages",
-        description: "Draft, preview, and publish website content."
-      },
-      {
-        href: "/admin/games",
-        label: "Games",
-        description: "Curate library and stream planning links."
-      },
-      {
-        href: "/admin/projects",
-        label: "Projects",
-        description: "Manage public project details and updates."
-      },
-      {
-        href: "/admin/links",
-        label: "Creator Links",
-        description: "Hub destination visibility and ordering."
-      },
-      {
-        href: "/admin/money",
-        label: "Money Ledger",
-        description: "Private ledger rows, warnings, and exports."
-      }
-    ]
+    href: createControlUrl("/ai"),
+    label: "AI Controls",
+    description: "Safety-gated controls, currently inert."
+  },
+  {
+    href: overlayBaseUrl,
+    label: "OBS Overlay",
+    description: "Shared browser-source check surface."
+  },
+  {
+    href: "/tools/notifications",
+    label: "Notifications",
+    description: "Owner device notices and smoke alerts.",
+    statusKey: "notifications"
   }
 ];
 
@@ -340,6 +252,13 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     value: "Checking",
     detail: "Loading active local moderation count.",
     tone: "loading"
+  },
+  {
+    key: "money",
+    label: "Money",
+    value: "Checking",
+    detail: "Loading private ledger warning count.",
+    tone: "loading"
   }
 ];
 
@@ -384,27 +303,14 @@ const getHumanDate = (value: string | null): string => {
 };
 
 const getDashboardItemBadge = (
-  item: AdminDashboardItem,
+  item: Pick<AdminNavigationItem, "statusKey">,
   statusCards: readonly DashboardStatusCard[]
 ): AdminDashboardLinkBadge | null => {
-  const statusKeyByHref: Record<string, string> = {
-    "/admin/backup/health": "backup",
-    "/admin/connections": "provider-intake",
-    "/admin/event-routing": "pending-approvals",
-    "/admin/live-helper": "helpers",
-    "/admin/moderators": "helpers",
-    "/admin/money": "money",
-    "/admin/sessions": "sessions",
-    [createControlUrl("/moderation")]: "moderation",
-    "/tools/notifications": "notifications"
-  };
-
-  const statusKey = statusKeyByHref[item.href];
-  if (!statusKey) {
+  if (!item.statusKey) {
     return null;
   }
 
-  const statusCard = statusCards.find((card) => card.key === statusKey);
+  const statusCard = statusCards.find((card) => card.key === item.statusKey);
   if (!statusCard || statusCard.tone === "loading") {
     return null;
   }
@@ -669,11 +575,60 @@ const badgeClass = (tone: DashboardStatusTone): string => {
   return styles.badgeBad ?? "";
 };
 
-const getDashboardLinkHref = (item: AdminDashboardItem, devAuthToken: string | null): string =>
-  item.preserveDevAuth === false ? item.href : withDevAuthToken(item.href, devAuthToken);
+const getDashboardLinkHref = (href: string, devAuthToken: string | null): string => withDevAuthToken(href, devAuthToken);
+
+const getWorstTone = (cards: readonly DashboardStatusCard[]): DashboardStatusTone => {
+  if (cards.some((card) => card.tone === "loading")) {
+    return "loading";
+  }
+
+  if (cards.some((card) => card.tone === "bad")) {
+    return "bad";
+  }
+
+  if (cards.some((card) => card.tone === "warn")) {
+    return "warn";
+  }
+
+  return "ok";
+};
+
+const toneSummaryLabel: Record<DashboardStatusTone, string> = {
+  loading: "Checking",
+  ok: "Clear",
+  warn: "Review",
+  bad: "Attention"
+};
+
+const buildStatusSummary = (
+  key: string,
+  label: string,
+  statusCards: readonly DashboardStatusCard[],
+  statusKeys: readonly string[]
+): DashboardStatusSummary => {
+  const cards = statusKeys
+    .map((statusKey) => findStatusCard(statusCards, statusKey))
+    .filter((card): card is DashboardStatusCard => Boolean(card));
+  const tone = getWorstTone(cards);
+
+  return {
+    key,
+    label,
+    value: toneSummaryLabel[tone],
+    detail: cards.map((card) => `${card.label}: ${card.value}`).join(" · "),
+    tone
+  };
+};
+
+const buildStatusSummaries = (statusCards: readonly DashboardStatusCard[]): readonly DashboardStatusSummary[] => [
+  buildStatusSummary("platform", "Platform Health", statusCards, ["api", "database", "backup", "smoke"]),
+  buildStatusSummary("safety", "Safety Signals", statusCards, ["notifications", "provider-intake", "pending-approvals", "moderation"]),
+  buildStatusSummary("access", "Access", statusCards, ["sessions", "helpers"]),
+  buildStatusSummary("finance", "Finance", statusCards, ["money"])
+];
 
 const AdminDashboardClient = (): React.ReactNode => {
-  const [devAuthToken, setDevAuthToken] = useState<string | null>(null);
+  const { accessState, devAuthToken } = useAdminAccess();
   const [statusCards, setStatusCards] = useState<readonly DashboardStatusCard[]>(() => loadingCards());
   const [statusMessage, setStatusMessage] = useState("Loading dashboard status...");
   const [exportStatus, setExportStatus] = useState<DashboardToneState>({
@@ -746,20 +701,62 @@ const AdminDashboardClient = (): React.ReactNode => {
   };
 
   useEffect(() => {
-    captureDevAuthTokenFromUrl();
-    setDevAuthToken(getDevAuthToken());
+    if (accessState !== "owner") {
+      return;
+    }
+
     void refreshStatus();
-  }, []);
+  }, [accessState]);
+
+  if (accessState !== "owner") {
+    const isChecking = accessState === "checking";
+    const isHelper = accessState === "helper";
+
+    return (
+      <section className={styles.adminShell}>
+        <header className={styles.dashboardHeader}>
+          <div>
+            <p className={styles.eyebrow}>Private Admin</p>
+            <h1>{isChecking ? "Checking access" : isHelper ? "Limited admin access" : "Access required"}</h1>
+            <p>
+              {isChecking
+                ? "Checking whether this account can open the admin overview."
+                : isHelper
+                  ? "This account can use the live-helper admin surface, but owner-only admin areas stay hidden."
+                  : "Sign in with an account that has admin access to view this overview."}
+            </p>
+          </div>
+        </header>
+        <section className={styles.accessPanel} aria-labelledby="admin-access-state-title">
+          <h2 id="admin-access-state-title">{isChecking ? "Checking" : isHelper ? "Available destination" : "No admin navigation available"}</h2>
+          <p>
+            {isChecking
+              ? "No admin destinations are shown until access is confirmed."
+              : isHelper
+                ? "Open the helper dashboard for active helper grants, alerts, and moderation state."
+                : "The route remains protected by the existing page and API access checks."}
+          </p>
+          {isHelper ? (
+            <a className={styles.accessLink} href={getDashboardLinkHref(helperAdminNavigationItem.href, devAuthToken)}>
+              Open {helperAdminNavigationItem.label}
+            </a>
+          ) : null}
+        </section>
+      </section>
+    );
+  }
 
   const apiStatus = findStatusCard(statusCards, "api");
+  const statusSummaries = buildStatusSummaries(statusCards);
+
   return (
     <section className={styles.adminShell}>
       <header className={styles.dashboardHeader}>
         <div>
           <p className={styles.eyebrow}>Private Admin</p>
-          <h1>Admin Dashboard</h1>
+          <h1>Admin</h1>
           <p>
-            Stream tools, safety, testing health, content, and site operations in one place.
+            Compact status and entry points for the focused admin sections.
           </p>
         </div>
         <p className={styles.statusPill}>
@@ -770,7 +767,7 @@ const AdminDashboardClient = (): React.ReactNode => {
       <section className={styles.controlPanel}>
         <div className={styles.controlPanelHeader}>
           <div>
-            <h2>Testing Status</h2>
+            <h2>Overview Status</h2>
             <p>{statusMessage}</p>
           </div>
           <div className={styles.actions}>
@@ -783,12 +780,12 @@ const AdminDashboardClient = (): React.ReactNode => {
           </div>
         </div>
 
-        <div className={styles.statusGrid}>
-          {statusCards.map((card) => (
-            <article className={`${styles.statusCard} ${statusToneClass(card.tone)}`} key={card.key}>
-              <span>{card.label}</span>
-              <strong>{card.value}</strong>
-              <p>{card.detail}</p>
+        <div className={styles.statusSummaryGrid}>
+          {statusSummaries.map((summary) => (
+            <article className={`${styles.statusSummaryCard} ${statusToneClass(summary.tone)}`} key={summary.key}>
+              <span>{summary.label}</span>
+              <strong>{summary.value}</strong>
+              <p>{summary.detail}</p>
             </article>
           ))}
         </div>
@@ -799,38 +796,61 @@ const AdminDashboardClient = (): React.ReactNode => {
         </p>
       </section>
 
-      <div className={styles.groupGrid}>
-        {groups.map((group) => (
-          <section className={styles.groupCard} key={group.title}>
-            <h2>{group.title}</h2>
-            <div className={styles.linkGrid}>
-              {group.items.map((item) => {
-                const badge = getDashboardItemBadge(item, statusCards);
-                const href = getDashboardLinkHref(item, devAuthToken);
-                return (
-                  <a
-                    className={styles.toolLink}
-                    href={href}
-                    key={item.href}
-                  >
-                    <div>
-                      <div className={styles.toolTitleRow}>
-                        <strong>{item.label}</strong>
-                        {badge ? (
-                          <span className={`${styles.badge} ${badgeClass(badge.tone)}`}>
-                            {badge.label}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p>{item.description}</p>
-                    </div>
-                  </a>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </div>
+      <section className={styles.areaSection} aria-labelledby="admin-areas-title">
+        <div className={styles.sectionHeading}>
+          <h2 id="admin-areas-title">Admin Areas</h2>
+          <p>The side rail keeps every destination available; these cards open each group.</p>
+        </div>
+        <div className={styles.areaGrid}>
+          {adminNavigationGroups.map((group) => {
+            const statusItems = group.items
+              .map((item) => getDashboardItemBadge(item, statusCards))
+              .filter((badge): badge is AdminDashboardLinkBadge => Boolean(badge));
+
+            return (
+              <a className={styles.areaCard} href={getDashboardLinkHref(group.href, devAuthToken)} key={group.id}>
+                <div className={styles.areaCardHeader}>
+                  <span>{group.shortLabel}</span>
+                  <strong>{group.label}</strong>
+                </div>
+                <p>{group.description}</p>
+                <div className={styles.areaMeta}>
+                  <span>{group.items.length} {group.items.length === 1 ? "destination" : "destinations"}</span>
+                  {statusItems.slice(0, 2).map((badge, index) => (
+                    <span className={`${styles.badge} ${badgeClass(badge.tone)}`} key={`${group.id}-${badge.label}-${index}`}>
+                      {badge.label}
+                    </span>
+                  ))}
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className={styles.launchSection} aria-labelledby="admin-live-windows-title">
+        <div className={styles.sectionHeading}>
+          <h2 id="admin-live-windows-title">Live Windows</h2>
+          <p>Standalone stream tools stay separate from the admin page content.</p>
+        </div>
+        <div className={styles.launchGrid}>
+          {liveWindowLinks.map((item) => {
+            const badge = getDashboardItemBadge(item, statusCards);
+
+            return (
+              <a className={styles.launchLink} href={getDashboardLinkHref(item.href, devAuthToken)} key={item.href}>
+                <strong>{item.label}</strong>
+                <span>{item.description}</span>
+                {badge ? (
+                  <span className={`${styles.badge} ${badgeClass(badge.tone)}`}>
+                    {badge.label}
+                  </span>
+                ) : null}
+              </a>
+            );
+          })}
+        </div>
+      </section>
     </section>
   );
 };

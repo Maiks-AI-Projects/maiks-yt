@@ -7,7 +7,7 @@ import { createApiHeaders } from "./dev-auth-token";
 import styles from "./site-shell.module.css";
 
 type AuthenticatedNavigationProps = {
-  context: "account" | "admin";
+  context: "account";
 };
 
 type NavigationItem = {
@@ -24,20 +24,6 @@ const accountItems: readonly NavigationItem[] = [
   { href: "/account/privacy", label: "Privacy" },
   { href: "/account/stream", label: "Stream appearance" },
   { href: "/tools/notifications", label: "Notifications" }
-];
-
-const ownerItems: readonly NavigationItem[] = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/pages", label: "Content" },
-  { href: "/admin/moderators", label: "Community" },
-  { href: "/admin/schedule", label: "Stream" },
-  { href: "/admin/provider-integrations", label: "Providers" },
-  { href: "/admin/money", label: "Finance" },
-  { href: "/admin/testing", label: "Testing" }
-];
-
-const helperItems: readonly NavigationItem[] = [
-  { href: "/admin/live-helper", label: "Live helper" }
 ];
 
 export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProps): React.ReactNode => {
@@ -98,14 +84,6 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
       return [];
     }
 
-    if (context === "admin") {
-      if (hasOwnerAccess) {
-        return ownerItems;
-      }
-
-      return hasHelperAccess ? helperItems : [];
-    }
-
     const privilegedItem = hasOwnerAccess
       ? [{ href: "/admin", label: "Admin" }]
       : hasHelperAccess
@@ -128,7 +106,7 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
 
   return (
     <div className={styles.contextBar}>
-      <nav className={styles.contextLinks} aria-label={context === "admin" ? "Admin navigation" : "Account navigation"}>
+      <nav className={styles.contextLinks} aria-label="Account navigation">
         {items.map((item) => (
           <a
             aria-current={item.href === currentItem.href ? "page" : undefined}
@@ -140,9 +118,9 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
         ))}
       </nav>
       <label className={styles.contextSelectLabel}>
-        <span>{context === "admin" ? "Admin view" : "Account view"}</span>
+        <span>Account view</span>
         <select
-          aria-label={context === "admin" ? "Open admin view" : "Open account view"}
+          aria-label="Open account view"
           value={currentItem.href}
           onChange={(event) => window.location.assign(event.target.value)}
         >

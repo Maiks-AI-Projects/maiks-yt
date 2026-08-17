@@ -40,9 +40,7 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
   const isToolSurface = pathname.startsWith("/tools/");
   const authenticatedContext = pathname === "/account" || pathname.startsWith("/account/")
     ? "account"
-    : pathname === "/admin" || pathname.startsWith("/admin/")
-      ? "admin"
-      : null;
+    : null;
 
   return (
     <html lang="en">
