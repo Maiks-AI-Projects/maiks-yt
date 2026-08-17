@@ -260,7 +260,7 @@
 }
 
 :global(.provider-controls),
-.switchGroup {
+.visibilityControls {
   display: grid;
   gap: 0.6rem;
   justify-items: start;
@@ -281,15 +281,14 @@
 }
 
 :global(.switch-control-row),
-.switchGroup {
+.visibilityControls {
   align-items: center;
   display: flex;
   gap: 0.55rem;
   min-height: 2.1rem;
 }
 
-:global(.account-switch),
-.switch {
+:global(.account-switch) {
   background: #27343c;
   border: 1px solid #495a65;
   border-radius: 999px;
@@ -301,26 +300,22 @@
   width: 3.2rem;
 }
 
-:global(.account-switch[data-state="checked"]),
-.switch[data-state="checked"] {
+:global(.account-switch[data-state="checked"]) {
   background: var(--account-mint);
   border-color: var(--account-mint);
 }
 
-:global(.account-switch:disabled),
-.switch:disabled {
+:global(.account-switch:disabled) {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-:global(.account-switch:focus-visible),
-.switch:focus-visible {
+:global(.account-switch:focus-visible) {
   outline: 3px solid rgb(69 214 173 / 28%);
   outline-offset: 2px;
 }
 
-:global(.account-switch-thumb),
-.switchThumb {
+:global(.account-switch-thumb) {
   background: #f5fbfa;
   border-radius: 50%;
   box-shadow: 0 2px 8px rgb(0 0 0 / 24%);
@@ -331,8 +326,7 @@
   transition: transform 140ms ease;
 }
 
-:global(.account-switch-thumb[data-state="checked"]),
-.switchThumb[data-state="checked"] {
+:global(.account-switch-thumb[data-state="checked"]) {
   transform: translateX(1.82rem);
 }
 
@@ -345,6 +339,85 @@
 :global(.tooltip-trigger-wrap),
 .tooltipTrigger {
   display: inline-flex;
+}
+
+.checkboxControl {
+  align-items: center;
+  color: var(--account-text);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 0.45rem;
+  min-height: 2rem;
+}
+
+.checkboxControl:has(.checkboxInput:disabled) {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.checkboxInput {
+  accent-color: var(--account-mint);
+  appearance: none;
+  background: #0f171d;
+  border: 2px solid #60717c;
+  border-radius: 3px;
+  cursor: pointer;
+  display: inline-grid;
+  flex: 0 0 auto;
+  height: 1.05rem;
+  margin: 0;
+  place-content: center;
+  width: 1.05rem;
+}
+
+.checkboxInput::before {
+  background: #06110f;
+  box-shadow: inset 0 0 0 0.08rem #06110f;
+  clip-path: polygon(14% 44%, 0 58%, 38% 96%, 100% 20%, 84% 6%, 37% 63%);
+  content: "";
+  height: 0.72rem;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 120ms ease, transform 120ms ease;
+  width: 0.72rem;
+}
+
+.checkboxInput:checked {
+  background: var(--account-mint);
+  border-color: var(--account-mint);
+}
+
+.checkboxInput:checked::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkboxInput:disabled {
+  cursor: not-allowed;
+}
+
+.checkboxInput:focus-visible {
+  outline: 3px solid rgb(69 214 173 / 28%);
+  outline-offset: 3px;
+}
+
+.checkboxControl .checkboxLabel {
+  color: var(--account-text);
+  display: inline;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.checkboxLabel .visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  display: inline;
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
 :global(.control-tooltip),
@@ -630,6 +703,24 @@
   background: rgb(255 107 114 / 13%);
   border-color: rgb(255 107 114 / 36%);
   color: #ff9ba0;
+}
+
+.visibilityStatusGroup {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.visibilityRow .statePillAllowed,
+.visibilityRow .statePillBlocked {
+  display: inline-flex;
+}
+
+.savingLabel {
+  color: var(--account-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .connectionList,
@@ -920,18 +1011,15 @@
     width: 2.7rem;
   }
 
-  :global(.account-switch),
-  .switch {
+  :global(.account-switch) {
     width: 3rem;
   }
 
-  :global(.account-switch-thumb),
-  .switchThumb {
+  :global(.account-switch-thumb) {
     transform: translateX(0.16rem);
   }
 
-  :global(.account-switch-thumb[data-state="checked"]),
-  .switchThumb[data-state="checked"] {
+  :global(.account-switch-thumb[data-state="checked"]) {
     transform: translateX(1.6rem);
   }
 

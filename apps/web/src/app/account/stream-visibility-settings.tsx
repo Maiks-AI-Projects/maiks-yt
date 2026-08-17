@@ -1,7 +1,7 @@
 "use client";
 
 import type { StreamVisibilityPreferenceScope } from "@maiks-yt/domain/events";
-import * as Switch from "@radix-ui/react-switch";
+import { useId } from "react";
 
 import AccountControlTooltip from "./account-control-tooltip";
 import styles from "./account.module.css";
@@ -20,32 +20,48 @@ type VisibilityToggleProps = {
   onChange: (scope: StreamVisibilityPreferenceScope, optedOut: boolean) => void;
 };
 
-const VisibilityToggle = ({ preference, saving, onChange }: VisibilityToggleProps): React.ReactNode => (
-  <div className={styles.visibilityRow}>
-    <div>
-      <strong>{preference.label}</strong>
-      <span>{preference.description}</span>
-    </div>
-    <div className={styles.switchGroup}>
-      <AccountControlTooltip text={`Turn this on to keep ${preference.label.toLowerCase()} off stream.`}>
-        <span className={styles.tooltipTrigger}>
-          <Switch.Root
-            className={styles.switch}
-            checked={preference.optedOut}
-            disabled={saving}
-            onCheckedChange={(checked) => onChange(preference.scope, checked)}
-            aria-label={`Keep ${preference.label} off stream`}
+const VisibilityToggle = ({ preference, saving, onChange }: VisibilityToggleProps): React.ReactNode => {
+  const checkboxId = useId();
+  const status = preference.optedOut ? "Hidden" : "Allowed";
+
+  return (
+    <div className={styles.visibilityRow}>
+      <div>
+        <strong>{preference.label}</strong>
+        <span>{preference.description}</span>
+      </div>
+      <div className={styles.visibilityControls}>
+        <AccountControlTooltip text={`Check this to keep ${preference.label.toLowerCase()} off stream.`}>
+          <span className={styles.tooltipTrigger}>
+            <label className={styles.checkboxControl} htmlFor={checkboxId}>
+              <input
+                id={checkboxId}
+                className={styles.checkboxInput}
+                type="checkbox"
+                checked={preference.optedOut}
+                disabled={saving}
+                onChange={(event) => onChange(preference.scope, event.currentTarget.checked)}
+              />
+              <span className={styles.checkboxLabel}>
+                Hide from stream
+                <span className={styles.visuallyHidden}> for {preference.label}</span>
+              </span>
+            </label>
+          </span>
+        </AccountControlTooltip>
+        <div className={styles.visibilityStatusGroup}>
+          <span
+            className={preference.optedOut ? styles.statePillBlocked : styles.statePillAllowed}
+            aria-live="polite"
           >
-            <Switch.Thumb className={styles.switchThumb} />
-          </Switch.Root>
-        </span>
-      </AccountControlTooltip>
-      <span className={preference.optedOut ? styles.statePillBlocked : styles.statePillAllowed}>
-        {saving ? "Saving" : preference.optedOut ? "Hidden" : "Allowed"}
-      </span>
+            {status}
+          </span>
+          {saving ? <span className={styles.savingLabel}>Saving</span> : null}
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const StreamVisibilitySettings = ({
   globalPreference,
