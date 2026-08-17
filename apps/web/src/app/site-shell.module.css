@@ -61,24 +61,22 @@
   align-items: center;
   color: var(--text);
   display: inline-flex;
-  gap: 11px;
+  flex: 0 0 auto;
+  gap: 9px;
   text-decoration: none;
   white-space: nowrap;
 }
 
 .brandMark {
-  border: 1px solid var(--mint);
-  color: var(--mint);
-  display: grid;
-  font-weight: 800;
-  height: 31px;
-  line-height: 1;
-  place-items: center;
-  width: 31px;
+  display: block;
+  flex: 0 0 34px;
+  height: 34px;
+  object-fit: contain;
+  width: 34px;
 }
 
 .brand strong {
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
 
 .navigation {
@@ -310,11 +308,15 @@
 }
 
 @media (max-width: 420px) {
-  .brand strong {
-    display: none;
-  }
-
   .navShell {
     gap: 10px;
+  }
+
+  .brand {
+    gap: 7px;
+  }
+
+  .brand strong {
+    font-size: 0.96rem;
   }
 }

@@ -8,6 +8,7 @@ Build the production public website page by page on the dedicated `production` b
 
 ## Production Website Lane
 
+- Integrated the approved C2 no-border cartoon portrait as the public Maiks.yt header mark and browser favicon/touch-icon set. Standalone stream-tool PWA branding remains unchanged so this public-site identity update does not silently redefine those operational surfaces.
 - Added independent Maiks.yt account identity editing: authenticated members can set a custom account name, upload a cropped profile image, replace it atomically, or remove it. Connected Google, GitHub, Discord, and Twitch profiles can also offer explicit name/image choices; selected provider images are copied into Maiks.yt storage instead of remaining provider-hosted dependencies. OAuth provider identity is no longer applied automatically, linked providers are presented as login connections, and profile image bytes use a dedicated production volume.
 - Applied the first Page Viewer homepage concept as the real production homepage foundation.
 - Added a shared dark public site shell with responsive navigation and account access while preserving standalone tool surfaces.
