@@ -33,21 +33,21 @@ const VisibilityToggle = ({ preference, saving, onChange }: VisibilityToggleProp
         <span>{preference.description}</span>
       </div>
       <div className={styles.visibilityControls}>
-        <AccountControlTooltip text={`Turn on to keep ${preference.label.toLowerCase()} off stream.`}>
+        <AccountControlTooltip text={`Turn on to show ${preference.label.toLowerCase()} on stream.`}>
           <span className={styles.tooltipTrigger}>
             <label className={styles.streamSwitchControl} htmlFor={switchId}>
               <Switch.Root
                 id={switchId}
                 className={styles.streamSwitch}
-                checked={preference.optedOut}
+                checked={!preference.optedOut}
                 disabled={saving}
-                onCheckedChange={(checked) => onChange(preference.scope, checked)}
+                onCheckedChange={(checked) => onChange(preference.scope, !checked)}
                 aria-labelledby={switchLabelId}
               >
                 <Switch.Thumb className={styles.streamSwitchThumb} />
               </Switch.Root>
               <span className={styles.streamSwitchLabel} id={switchLabelId}>
-                Hide from stream
+                Show on stream
                 <span className={styles.visuallyHidden}> for {preference.label}</span>
               </span>
             </label>
@@ -55,7 +55,9 @@ const VisibilityToggle = ({ preference, saving, onChange }: VisibilityToggleProp
         </AccountControlTooltip>
         <div className={styles.visibilityStatusGroup}>
           <span
-            className={preference.optedOut ? styles.statePillBlocked : styles.statePillAllowed}
+            className={
+              preference.optedOut ? styles.visibilityStatusHidden : styles.visibilityStatusAllowed
+            }
             aria-live="polite"
           >
             {status}

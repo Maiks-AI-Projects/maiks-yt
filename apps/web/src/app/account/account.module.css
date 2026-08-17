@@ -355,22 +355,21 @@
 }
 
 .streamSwitch {
-  background: #197957;
-  border: 1px solid #58d9ad;
-  border-radius: 5px;
+  background: #d84f58;
+  border: 0;
+  border-radius: 999px;
   box-sizing: border-box;
   cursor: pointer;
   flex: 0 0 auto;
-  height: 1.45rem;
+  height: 1.125rem;
   margin: 0;
   padding: 0.125rem;
-  transition: background-color 140ms ease, border-color 140ms ease;
-  width: 2.6rem;
+  transition: background-color 140ms ease;
+  width: 2.125rem;
 }
 
 .streamSwitch[data-state="checked"] {
-  background: #b94149;
-  border-color: #ff7a82;
+  background: #23ad72;
 }
 
 .streamSwitch:disabled {
@@ -384,19 +383,18 @@
 }
 
 .streamSwitchThumb {
-  background: #f4faf8;
-  border: 1px solid rgb(4 17 14 / 22%);
-  border-radius: 3px;
+  background: #fff;
+  border-radius: 50%;
   box-shadow: 0 1px 3px rgb(0 0 0 / 28%);
   display: block;
-  height: 1.05rem;
+  height: 0.875rem;
   transform: translateX(0);
   transition: transform 140ms ease;
-  width: 1.05rem;
+  width: 0.875rem;
 }
 
 .streamSwitchThumb[data-state="checked"] {
-  transform: translateX(1.15rem);
+  transform: translateX(1rem);
 }
 
 .visibilityRow .streamSwitchLabel {
@@ -715,10 +713,21 @@
   justify-content: flex-end;
 }
 
-.visibilityRow .statePillAllowed,
-.visibilityRow .statePillBlocked {
-  border-radius: 4px;
-  display: inline-flex;
+.visibilityRow .visibilityStatusAllowed,
+.visibilityRow .visibilityStatusHidden {
+  display: inline;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.visibilityRow .visibilityStatusAllowed {
+  color: #76deb9;
+}
+
+.visibilityRow .visibilityStatusHidden {
+  color: #ff8f96;
 }
 
 .savingLabel {
