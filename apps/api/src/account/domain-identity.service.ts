@@ -11,6 +11,24 @@ export type DomainUserRow = {
   avatarUrl: string | null;
 };
 
+export const getManagedAvatarUrl = (userId: string, avatarUrl?: string | null): string | null => {
+  if (!avatarUrl) {
+    return null;
+  }
+
+  try {
+    const publicApiUrl = new URL(process.env.API_PUBLIC_BASE_URL ?? "http://localhost:3001");
+    const candidate = new URL(avatarUrl);
+
+    return candidate.origin === publicApiUrl.origin
+      && candidate.pathname === `/profiles/images/${userId}`
+      ? avatarUrl
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 type LinkedAccountRow = {
   id: string;
   provider: string;
@@ -76,7 +94,7 @@ export const getDomainUserForAuthUser = async (
         id: existingLink.userId,
         displayName: existingLink.displayName,
         profileVisibility: existingLink.profileVisibility,
-        avatarUrl: existingLink.avatarUrl ?? null
+        avatarUrl: getManagedAvatarUrl(existingLink.userId, existingLink.avatarUrl)
       }
     };
   }
