@@ -38,14 +38,16 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-maiks-pathname") ?? "";
   const isToolSurface = pathname.startsWith("/tools/");
+  const isAdminSurface = pathname === "/admin" || pathname.startsWith("/admin/");
+  const isStandaloneSurface = isToolSurface || isAdminSurface;
   const authenticatedContext = pathname === "/account" || pathname.startsWith("/account/")
     ? "account"
     : null;
 
   return (
     <html lang="en">
-      <body className={isToolSurface ? "tool-surface-body" : shellStyles.siteBody}>
-        {isToolSurface ? null : (
+      <body className={isToolSurface ? "tool-surface-body" : isAdminSurface ? "admin-surface-body" : shellStyles.siteBody}>
+        {isStandaloneSurface ? null : (
           <>
             <a className={shellStyles.skipLink} href="#main-content">Skip to content</a>
             <header className={shellStyles.header}>
@@ -71,8 +73,8 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
             {authenticatedContext ? <AuthenticatedNavigation context={authenticatedContext} /> : null}
           </>
         )}
-        <div className={isToolSurface ? undefined : shellStyles.mainContent} id="main-content">{children}</div>
-        {isToolSurface ? null : (
+        <div className={isStandaloneSurface ? undefined : shellStyles.mainContent} id="main-content">{children}</div>
+        {isStandaloneSurface ? null : (
           <footer className={shellStyles.footer}>
             <div className={shellStyles.footerInner}>
               <div className={shellStyles.footerBrand}>

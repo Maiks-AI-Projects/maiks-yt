@@ -718,13 +718,6 @@ const AdminDashboardClient = (): React.ReactNode => {
           <div>
             <p className={styles.eyebrow}>Private Admin</p>
             <h1>{isChecking ? "Checking access" : isHelper ? "Limited admin access" : "Access required"}</h1>
-            <p>
-              {isChecking
-                ? "Checking whether this account can open the admin overview."
-                : isHelper
-                  ? "This account can use the live-helper admin surface, but owner-only admin areas stay hidden."
-                  : "Sign in with an account that has admin access to view this overview."}
-            </p>
           </div>
         </header>
         <section className={styles.accessPanel} aria-labelledby="admin-access-state-title">
@@ -755,9 +748,6 @@ const AdminDashboardClient = (): React.ReactNode => {
         <div>
           <p className={styles.eyebrow}>Private Admin</p>
           <h1>Admin</h1>
-          <p>
-            Compact status and entry points for the focused admin sections.
-          </p>
         </div>
         <p className={styles.statusPill}>
           API status: {apiStatus?.value ?? "Unknown"}
@@ -799,7 +789,6 @@ const AdminDashboardClient = (): React.ReactNode => {
       <section className={styles.areaSection} aria-labelledby="admin-areas-title">
         <div className={styles.sectionHeading}>
           <h2 id="admin-areas-title">Admin Areas</h2>
-          <p>The side rail keeps every destination available; these cards open each group.</p>
         </div>
         <div className={styles.areaGrid}>
           {adminNavigationGroups.map((group) => {
@@ -808,12 +797,16 @@ const AdminDashboardClient = (): React.ReactNode => {
               .filter((badge): badge is AdminDashboardLinkBadge => Boolean(badge));
 
             return (
-              <a className={styles.areaCard} href={getDashboardLinkHref(group.href, devAuthToken)} key={group.id}>
+              <a
+                className={styles.areaCard}
+                href={getDashboardLinkHref(group.href, devAuthToken)}
+                key={group.id}
+                title={group.description}
+              >
                 <div className={styles.areaCardHeader}>
                   <span>{group.shortLabel}</span>
                   <strong>{group.label}</strong>
                 </div>
-                <p>{group.description}</p>
                 <div className={styles.areaMeta}>
                   <span>{group.items.length} {group.items.length === 1 ? "destination" : "destinations"}</span>
                   {statusItems.slice(0, 2).map((badge, index) => (
@@ -831,16 +824,19 @@ const AdminDashboardClient = (): React.ReactNode => {
       <section className={styles.launchSection} aria-labelledby="admin-live-windows-title">
         <div className={styles.sectionHeading}>
           <h2 id="admin-live-windows-title">Live Windows</h2>
-          <p>Standalone stream tools stay separate from the admin page content.</p>
         </div>
         <div className={styles.launchGrid}>
           {liveWindowLinks.map((item) => {
             const badge = getDashboardItemBadge(item, statusCards);
 
             return (
-              <a className={styles.launchLink} href={getDashboardLinkHref(item.href, devAuthToken)} key={item.href}>
+              <a
+                className={styles.launchLink}
+                href={getDashboardLinkHref(item.href, devAuthToken)}
+                key={item.href}
+                title={item.description}
+              >
                 <strong>{item.label}</strong>
-                <span>{item.description}</span>
                 {badge ? (
                   <span className={`${styles.badge} ${badgeClass(badge.tone)}`}>
                     {badge.label}

@@ -58,6 +58,7 @@
 }
 
 .brand {
+  align-self: stretch;
   align-items: center;
   color: var(--text);
   display: inline-flex;
@@ -68,11 +69,12 @@
 }
 
 .brandMark {
+  align-self: flex-end;
   display: block;
-  flex: 0 0 34px;
-  height: 34px;
+  flex: 0 0 46px;
+  height: 46px;
   object-fit: contain;
-  width: 34px;
+  width: 46px;
 }
 
 .brand strong {

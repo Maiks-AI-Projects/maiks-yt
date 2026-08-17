@@ -19,6 +19,14 @@ body {
   overscroll-behavior: none;
 }
 
+.admin-surface-body {
+  background: #070d10;
+  color: #f4f8f7;
+  color-scheme: dark;
+  min-height: 100vh;
+  overscroll-behavior: none;
+}
+
 a {
   color: inherit;
 }
