@@ -23,6 +23,28 @@ type ProfileUpdateResponse = {
   reason: string;
 };
 
+type ProviderProfileOption = {
+  accountId: string;
+  providerId: string;
+  displayName: string;
+  imageUrl: string | null;
+};
+
+type ProviderProfileOptionsResponse = {
+  ok: true;
+  options: ProviderProfileOption[];
+} | {
+  ok: false;
+  reason: string;
+};
+
+const providerLabels: Readonly<Record<string, string>> = {
+  discord: "Discord",
+  github: "GitHub",
+  google: "Google",
+  twitch: "Twitch"
+};
+
 const readFileAsBase64 = async (file: File): Promise<string> =>
   await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -50,10 +72,32 @@ const ProfileIdentitySettings = ({
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [savingName, setSavingName] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
+  const [providerOptions, setProviderOptions] = useState<ProviderProfileOption[]>([]);
+  const [loadingProviderOptions, setLoadingProviderOptions] = useState(true);
+  const [applyingProviderAccountId, setApplyingProviderAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     setDisplayName(profile.displayName);
   }, [profile.displayName]);
+
+  useEffect(() => {
+    const loadProviderOptions = async (): Promise<void> => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/account/domain/provider-profile-options`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        });
+        const result = await response.json() as ProviderProfileOptionsResponse;
+        setProviderOptions(response.ok && result.ok ? result.options : []);
+      } catch {
+        setProviderOptions([]);
+      } finally {
+        setLoadingProviderOptions(false);
+      }
+    };
+
+    void loadProviderOptions();
+  }, []);
 
   const saveDisplayName = async (): Promise<void> => {
     setSavingName(true);
@@ -139,6 +183,38 @@ const ProfileIdentitySettings = ({
     }
   };
 
+  const applyProviderProfile = async (
+    option: ProviderProfileOption,
+    selection: "name" | "image" | "both"
+  ): Promise<void> => {
+    setApplyingProviderAccountId(option.accountId);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/account/domain/provider-profile`, {
+        method: "PUT",
+        headers: createApiHeaders({ "Content-Type": "application/json" }),
+        credentials: "include",
+        body: JSON.stringify({
+          accountId: option.accountId,
+          useDisplayName: selection === "name" || selection === "both",
+          useImage: selection === "image" || selection === "both"
+        })
+      });
+      const result = await response.json() as ProfileUpdateResponse;
+
+      if (!response.ok || !result.ok) {
+        throw new Error("That connected account profile is unavailable right now.");
+      }
+
+      onUpdated(result.domainUser);
+      onMessage(`${providerLabels[option.providerId] ?? option.providerId} profile choice saved.`);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Could not use that connected account profile.");
+    } finally {
+      setApplyingProviderAccountId(null);
+    }
+  };
+
   return (
     <div className={styles.profileEditor}>
       <div className={styles.profilePreview}>
@@ -191,6 +267,63 @@ const ProfileIdentitySettings = ({
           ) : null}
         </div>
         <p>Images are cropped to a square. Uploading another image permanently replaces the previous one.</p>
+      </div>
+
+      <div className={styles.providerProfileChoices}>
+        <div>
+          <h3>Use a connected account</h3>
+          <p>Copy a name, image, or both. This never changes that provider account.</p>
+        </div>
+        {loadingProviderOptions ? (
+          <p>Checking connected accounts...</p>
+        ) : providerOptions.length > 0 ? providerOptions.map((option) => {
+          const applying = applyingProviderAccountId === option.accountId;
+
+          return (
+            <article className={styles.providerProfileChoice} key={option.accountId}>
+              {option.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt="" src={option.imageUrl} />
+              ) : (
+                <span className={styles.providerProfilePlaceholder} aria-hidden="true">
+                  {option.displayName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <div>
+                <strong>{option.displayName}</strong>
+                <span>{providerLabels[option.providerId] ?? option.providerId}</span>
+              </div>
+              <div className={styles.providerProfileActions}>
+                <button
+                  type="button"
+                  className={styles.textButton}
+                  disabled={applyingProviderAccountId !== null}
+                  onClick={() => void applyProviderProfile(option, "name")}
+                >
+                  Use name
+                </button>
+                <button
+                  type="button"
+                  className={styles.textButton}
+                  disabled={!option.imageUrl || applyingProviderAccountId !== null}
+                  onClick={() => void applyProviderProfile(option, "image")}
+                >
+                  Use image
+                </button>
+                <button
+                  type="button"
+                  className={styles.actionButton}
+                  disabled={!option.imageUrl || applyingProviderAccountId !== null}
+                  onClick={() => void applyProviderProfile(option, "both")}
+                >
+                  {applying ? "Saving..." : "Use both"}
+                </button>
+              </div>
+            </article>
+          );
+        }) : (
+          <p>No connected account profiles are available right now.</p>
+        )}
       </div>
     </div>
   );

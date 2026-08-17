@@ -688,6 +688,70 @@
   width: 1px;
 }
 
+.providerProfileChoices {
+  border-top: 1px solid var(--account-line);
+  display: grid;
+  gap: 0.65rem;
+  grid-column: 1 / -1;
+  margin-top: 0.35rem;
+  padding-top: 0.9rem;
+  width: 100%;
+}
+
+.providerProfileChoices h3,
+.providerProfileChoices p {
+  margin: 0;
+}
+
+.providerProfileChoices p {
+  color: var(--account-muted);
+  font-size: 0.88rem;
+}
+
+.providerProfileChoice {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 2.5rem minmax(8rem, 1fr) auto;
+  min-height: 3rem;
+}
+
+.providerProfileChoice > img,
+.providerProfilePlaceholder {
+  border-radius: 50%;
+  height: 2.5rem;
+  width: 2.5rem;
+}
+
+.providerProfileChoice > img {
+  object-fit: cover;
+}
+
+.providerProfilePlaceholder {
+  align-items: center;
+  background: var(--account-mint-weak);
+  display: flex;
+  justify-content: center;
+}
+
+.providerProfileChoice > div:nth-child(2) {
+  display: grid;
+  gap: 0.08rem;
+}
+
+.providerProfileChoice > div:nth-child(2) span {
+  color: var(--account-muted);
+  font-size: 0.82rem;
+}
+
+.providerProfileActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
 @media (max-width: 860px) {
   :global(.account-page-panel) {
     max-width: none;
@@ -767,5 +831,14 @@
 
   .profileEditor {
     grid-template-columns: 1fr;
+  }
+
+  .providerProfileChoice {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+
+  .providerProfileActions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
 }

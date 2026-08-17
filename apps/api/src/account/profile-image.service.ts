@@ -26,6 +26,14 @@ export const processProfileImage = async (dataBase64: string): Promise<Buffer | 
     return null;
   }
 
+  return await processProfileImageBytes(bytes);
+};
+
+export const processProfileImageBytes = async (bytes: Buffer): Promise<Buffer | null> => {
+  if (bytes.length === 0 || bytes.length > profileImageMaxInputBytes) {
+    return null;
+  }
+
   try {
     return await sharp(bytes, { failOn: "warning", limitInputPixels: 40_000_000 })
       .rotate()

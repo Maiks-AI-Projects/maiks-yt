@@ -8,9 +8,16 @@ import { getDomainUserForAuthUser } from "./domain-identity.service.js";
 import {
   deleteProfileImage,
   processProfileImage,
+  processProfileImageBytes,
+  profileImageMaxInputBytes,
   readProfileImage,
   saveProfileImage
 } from "./profile-image.service.js";
+import {
+  downloadProviderProfileImage,
+  fetchProviderProfileOption,
+  type ProviderProfileAccount
+} from "./provider-profile-options.service.js";
 
 const profileUpdateSchema = z.object({
   displayName: z.string()
@@ -23,6 +30,11 @@ const profileImageUploadSchema = z.object({
 const profileImageParamsSchema = z.object({
   userId: z.string().uuid()
 }).strict();
+const providerProfileApplySchema = z.object({
+  accountId: z.string().min(1).max(191),
+  useDisplayName: z.boolean(),
+  useImage: z.boolean()
+}).strict().refine((value) => value.useDisplayName || value.useImage);
 
 type AccountProfileRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
@@ -39,6 +51,132 @@ export const registerAccountProfileRoutes = (
   server: FastifyInstance,
   dependencies: AccountProfileRouteDependencies
 ): void => {
+  server.get("/account/domain/provider-profile-options", async (request, reply) => {
+    const session = await dependencies.getAuthSession(request);
+
+    if (!session) {
+      reply.code(401);
+      return { ok: false, reason: "not_authenticated" };
+    }
+
+    try {
+      const pool = dependencies.getDatabasePool();
+      const [rows] = await pool.execute(
+        "SELECT id, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
+        [session.user.id]
+      );
+      const accounts = Array.isArray(rows) ? rows as ProviderProfileAccount[] : [];
+      const options = await Promise.all(accounts.map(async (account) =>
+        await fetchProviderProfileOption(account, {
+          twitchClientId: process.env.TWITCH_CLIENT_ID
+        })));
+
+      return {
+        ok: true,
+        options: options.filter((option) => option !== null)
+      };
+    } catch (error) {
+      server.log.warn({ err: error }, "Provider profile options failed.");
+      reply.code(503);
+      return { ok: false, reason: "provider_profile_unavailable" };
+    }
+  });
+
+  server.put("/account/domain/provider-profile", async (request, reply) => {
+    const session = await dependencies.getAuthSession(request);
+
+    if (!session) {
+      reply.code(401);
+      return { ok: false, reason: "not_authenticated" };
+    }
+
+    const parsedBody = providerProfileApplySchema.safeParse(request.body);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return { ok: false, reason: "provider_profile_invalid_input" };
+    }
+
+    try {
+      const pool = dependencies.getDatabasePool();
+      const [rows] = await pool.execute(
+        "SELECT id, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE id = ? AND user_id = ? LIMIT 1",
+        [parsedBody.data.accountId, session.user.id]
+      );
+      const account = Array.isArray(rows)
+        ? rows[0] as ProviderProfileAccount | undefined
+        : undefined;
+
+      if (!account) {
+        reply.code(404);
+        return { ok: false, reason: "provider_profile_not_found" };
+      }
+
+      const option = await fetchProviderProfileOption(account, {
+        twitchClientId: process.env.TWITCH_CLIENT_ID
+      });
+
+      if (!option) {
+        reply.code(409);
+        return { ok: false, reason: "provider_profile_unavailable" };
+      }
+
+      const validatedName = parsedBody.data.useDisplayName
+        ? validateProfileSettings({ displayName: option.displayName })
+        : null;
+
+      if (validatedName && !validatedName.ok) {
+        reply.code(409);
+        return { ok: false, reason: "provider_profile_name_invalid" };
+      }
+
+      let processedImage: Buffer | null = null;
+
+      if (parsedBody.data.useImage) {
+        const downloaded = option.imageUrl
+          ? await downloadProviderProfileImage(option.imageUrl, profileImageMaxInputBytes)
+          : null;
+        processedImage = downloaded ? await processProfileImageBytes(downloaded) : null;
+
+        if (!processedImage) {
+          reply.code(409);
+          return { ok: false, reason: "provider_profile_image_unavailable" };
+        }
+      }
+
+      const { user } = await getDomainUserForAuthUser(pool, session.user, true);
+
+      if (!user) {
+        throw new Error("Domain user could not be resolved.");
+      }
+
+      const displayName = validatedName?.ok ? validatedName.value.displayName : user.displayName;
+      const avatarUrl = processedImage ? buildAvatarUrl(user.id) : user.avatarUrl;
+
+      if (processedImage) {
+        await saveProfileImage(user.id, processedImage);
+      }
+
+      await pool.execute(
+        "UPDATE users SET display_name = ?, avatar_url = ?, updated_at = NOW() WHERE id = ? AND deleted_at IS NULL",
+        [displayName, avatarUrl, user.id]
+      );
+
+      return {
+        ok: true,
+        domainUser: {
+          ...user,
+          displayName,
+          avatarUrl
+        }
+      };
+    } catch (error) {
+      server.log.warn({ err: error }, "Provider profile selection failed.");
+      reply.code(503);
+      return { ok: false, reason: "provider_profile_unavailable" };
+    }
+  });
+
   server.put("/account/domain/profile", async (request, reply) => {
     const session = await dependencies.getAuthSession(request);
 
