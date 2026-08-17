@@ -530,7 +530,7 @@
   min-height: 0;
   min-width: 0;
   overflow: auto;
-  padding: 1rem;
+  padding: 0.75rem;
 }
 
 .content :global(main) {
@@ -538,6 +538,10 @@
   color: var(--admin-text);
   max-width: none;
   padding: 0;
+}
+
+.content :global(section) {
+  margin-block: 0;
 }
 
 .content :global(a) {
@@ -578,7 +582,7 @@
 .content :global(.project-admin-shell),
 .content :global(.adminShell) {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.7rem;
 }
 
 .content :global(.project-admin-header),
