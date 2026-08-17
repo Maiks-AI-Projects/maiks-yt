@@ -1,6 +1,7 @@
 "use client";
 
 import type { StreamVisibilityPreferenceScope } from "@maiks-yt/domain/events";
+import * as Switch from "@radix-ui/react-switch";
 import { useId } from "react";
 
 import AccountControlTooltip from "./account-control-tooltip";
@@ -21,7 +22,8 @@ type VisibilityToggleProps = {
 };
 
 const VisibilityToggle = ({ preference, saving, onChange }: VisibilityToggleProps): React.ReactNode => {
-  const checkboxId = useId();
+  const switchId = useId();
+  const switchLabelId = useId();
   const status = preference.optedOut ? "Hidden" : "Allowed";
 
   return (
@@ -31,18 +33,20 @@ const VisibilityToggle = ({ preference, saving, onChange }: VisibilityToggleProp
         <span>{preference.description}</span>
       </div>
       <div className={styles.visibilityControls}>
-        <AccountControlTooltip text={`Check this to keep ${preference.label.toLowerCase()} off stream.`}>
+        <AccountControlTooltip text={`Turn on to keep ${preference.label.toLowerCase()} off stream.`}>
           <span className={styles.tooltipTrigger}>
-            <label className={styles.checkboxControl} htmlFor={checkboxId}>
-              <input
-                id={checkboxId}
-                className={styles.checkboxInput}
-                type="checkbox"
+            <label className={styles.streamSwitchControl} htmlFor={switchId}>
+              <Switch.Root
+                id={switchId}
+                className={styles.streamSwitch}
                 checked={preference.optedOut}
                 disabled={saving}
-                onChange={(event) => onChange(preference.scope, event.currentTarget.checked)}
-              />
-              <span className={styles.checkboxLabel}>
+                onCheckedChange={(checked) => onChange(preference.scope, checked)}
+                aria-labelledby={switchLabelId}
+              >
+                <Switch.Thumb className={styles.streamSwitchThumb} />
+              </Switch.Root>
+              <span className={styles.streamSwitchLabel} id={switchLabelId}>
                 Hide from stream
                 <span className={styles.visuallyHidden}> for {preference.label}</span>
               </span>
