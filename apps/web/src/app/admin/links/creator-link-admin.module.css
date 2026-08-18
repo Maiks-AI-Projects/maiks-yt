@@ -244,10 +244,11 @@
   width: 1rem;
 }
 
-.linkIdentity {
+.workspace .linkIdentity {
   align-items: center;
   background: transparent;
   border: 0;
+  border-radius: 0;
   color: var(--admin-text);
   cursor: pointer;
   display: grid;
@@ -257,6 +258,14 @@
   min-width: 0;
   padding: 0.45rem 0;
   text-align: left;
+}
+
+.workspace .linkIdentity:hover,
+.workspace .linkIdentity:focus-visible {
+  background: transparent;
+  border-color: transparent;
+  color: var(--admin-text);
+  filter: none;
 }
 
 .linkIdentity > span:last-child {
@@ -313,10 +322,11 @@
   gap: 0.1rem;
 }
 
-.rowActions button {
+.workspace .rowActions button {
   align-items: center;
   background: transparent;
   border: 0;
+  border-radius: 4px;
   color: var(--admin-muted);
   cursor: pointer;
   display: inline-flex;
@@ -326,9 +336,17 @@
   width: 1.65rem;
 }
 
-.rowActions button:hover,
+.workspace .rowActions button:hover,
+.workspace .rowActions button:focus-visible,
 .visibilityState {
   color: var(--admin-mint) !important;
+}
+
+.workspace .rowActions button:hover,
+.workspace .rowActions button:focus-visible {
+  background: var(--admin-surface-raised);
+  border-color: transparent;
+  filter: none;
 }
 
 .visibilityState {
