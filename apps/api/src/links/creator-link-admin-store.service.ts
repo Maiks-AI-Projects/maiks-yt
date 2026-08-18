@@ -15,7 +15,8 @@ import type {
   CreatorLinkAdminReorderInput
 } from "./creator-link-admin.types.js";
 
-type QueryExecutor = Pick<DatabasePool, "execute">;
+export type CreatorLinkAdminQueryExecutor = Pick<DatabasePool, "execute">;
+type QueryExecutor = CreatorLinkAdminQueryExecutor;
 
 type CreatorLinkRow = {
   key: string;
@@ -160,8 +161,34 @@ const writeValues = (input: CreatorLinkAdminInput) => [
   input.isPublished
 ];
 
+const updateValues = (input: CreatorLinkAdminInput) => [
+  input.key,
+  input.title.trim(),
+  input.description.trim(),
+  input.purpose,
+  input.icon,
+  input.availability,
+  input.href?.trim() || null,
+  input.availabilityNote?.trim() || null,
+  input.isPrimary,
+  input.isPublished
+];
+
+const readNextSortOrder = async (executor: QueryExecutor): Promise<number> => {
+  const [rows] = await executor.execute(
+    "SELECT COALESCE(MAX(sort_order), 0) AS maxSortOrder FROM creator_links"
+  );
+  const maxSortOrder = Array.isArray(rows) && rows.length > 0
+    ? Number((rows[0] as { maxSortOrder?: unknown }).maxSortOrder)
+    : 0;
+
+  return Number.isFinite(maxSortOrder) && maxSortOrder >= 0
+    ? Math.trunc(maxSortOrder) + 1
+    : 1;
+};
+
 export const createCreatorLinkAdminRepository = (
-  pool: DatabasePool
+  pool: CreatorLinkAdminQueryExecutor
 ): CreatorLinkAdminRepository => ({
   async resolveActor(authUserId) {
     return await resolveActor(pool, authUserId);
@@ -172,6 +199,8 @@ export const createCreatorLinkAdminRepository = (
   },
 
   async createLink(input) {
+    const sortOrder = await readNextSortOrder(pool);
+
     try {
       await pool.execute(
         `
@@ -179,7 +208,7 @@ export const createCreatorLinkAdminRepository = (
             (id, \`key\`, title, description, purpose, icon, availability, href, availability_note, is_primary, sort_order, is_published)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [randomUUID(), ...writeValues(input)]
+        [randomUUID(), ...writeValues({ ...input, sortOrder })]
       );
     } catch (error) {
       if (isDuplicateKeyError(error)) {
@@ -213,12 +242,11 @@ export const createCreatorLinkAdminRepository = (
             href = ?,
             availability_note = ?,
             is_primary = ?,
-            sort_order = ?,
             is_published = ?,
             updated_at = NOW()
           WHERE \`key\` = ?
         `,
-        [...writeValues(input), key]
+        [...updateValues(input), key]
       );
 
       if (typeof result === "object"

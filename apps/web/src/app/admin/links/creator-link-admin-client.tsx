@@ -25,7 +25,6 @@ type LinkFormState = {
   href: string;
   availabilityNote: string;
   isPrimary: boolean;
-  sortOrder: number;
   isPublished: boolean;
 };
 
@@ -59,13 +58,23 @@ const emptyForm: LinkFormState = {
   href: "",
   availabilityNote: "Destination not available yet.",
   isPrimary: false,
-  sortOrder: 1,
   isPublished: false
 };
 
 const label = (value: string): string => value.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 const sortLinks = (links: readonly CreatorLinkSource[]): CreatorLinkSource[] => links.slice().sort((a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title));
-const toForm = (link: CreatorLinkSource): LinkFormState => ({ ...link, href: link.href ?? "", availabilityNote: link.availabilityNote ?? "" });
+const toForm = (link: CreatorLinkSource): LinkFormState => ({
+  key: link.key,
+  title: link.title,
+  description: link.description,
+  purpose: link.purpose,
+  icon: link.icon,
+  availability: link.availability,
+  href: link.href ?? "",
+  availabilityNote: link.availabilityNote ?? "",
+  isPrimary: link.isPrimary,
+  isPublished: link.isPublished
+});
 const isSupport = (form: LinkFormState): boolean => form.key.trim() === "support" || form.purpose === "support";
 const toPayload = (form: LinkFormState): Record<string, unknown> => {
   const support = isSupport(form);
@@ -80,6 +89,8 @@ const toPayload = (form: LinkFormState): Record<string, unknown> => {
     availabilityNote: availability === "unavailable" ? support ? protectedFundingAvailabilityNote : form.availabilityNote.trim() : null
   };
 };
+const formsMatch = (left: LinkFormState, right: LinkFormState): boolean =>
+  JSON.stringify(left) === JSON.stringify(right);
 const parseJson = async <T,>(response: Response): Promise<T | null> => {
   try { return await response.json() as T; } catch { return null; }
 };
@@ -116,6 +127,7 @@ const CreatorLinkAdminClient = (): React.ReactNode => {
   const [draggedKey, setDraggedKey] = useState<string | null>(null);
   const [previewRevision, setPreviewRevision] = useState(0);
   const selected = useMemo(() => links.find((link) => link.key === selectedKey) ?? null, [links, selectedKey]);
+  const isDirty = selected ? !formsMatch(toForm(selected), form) : !formsMatch(emptyForm, form);
 
   const loadLinks = useCallback(async (): Promise<void> => {
     setLoadState("loading");
@@ -178,29 +190,48 @@ const CreatorLinkAdminClient = (): React.ReactNode => {
     } finally { setBusy(null); }
   };
 
+  const confirmDiscardIfDirty = (): boolean =>
+    !isDirty || window.confirm("Discard unsaved changes and open another link?");
   const select = (key: string): void => {
+    if (key === selectedKey || !confirmDiscardIfDirty()) return;
     const link = links.find((item) => item.key === key);
     if (link) { setSelectedKey(key); setForm(toForm(link)); }
   };
   const startNew = (): void => {
+    if (!confirmDiscardIfDirty()) return;
     setSelectedKey("");
-    setForm({ ...emptyForm, sortOrder: links.length + 1 });
+    setForm(emptyForm);
     setMessage("New link draft ready.");
   };
   const save = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    if (orderDirty) {
+      setMessage("Save the link order before saving link details.");
+      return;
+    }
+
     if (selected) await mutate("Saving link", `/admin/links/${encodeURIComponent(selected.key)}`, toPayload(form), selected.key);
     else await mutate("Creating link", "/admin/links", toPayload(form));
   };
   const togglePublished = async (link: CreatorLinkSource): Promise<void> => {
-    await mutate(link.isPublished ? "Unpublishing link" : "Publishing link", `/admin/links/${encodeURIComponent(link.key)}`, { isPublished: !link.isPublished }, link.key);
+    if (orderDirty) {
+      setMessage("Save the link order before changing publish state.");
+      return;
+    }
+
+    const nextPublished = !link.isPublished;
+    const action = nextPublished ? "Publishing link" : "Unpublishing link";
+    if (isDirty) {
+      if (!window.confirm(`${nextPublished ? "Publish" : "Save and unpublish"} these unsaved edits?`)) return;
+      await mutate(action, `/admin/links/${encodeURIComponent(link.key)}`, toPayload({ ...form, isPublished: nextPublished }), link.key);
+      return;
+    }
+    await mutate(action, `/admin/links/${encodeURIComponent(link.key)}`, { isPublished: nextPublished }, link.key);
   };
   const reorder = (sourceKey: string, targetKey: string): void => {
     const next = move(links, links.findIndex((item) => item.key === sourceKey), links.findIndex((item) => item.key === targetKey));
     setLinks(next);
     setOrderDirty(true);
-    const current = next.find((item) => item.key === selectedKey);
-    if (current) setForm((value) => ({ ...value, sortOrder: current.sortOrder }));
   };
   const moveOne = (key: string, direction: -1 | 1): void => {
     const from = links.findIndex((item) => item.key === key);
@@ -220,8 +251,6 @@ const CreatorLinkAdminClient = (): React.ReactNode => {
       if (response.ok && payload?.ok) {
         const ordered = sortLinks(payload.links);
         setLinks(ordered);
-        const current = ordered.find((item) => item.key === selectedKey);
-        if (current) setForm(toForm(current));
         setOrderDirty(false);
         setMessage("Order saved.");
         setPreviewRevision((value) => value + 1);
@@ -234,6 +263,7 @@ const CreatorLinkAdminClient = (): React.ReactNode => {
   const support = isSupport(form);
   const availability = support ? "unavailable" : form.availability;
   const validDestination = availability === "available" && (form.href.startsWith("/") || /^https?:\/\/[^\s]+$/u.test(form.href));
+  const FormIcon = icons[form.icon];
 
   return <div className={styles.page}>
     <header className={styles.header}>
@@ -291,16 +321,19 @@ const CreatorLinkAdminClient = (): React.ReactNode => {
             <label>Purpose<select value={form.purpose} onChange={(event) => { const purpose = event.target.value as CreatorLinkPurpose; setForm((value) => ({ ...value, purpose, ...(purpose === "support" ? { availability: "unavailable", href: "", availabilityNote: protectedFundingAvailabilityNote } : {}) })); }}>{purposes.map((purpose) => <option key={purpose} value={purpose}>{creatorLinkPurposeLabels[purpose]}</option>)}</select></label>
             <label>Icon<select value={form.icon} onChange={(event) => setForm((value) => ({ ...value, icon: event.target.value as CreatorLinkIcon }))}>{iconNames.map((icon) => <option key={icon} value={icon}>{label(icon)}</option>)}</select></label>
           </div>
+          <div className={styles.presentationFeedback} aria-live="polite">
+            <span className={styles.feedbackIcon} data-icon={form.icon}><FormIcon aria-hidden="true" /></span>
+            <span><strong>Public presentation</strong><small>{creatorLinkPurposeLabels[form.purpose]} purpose · {label(form.icon)} icon</small></span>
+          </div>
           <fieldset className={styles.availability} disabled={support}><legend>Availability</legend>{(["available", "unavailable"] as const).map((item) => <label key={item} data-active={availability === item ? "true" : undefined}><input type="radio" name="availability" checked={availability === item} onChange={() => setForm((value) => ({ ...value, availability: item }))} />{label(item)}</label>)}</fieldset>
-          <label>Order<input type="number" min={0} value={form.sortOrder} onChange={(event) => setForm((value) => ({ ...value, sortOrder: event.target.valueAsNumber || 0 }))} /></label>
           <div className={styles.checkboxGrid}>
-            <label><input type="checkbox" checked={form.isPrimary} onChange={(event) => setForm((value) => ({ ...value, isPrimary: event.target.checked }))} />Primary link</label>
+            <label><input type="checkbox" checked={form.isPrimary} onChange={(event) => setForm((value) => ({ ...value, isPrimary: event.target.checked }))} />Highlight on public links page</label>
             <label><input type="checkbox" checked={form.isPublished} onChange={(event) => setForm((value) => ({ ...value, isPublished: event.target.checked }))} />Published after save</label>
           </div>
           <details className={styles.advanced} open={!selected}><summary>Link identity</summary><label>Key<input value={form.key} onChange={(event) => setForm((value) => ({ ...value, key: event.target.value }))} required pattern="[a-z0-9][a-z0-9-]{0,79}" maxLength={80} /></label></details>
           {support ? <p className={styles.supportWarning}>Support remains unavailable until Michael approves the destination URL and public wording.</p> : null}
-          <footer className={styles.editorFooter}>{selected ? <button type="button" disabled={busy !== null} onClick={() => void togglePublished(selected)}>{selected.isPublished ? "Unpublish" : "Publish now"}</button> : <span />}
-            <div><button type="button" disabled={busy !== null} onClick={() => { if (selected) { setForm(toForm(selected)); setMessage("Unsaved edits discarded."); } else startNew(); }}>Discard edits</button><button type="submit" className={styles.primaryButton} disabled={busy !== null}>{busy ?? (selected ? "Save link" : "Create link")}</button></div>
+          <footer className={styles.editorFooter}><div className={styles.editorStatus}><span>{isDirty ? "Unsaved changes" : "No unsaved changes"}</span>{selected ? <button type="button" disabled={busy !== null} onClick={() => void togglePublished(selected)}>{selected.isPublished ? "Unpublish" : "Publish now"}</button> : null}</div>
+            <div><button type="button" disabled={busy !== null} onClick={() => { if (selected) { setForm(toForm(selected)); setMessage("Unsaved edits discarded."); } else { setForm(emptyForm); setMessage("Unsaved edits discarded."); } }}>Discard edits</button><button type="submit" className={styles.primaryButton} disabled={busy !== null || orderDirty} title={orderDirty ? "Save the link order first" : undefined}>{busy ?? (selected ? "Save link" : "Create link")}</button></div>
           </footer>
         </form>
       </section>

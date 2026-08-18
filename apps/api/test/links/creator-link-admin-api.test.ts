@@ -1,8 +1,12 @@
 import type { CreatorLinkSource } from "@maiks-yt/domain";
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { registerCreatorLinkAdminRoutes } from "../../src/links/creator-link-admin.route.js";
+import {
+  createCreatorLinkAdminRepository,
+  type CreatorLinkAdminQueryExecutor
+} from "../../src/links/creator-link-admin-store.service.js";
 import { CreatorLinkAdminService } from "../../src/links/creator-link-admin.service.js";
 import type {
   CreatorLinkAdminActor,
@@ -207,6 +211,29 @@ describe("CreatorLinkAdminService", () => {
     });
   });
 
+  it("keeps ordinary link edits from changing the order controlled by reorder", async () => {
+    const repository = new FakeCreatorLinkAdminRepository();
+    const service = new CreatorLinkAdminService(repository);
+
+    await expect(service.updateLink({
+      authUserId: "auth-user",
+      key: "draft",
+      link: {
+        title: "Edited draft",
+        sortOrder: 999
+      }
+    })).resolves.toMatchObject({
+      ok: true,
+      link: {
+        sortOrder: 10
+      }
+    });
+    expect(repository.lastUpdatedLink).toMatchObject({
+      title: "Edited draft",
+      sortOrder: 10
+    });
+  });
+
   it("rejects invalid availability invariants and available support links", async () => {
     const repository = new FakeCreatorLinkAdminRepository();
     const service = new CreatorLinkAdminService(repository);
@@ -273,6 +300,61 @@ describe("CreatorLinkAdminService", () => {
       ok: false,
       reason: "creator_link_not_found"
     });
+  });
+});
+
+describe("Creator link admin repository ordering", () => {
+  it("assigns a new link after the persisted maximum order", async () => {
+    const execute = vi.fn()
+      .mockResolvedValueOnce([[{ maxSortOrder: "140" }]])
+      .mockResolvedValueOnce([{}])
+      .mockResolvedValueOnce([[{
+        key: "new-link",
+        title: "New Link",
+        description: "A manually managed creator link.",
+        purpose: "social",
+        icon: "social",
+        availability: "available",
+        href: "/new-link",
+        availabilityNote: null,
+        isPrimary: false,
+        sortOrder: 141,
+        isPublished: false
+      }]]);
+    const repository = createCreatorLinkAdminRepository({ execute } satisfies CreatorLinkAdminQueryExecutor);
+
+    await expect(repository.createLink(createPayload({ sortOrder: 2 }))).resolves.toMatchObject({
+      sortOrder: 141
+    });
+    expect(execute.mock.calls[0]?.[0]).toContain("MAX(sort_order)");
+    expect(execute.mock.calls[1]?.[1]?.[10]).toBe(141);
+  });
+
+  it("does not write sort order during an ordinary link update", async () => {
+    const execute = vi.fn()
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([[{
+        key: "draft",
+        title: "Edited draft",
+        description: "A manually managed creator link.",
+        purpose: "social",
+        icon: "social",
+        availability: "available",
+        href: "/draft",
+        availabilityNote: null,
+        isPrimary: false,
+        sortOrder: 10,
+        isPublished: false
+      }]]);
+    const repository = createCreatorLinkAdminRepository({ execute } satisfies CreatorLinkAdminQueryExecutor);
+
+    await expect(repository.updateLink("draft", createPayload({
+      key: "draft",
+      title: "Edited draft",
+      sortOrder: 999
+    }))).resolves.toMatchObject({ sortOrder: 10 });
+    expect(execute.mock.calls[0]?.[0]).not.toContain("sort_order = ?");
+    expect(execute.mock.calls[0]?.[1]).not.toContain(999);
   });
 });
 

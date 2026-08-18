@@ -8,7 +8,7 @@
 - Production rollout is complete for the empty-catalog foundation. Next music work is to configure an allowed provider policy, add real catalog/source/license records, and browser-smoke request, Top 10, blacklist/review, playlists, previews, and history with actual tracks.
 - Still separate: provider search/import adapters, uncertain-source suggestions, control-panel play controls, OBS `/music/player`, `/music/overlay`, votes, and real stream playback.
 
-Updated: 2026-08-15
+Updated: 2026-08-18
 
 ## Production Website Current Lane
 
@@ -20,6 +20,7 @@ Updated: 2026-08-15
 - `/profiles` is now a static profile-search mock with separate `/profiles/michael-public` and `/profiles/michael-private` examples. The private example remains searchable but has no profile image and reveals only its account name plus `This account is set to private`. Keep both disconnected from live account/provider data until public slugs, per-field privacy, linked-account visibility, recognition persistence, and public profile read rules are reviewed and implemented.
 - `/updates`, `/updates/[slug]`, and `/feed.xml` now read the typed public update API rather than a frontend fixture. Migration `0026_polite_scarlet_witch.sql` is applied on dev, API commit `f1f8fba` is deployed, and three labelled example records are live for visual development. Keep example labels visible; do not present seeded examples as actual past streams or announcements. A manual owner editor remains a later slice.
 - The homepage hero at `apps/web/public/images/home/creator-workspace-placeholder.png` is temporary until Michael can photograph the real seven-monitor streaming desk.
+- Creator Links current scope B-F is reviewed for production with no migration; preserve deferred G-I as planning-only items until Michael explicitly opens those slices.
 
 Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
 

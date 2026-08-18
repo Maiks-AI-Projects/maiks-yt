@@ -38,6 +38,7 @@ Build the production public website page by page on the dedicated `production` b
 - Replaced the hard-coded `/updates` fixture with a typed backend-backed public update archive for posts, stream recaps, and announcements. Generated and dev-applied migration `packages/database/drizzle/0026_polite_scarlet_witch.sql`, deployed public list/detail API routes on dev commit `f1f8fba`, seeded three explicitly labelled example records, rendered Markdown detail pages, and moved `/feed.xml` to the same API source. Manual update administration and social syndication are still separate work.
 - Moved public About navigation from the progress placeholder to `/about` and updated `/progress` to link all three first-draft destinations.
 - Next content task: review and revise the About wording with Michael, then add timeline events only from details he explicitly approves.
+- Implemented and reviewed the approved Creator Links current scope B-F for production: new links receive an order after the persisted maximum, dirty editor changes are protected during row changes and publish/unpublish, the order list is the sole ordering control, the admin label describes visual highlighting truthfully, and icon/purpose feedback appears before save. No migration is required, and URL validation plus analytics remain unchanged by product decision.
 
 ## Completed In This Pass
 
@@ -363,6 +364,7 @@ Test-readiness work has moved from planning into the money/accounting backbone. 
 - The first Creator Hub link admin worker stopped correctly: current links are a compiled TypeScript array, so runtime admin editing needs a database-backed link model first.
 - Creator Links Chunk 3A is implemented, reviewed, committed, migrated on dev, seeded, deployed, and dev-smoked.
 - Creator Links Chunk 3B is implemented, reviewed, committed, deployed, dev-smoked, and accepted by Michael as usable enough to move on.
+- Creator Links follow-up scope B-F is reviewed for production; deferred G-I remain planning items only.
 - Manual project-admin tools are implemented, reviewed, committed, deployed to dev, and dev-smoked.
 - Action Panel Task 1 domain contracts are complete and reviewed.
 - Action Panel Task 2 persistence and migration are complete and reviewed.

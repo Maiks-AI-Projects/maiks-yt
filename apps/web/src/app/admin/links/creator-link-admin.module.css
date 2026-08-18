@@ -433,6 +433,56 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.presentationFeedback {
+  align-items: center;
+  background: var(--admin-surface-raised);
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  display: flex;
+  gap: 0.6rem;
+  min-height: 2.65rem;
+  padding: 0.4rem 0.55rem;
+}
+
+.feedbackIcon {
+  align-items: center;
+  background: var(--admin-canvas);
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 4px;
+  color: var(--admin-mint);
+  display: inline-flex;
+  flex: 0 0 1.75rem;
+  height: 1.75rem;
+  justify-content: center;
+  width: 1.75rem;
+}
+
+.feedbackIcon[data-icon="twitch"] { color: #9c65f5; }
+.feedbackIcon[data-icon="youtube"],
+.feedbackIcon[data-icon="stream"] { color: #ff5656; }
+.feedbackIcon[data-icon="discord"] { color: #8796ff; }
+.feedbackIcon[data-icon="support"] { color: #e7ad38; }
+
+.feedbackIcon svg {
+  height: 0.9rem;
+  width: 0.9rem;
+}
+
+.presentationFeedback > span:last-child {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.presentationFeedback strong {
+  font-size: 0.74rem;
+}
+
+.presentationFeedback small {
+  color: var(--admin-muted);
+  font-size: 0.68rem;
+}
+
 .validation {
   align-items: center;
   color: var(--admin-mint);
@@ -513,6 +563,18 @@
   bottom: 0;
   margin: 0 -1rem;
   position: sticky;
+}
+
+.editorStatus {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+}
+
+.editorStatus > span {
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
 }
 
 .editorFooter div {

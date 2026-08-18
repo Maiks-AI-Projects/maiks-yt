@@ -64,7 +64,7 @@ const creatorLinkPayloadSchema = z.object({
   href: z.string().trim().max(1_024).nullable().optional(),
   availabilityNote: z.string().trim().max(191).nullable().optional(),
   isPrimary: z.boolean(),
-  sortOrder: z.number().int().min(0),
+  sortOrder: z.number().int().min(0).optional(),
   isPublished: z.boolean()
 }).strict();
 
@@ -182,7 +182,10 @@ export const registerCreatorLinkAdminRoutes = (
     try {
       return sendAdminWriteResult(await getService().createLink({
         authUserId: session.user.id,
-        link: parsedBody.data
+        link: {
+          ...parsedBody.data,
+          sortOrder: parsedBody.data.sortOrder ?? 0
+        }
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Creator link admin create failed.");

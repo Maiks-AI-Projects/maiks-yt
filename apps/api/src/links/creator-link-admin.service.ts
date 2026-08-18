@@ -211,7 +211,10 @@ export class CreatorLinkAdminService {
       };
     }
 
-    const next = normalizeLinkInput(mergeDefinedLinkUpdate(toAdminInput(existing), input.link));
+    const next = normalizeLinkInput({
+      ...mergeDefinedLinkUpdate(toAdminInput(existing), input.link),
+      sortOrder: existing.sortOrder
+    });
 
     if (!isValidCreatorLinkAdminInput(next) || !isSupportRowStillProtected(existing, next)) {
       return {
