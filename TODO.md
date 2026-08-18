@@ -568,12 +568,21 @@ Gate note: later money features require an immutable ledger design, refund/revoc
   - 2026-07-10 completed a dev key-data JSON restore dry run documented in `reports/backup-restore-drills/2026-07-10-dev-key-data-restore-dry-run.md`. The drill used a short-lived owner token, exported testing-critical rows through the existing key-data export path, reconstructed section metadata in `/tmp`, verified required content/project/schedule/game/money sections were readable, and deleted the raw export. This is not a full SQL disposable-database restore.
 - [x] Document rare improper-deletion restore process.
 - [ ] Decide backup retention and encryption.
+- [ ] Track backup recency and sanitized run history.
+  - Show the latest successful backup, freshness/age, last failure, and recent runs only after the backup workflow, frequency/RPO, retention, encryption, and storage ownership are approved. Persist immutable sanitized run metadata without secret-bearing paths or raw tool output.
+- [ ] Verify backup artifacts and expected table coverage.
+  - Define a sanitized manifest for a real dump containing schema/migration identity, expected/found tables, artifact size, checksum result, and verification timestamp. Never expose data samples, credentials, sensitive metadata, or secret-bearing filesystem/storage paths.
+- [ ] Persist restore-drill evidence.
+  - Record the environment, artifact reference, operator, result, and timestamp for key-data and full SQL restore drills. Restore execution remains a separate explicitly authorized workflow against an exact disposable non-production target; Backup Health must not gain an automated restore button.
+- [ ] Add sanitized database failure classification to Backup Health.
+  - Map backend failures to a small safe enum such as `timeout`, `authentication`, `network`, or `query`. Never return raw driver errors, database hosts, usernames, SQL, or credentials.
 
 Gate note: backup/export can start before production money, but must be treated as reliability/security work. First safe slice is a backup inventory and restore runbook using dev/staging data only; do not automate production backups, touch secrets, or claim recovery guarantees until retention, encryption, and restore testing are defined.
   - 2026-07-09 Phase E1 added `reports/backup-restore-runbook.md` for dev/staging-safe inventory, manual export/restore verification, improper-deletion drill boundaries, and failure-only backup-health notification expectations. Production backup automation, encryption/key policy, retention, and destructive restore remain gated.
   - 2026-07-10 added a dev-safe backup health command and recurring smoke check. It does not create backups, export data, edit secrets, or change retention/encryption policy.
   - 2026-07-10 follow-up made the same read-only backup health available to owner admin dashboard status cards.
   - 2026-07-10 follow-up added the owner-only key-data JSON export for manual testing snapshots. It is not encrypted backup automation and should still be treated as short-lived/private until retention and encryption are approved.
+  - 2026-08-18 capability-audit follow-up approved recency/run history, sanitized artifact manifests, durable restore-drill evidence, and safe failure classification as deferred backend/recovery work. Keep `/admin/backup/health` observational: do not duplicate the existing key-data export there and do not add backup or restore execution controls.
 
 ## 18. Phase Gates Before Risky Work
 
