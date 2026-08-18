@@ -23,6 +23,7 @@ const accountItems: readonly NavigationItem[] = [
   { href: "/account/connections", label: "Connections" },
   { href: "/account/privacy", label: "Privacy" },
   { href: "/account/stream", label: "Stream appearance" },
+  { href: "/account/music", label: "Music" },
   { href: "/tools/notifications", label: "Notifications" }
 ];
 

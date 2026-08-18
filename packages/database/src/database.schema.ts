@@ -7,4 +7,5 @@ export * from "./database-content.schema.js";
 export * from "./database-streaming.schema.js";
 export * from "./database-events.schema.js";
 export * from "./database-games.schema.js";
+export * from "./database-music.schema.js";
 export * from "./database-money.schema.js";

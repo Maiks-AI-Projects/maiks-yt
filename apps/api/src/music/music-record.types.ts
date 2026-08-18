@@ -1,0 +1,214 @@
+import type { MusicEligibilityState, MusicReviewState } from "@maiks-yt/domain/music";
+
+export type PublicMusicCatalogTrack = {
+  trackId: string;
+  sourceId: string;
+  title: string;
+  artist: string;
+  durationSeconds: number | null;
+  providerKey: string;
+  providerName: string;
+  sourceLabel: string;
+  liveSafe: boolean;
+  vodSafe: boolean;
+  previewUrl: string | null;
+  previewMimeType: string | null;
+  sourceUrl: string | null;
+  attributionText: string | null;
+  licenseName: string;
+  licenseKind: string;
+  licenseUrl: string | null;
+  providerPolicyUrl: string | null;
+  providerTermsUrl: string | null;
+};
+
+export type MusicSelectableTrack = PublicMusicCatalogTrack & {
+  id: string;
+  sourceType: string;
+  sourceExternalId: string | null;
+  previewUrl: string | null;
+  previewMimeType: string | null;
+  sourceStorageRef: string | null;
+  sourceSha256: string | null;
+  safetyTags: readonly string[];
+  explicitContent: boolean;
+  instrumental: boolean;
+  providerPolicyState: "allowed" | "review-only" | "disabled";
+  eligibilityState: MusicEligibilityState;
+  reviewState: MusicReviewState;
+  liveSafe: boolean;
+  vodSafe: boolean;
+  hasActiveBlacklist: boolean;
+};
+
+export type MusicProviderPolicyRecord = {
+  id: string;
+  providerKey: string;
+  displayName: string;
+  providerType: string;
+  providerStatus: string;
+  rightsState: MusicEligibilityState;
+  publicRequestsEnabled: boolean;
+  publicPlaybackEnabled: boolean;
+  defaultLiveSafe: boolean;
+  defaultVodSafe: boolean;
+  attributionRequired: boolean;
+  localCacheAllowed: boolean;
+  policyUrl: string | null;
+  termsUrl: string | null;
+  notesPrivate: string | null;
+  effectiveFrom: string;
+  effectiveUntil: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MusicTrackAdminRecord = {
+  id: string;
+  slug: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  durationSeconds: number | null;
+  isrc: string | null;
+  rightsState: MusicEligibilityState;
+  reviewState: MusicReviewState;
+  liveSafe: boolean;
+  vodSafe: boolean;
+  explicitContent: boolean;
+  instrumental: boolean;
+  safetyTags: readonly string[];
+  notesPrivate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  sources: readonly MusicTrackSourceRecord[];
+  licenseSnapshots: readonly MusicLicenseSnapshotRecord[];
+};
+
+export type MusicTrackSourceRecord = {
+  id: string;
+  trackId: string;
+  providerPolicyId: string | null;
+  providerKey: string;
+  sourceType: string;
+  sourceLabel: string;
+  sourceExternalId: string | null;
+  sourceUrl: string | null;
+  previewUrl: string | null;
+  previewMimeType: string | null;
+  storageRef: string | null;
+  sha256: string | null;
+  mimeType: string | null;
+  durationSeconds: number | null;
+  rightsState: MusicEligibilityState;
+  availabilityStatus: string;
+  attributionText: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MusicLicenseSnapshotRecord = {
+  id: string;
+  trackId: string;
+  sourceId: string;
+  providerPolicyId: string | null;
+  licenseName: string;
+  licenseKind: string;
+  rightsState: MusicEligibilityState;
+  liveSafe: boolean;
+  vodSafe: boolean;
+  attributionRequired: boolean;
+  attributionText: string | null;
+  proofUrl: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  capturedAt: string;
+};
+
+export type MusicPlaylistRecord = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  visibility: string;
+  reviewState: string;
+  createdAt: string;
+  updatedAt: string;
+  tracks: readonly { trackId: string; sortOrder: number }[];
+};
+
+export type MusicBlacklistEntryRecord = {
+  id: string;
+  scope: string;
+  trackId: string | null;
+  sourceId: string | null;
+  providerKey: string | null;
+  normalizedValue: string;
+  reason: string;
+  severity: string;
+  createdByUserId: string;
+  revokedByUserId: string | null;
+  revokedAt: string | null;
+  revocationReason: string | null;
+  createdAt: string;
+};
+
+export type MusicReviewQueueRecord = {
+  id: string;
+  trackId: string | null;
+  sourceId: string | null;
+  requestId: string | null;
+  playHistoryId: string | null;
+  queueKind: string;
+  status: string;
+  priority: string;
+  reasonCode: string;
+  summary: string;
+  details: string | null;
+  createdByUserId: string | null;
+  assignedToUserId: string | null;
+  resolvedByUserId: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MusicPlayHistoryRecord = {
+  id: string;
+  trackId: string | null;
+  sourceId: string | null;
+  requestId: string | null;
+  playlistId: string | null;
+  streamSessionId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  outcome: string;
+  outcomeReason: string | null;
+  publicVisible: boolean;
+  titleSnapshot: string;
+  artistSnapshot: string;
+  durationSecondsSnapshot: number | null;
+  durationPlayedSeconds: number | null;
+  providerKeySnapshot: string;
+  sourceTypeSnapshot: string;
+  sourceLabelSnapshot: string;
+  sourceExternalIdSnapshot: string | null;
+  sourceUrlSnapshot: string | null;
+  previewUrlSnapshot: string | null;
+  previewMimeTypeSnapshot: string | null;
+  licenseNameSnapshot: string;
+  licenseKindSnapshot: string;
+  licenseUrlSnapshot: string | null;
+  providerPolicyUrlSnapshot: string | null;
+  attributionTextSnapshot: string | null;
+  rightsStateSnapshot: MusicEligibilityState;
+  reviewStateSnapshot: MusicReviewState;
+  liveSafeSnapshot: boolean;
+  vodSafeSnapshot: boolean;
+  safetyTagsSnapshot: {
+    safetyTags: readonly string[];
+    explicitContent: boolean;
+    instrumental: boolean;
+  };
+  createdAt: string;
+};

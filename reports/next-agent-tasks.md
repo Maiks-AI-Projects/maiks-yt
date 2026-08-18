@@ -1,5 +1,13 @@
 # Next Agent Tasks
 
+## Production Stream-Safe Music Foundation
+
+- Domain, schema, API, public request, member Top 10, searchable preview player, and focused music admin pages are implemented in the production worktree.
+- Review model: eligible + allowed/current provider/license + unreviewed or approved is selectable; blacklist is immediate; skip/queued-skip creates review; stop does not; review actions are keep, restrict, reject, and blacklist.
+- Generated migration: `packages/database/drizzle/0027_jazzy_crystal.sql`. It is not applied.
+- Next coordinator work: finish review of the behavior-preserving API file split, run `pnpm check:review`, apply the migration to the selected production/test database only after acceptance, then browser-smoke `/music`, `/account/music`, and each `/admin/music/*` route with real catalog records.
+- Still separate: provider search/import adapters, uncertain-source suggestions, control-panel play controls, OBS `/music/player`, `/music/overlay`, votes, and real stream playback.
+
 Updated: 2026-08-15
 
 ## Production Website Current Lane

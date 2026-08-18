@@ -4,6 +4,7 @@ export * from "./events/index.js";
 export * from "./games/index.js";
 export * from "./identity/index.js";
 export * from "./links/index.js";
+export * from "./music/index.js";
 export * from "./money/index.js";
 export * from "./notifications/index.js";
 export * from "./pages/index.js";

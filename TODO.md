@@ -457,14 +457,22 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 ## 14B. Stream-Safe Music, Future Phase
 
 - [x] Capture viewer-influenced stream-safe music idea card.
-- [ ] Research stream-safe music libraries and license proof requirements before implementation.
-- [ ] Define approved music catalog and review workflow.
-- [ ] Add website admin page for approving/rejecting suggested tracks and editing license metadata.
+- [x] Research stream-safe music libraries and license proof requirements before implementation.
+- [x] Define allowed-provider/license eligibility policy plus skip-review and blacklist workflow without requiring manual pre-approval of every track.
+  - Eligible tracks from an allowed, currently valid provider/license policy are selectable while unreviewed or approved. Review, restricted, rejected, blacklisted, uncertain, ineligible, expired, and ambiguous policy states fail closed for public/member selection.
+  - Skip and queued-skip outcomes enter review; a normal stop does not. Blacklist wins immediately. Owner review can keep, restrict, reject, or blacklist a queued track.
+- [x] Build the rights-aware music catalog, playlist, request, member-pick, blacklist, and played-history API.
+  - Generated migration `packages/database/drizzle/0027_jazzy_crystal.sql` is intentionally unapplied pending coordinator review. The API includes immutable source/license/safety snapshots, atomic anonymous daily request buckets, atomic review decisions, a hard Spotify exclusion, and provider-source identity matching.
+- [x] Add signed-in ranked Top 10 page with a default ten-track allowance and future tier extension.
+- [x] Add public eligible-track request page with one accepted request per privacy-preserving IP key per Europe/Amsterdam day.
+- [x] Add website admin pages for catalog, playlists, keep/restrict/reject/blacklist review, license metadata, preview playback, and played history.
+  - Music administration is split across `/admin/music`, `/admin/music/catalog`, `/admin/music/playlists`, `/admin/music/review`, and `/admin/music/history` instead of one overloaded page.
+- [x] Add a shared searchable track select and preview player with play/pause and seek controls to member, public-request, and admin surfaces.
 - [ ] Add separate `/music/player` browser/audio source for OBS audio routing.
 - [ ] Add `/music/overlay` now-playing, attribution, safety, and vote display.
 - [ ] Add music controls to the existing stream control panel, not a separate music panel.
-- [ ] Add viewer voting only for approved tracks.
-- [ ] Add public music suggestion form.
+- [ ] Add viewer voting only for eligible, non-blacklisted tracks.
+- [ ] Add a separate public uncertain/new-source suggestion form that always enters review and never bypasses provider/license eligibility.
 - [ ] Consider Twitch Extension only after the website/control-panel flow is safe.
 
 ## 15. Money Prep, Not Public Money Yet

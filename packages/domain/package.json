@@ -10,6 +10,7 @@
     "./events": "./dist/events/index.js",
     "./games": "./dist/games/index.js",
     "./identity": "./dist/identity/index.js",
+    "./music": "./dist/music/index.js",
     "./pages": "./dist/pages/index.js",
     "./projects": "./dist/projects/index.js",
     "./notifications": "./dist/notifications/index.js",

@@ -33,6 +33,7 @@ import {
   getDomainUserForAuthUser,
 } from "./account/index.js";
 import type { EventRoutingPlaybackPublisher } from "./event-routing/index.js";
+import { registerMusicRoutes } from "./music/index.js";
 import {
   createNotificationAdminRepository,
   NotificationAdminService
@@ -375,6 +376,11 @@ registerApplicationRoutes({
   validateUrlAccessTokenForRequest,
   youtubeChatWarningDeliveryService,
   youtubeLiveChatIntakeRuntime
+});
+
+registerMusicRoutes(server, {
+  getAuthSession,
+  getDatabasePool
 });
 
 server.get("/health", async () => ({

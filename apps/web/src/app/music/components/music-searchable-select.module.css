@@ -1,0 +1,387 @@
+.root {
+  --music-canvas: #0b1114;
+  --music-surface: #111a1f;
+  --music-surface-raised: #172227;
+  --music-line: #2d3d44;
+  --music-line-strong: #43606a;
+  --music-text: #f4f8f7;
+  --music-muted: #a9b8bd;
+  --music-quiet: #73868d;
+  --music-mint: #45d6ad;
+  --music-warn: #f4c95d;
+  --music-danger: #ff737b;
+
+  color: var(--music-text);
+  display: grid;
+  gap: 0.65rem;
+  max-width: 54rem;
+  width: 100%;
+}
+
+.selectPanel,
+.previewPanel {
+  background: var(--music-surface);
+  border: 1px solid var(--music-line);
+  border-radius: 8px;
+}
+
+.selectPanel {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  position: relative;
+}
+
+.labelRow,
+.selectedRow,
+.previewPanel,
+.titleLine,
+.metaLine,
+.badgeLine,
+.volumeControl {
+  align-items: center;
+  display: flex;
+}
+
+.labelRow {
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.labelRow label {
+  color: var(--music-muted);
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.clearButton,
+.actionButton,
+.iconButton {
+  border: 1px solid var(--music-line);
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 750;
+}
+
+.clearButton {
+  background: transparent;
+  color: var(--music-muted);
+  min-height: 1.9rem;
+  padding: 0 0.55rem;
+}
+
+.searchControl {
+  align-items: center;
+  background: var(--music-canvas);
+  border: 1px solid var(--music-line);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 1.9rem minmax(0, 1fr);
+  min-height: 2.45rem;
+}
+
+.searchControl svg {
+  color: var(--music-quiet);
+  height: 1rem;
+  justify-self: center;
+  width: 1rem;
+}
+
+.searchControl:focus-within {
+  border-color: var(--music-mint);
+  box-shadow: 0 0 0 2px rgb(69 214 173 / 15%);
+}
+
+.searchControl input {
+  background: transparent;
+  border: 0;
+  color: var(--music-text);
+  font: inherit;
+  min-height: 2.35rem;
+  min-width: 0;
+  outline: 0;
+  padding: 0 0.65rem 0 0;
+}
+
+.searchControl input::placeholder {
+  color: var(--music-quiet);
+}
+
+.selectedRow {
+  background: rgb(11 17 20 / 70%);
+  border: 1px solid rgb(255 255 255 / 6%);
+  border-radius: 8px;
+  gap: 0.7rem;
+  justify-content: space-between;
+  min-height: 4.15rem;
+  padding: 0.62rem 0.7rem;
+}
+
+.selectedRow[data-empty="true"] {
+  min-height: 2.55rem;
+}
+
+.placeholderText,
+.stateMessage,
+.previewStatus {
+  color: var(--music-muted);
+  font-size: 0.84rem;
+}
+
+.trackSummary {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.32rem;
+  min-width: 0;
+}
+
+.titleLine {
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.titleLine strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titleLine svg {
+  color: var(--music-mint);
+  flex: 0 0 auto;
+  height: 1rem;
+  width: 1rem;
+}
+
+.metaLine,
+.badgeLine {
+  flex-wrap: wrap;
+  gap: 0.32rem 0.48rem;
+}
+
+.metaLine {
+  color: var(--music-muted);
+  font-size: 0.82rem;
+}
+
+.metaLine span:not(:last-child)::after {
+  color: var(--music-quiet);
+  content: "/";
+  margin-left: 0.48rem;
+}
+
+.badge,
+.unavailableBadge {
+  align-items: center;
+  border: 1px solid var(--music-line);
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.71rem;
+  font-weight: 750;
+  gap: 0.3rem;
+  min-height: 1.35rem;
+  padding: 0 0.42rem;
+}
+
+.badge {
+  color: var(--music-mint);
+}
+
+.badge[data-muted="true"] {
+  color: var(--music-quiet);
+}
+
+.unavailableBadge {
+  border-color: rgb(244 201 93 / 50%);
+  color: var(--music-warn);
+}
+
+.unavailableBadge svg {
+  flex: 0 0 auto;
+  height: 0.82rem;
+  width: 0.82rem;
+}
+
+.actionSlot {
+  flex: 0 0 auto;
+}
+
+.actionButton {
+  background: var(--music-mint);
+  border-color: var(--music-mint);
+  color: #071411;
+  flex: 0 0 auto;
+  min-height: 2.05rem;
+  padding: 0 0.72rem;
+}
+
+.listbox {
+  background: #10191d;
+  border: 1px solid var(--music-line-strong);
+  border-radius: 8px;
+  box-shadow: 0 18px 36px rgb(0 0 0 / 28%);
+  left: 0.7rem;
+  max-height: 18rem;
+  overflow: auto;
+  position: absolute;
+  right: 0.7rem;
+  top: calc(100% - 0.55rem);
+  z-index: 5;
+}
+
+.listbox ul {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+}
+
+.option {
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0.55rem 0.6rem;
+}
+
+.option + .option {
+  border-top: 1px solid rgb(255 255 255 / 6%);
+}
+
+.option[data-active="true"],
+.option:hover {
+  background: rgb(69 214 173 / 10%);
+}
+
+.option[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+.stateMessage {
+  margin: 0;
+  padding: 0.8rem;
+}
+
+.previewPanel {
+  gap: 0.65rem;
+  min-height: 3.2rem;
+  padding: 0.52rem 0.65rem;
+}
+
+.previewPanel audio {
+  display: none;
+}
+
+.iconButton {
+  align-items: center;
+  background: var(--music-mint);
+  border-color: var(--music-mint);
+  color: #071411;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 2.2rem;
+  justify-content: center;
+  padding: 0;
+  width: 2.2rem;
+}
+
+.iconButton svg {
+  height: 1.08rem;
+  width: 1.08rem;
+}
+
+.previewTimeline {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 0.18rem;
+  min-width: 8rem;
+}
+
+.previewTimeline span {
+  color: var(--music-muted);
+  font-size: 0.74rem;
+}
+
+.previewTimeline input,
+.volumeControl input {
+  accent-color: var(--music-mint);
+  width: 100%;
+}
+
+.volumeControl {
+  color: var(--music-muted);
+  flex: 0 1 8rem;
+  gap: 0.35rem;
+}
+
+.volumeControl span {
+  border: 0;
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.volumeControl svg {
+  flex: 0 0 auto;
+  height: 1rem;
+  width: 1rem;
+}
+
+.previewStatus {
+  flex: 0 0 auto;
+  max-width: 11rem;
+  overflow-wrap: anywhere;
+}
+
+.clearButton:disabled,
+.actionButton:disabled,
+.iconButton:disabled,
+.searchControl input:disabled,
+.previewTimeline input:disabled,
+.volumeControl input:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.clearButton:hover:not(:disabled),
+.actionButton:hover:not(:disabled),
+.iconButton:hover:not(:disabled),
+.option:focus-visible {
+  filter: brightness(1.05);
+}
+
+.clearButton:focus-visible,
+.actionButton:focus-visible,
+.iconButton:focus-visible,
+.option:focus-visible {
+  outline: 2px solid rgb(69 214 173 / 35%);
+  outline-offset: 2px;
+}
+
+@media (max-width: 620px) {
+  .selectedRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .actionButton,
+  .actionSlot {
+    align-self: stretch;
+  }
+
+  .previewPanel {
+    display: grid;
+    grid-template-columns: 2.2rem minmax(0, 1fr);
+  }
+
+  .previewStatus,
+  .volumeControl {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+}
