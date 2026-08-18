@@ -1,9 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FiAlertTriangle,
+  FiChevronDown,
+  FiDownload,
+  FiFileText,
+  FiLink,
+  FiPlus,
+  FiRefreshCw,
+  FiSearch,
+  FiX
+} from "react-icons/fi";
 import type {
   MoneyAccountingWarning,
   MoneyDirection,
+  MoneyLedgerLine,
   MoneyLedgerLineKind,
   MoneyLedgerTransaction,
   MoneyMode,
@@ -19,6 +31,7 @@ import type {
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { MoneyDatedRulesPanel } from "./money-dated-rules-panel";
 import type { MoneyRuleFormState, MoneyRuleImpactPreview } from "./money-dated-rules-panel";
+import styles from "./money-admin.module.css";
 
 type MoneyLedgerResponse =
   | {
@@ -175,6 +188,15 @@ type ImportPreviewStatusFilter = "all" | MoneyImportPreviewRow["status"];
 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
+type MoneySection = "ledger" | "add-entry" | "warnings" | "dated-rules" | "import";
+
+type LedgerRow = {
+  key: string;
+  transaction: MoneyLedgerTransaction;
+  line: MoneyLedgerLine;
+  warnings: readonly MoneyAccountingWarning[];
+};
+
 type MoneyFormState = {
   transactionType: MoneyTransactionType;
   moneyMode: MoneyMode;
@@ -246,14 +268,22 @@ const defaultRuleForm = (): MoneyRuleFormState => ({
   changeReason: ""
 });
 
+const toDateInputValue = (value: Date): string => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+
 const currentMonthFilters = (): MoneyFilterState => {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
   return {
-    accountingFrom: start.toISOString().slice(0, 10),
-    accountingTo: next.toISOString().slice(0, 10),
+    accountingFrom: toDateInputValue(start),
+    accountingTo: toDateInputValue(end),
     postingStatus: ""
   };
 };
@@ -339,6 +369,14 @@ const formatDate = (value: string): string =>
     timeStyle: "short"
   }).format(new Date(value));
 
+const formatDateOnly = (value: string): string =>
+  new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium"
+  }).format(new Date(value));
+
+const formatLabel = (value: string): string =>
+  value.replaceAll("_", " ");
+
 const formatAmount = (amountMinor: number, currency: string | null): string =>
   currency
     ? new Intl.NumberFormat(undefined, {
@@ -360,8 +398,25 @@ const parseAmountMinor = (value: string): number | null => {
 const toIsoFromLocalInput = (value: string): string =>
   new Date(value).toISOString();
 
-const toIsoFromDateInput = (value: string): string | null =>
-  value ? new Date(`${value}T00:00:00`).toISOString() : null;
+const toIsoFromDateInput = (value: string, inclusiveEnd = false): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const [yearText, monthText, dayText] = value.split("-");
+
+  if (!yearText || !monthText || !dayText) {
+    return null;
+  }
+
+  const localDate = new Date(Number(yearText), Number(monthText) - 1, Number(dayText));
+
+  if (inclusiveEnd) {
+    localDate.setDate(localDate.getDate() + 1);
+  }
+
+  return localDate.toISOString();
+};
 
 const readFileAsBase64 = async (file: File): Promise<string> =>
   await new Promise((resolve, reject) => {
@@ -459,6 +514,11 @@ const MoneyAdminClient = (): React.ReactNode => {
   const [rules, setRules] = useState<readonly MoneyRuleVersion[]>([]);
   const [ruleImpactPreview, setRuleImpactPreview] = useState<MoneyRuleImpactPreview | null>(null);
   const [filters, setFilters] = useState<MoneyFilterState>(() => currentMonthFilters());
+  const [filterDraft, setFilterDraft] = useState<MoneyFilterState>(() => currentMonthFilters());
+  const [modeFilter, setModeFilter] = useState<MoneyMode | "">("real");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSection, setActiveSection] = useState<MoneySection>("ledger");
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [form, setForm] = useState<MoneyFormState>(() => defaultForm());
   const [ruleForm, setRuleForm] = useState<MoneyRuleFormState>(() => defaultRuleForm());
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -489,6 +549,62 @@ const MoneyAdminClient = (): React.ReactNode => {
     };
   }, [transactions]);
 
+  const ledgerRows = useMemo<readonly LedgerRow[]>(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return transactions.flatMap((transaction) =>
+      transaction.lines
+        .map((line): LedgerRow => ({
+          key: `${transaction.id}:${line.id}`,
+          transaction,
+          line,
+          warnings: warnings.filter((warning) =>
+            (warning.targetKind === "transaction" && warning.targetId === transaction.id)
+            || (warning.targetKind === "line" && warning.targetId === line.id)
+          )
+        }))
+        .filter(({ transaction, line }) => {
+          if (modeFilter && transaction.moneyMode !== modeFilter) {
+            return false;
+          }
+
+          if (!query) {
+            return true;
+          }
+
+          return [
+            transaction.id,
+            transaction.transactionType,
+            transaction.sourceProvider,
+            transaction.notesPrivate,
+            line.id,
+            line.lineKind,
+            line.categoryKey,
+            line.receiptReference?.label,
+            line.receiptReference?.privateReference,
+            line.ruleVersionId,
+            line.notesPrivate
+          ].some((value) => value?.toLowerCase().includes(query));
+        })
+    );
+  }, [modeFilter, searchQuery, transactions, warnings]);
+
+  const selectedRow = useMemo<LedgerRow | null>(() =>
+    ledgerRows.find((row) => row.key === selectedRowKey) ?? ledgerRows[0] ?? null,
+  [ledgerRows, selectedRowKey]);
+
+  const ledgerCounts = useMemo(() => ({
+    draft: transactions.filter((transaction) => transaction.postingStatus === "draft").length,
+    posted: transactions.filter((transaction) => transaction.postingStatus === "posted").length,
+    voided: transactions.filter((transaction) => transaction.postingStatus === "voided").length
+  }), [transactions]);
+
+  const warningSummary = useMemo(() => ({
+    missingReceipt: warnings.filter((warning) => warning.warningKind === "missing_receipt").length,
+    estimateUnconfirmed: warnings.filter((warning) => warning.warningKind === "estimate_unconfirmed").length,
+    other: warnings.filter((warning) => warning.warningKind !== "missing_receipt" && warning.warningKind !== "estimate_unconfirmed").length
+  }), [warnings]);
+
   const filteredImportPreviewRows = useMemo(() => {
     if (!importPreview) {
       return [];
@@ -510,7 +626,7 @@ const MoneyAdminClient = (): React.ReactNode => {
   const buildLedgerQuery = useCallback((): string => {
     const params = new URLSearchParams();
     const accountingFrom = toIsoFromDateInput(filters.accountingFrom);
-    const accountingTo = toIsoFromDateInput(filters.accountingTo);
+    const accountingTo = toIsoFromDateInput(filters.accountingTo, true);
 
     if (accountingFrom) {
       params.set("accountingFrom", accountingFrom);
@@ -675,6 +791,7 @@ const MoneyAdminClient = (): React.ReactNode => {
       if (response.ok && payload?.ok) {
         await loadLedger();
         setForm(defaultForm());
+        setActiveSection("ledger");
         setMessage("Private money entry saved.");
         return;
       }
@@ -1259,363 +1376,483 @@ const MoneyAdminClient = (): React.ReactNode => {
       correctionReason: `Correction for ${transactionTypeLabels[transaction.transactionType]} from ${formatDate(transaction.accountingAt)}`,
       notesPrivate: current.notesPrivate
     }));
+    setActiveSection("add-entry");
     setMessage("Correction draft started. Enter the delta amount and save it.");
   };
 
   return (
-    <section className="project-admin-shell">
-      <header className="project-admin-header">
+    <section className={styles.shell}>
+      <header className={styles.header}>
         <div>
           <p className="eyebrow">Private Admin</p>
           <h1>Money Ledger</h1>
-          <p>Manual income, cost, fee, payout, and correction tracking before public payment behavior exists.</p>
+          <p>Every cent in and out, with dated rules and evidence.</p>
         </div>
-        <div className="admin-inline-actions">
-          <button type="button" onClick={() => void exportReviewPackageJson()} disabled={busy || loadState !== "ready"}>
-            Export Package
+        <div className={styles.headerActions}>
+          <button
+            aria-label="Refresh private money ledger"
+            className={styles.iconButton}
+            type="button"
+            onClick={() => void loadLedger()}
+            disabled={loadState === "loading"}
+            title="Refresh ledger"
+          >
+            <FiRefreshCw aria-hidden="true" />
           </button>
-          <button type="button" onClick={() => void exportSummaryJson()} disabled={busy || loadState !== "ready"}>
-            Export Summary
+          <details className={styles.exportMenu}>
+            <summary>
+              <FiDownload aria-hidden="true" />
+              Exports
+              <FiChevronDown aria-hidden="true" />
+            </summary>
+            <div className={styles.exportMenuItems}>
+              <button type="button" onClick={() => void exportReviewPackageJson()} disabled={busy || loadState !== "ready"}>
+                Review package <span>JSON</span>
+              </button>
+              <button type="button" onClick={() => void exportSummaryJson()} disabled={busy || loadState !== "ready"}>
+                Accounting summary <span>JSON</span>
+              </button>
+              <button type="button" onClick={() => void exportWarningsCsv()} disabled={busy || loadState !== "ready"}>
+                Warning review <span>CSV</span>
+              </button>
+              <button type="button" onClick={() => void exportLedgerCsv()} disabled={busy || loadState !== "ready"}>
+                Ledger rows <span>CSV</span>
+              </button>
+            </div>
+          </details>
+          <button type="button" onClick={() => setActiveSection("add-entry")} disabled={loadState !== "ready"}>
+            <FiPlus aria-hidden="true" />
+            Add entry
           </button>
-          <button type="button" onClick={() => void exportWarningsCsv()} disabled={busy || loadState !== "ready"}>
-            Export Warnings
-          </button>
-          <button type="button" onClick={() => void exportLedgerCsv()} disabled={busy || loadState !== "ready"}>
-            Export CSV
-          </button>
-          <button type="button" onClick={() => void loadLedger()} disabled={loadState === "loading"}>
-            Refresh
-          </button>
+          <small className={styles.exportHint}>Package · Summary · Warnings · Ledger CSV</small>
         </div>
       </header>
 
-      <p className={`admin-status admin-status-${loadState}`}>{message}</p>
+      <p className={styles.status} data-state={loadState} aria-live="polite">{message}</p>
 
       {loadState === "ready" ? (
-        <div className="project-admin-grid">
-          <form className="project-admin-form" onSubmit={(event) => void createTransaction(event)}>
-            <h2>Add Manual Entry</h2>
-            <div className="admin-inline-actions" aria-label="Entry presets">
-              {entryPresets.map((preset) => (
-                <button key={preset.label} type="button" className="secondary-action" onClick={() => applyEntryPreset(preset)} disabled={busy}>
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-            <label>
-              Type
-              <select
-                value={form.transactionType}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  transactionType: event.target.value as MoneyTransactionType,
-                  correctsTransactionId: event.target.value === "correction" ? current.correctsTransactionId : "",
-                  correctionReason: event.target.value === "correction" ? current.correctionReason : ""
-                }))}
+        <>
+          <nav className={styles.tabs} aria-label="Money ledger sections">
+            <button type="button" data-active={activeSection === "ledger"} onClick={() => setActiveSection("ledger")}>Ledger</button>
+            <button type="button" data-active={activeSection === "add-entry"} onClick={() => setActiveSection("add-entry")}>Add entry</button>
+            <button type="button" data-active={activeSection === "warnings"} onClick={() => setActiveSection("warnings")}>
+              Warnings {warnings.length > 0 ? <span>{warnings.length}</span> : null}
+            </button>
+            <button type="button" data-active={activeSection === "dated-rules"} onClick={() => setActiveSection("dated-rules")}>Dated rules</button>
+            <button type="button" data-active={activeSection === "import"} onClick={() => setActiveSection("import")}>Import CSV</button>
+          </nav>
+
+          <section className={styles.warningBanner} data-clear={warnings.length === 0}>
+            <FiAlertTriangle aria-hidden="true" />
+            <strong>{warnings.length === 0 ? "No open accounting warnings" : warnings.length + " accounting warning" + (warnings.length === 1 ? "" : "s") + " need review"}</strong>
+            {warnings.length > 0 ? (
+              <span>
+                {warningSummary.missingReceipt} missing receipt {warningSummary.missingReceipt === 1 ? "reference" : "references"}
+                {" · "}
+                {warningSummary.estimateUnconfirmed} unconfirmed {warningSummary.estimateUnconfirmed === 1 ? "estimate" : "estimates"}
+                {warningSummary.other > 0 ? " · " + warningSummary.other + " other" : ""}
+              </span>
+            ) : null}
+            {warnings.length > 0 ? (
+              <button type="button" onClick={() => setActiveSection("warnings")}>Review warnings</button>
+            ) : null}
+          </section>
+
+          {activeSection === "ledger" ? (
+            <section className={styles.ledgerSection}>
+              <form
+                className={styles.filters}
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setFilters(filterDraft);
+                }}
               >
-                {Object.entries(transactionTypeLabels).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Mode
-              <select
-                value={form.moneyMode}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  moneyMode: event.target.value as MoneyMode
-                }))}
-              >
-                <option value="real">Real</option>
-                <option value="provider_sandbox">Provider sandbox</option>
-                <option value="simulated">Simulated</option>
-                <option value="test">Test</option>
-              </select>
-            </label>
-            <label>
-              Status
-              <select
-                value={form.postingStatus}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  postingStatus: event.target.value as MoneyPostingStatus
-                }))}
-              >
-                <option value="draft">Draft</option>
-                <option value="posted">Posted</option>
-              </select>
-            </label>
-            <label>
-              Occurred
-              <input
-                type="datetime-local"
-                value={form.occurredAt}
-                onChange={(event) => setForm((current) => ({ ...current, occurredAt: event.target.value }))}
-              />
-            </label>
-            <label>
-              Accounting date
-              <input
-                type="datetime-local"
-                value={form.accountingAt}
-                onChange={(event) => setForm((current) => ({ ...current, accountingAt: event.target.value }))}
-              />
-            </label>
-            <label>
-              Line kind
-              <select
-                value={form.lineKind}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  lineKind: event.target.value as MoneyLedgerLineKind
-                }))}
-              >
-                {lineKindOptions.map((kind) => (
-                  <option key={kind} value={kind}>{kind.replaceAll("_", " ")}</option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Direction
-              <select
-                value={form.direction}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  direction: event.target.value as MoneyDirection
-                }))}
-              >
-                <option value="in">In</option>
-                <option value="out">Out</option>
-                <option value="neutral">Neutral</option>
-              </select>
-            </label>
-            <label>
-              Amount
-              <input
-                inputMode="decimal"
-                value={form.amountMajor}
-                onChange={(event) => setForm((current) => ({ ...current, amountMajor: event.target.value }))}
-                placeholder="12.34"
-              />
-            </label>
-            <label>
-              Currency
-              <input
-                value={form.currency}
-                onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))}
-                maxLength={3}
-              />
-            </label>
-            <label>
-              Category
-              <input
-                value={form.categoryKey}
-                onChange={(event) => setForm((current) => ({ ...current, categoryKey: event.target.value }))}
-                placeholder="hosting, payout, support"
-              />
-            </label>
-            {form.transactionType === "correction" ? (
-              <>
                 <label>
-                  Corrects entry
-                  <input value={form.correctsTransactionId} readOnly />
-                </label>
-                <label>
-                  Correction reason
-                  <textarea
-                    value={form.correctionReason}
-                    onChange={(event) => setForm((current) => ({
-                      ...current,
-                      correctionReason: event.target.value
-                    }))}
-                    rows={3}
+                  From
+                  <input
+                    type="date"
+                    value={filterDraft.accountingFrom}
+                    onChange={(event) => setFilterDraft((current) => ({ ...current, accountingFrom: event.target.value }))}
                   />
                 </label>
-              </>
-            ) : null}
-            <label>
-              Receipt type
-              <select
-                value={form.receiptReferenceType}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  receiptReferenceType: event.target.value as MoneyReceiptReferenceType
-                }))}
-              >
-                <option value="receipt">Receipt</option>
-                <option value="invoice">Invoice</option>
-                <option value="provider_statement">Provider statement</option>
-                <option value="bank_statement">Bank statement</option>
-                <option value="note">Note</option>
-              </select>
-            </label>
-            <label>
-              Receipt storage
-              <select
-                value={form.receiptStorageKind}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  receiptStorageKind: event.target.value as MoneyReceiptStorageKind
-                }))}
-              >
-                <option value="external_url">External URL</option>
-                <option value="local_reference">Local reference</option>
-                <option value="future_upload">Future upload</option>
-              </select>
-            </label>
-            <label>
-              Receipt label
-              <input
-                value={form.receiptLabel}
-                onChange={(event) => setForm((current) => ({ ...current, receiptLabel: event.target.value }))}
-                placeholder="Ko-fi payout July, hosting invoice"
-              />
-            </label>
-            <label>
-              Upload receipt file
-              <input
-                type="file"
-                accept=".pdf,.png,.jpg,.jpeg,.webp,.csv,.txt,application/pdf,image/png,image/jpeg,image/webp,text/csv,text/plain"
-                disabled={receiptUploading || busy}
-                onChange={(event) => {
-                  const file = event.target.files?.[0] ?? null;
-                  event.target.value = "";
-                  void uploadReceiptFile(file);
-                }}
-              />
-            </label>
-            <label>
-              Private receipt reference
-              <input
-                value={form.receiptPrivateReference}
-                onChange={(event) => setForm((current) => ({
-                  ...current,
-                  receiptPrivateReference: event.target.value
-                }))}
-                placeholder="URL, invoice number, local folder path"
-              />
-            </label>
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={form.isEstimate}
-                onChange={(event) => setForm((current) => ({ ...current, isEstimate: event.target.checked }))}
-              />
-              Estimate
-            </label>
-            <label>
-              Private notes
-              <textarea
-                value={form.notesPrivate}
-                onChange={(event) => setForm((current) => ({ ...current, notesPrivate: event.target.value }))}
-                rows={4}
-              />
-            </label>
-            <button type="submit" disabled={busy}>{busy ? "Saving..." : "Save entry"}</button>
-          </form>
-
-          <section className="project-admin-preview">
-            <h2>Ledger Summary</h2>
-            <div className="admin-inline-actions">
-              <label>
-                From
-                <input
-                  type="date"
-                  value={filters.accountingFrom}
-                  onChange={(event) => setFilters((current) => ({
-                    ...current,
-                    accountingFrom: event.target.value
-                  }))}
-                />
-              </label>
-              <label>
-                To
-                <input
-                  type="date"
-                  value={filters.accountingTo}
-                  onChange={(event) => setFilters((current) => ({
-                    ...current,
-                    accountingTo: event.target.value
-                  }))}
-                />
-              </label>
-              <label>
-                Status
-                <select
-                  value={filters.postingStatus}
-                  onChange={(event) => setFilters((current) => ({
-                    ...current,
-                    postingStatus: event.target.value as MoneyFilterState["postingStatus"]
-                  }))}
+                <label>
+                  To
+                  <input
+                    type="date"
+                    value={filterDraft.accountingTo}
+                    onChange={(event) => setFilterDraft((current) => ({ ...current, accountingTo: event.target.value }))}
+                  />
+                </label>
+                <label>
+                  Status
+                  <select
+                    value={filterDraft.postingStatus}
+                    onChange={(event) => setFilterDraft((current) => ({
+                      ...current,
+                      postingStatus: event.target.value as MoneyFilterState["postingStatus"]
+                    }))}
+                  >
+                    <option value="">All</option>
+                    <option value="draft">Draft</option>
+                    <option value="posted">Posted</option>
+                    <option value="voided">Voided</option>
+                  </select>
+                </label>
+                <label>
+                  Mode
+                  <select value={modeFilter} onChange={(event) => setModeFilter(event.target.value as MoneyMode | "")}>
+                    <option value="">All modes</option>
+                    <option value="real">Real</option>
+                    <option value="provider_sandbox">Provider sandbox</option>
+                    <option value="simulated">Simulated</option>
+                    <option value="test">Test</option>
+                  </select>
+                </label>
+                <label className={styles.searchField}>
+                  <span className={styles.srOnly}>Search ledger</span>
+                  <FiSearch aria-hidden="true" />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search entry, category, evidence..."
+                  />
+                </label>
+                <button type="submit">Apply</button>
+                <button
+                  type="button"
+                  className="secondary-action"
+                  onClick={() => {
+                    const cleared = { accountingFrom: "", accountingTo: "", postingStatus: "" } satisfies MoneyFilterState;
+                    setFilterDraft(cleared);
+                    setFilters(cleared);
+                    setModeFilter("");
+                    setSearchQuery("");
+                  }}
                 >
-                  <option value="">All</option>
-                  <option value="draft">Draft</option>
-                  <option value="posted">Posted</option>
-                  <option value="voided">Voided</option>
-                </select>
-              </label>
-              <button type="button" onClick={() => void loadLedger()} disabled={busy}>
-                Apply filters
-              </button>
-              <button type="button" onClick={() => setFilters(currentMonthFilters())}>
-                This month
-              </button>
-              <button type="button" onClick={() => setFilters({ accountingFrom: "", accountingTo: "", postingStatus: "" })}>
-                Clear filters
-              </button>
-            </div>
-            <div className="admin-metric-grid">
-              <div><strong>{formatAmount(totals.incomeMinor, "EUR")}</strong><span>Real in</span></div>
-              <div><strong>{formatAmount(totals.outMinor, "EUR")}</strong><span>Real out</span></div>
-              <div><strong>{formatAmount(totals.remainderMinor, "EUR")}</strong><span>Remainder</span></div>
-              <div><strong>{warnings.length}</strong><span>Open warnings</span></div>
-            </div>
-            <MoneyDatedRulesPanel
-              rules={rules}
-              impactPreview={ruleImpactPreview}
-              ruleForm={ruleForm}
-              busy={busy}
-              onRuleFormChange={setRuleForm}
-              onCreateRule={(event) => void createRuleVersion(event)}
-              onCreateImpactDrafts={() => void createRuleImpactDrafts()}
-            />
-            {warnings.length > 0 ? (
-              <div className="admin-list">
-                <h3>Accounting Warnings</h3>
-                {warnings.map((warning) => (
-                  <article className="admin-list-item" key={warning.id}>
-                    <div>
-                      <strong>{warning.warningKind.replaceAll("_", " ")}</strong>
-                      <span>{warning.severity} · {warning.targetKind}</span>
-                    </div>
-                    <p>{warning.message}</p>
-                    <button type="button" onClick={() => void resolveWarning(warning)} disabled={busy}>
-                      Mark resolved
+                  Clear <FiX aria-hidden="true" />
+                </button>
+              </form>
+
+              <div className={styles.summary} aria-label="Accounting period summary">
+                <div><span>Recorded income</span><strong>{formatAmount(totals.incomeMinor, "EUR")}</strong></div>
+                <div><span>Costs & fees</span><strong className={styles.outAmount}>{formatAmount(totals.outMinor, "EUR")}</strong></div>
+                <div><span>Bookkeeping remainder</span><strong>{formatAmount(totals.remainderMinor, "EUR")}</strong></div>
+                <div><span>Open warnings</span><strong className={warnings.length > 0 ? styles.warningAmount : undefined}>{warnings.length}</strong></div>
+              </div>
+
+              <div className={styles.workspace}>
+                <div className={styles.ledgerPane}>
+                  <div className={styles.taxCaution}>
+                    <span aria-hidden="true">i</span>
+                    <strong>Remainder is not spendable profit.</strong>
+                    Tax is not calculated here.
+                  </div>
+                  <div className={styles.tablePanel}>
+                  <div className={styles.tableScroller}>
+                    <table className={styles.ledgerTable}>
+                      <thead>
+                        <tr>
+                          <th>Accounting date</th>
+                          <th>Type / line</th>
+                          <th>Mode & status</th>
+                          <th>Category / evidence</th>
+                          <th>In</th>
+                          <th>Out</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ledgerRows.map((row) => {
+                          const hasWarning = row.warnings.length > 0;
+                          const evidence = row.line.receiptReference;
+
+                          return (
+                            <tr
+                              key={row.key}
+                              data-selected={selectedRow?.key === row.key}
+                              data-voided={row.transaction.postingStatus === "voided"}
+                              onClick={() => setSelectedRowKey(row.key)}
+                            >
+                              <td>
+                                <button type="button" className={styles.rowSelect} onClick={() => setSelectedRowKey(row.key)}>
+                                  {formatDateOnly(row.transaction.accountingAt)}
+                                </button>
+                              </td>
+                              <td>
+                                <strong>{transactionTypeLabels[row.transaction.transactionType]}</strong>
+                                <span> · {formatLabel(row.line.lineKind)}</span>
+                                {row.transaction.correctsTransactionId ? <FiLink aria-label="Correction entry" /> : null}
+                              </td>
+                              <td>
+                                <span>{formatLabel(row.transaction.moneyMode)}</span>
+                                <span className={styles.statusChip} data-status={row.transaction.postingStatus}>
+                                  {formatLabel(row.transaction.postingStatus)}
+                                </span>
+                              </td>
+                              <td>
+                                <div className={styles.evidenceCell}>
+                                  {hasWarning ? <FiAlertTriangle aria-label="Open warning" /> : <FiFileText aria-hidden="true" />}
+                                  <span>{row.line.categoryKey ?? "Uncategorized"}</span>
+                                  <span> · {evidence?.label ?? (hasWarning ? "Missing receipt" : "No reference")}</span>
+                                </div>
+                                {row.line.ruleVersionId ? <small>Rule {row.line.ruleVersionId}</small> : null}
+                              </td>
+                              <td className={styles.inAmount}>{row.line.direction === "in" ? formatAmount(row.line.amountMinor, row.line.currency) : "—"}</td>
+                              <td className={styles.outAmount}>{row.line.direction === "out" ? formatAmount(row.line.amountMinor, row.line.currency) : "—"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {ledgerRows.length === 0 ? <p className={styles.emptyState}>No ledger lines match these filters.</p> : null}
+                    <footer className={styles.tableFooter}>
+                      <span>{transactions.length} entries · {ledgerCounts.draft} draft · {ledgerCounts.posted} posted{ledgerCounts.voided > 0 ? " · " + ledgerCounts.voided + " voided" : ""}</span>
+                      <strong className={styles.inAmount}>{formatAmount(totals.incomeMinor, "EUR")}</strong>
+                      <strong className={styles.outAmount}>{formatAmount(totals.outMinor, "EUR")}</strong>
+                      <strong>{formatAmount(totals.remainderMinor, "EUR")}</strong>
+                    </footer>
+                  </div>
+                </div>
+
+                <aside className={styles.detailsPanel}>
+                  {selectedRow ? (
+                    <>
+                      <div className={styles.detailsHeading}>
+                        <h2>Entry details</h2>
+                        <div>
+                          <span className={styles.modeChip}>{formatLabel(selectedRow.transaction.moneyMode)}</span>
+                          <span className={styles.statusChip} data-status={selectedRow.transaction.postingStatus}>{formatLabel(selectedRow.transaction.postingStatus)}</span>
+                        </div>
+                      </div>
+                      <dl className={styles.detailsList}>
+                        <div><dt>Accounting date</dt><dd>{formatDateOnly(selectedRow.transaction.accountingAt)}</dd></div>
+                        <div><dt>Occurred</dt><dd>{formatDateOnly(selectedRow.transaction.occurredAt)}</dd></div>
+                        <div><dt>Type</dt><dd>{transactionTypeLabels[selectedRow.transaction.transactionType]}</dd></div>
+                        <div><dt>Line kind</dt><dd>{formatLabel(selectedRow.line.lineKind)}</dd></div>
+                        <div><dt>Direction</dt><dd>{formatLabel(selectedRow.line.direction)}</dd></div>
+                        <div><dt>Amount</dt><dd className={selectedRow.line.direction === "out" ? styles.outAmount : styles.inAmount}>{formatAmount(selectedRow.line.amountMinor, selectedRow.line.currency)}</dd></div>
+                        <div><dt>Currency</dt><dd>{selectedRow.line.currency ?? "Value units"}</dd></div>
+                        <div><dt>Category</dt><dd>{selectedRow.line.categoryKey ?? "Not set"}</dd></div>
+                        <div><dt>Estimate</dt><dd>{selectedRow.line.isEstimate ? "Yes" : "No"}</dd></div>
+                        <div>
+                          <dt>Rule evidence</dt>
+                          <dd>{selectedRow.line.ruleVersionId ? <><code>{selectedRow.line.ruleVersionId}</code> <FiLink aria-hidden="true" /></> : "None"}</dd>
+                        </div>
+                        <div>
+                          <dt>Receipt</dt>
+                          <dd className={!selectedRow.line.receiptReference ? styles.outAmount : undefined}>
+                            {selectedRow.line.receiptReference?.label ?? "No receipt reference"}
+                          </dd>
+                        </div>
+                        <div><dt>Private notes</dt><dd>{selectedRow.line.notesPrivate ?? selectedRow.transaction.notesPrivate ?? "None"}</dd></div>
+                      </dl>
+
+                      {selectedRow.line.receiptReference && getReceiptUploadId(selectedRow.line.receiptReference.privateReference) ? (
+                        <button
+                          type="button"
+                          className="secondary-action"
+                          onClick={() => {
+                            const uploadId = getReceiptUploadId(selectedRow.line.receiptReference?.privateReference ?? "");
+                            if (uploadId) {
+                              void downloadReceiptFile(uploadId);
+                            }
+                          }}
+                          disabled={busy}
+                        >
+                          <FiFileText aria-hidden="true" /> Open evidence file
+                        </button>
+                      ) : null}
+
+                      {selectedRow.warnings.map((warning) => (
+                        <div className={styles.detailWarning} key={warning.id}>
+                          <FiAlertTriangle aria-hidden="true" />
+                          <span>{warning.message}</span>
+                          <button type="button" onClick={() => void resolveWarning(warning)} disabled={busy}>Mark resolved</button>
+                        </div>
+                      ))}
+
+                      {selectedRow.transaction.postingStatus !== "voided" ? (
+                        <div className={styles.detailActions}>
+                          {selectedRow.transaction.postingStatus === "draft" ? (
+                            <button type="button" onClick={() => void postDraftTransaction(selectedRow.transaction)} disabled={busy}>Post draft</button>
+                          ) : null}
+                          <button type="button" className="secondary-action" onClick={() => startCorrection(selectedRow.transaction)} disabled={busy}>
+                            <FiLink aria-hidden="true" /> Correct entry
+                          </button>
+                          <button type="button" className={styles.voidButton} onClick={() => void voidTransaction(selectedRow.transaction)} disabled={busy}>
+                            Void entry
+                          </button>
+                        </div>
+                      ) : null}
+                      <p className={styles.safetyNote}>Posting changes bookkeeping status only. It does not move money.</p>
+                    </>
+                  ) : (
+                    <p className={styles.emptyState}>Select a ledger line to inspect its evidence and actions.</p>
+                  )}
+                </aside>
+              </div>
+            </section>
+          ) : null}
+
+          {activeSection === "add-entry" ? (
+            <section className={styles.sectionPanel}>
+              <div className={styles.sectionHeading}>
+                <div><p className="eyebrow">Manual record</p><h2>Add entry</h2></div>
+                <p>Record income, spending, fees, payouts, or append-only corrections.</p>
+              </div>
+              <form className={styles.entryForm} onSubmit={(event) => void createTransaction(event)}>
+                <div className={styles.presets} aria-label="Entry presets">
+                  {entryPresets.map((preset) => (
+                    <button key={preset.label} type="button" className="secondary-action" onClick={() => applyEntryPreset(preset)} disabled={busy}>
+                      {preset.label}
                     </button>
+                  ))}
+                </div>
+                <div className={styles.formGrid}>
+                  <label>
+                    Type
+                    <select
+                      value={form.transactionType}
+                      onChange={(event) => setForm((current) => ({
+                        ...current,
+                        transactionType: event.target.value as MoneyTransactionType,
+                        correctsTransactionId: event.target.value === "correction" ? current.correctsTransactionId : "",
+                        correctionReason: event.target.value === "correction" ? current.correctionReason : ""
+                      }))}
+                    >
+                      {Object.entries(transactionTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Mode
+                    <select value={form.moneyMode} onChange={(event) => setForm((current) => ({ ...current, moneyMode: event.target.value as MoneyMode }))}>
+                      <option value="real">Real</option><option value="provider_sandbox">Provider sandbox</option><option value="simulated">Simulated</option><option value="test">Test</option>
+                    </select>
+                  </label>
+                  <label>
+                    Status
+                    <select value={form.postingStatus} onChange={(event) => setForm((current) => ({ ...current, postingStatus: event.target.value as MoneyPostingStatus }))}>
+                      <option value="draft">Draft</option><option value="posted">Posted</option>
+                    </select>
+                  </label>
+                  <label>Occurred<input type="datetime-local" value={form.occurredAt} onChange={(event) => setForm((current) => ({ ...current, occurredAt: event.target.value }))} /></label>
+                  <label>Accounting date<input type="datetime-local" value={form.accountingAt} onChange={(event) => setForm((current) => ({ ...current, accountingAt: event.target.value }))} /></label>
+                  <label>
+                    Line kind
+                    <select value={form.lineKind} onChange={(event) => setForm((current) => ({ ...current, lineKind: event.target.value as MoneyLedgerLineKind }))}>
+                      {lineKindOptions.map((kind) => <option key={kind} value={kind}>{formatLabel(kind)}</option>)}
+                    </select>
+                  </label>
+                  <label>
+                    Direction
+                    <select value={form.direction} onChange={(event) => setForm((current) => ({ ...current, direction: event.target.value as MoneyDirection }))}>
+                      <option value="in">In</option><option value="out">Out</option><option value="neutral">Neutral</option>
+                    </select>
+                  </label>
+                  <label>Amount<input inputMode="decimal" value={form.amountMajor} onChange={(event) => setForm((current) => ({ ...current, amountMajor: event.target.value }))} placeholder="12.34" /></label>
+                  <label>Currency<input value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} maxLength={3} /></label>
+                  <label>Category<input value={form.categoryKey} onChange={(event) => setForm((current) => ({ ...current, categoryKey: event.target.value }))} placeholder="hosting, payout, support" /></label>
+                  {form.transactionType === "correction" ? (
+                    <>
+                      <label>Corrects entry<input value={form.correctsTransactionId} readOnly /></label>
+                      <label className={styles.wideField}>Correction reason<textarea value={form.correctionReason} onChange={(event) => setForm((current) => ({ ...current, correctionReason: event.target.value }))} rows={3} /></label>
+                    </>
+                  ) : null}
+                  <label>
+                    Receipt type
+                    <select value={form.receiptReferenceType} onChange={(event) => setForm((current) => ({ ...current, receiptReferenceType: event.target.value as MoneyReceiptReferenceType }))}>
+                      <option value="receipt">Receipt</option><option value="invoice">Invoice</option><option value="provider_statement">Provider statement</option><option value="bank_statement">Bank statement</option><option value="note">Note</option>
+                    </select>
+                  </label>
+                  <label>
+                    Receipt storage
+                    <select value={form.receiptStorageKind} onChange={(event) => setForm((current) => ({ ...current, receiptStorageKind: event.target.value as MoneyReceiptStorageKind }))}>
+                      <option value="external_url">External URL</option><option value="local_reference">Local reference</option><option value="future_upload">Private upload</option>
+                    </select>
+                  </label>
+                  <label>Receipt label<input value={form.receiptLabel} onChange={(event) => setForm((current) => ({ ...current, receiptLabel: event.target.value }))} placeholder="Ko-fi payout July, hosting invoice" /></label>
+                  <label>
+                    Upload evidence
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,.csv,.txt,application/pdf,image/png,image/jpeg,image/webp,text/csv,text/plain"
+                      disabled={receiptUploading || busy}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        event.target.value = "";
+                        void uploadReceiptFile(file);
+                      }}
+                    />
+                  </label>
+                  <label className={styles.wideField}>Private receipt reference<input value={form.receiptPrivateReference} onChange={(event) => setForm((current) => ({ ...current, receiptPrivateReference: event.target.value }))} placeholder="URL, invoice number, local folder path" /></label>
+                  <label className={styles.checkboxField}><input type="checkbox" checked={form.isEstimate} onChange={(event) => setForm((current) => ({ ...current, isEstimate: event.target.checked }))} /> Estimate</label>
+                  <label className={styles.wideField}>Private notes<textarea value={form.notesPrivate} onChange={(event) => setForm((current) => ({ ...current, notesPrivate: event.target.value }))} rows={4} /></label>
+                </div>
+                <div className={styles.formActions}>
+                  <button type="submit" disabled={busy}>{busy ? "Saving..." : "Save entry"}</button>
+                  <button type="button" className="secondary-action" onClick={() => setActiveSection("ledger")}>Cancel</button>
+                </div>
+              </form>
+            </section>
+          ) : null}
+
+          {activeSection === "warnings" ? (
+            <section className={styles.sectionPanel}>
+              <div className={styles.sectionHeading}>
+                <div><p className="eyebrow">Review queue</p><h2>Accounting warnings</h2></div>
+                <p>Warnings identify incomplete evidence, estimates, categories, and rule gaps. Resolving one does not change its ledger row.</p>
+              </div>
+              <div className={styles.warningList}>
+                {warnings.map((warning) => (
+                  <article key={warning.id}>
+                    <FiAlertTriangle aria-hidden="true" />
+                    <div>
+                      <strong>{formatLabel(warning.warningKind)}</strong>
+                      <span>{warning.severity} · {warning.targetKind}</span>
+                      <p>{warning.message}</p>
+                      <code>{warning.targetId}</code>
+                    </div>
+                    <button type="button" onClick={() => void resolveWarning(warning)} disabled={busy}>Mark resolved</button>
                   </article>
                 ))}
+                {warnings.length === 0 ? <p className={styles.emptyState}>No open accounting warnings for this period.</p> : null}
               </div>
-            ) : null}
-            <div className="admin-list">
-              <h3>Import Preview</h3>
-              <p>{importMessage}</p>
-              <label>
+            </section>
+          ) : null}
+
+          {activeSection === "dated-rules" ? (
+            <section className={styles.sectionPanel}>
+              <div className={styles.sectionHeading}>
+                <div><p className="eyebrow">Effective dates</p><h2>Income splits and transaction costs</h2></div>
+                <p>Keep fee, split, conversion, and estimate rules tied to the dates when they applied.</p>
+              </div>
+              <MoneyDatedRulesPanel
+                rules={rules}
+                impactPreview={ruleImpactPreview}
+                ruleForm={ruleForm}
+                busy={busy}
+                onRuleFormChange={setRuleForm}
+                onCreateRule={(event) => void createRuleVersion(event)}
+                onCreateImpactDrafts={() => void createRuleImpactDrafts()}
+              />
+            </section>
+          ) : null}
+
+          {activeSection === "import" ? (
+            <section className={styles.sectionPanel}>
+              <div className={styles.sectionHeading}>
+                <div><p className="eyebrow">No-write preview first</p><h2>Import provider CSV</h2></div>
+                <p>Preview rows, warnings, and duplicates before explicitly creating draft ledger entries.</p>
+              </div>
+              <p className={styles.importMessage}>{importMessage}</p>
+              <label className={styles.csvField}>
                 Provider CSV
-                <textarea
-                  value={importCsvText}
-                  onChange={(event) => setImportCsvText(event.target.value)}
-                  rows={7}
-                  placeholder="date,description,amount,currency,direction,category,provider,reference"
-                />
+                <textarea value={importCsvText} onChange={(event) => setImportCsvText(event.target.value)} rows={8} placeholder="date,description,amount,currency,direction,category,provider,reference" />
               </label>
-              <div className="admin-inline-actions">
-                <button type="button" onClick={() => void previewImportCsv()} disabled={busy}>
-                  Preview CSV
-                </button>
-                <button type="button" onClick={() => void importDraftEntries()} disabled={busy || !importPreview}>
-                  Create draft entries
-                </button>
+              <div className={styles.formActions}>
+                <button type="button" onClick={() => void previewImportCsv()} disabled={busy}>Preview CSV</button>
+                <button type="button" onClick={() => void importDraftEntries()} disabled={busy || !importPreview}>Create draft entries</button>
                 <button
                   type="button"
                   className="secondary-action"
@@ -1646,19 +1883,16 @@ const MoneyAdminClient = (): React.ReactNode => {
                 </button>
               </div>
               {importPreview ? (
-                <>
-                  <div className="admin-metric-grid">
+                <div className={styles.importPreview}>
+                  <div className={styles.importSummary}>
                     <div><strong>{importPreview.summary.readyRows}</strong><span>Ready</span></div>
                     <div><strong>{importPreview.summary.warningRows}</strong><span>Warnings</span></div>
                     <div><strong>{importPreview.summary.skippedRows}</strong><span>Skipped</span></div>
-                    <div><strong>{importPreview.summary.currencies.join(", ") || "None"}</strong><span>Currencies</span></div>
                     <div><strong>{formatAmount(importPreview.summary.totalInMinor, "EUR")}</strong><span>Preview in</span></div>
                     <div><strong>{formatAmount(importPreview.summary.totalOutMinor, "EUR")}</strong><span>Preview out</span></div>
                   </div>
-                  {importPreview.notes.map((note) => (
-                    <p key={note}>{note}</p>
-                  ))}
-                  <div className="admin-inline-actions">
+                  {importPreview.notes.map((note) => <p key={note}>{note}</p>)}
+                  <div className={styles.previewToolbar}>
                     <label>
                       Preview rows
                       <select
@@ -1668,36 +1902,23 @@ const MoneyAdminClient = (): React.ReactNode => {
                           setImportPreviewRowLimit(25);
                         }}
                       >
-                        <option value="all">All</option>
-                        <option value="ready">Ready</option>
-                        <option value="warning">Warnings</option>
-                        <option value="skipped">Skipped</option>
+                        <option value="all">All</option><option value="ready">Ready</option><option value="warning">Warnings</option><option value="skipped">Skipped</option>
                       </select>
                     </label>
-                    <span>
-                      Showing {Math.min(importPreviewRowLimit, filteredImportPreviewRows.length)} of {filteredImportPreviewRows.length}
-                    </span>
+                    <span>Showing {Math.min(importPreviewRowLimit, filteredImportPreviewRows.length)} of {filteredImportPreviewRows.length}</span>
                     {importPreviewRowLimit < filteredImportPreviewRows.length ? (
                       <>
-                        <button type="button" onClick={() => setImportPreviewRowLimit((current) => current + 25)}>
-                          Show 25 more
-                        </button>
-                        <button type="button" onClick={() => setImportPreviewRowLimit(filteredImportPreviewRows.length)}>
-                          Show all
-                        </button>
+                        <button type="button" className="secondary-action" onClick={() => setImportPreviewRowLimit((current) => current + 25)}>Show 25 more</button>
+                        <button type="button" className="secondary-action" onClick={() => setImportPreviewRowLimit(filteredImportPreviewRows.length)}>Show all</button>
                       </>
                     ) : null}
                   </div>
-                  <div className="admin-list">
+                  <div className={styles.previewRows}>
                     {filteredImportPreviewRows.slice(0, importPreviewRowLimit).map((row) => (
-                      <article className="admin-list-item" key={`${row.rowNumber}-${row.reference ?? row.description ?? row.status}`}>
+                      <article key={String(row.rowNumber) + (row.reference ?? row.description ?? row.status)} data-status={row.status}>
                         <div>
                           <strong>Row {row.rowNumber}: {row.status}</strong>
-                          <span>
-                            {row.direction ?? "?"} {row.amountMinor === null ? "invalid amount" : formatAmount(row.amountMinor, row.currency)}
-                            {row.sourceProvider ? ` · ${row.sourceProvider}` : ""}
-                            {row.categoryKey ? ` · ${row.categoryKey}` : ""}
-                          </span>
+                          <span>{row.direction ?? "?"} {row.amountMinor === null ? "invalid amount" : formatAmount(row.amountMinor, row.currency)}{row.sourceProvider ? " · " + row.sourceProvider : ""}{row.categoryKey ? " · " + row.categoryKey : ""}</span>
                         </div>
                         {row.description ? <p>{row.description}</p> : null}
                         {row.duplicateTransactionId ? <p>Existing entry: {row.duplicateTransactionId}</p> : null}
@@ -1705,78 +1926,13 @@ const MoneyAdminClient = (): React.ReactNode => {
                         {row.warnings.length > 0 ? <p>{row.warnings.join(", ")}</p> : null}
                       </article>
                     ))}
-                    {filteredImportPreviewRows.length === 0 ? (
-                      <p>No preview rows match this filter.</p>
-                    ) : null}
+                    {filteredImportPreviewRows.length === 0 ? <p className={styles.emptyState}>No preview rows match this filter.</p> : null}
                   </div>
-                </>
+                </div>
               ) : null}
-            </div>
-            <div className="admin-list">
-              {transactions.length === 0 ? (
-                <p>No entries yet.</p>
-              ) : transactions.map((transaction) => (
-                <article className="admin-list-item" key={transaction.id}>
-                  <div>
-                    <strong>{transactionTypeLabels[transaction.transactionType]}</strong>
-                    <span>{transaction.moneyMode} · {transaction.postingStatus} · {formatDate(transaction.accountingAt)}</span>
-                  </div>
-                  {transaction.postingStatus !== "voided" ? (
-                    <div className="admin-inline-actions">
-                      {transaction.postingStatus === "draft" ? (
-                        <button type="button" onClick={() => void postDraftTransaction(transaction)} disabled={busy}>
-                          Post draft
-                        </button>
-                      ) : null}
-                      <button type="button" onClick={() => startCorrection(transaction)} disabled={busy}>
-                        Correct entry
-                      </button>
-                      <button type="button" onClick={() => void voidTransaction(transaction)} disabled={busy}>
-                        Void entry
-                      </button>
-                    </div>
-                  ) : null}
-                  {transaction.lines.map((line) => (
-                    <div key={line.id}>
-                      <p>
-                        {line.direction} {formatAmount(line.amountMinor, line.currency)} · {line.lineKind.replaceAll("_", " ")}
-                        {line.categoryKey ? ` · ${line.categoryKey}` : ""}
-                        {line.isEstimate ? " · estimate" : ""}
-                      </p>
-                      {line.ruleVersionId ? <p>Rule evidence: {line.ruleVersionId}</p> : null}
-                      {line.receiptReference ? (
-                        <p>
-                          Receipt: {line.receiptReference.label}
-                          {" "}
-                          ({line.receiptReference.referenceType.replaceAll("_", " ")})
-                          {getReceiptUploadId(line.receiptReference.privateReference) ? (
-                            <>
-                              {" "}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const uploadId = getReceiptUploadId(line.receiptReference?.privateReference ?? "");
-
-                                  if (uploadId) {
-                                    void downloadReceiptFile(uploadId);
-                                  }
-                                }}
-                                disabled={busy}
-                              >
-                                Open file
-                              </button>
-                            </>
-                          ) : null}
-                        </p>
-                      ) : null}
-                    </div>
-                  ))}
-                  {transaction.notesPrivate ? <p>{transaction.notesPrivate}</p> : null}
-                </article>
-              ))}
-            </div>
-          </section>
-        </div>
+            </section>
+          ) : null}
+        </>
       ) : null}
     </section>
   );
