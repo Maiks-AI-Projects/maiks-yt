@@ -58,6 +58,7 @@ export const createModeratorAdminRepository = (
         FROM user_roles
         INNER JOIN roles ON roles.id = user_roles.role_id
         INNER JOIN users ON users.id = user_roles.user_id
+        INNER JOIN auth_user_links ON auth_user_links.user_id = users.id
         WHERE users.deleted_at IS NULL
         ORDER BY users.display_name, roles.key
       `

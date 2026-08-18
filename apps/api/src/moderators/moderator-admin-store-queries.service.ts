@@ -151,8 +151,8 @@ export const listUsers = async (executor: QueryExecutor): Promise<readonly Moder
         users.created_at AS createdAt,
         users.updated_at AS updatedAt
       FROM users
-      LEFT JOIN auth_user_links ON auth_user_links.user_id = users.id
-      LEFT JOIN auth_users ON auth_users.id = auth_user_links.auth_user_id
+      INNER JOIN auth_user_links ON auth_user_links.user_id = users.id
+      INNER JOIN auth_users ON auth_users.id = auth_user_links.auth_user_id
       WHERE users.deleted_at IS NULL
       GROUP BY
         users.id,
@@ -326,8 +326,8 @@ export const readUser = async (
         users.created_at AS createdAt,
         users.updated_at AS updatedAt
       FROM users
-      LEFT JOIN auth_user_links ON auth_user_links.user_id = users.id
-      LEFT JOIN auth_users ON auth_users.id = auth_user_links.auth_user_id
+      INNER JOIN auth_user_links ON auth_user_links.user_id = users.id
+      INNER JOIN auth_users ON auth_users.id = auth_user_links.auth_user_id
       WHERE users.id = ?
         AND users.deleted_at IS NULL
       GROUP BY
