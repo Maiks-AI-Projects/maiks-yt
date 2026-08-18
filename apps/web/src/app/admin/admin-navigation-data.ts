@@ -52,7 +52,7 @@ export const adminNavigationGroups: readonly AdminNavigationGroup[] = [
     label: "Testing & Safety",
     shortLabel: "Testing",
     href: "/admin/testing",
-    description: "Readiness checks, provider intake, routing, and live-helper review.",
+    description: "Readiness checks, provider intake, and event routing.",
     icon: FaShieldHalved,
     items: [
       {
@@ -81,13 +81,6 @@ export const adminNavigationGroups: readonly AdminNavigationGroup[] = [
         description: "Manual routing rules and safe simulated approvals.",
         icon: FaRoute,
         statusKey: "pending-approvals"
-      },
-      {
-        href: "/admin/live-helper",
-        label: "Live Helper",
-        description: "Active helper grants, alerts, and moderation state.",
-        icon: FaPeopleGroup,
-        statusKey: "helpers"
       }
     ]
   },

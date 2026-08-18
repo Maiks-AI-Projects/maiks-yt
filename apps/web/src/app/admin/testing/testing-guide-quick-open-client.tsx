@@ -80,11 +80,6 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
         description: "Manual routing rules and pending simulated approvals."
       },
       {
-        href: "/admin/live-helper",
-        label: "Live Helper",
-        description: "Read-only helper snapshot for moderation and stream state."
-      },
-      {
         href: "/admin/backup/health",
         label: "Backup Health",
         description: "Read-only backup/export readiness checks before testing."
