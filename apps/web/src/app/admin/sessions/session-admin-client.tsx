@@ -1,78 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { FiLock, FiRefreshCw, FiShield } from "react-icons/fi";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
-
-type SessionAdminRecord = {
-  id: string;
-  authUserId: string;
-  userName: string;
-  userEmail: string;
-  ipAddress: string | null;
-  userAgent: string | null;
-  createdAt: string;
-  updatedAt: string;
-  expiresAt: string;
-  isCurrent: boolean;
-  isExpired: boolean;
-};
+import { getDeviceSummary } from "./session-admin-data";
+import SessionAdminRows from "./session-admin-rows";
+import styles from "./session-admin.module.css";
+import type { SessionAdminRecord } from "./session-admin.types";
 
 type SessionAdminResponse =
-  | {
-    ok: true;
-    sessions: readonly SessionAdminRecord[];
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
+  | { ok: true; sessions: readonly SessionAdminRecord[] }
+  | { ok: false; reason: string };
 
 type SessionAdminMutationResponse =
-  | {
-    ok: true;
-    revokedCount?: number;
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
+  | { ok: true; revokedCount?: number }
+  | { ok: false; reason: string };
 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
-const formatDate = (value: string): string =>
-  new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
-
 const getFailureMessage = (response: Response, reason?: string): string => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "Sign in before managing sessions.";
-  }
-
+  if (response.status === 401 || reason === "not_authenticated") return "Sign in before managing sessions.";
   if (response.status === 403 || reason === "session_admin_forbidden") {
     return "Your account does not have session management permission.";
   }
-
-  if (response.status === 404 || reason === "session_admin_not_found") {
-    return "That session could not be found.";
-  }
-
+  if (response.status === 404 || reason === "session_admin_not_found") return "That session could not be found.";
   return `Session request failed with ${response.status}.`;
 };
 
 const getLoadStateForFailure = (response: Response, reason?: string): LoadState => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "signed-out";
-  }
-
+  if (response.status === 401 || reason === "not_authenticated") return "signed-out";
   if (response.status === 403 || reason === "session_admin_forbidden" || reason === "session_admin_user_unlinked") {
     return "forbidden";
   }
-
   return "failed";
 };
 
@@ -81,6 +43,7 @@ const SessionAdminClient = (): React.ReactNode => {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading active sessions...");
   const [busySessionId, setBusySessionId] = useState<string | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
     try {
@@ -104,7 +67,7 @@ const SessionAdminClient = (): React.ReactNode => {
       if (response.ok && payload?.ok) {
         setSessions(payload.sessions);
         setLoadState("ready");
-        setMessage(payload.sessions.length === 0 ? "No active browser sessions found." : "Sessions loaded.");
+        setMessage(payload.sessions.length === 0 ? "No signed-in sessions found." : "Sessions loaded.");
         return;
       }
 
@@ -123,15 +86,14 @@ const SessionAdminClient = (): React.ReactNode => {
   }, [loadSessions]);
 
   const revokeSession = async (session: SessionAdminRecord): Promise<void> => {
+    const device = getDeviceSummary(session.userAgent);
     const confirmed = window.confirm(
       session.isCurrent
-        ? "Revoke your current browser session? You may need to sign in again."
-        : `Revoke the session for ${session.userEmail}?`
+        ? "Revoke this current session? You will be signed out here and need to sign in again."
+        : `Revoke this ${device.label} session? That session will be signed out immediately.`
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setBusySessionId(session.id);
     setMessage("Revoking session...");
@@ -145,6 +107,7 @@ const SessionAdminClient = (): React.ReactNode => {
       const payload = await parseJson<SessionAdminMutationResponse>(response);
 
       if (response.ok && payload?.ok) {
+        setExpandedSessionId(null);
         await loadSessions();
         setMessage("Session revoked.");
         return;
@@ -160,11 +123,8 @@ const SessionAdminClient = (): React.ReactNode => {
   };
 
   const revokeOtherSessions = async (): Promise<void> => {
-    const confirmed = window.confirm("Revoke every other browser session and keep this one signed in?");
-
-    if (!confirmed) {
-      return;
-    }
+    const confirmed = window.confirm("Revoke every other session and keep this browser signed in?");
+    if (!confirmed) return;
 
     setBusySessionId("revoke-others");
     setMessage("Revoking other sessions...");
@@ -178,6 +138,7 @@ const SessionAdminClient = (): React.ReactNode => {
       const payload = await parseJson<SessionAdminMutationResponse>(response);
 
       if (response.ok && payload?.ok) {
+        setExpandedSessionId(null);
         await loadSessions();
         setMessage(`Revoked ${payload.revokedCount ?? 0} other session${payload.revokedCount === 1 ? "" : "s"}.`);
         return;
@@ -192,66 +153,111 @@ const SessionAdminClient = (): React.ReactNode => {
     }
   };
 
+  const orderedSessions = [...sessions].sort((left, right) => Number(right.isCurrent) - Number(left.isCurrent));
+  const hasCurrentSession = sessions.some((session) => session.isCurrent);
+
   return (
-    <section className="project-admin-shell">
-      <header className="project-admin-header">
-        <div>
+    <section className={`${styles.shell} project-admin-shell`}>
+      <header className={styles.header}>
+        <div className={styles.heading}>
           <p className="eyebrow">Private Admin</p>
           <h1>Sessions</h1>
-          <p>Review active browser sessions and revoke anything suspicious.</p>
+          <p>Check where your account is signed in and revoke anything you don&apos;t recognize.</p>
         </div>
-        <div className="admin-inline-actions">
+        <div className={styles.toolbar}>
           <button
+            className={styles.secondaryButton}
             type="button"
-            onClick={() => void revokeOtherSessions()}
-            disabled={loadState !== "ready" || sessions.length <= 1 || busySessionId !== null}
+            onClick={() => void loadSessions()}
+            disabled={loadState === "loading" || busySessionId !== null}
           >
-            Revoke Others
-          </button>
-          <button type="button" onClick={() => void loadSessions()} disabled={loadState === "loading"}>
+            <FiRefreshCw aria-hidden="true" />
             Refresh
           </button>
+          <div className={styles.bulkAction}>
+            <button
+              className={styles.dangerOutlineButton}
+              type="button"
+              onClick={() => void revokeOtherSessions()}
+              disabled={loadState !== "ready" || sessions.length <= 1 || !hasCurrentSession || busySessionId !== null}
+            >
+              <FiShield aria-hidden="true" />
+              {busySessionId === "revoke-others" ? "Revoking..." : "Revoke all other sessions"}
+            </button>
+            <small>Keeps this session signed in</small>
+          </div>
         </div>
       </header>
 
-      <p className={`admin-status admin-status-${loadState}`}>{message}</p>
+      <div className={styles.recoveryNote}>
+        <FiShield aria-hidden="true" />
+        <span>Security recovery</span>
+        <span aria-hidden="true">·</span>
+        <p>Compare the device, IP, and activity time before revoking access.</p>
+      </div>
+
+      <p
+        className={`${styles.requestStatus} ${styles[`requestStatus${loadState}`]}`}
+        role="status"
+        aria-live="polite"
+      >
+        <span aria-hidden="true" />
+        {message}
+      </p>
 
       {loadState === "ready" ? (
-        <div className="admin-list">
-          {sessions.length === 0 ? (
-            <p>No sessions found.</p>
-          ) : sessions.map((session) => (
-            <article className="admin-list-item" key={session.id}>
-              <div>
-                <strong>{session.userName || session.userEmail}</strong>
-                <span>
-                  {session.userEmail}
-                  {session.isCurrent ? " · current" : ""}
-                  {session.isExpired ? " · expired" : ""}
-                </span>
-              </div>
-              <p>
-                Updated {formatDate(session.updatedAt)} · Expires {formatDate(session.expiresAt)}
-              </p>
-              <p>
-                IP: {session.ipAddress ?? "unknown"}
-              </p>
-              <p title={session.userAgent ?? undefined}>
-                User agent: {session.userAgent ?? "unknown"}
-              </p>
-              <div className="admin-inline-actions">
-                <button
-                  type="button"
-                  onClick={() => void revokeSession(session)}
-                  disabled={busySessionId === session.id}
-                >
-                  {busySessionId === session.id ? "Revoking..." : "Revoke"}
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
+        <section className={styles.sessionTable} aria-labelledby="signed-in-sessions-heading">
+          <header className={styles.tableTitle}>
+            <h2 id="signed-in-sessions-heading">Signed-in sessions</h2>
+            <span>{sessions.length} session{sessions.length === 1 ? "" : "s"}</span>
+          </header>
+
+          {orderedSessions.length === 0 ? (
+            <div className={styles.emptyState}>
+              <FiLock aria-hidden="true" />
+              <p>No signed-in sessions were found.</p>
+            </div>
+          ) : (
+            <div className={styles.tableScroll}>
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Device</th>
+                    <th scope="col">Location / IP</th>
+                    <th scope="col">Last activity</th>
+                    <th scope="col">Signed in</th>
+                    <th scope="col">Expires</th>
+                    <th scope="col">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orderedSessions.map((session) => {
+                    const device = getDeviceSummary(session.userAgent);
+                    const isExpanded = expandedSessionId === session.id;
+
+                    return (
+                      <SessionAdminRows
+                        key={session.id}
+                        session={session}
+                        device={device}
+                        isExpanded={isExpanded}
+                        isBusy={busySessionId === session.id}
+                        onToggleDetails={() => setExpandedSessionId(isExpanded ? null : session.id)}
+                        onRevoke={() => void revokeSession(session)}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       ) : null}
+
+      <footer className={styles.privacyNote}>
+        <FiLock aria-hidden="true" />
+        <p>Session tokens are never shown. Revoking access signs that session out immediately.</p>
+      </footer>
     </section>
   );
 };
