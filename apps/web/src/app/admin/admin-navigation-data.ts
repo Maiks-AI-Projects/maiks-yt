@@ -71,7 +71,7 @@ export const adminNavigationGroups: readonly AdminNavigationGroup[] = [
       {
         href: "/admin/event-routing",
         label: "Event Routing",
-        description: "Manual routing rules and safe simulated approvals.",
+        description: "Production routing rules, review queue, cooldowns, and history.",
         icon: FaRoute,
         statusKey: "pending-approvals"
       }
