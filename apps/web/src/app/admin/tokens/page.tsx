@@ -1,4 +1,5 @@
 import TokenAdminClient from "./token-admin-client";
+import styles from "./token-admin.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export const metadata = {
 };
 
 const TokenAdminPage = (): React.ReactNode => (
-  <main className="project-admin-page token-admin-page">
+  <main className={`${styles.page} project-admin-page token-admin-page`}>
     <TokenAdminClient />
   </main>
 );
