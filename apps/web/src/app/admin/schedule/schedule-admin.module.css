@@ -1,0 +1,277 @@
+.pageHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--admin-line);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.1rem 0 0.9rem;
+}
+
+.pageHeader h1,
+.pageHeader p,
+.editorHeading h2,
+.cancelStrip h3,
+.cancelStrip p,
+.dialogHeading h2,
+.dialogIntro {
+  margin: 0;
+}
+
+.pageHeader h1 { font-size: clamp(1.35rem, 2vw, 1.8rem); }
+.pageHeader p { color: var(--admin-muted); margin-top: 0.25rem; }
+
+.headerActions,
+.headerActions a,
+.headerActions button,
+.editorHeading,
+.editorHeading > div,
+.saveBar,
+.saveBar > div,
+.cancelStrip,
+.cancelButton,
+.dialogHeading,
+.dialogActions,
+.dialogActions > span,
+.dialogActions > div {
+  align-items: center;
+  display: flex;
+}
+
+.headerActions { gap: 1rem; }
+.headerActions a, .headerActions button, .cancelButton { gap: 0.45rem; }
+.publicLink { color: var(--admin-mint); font-weight: 750; text-decoration: none; }
+
+.scheduleLayout {
+  display: grid;
+  grid-template-columns: minmax(28rem, 43%) minmax(32rem, 57%);
+  min-height: calc(100vh - 10.5rem);
+}
+
+.streamListPane, .editorPane { min-width: 0; }
+.streamListPane { border-right: 1px solid var(--admin-line); padding-right: 0.7rem; }
+.editorPane { padding-left: 0.9rem; }
+
+.listToolbar {
+  align-items: center;
+  border-bottom: 1px solid var(--admin-line);
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: minmax(10rem, 1fr) auto minmax(8rem, auto);
+  padding: 0.7rem 0;
+}
+
+.searchField, .sortField { align-items: center; display: grid; position: relative; }
+.searchField svg { color: var(--admin-muted); left: 0.75rem; pointer-events: none; position: absolute; z-index: 1; }
+.searchField input { padding-left: 2.2rem !important; width: 100%; }
+.sortField svg { color: var(--admin-muted); pointer-events: none; position: absolute; right: 0.65rem; }
+.sortField select { appearance: none; padding-right: 2rem !important; width: 100%; }
+.filters { display: flex; }
+
+.filters button {
+  background: var(--admin-surface-raised) !important;
+  border-color: var(--admin-line) !important;
+  border-radius: 0 !important;
+  color: var(--admin-muted) !important;
+  min-height: 2.45rem !important;
+}
+
+.filters button:first-child { border-radius: 6px 0 0 6px !important; }
+.filters button:last-child { border-radius: 0 6px 6px 0 !important; }
+.filters button + button { margin-left: -1px; }
+.filters .activeFilter {
+  background: var(--admin-surface-active) !important;
+  border-color: var(--admin-mint) !important;
+  color: var(--admin-text) !important;
+  position: relative;
+  z-index: 1;
+}
+
+.statusMessage {
+  color: var(--admin-quiet);
+  font-size: 0.78rem;
+  margin: 0;
+  min-height: 1.4rem;
+  padding: 0.4rem 0.15rem 0;
+}
+
+.streamGroups { display: grid; gap: 0.75rem; padding: 0.25rem 0 1rem; }
+.streamGroup { display: grid; gap: 0.35rem; }
+.streamGroup h2 {
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.075em;
+  margin: 0;
+  padding: 0 0.4rem;
+}
+
+.streamRow {
+  align-items: center;
+  background: var(--admin-surface) !important;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 7px !important;
+  color: var(--admin-text) !important;
+  display: grid !important;
+  gap: 0.8rem;
+  grid-template-columns: 5.4rem minmax(0, 1fr) auto;
+  min-height: 5.7rem !important;
+  padding: 0.7rem 0.85rem !important;
+  text-align: left;
+  width: 100%;
+}
+
+.streamRow:hover, .streamRow:focus-visible { background: var(--admin-surface-raised) !important; }
+.selectedRow {
+  background: var(--admin-surface-active) !important;
+  border-color: #2f6958 !important;
+  box-shadow: inset 3px 0 0 var(--admin-mint);
+}
+
+.streamTime, .streamSummary, .titleLine, .streamMeta, .streamMeta > span { display: flex; }
+.streamTime, .streamSummary { align-items: flex-start; flex-direction: column; }
+.streamTime { gap: 0.2rem; }
+.streamTime strong { font-size: 1rem; }
+.streamTime small { color: var(--admin-muted); }
+.streamSummary { gap: 0.5rem; min-width: 0; }
+.titleLine { align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+.titleLine > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.streamMeta { align-items: center; color: var(--admin-muted); flex-wrap: wrap; font-size: 0.78rem; gap: 0.8rem; }
+.streamMeta > span { align-items: center; gap: 0.3rem; }
+.streamMeta svg { flex: 0 0 auto; }
+.cancelReason { color: #e4a0a6; }
+.editIcon { color: var(--admin-muted); }
+
+.statusPill {
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 0.13rem 0.42rem;
+  text-transform: uppercase;
+}
+
+.statusPlanned, .statusLive { background: rgb(69 214 173 / 8%); border-color: #238a70; color: var(--admin-mint); }
+.statusCompleted { background: var(--admin-surface-raised); color: var(--admin-muted); }
+.statusCancelled { background: #2b171a; border-color: #9f3039; color: #ff777e; }
+.emptyList { border: 1px dashed var(--admin-line-strong); border-radius: 7px; color: var(--admin-muted); margin-top: 0.75rem; padding: 1rem; }
+.emptyList p { margin: 0.25rem 0 0; }
+
+.editorForm { display: grid; gap: 0.7rem; }
+.editorForm label, .dialogFields label { color: var(--admin-text); display: grid; font-size: 0.78rem; font-weight: 750; gap: 0.3rem; }
+.editorForm input,
+.editorForm textarea,
+.editorForm select,
+.dialogFields input,
+.dialogFields textarea,
+.dialogFields select {
+  border-radius: 6px;
+  font: inherit;
+  min-height: 2.5rem;
+  min-width: 0;
+  padding: 0.58rem 0.7rem;
+  width: 100%;
+}
+
+.editorForm textarea, .dialogFields textarea { resize: vertical; }
+.editorHeading { justify-content: space-between; min-height: 3.5rem; }
+.editorHeading > div { gap: 0.6rem; }
+.editorHeading h2 { font-size: 1.25rem; }
+.iconButton {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: var(--admin-muted) !important;
+  min-width: 2.25rem;
+  padding: 0.35rem !important;
+}
+
+.twoColumnFields, .threeColumnFields { display: grid; gap: 0.65rem; }
+.twoColumnFields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.threeColumnFields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.technicalFields { border: 1px solid var(--admin-line); border-radius: 6px; }
+.technicalFields summary { cursor: pointer; font-size: 0.8rem; font-weight: 750; padding: 0.7rem; }
+.technicalFields > div { border-top: 1px solid var(--admin-line); padding: 0.7rem; }
+
+.saveBar { border-top: 1px solid var(--admin-line); justify-content: space-between; padding-top: 0.7rem; }
+.saveBar > span { color: var(--admin-quiet); font-size: 0.78rem; }
+.saveBar > div, .dialogActions > div { gap: 0.5rem; }
+.cancelStrip {
+  border: 1px solid #7d2c35;
+  border-radius: 7px;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
+}
+
+.cancelStrip h3 { font-size: 0.9rem; }
+.cancelStrip p { color: var(--admin-muted); font-size: 0.78rem; margin-top: 0.2rem; }
+.cancelButton, .confirmCancelButton { background: transparent !important; border-color: #b43642 !important; color: #ff676f !important; white-space: nowrap; }
+.confirmCancelButton { background: #8e252e !important; color: #fff !important; }
+
+.dialogBackdrop {
+  align-items: center;
+  background: rgb(0 0 0 / 68%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 1000;
+}
+
+.cancelDialog {
+  background: var(--admin-surface);
+  border: 1px solid #7d2c35;
+  border-radius: 9px;
+  color: var(--admin-text);
+  margin: 0;
+  max-width: 36rem;
+  padding: 0;
+  position: static;
+  width: 100%;
+}
+
+.cancelDialog form { display: grid; gap: 0.9rem; padding: 1rem; }
+.dialogHeading, .dialogActions { justify-content: space-between; }
+.dialogHeading { align-items: flex-start; gap: 1rem; }
+.dialogHeading h2 { font-size: 1.15rem; margin-top: 0.25rem; }
+.dangerEyebrow { color: #ff777e; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.dialogIntro { color: var(--admin-muted); font-size: 0.85rem; line-height: 1.5; }
+.dialogFields { display: grid; gap: 0.7rem; }
+.characterCount { color: var(--admin-quiet); font-size: 0.72rem; justify-self: end; }
+.dialogError { background: #341d21; border: 1px solid #8d3b43; border-radius: 6px; color: #ffd9d9; margin: 0; padding: 0.6rem 0.7rem; }
+.dialogActions { border-top: 1px solid var(--admin-line); gap: 1rem; padding-top: 0.8rem; }
+.dialogActions > span { color: var(--admin-muted); font-size: 0.76rem; gap: 0.35rem; }
+
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (max-width: 1120px) {
+  .scheduleLayout { grid-template-columns: minmax(18rem, 40%) minmax(22rem, 60%); }
+  .listToolbar { grid-template-columns: 1fr; }
+  .filters button { flex: 1; }
+}
+
+@media (max-width: 860px) {
+  .pageHeader, .saveBar, .cancelStrip, .dialogActions { align-items: stretch; flex-direction: column; }
+  .headerActions { justify-content: space-between; }
+  .scheduleLayout { grid-template-columns: 1fr; }
+  .streamListPane { border-bottom: 1px solid var(--admin-line); border-right: 0; max-height: 32rem; overflow: auto; padding-bottom: 0.8rem; padding-right: 0; }
+  .editorPane { padding-left: 0; padding-top: 0.6rem; }
+  .saveBar > div, .dialogActions > div { align-self: stretch; }
+  .saveBar button, .dialogActions button { flex: 1; }
+}
+
+@media (max-width: 560px) {
+  .headerActions, .twoColumnFields, .threeColumnFields { grid-template-columns: 1fr; }
+  .headerActions { align-items: stretch; display: grid; }
+  .headerActions a, .headerActions button { justify-content: center; }
+  .streamRow { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
+  .streamMeta { gap: 0.45rem; }
+}
