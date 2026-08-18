@@ -13,6 +13,7 @@ import type {
 
 import type {
   ModeratorAdminActor,
+  ModeratorAdminDeleteResult,
   ModeratorAdminGrant,
   ModeratorAdminGrantCreateInput,
   ModeratorAdminGrantUpdateInput,
@@ -250,6 +251,27 @@ export class ModeratorAdminService {
     return { ok: true, rankPath: result };
   }
 
+  public async deleteRankPath(input: {
+    authUserId: string;
+    rankPathId: string;
+  }): Promise<ModeratorAdminDeleteResult> {
+    const actor = await this.requireRankManager(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const result = await this.repository.deleteRankPath(input.rankPathId.trim());
+    if (result === "not-found") {
+      return { ok: false, reason: "moderator_admin_rank_path_not_found" };
+    }
+    if (result === "in-use") {
+      return { ok: false, reason: "moderator_admin_rank_path_in_use" };
+    }
+
+    return { ok: true, id: input.rankPathId.trim() };
+  }
+
   public async createRole(input: {
     authUserId: string;
     role: ModeratorAdminRoleInput;
@@ -308,6 +330,30 @@ export class ModeratorAdminService {
     }
 
     return { ok: true, role: result };
+  }
+
+  public async deleteRole(input: {
+    authUserId: string;
+    roleId: string;
+  }): Promise<ModeratorAdminDeleteResult> {
+    const actor = await this.requireRankManager(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const result = await this.repository.deleteRole(input.roleId.trim());
+    if (result === "not-found") {
+      return { ok: false, reason: "moderator_admin_role_not_found" };
+    }
+    if (result === "protected") {
+      return { ok: false, reason: "moderator_admin_role_protected" };
+    }
+    if (result === "in-use") {
+      return { ok: false, reason: "moderator_admin_role_in_use" };
+    }
+
+    return { ok: true, id: input.roleId.trim() };
   }
 
   public async grantRole(input: {

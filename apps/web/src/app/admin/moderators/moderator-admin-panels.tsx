@@ -64,8 +64,10 @@ export type ModeratorAdminWorkspaceProps = {
   onNewPath: () => void;
   onEditPath: (rankPath: ModeratorAdminRankPath) => void;
   onSavePath: (event: FormEvent<HTMLFormElement>) => void;
+  onDeletePath: () => void;
   onNewRole: () => void;
   onSaveRole: (event: FormEvent<HTMLFormElement>) => void;
+  onDeleteRole: () => void;
   onCancelRole: () => void;
   setGrantForm: Dispatch<SetStateAction<GrantFormState>>;
   setRankPathForm: Dispatch<SetStateAction<RankPathFormState>>;
@@ -101,7 +103,7 @@ const grantIsProtected = (roles: readonly ModeratorAdminRole[], grant: Moderator
 
 const PathRail = (props: ModeratorAdminWorkspaceProps): React.ReactNode => (
   <aside className={styles.rail} aria-label="Promotion paths and active grants">
-    <div className={styles.headingRow}><h2>Promotion paths</h2><button className={styles.iconButton} type="button" onClick={props.onNewPath} disabled={props.busy} aria-label="New promotion path"><FiPlus /></button></div>
+    <div className={styles.headingRow}><h2>Promotion paths</h2><button className={styles.textButton} type="button" onClick={props.onNewPath} disabled={props.busy}><FiPlus /> New path</button></div>
     <div className={styles.pathList}>
       {props.rankPaths.map((path) => {
         const pathRoles = getPathRoles(props.roles, path.id);
@@ -183,7 +185,7 @@ const RoleEditor = (props: ModeratorAdminWorkspaceProps & { selectedRole: Modera
     <label className={styles.check}><input type="checkbox" checked={props.roleForm.isOwnerRank} disabled={protectedOwner} onChange={(event) => props.setRoleForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} /> Owner rank {protectedOwner ? <FiLock /> : null}</label>
     {!protectedOwner ? <div className={styles.addRight}><label>Custom right<input value={customRight} onChange={(event) => setCustomRight(event.target.value)} placeholder="area:action" /></label><button type="button" onClick={addRight} disabled={!customRight.trim()}>Add</button></div> : null}
     <div className={styles.note}><strong>Grant settings</strong><p>Trust, scope, availability and expiry are chosen on each grant.</p></div>
-    <span className={styles.formActions}><button className={styles.primary} type="submit" disabled={props.busy || protectedOwner}>{props.busy ? "Saving…" : "Save rank"}</button><button type="button" onClick={props.onCancelRole} disabled={props.busy}>Cancel</button></span>
+    <span className={styles.formActions}>{props.roleForm.id ? <button className={styles.danger} type="button" onClick={props.onDeleteRole} disabled={props.busy || protectedOwner}>Remove rank</button> : null}<button className={styles.primary} type="submit" disabled={props.busy || protectedOwner}>{props.busy ? "Saving…" : "Save rank"}</button><button type="button" onClick={props.onCancelRole} disabled={props.busy}>Cancel</button></span>
   </form>;
 };
 
@@ -194,7 +196,7 @@ const PathEditor = (props: ModeratorAdminWorkspaceProps): React.ReactNode => <fo
   <label>Description<textarea rows={4} value={props.rankPathForm.description} onChange={(event) => props.setRankPathForm((current) => ({ ...current, description: event.target.value }))} maxLength={280} /></label>
   <label>Sort order<input type="number" min={0} value={props.rankPathForm.sortOrder} onChange={(event) => props.setRankPathForm((current) => ({ ...current, sortOrder: event.target.value }))} /></label>
   <div className={styles.note}><strong>Promotion path</strong><p>Ranks inside this path define their own level and next promotion.</p></div>
-  <button className={styles.primary} type="submit" disabled={props.busy}>{props.busy ? "Saving…" : "Save path"}</button>
+  <span className={styles.formActions}>{props.rankPathForm.id ? <button className={styles.danger} type="button" onClick={props.onDeletePath} disabled={props.busy}>Remove path</button> : null}<button className={styles.primary} type="submit" disabled={props.busy}>{props.busy ? "Saving…" : "Save path"}</button></span>
 </form>;
 
 const SelectedGrant = (props: ModeratorAdminWorkspaceProps & { grant: ModeratorAdminGrant | null }): React.ReactNode => {

@@ -120,6 +120,16 @@ export type RoleMutationResponse =
     reason: string;
   };
 
+export type RankDeleteResponse =
+  | {
+    ok: true;
+    id: string;
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
+
 export type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 export type GrantFormState = {
@@ -342,4 +352,3 @@ export const getRankPathLabel = (
   const rankPath = rankPaths.find((candidate) => candidate.id === rankPathId);
   return rankPath ? rankPath.name : rankPathId;
 };
-

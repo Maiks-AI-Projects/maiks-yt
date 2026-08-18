@@ -329,6 +329,33 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
     return structuredClone(next);
   }
 
+  public async deleteRankPath(rankPathId: string): Promise<"deleted" | "not-found" | "in-use"> {
+    if (!this.rankPaths.has(rankPathId)) {
+      return "not-found";
+    }
+    if ([...this.roles.values()].some((role) => role.rankPathId === rankPathId)) {
+      return "in-use";
+    }
+    this.rankPaths.delete(rankPathId);
+    return "deleted";
+  }
+
+  public async deleteRole(roleId: string): Promise<"deleted" | "not-found" | "protected" | "in-use"> {
+    const role = this.roles.get(roleId);
+    if (!role) {
+      return "not-found";
+    }
+    if (role.isOwnerRank || role.isSystem) {
+      return "protected";
+    }
+    if ([...this.grants.values()].some((grant) => grant.roleId === roleId)
+      || [...this.roles.values()].some((candidate) => candidate.nextRoleId === roleId)) {
+      return "in-use";
+    }
+    this.roles.delete(roleId);
+    return "deleted";
+  }
+
   private createAuditLog(
     action: ModeratorAdminAuditLog["action"],
     grant: ModeratorAdminGrant,
@@ -538,6 +565,30 @@ describe("ModeratorAdminService", () => {
       ok: false,
       reason: "moderator_admin_invalid_input",
       issues: expect.arrayContaining(["moderator_grant_scope_id_required"])
+    });
+  });
+
+  it("removes only unused ranks and empty promotion paths", async () => {
+    const repository = new FakeModeratorAdminRepository();
+    const service = new ModeratorAdminService(repository);
+    const helperRole = repository.roles.get("helper-role")!;
+    repository.roles.set("helper-role", { ...helperRole, rankPathId: "mod-path" });
+
+    await expect(service.deleteRole({ authUserId: "auth-owner", roleId: "owner-role" })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+    await expect(service.deleteRankPath({ authUserId: "auth-owner", rankPathId: "mod-path" })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_rank_path_in_use"
+    });
+    await expect(service.deleteRole({ authUserId: "auth-owner", roleId: "helper-role" })).resolves.toEqual({
+      ok: true,
+      id: "helper-role"
+    });
+    await expect(service.deleteRankPath({ authUserId: "auth-owner", rankPathId: "mod-path" })).resolves.toEqual({
+      ok: true,
+      id: "mod-path"
     });
   });
 });

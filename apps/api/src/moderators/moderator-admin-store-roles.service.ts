@@ -68,6 +68,30 @@ export const updateRankPath = async (
   return rankPath;
 };
 
+export const deleteRankPath = async (
+  executor: QueryExecutor,
+  rankPathId: string
+): Promise<"deleted" | "not-found" | "in-use"> => {
+  if (!await readRankPath(executor, rankPathId)) {
+    return "not-found";
+  }
+
+  const [roleRows] = await executor.execute(
+    "SELECT COUNT(*) AS count FROM roles WHERE rank_path_id = ?",
+    [rankPathId]
+  );
+  const roleCount = Array.isArray(roleRows)
+    ? Number((roleRows[0] as { count?: number | string } | undefined)?.count ?? 0)
+    : 0;
+
+  if (roleCount > 0) {
+    return "in-use";
+  }
+
+  await executor.execute("DELETE FROM role_rank_paths WHERE id = ?", [rankPathId]);
+  return "deleted";
+};
+
 export const ensureRoleRankPathExists = async (
   executor: QueryExecutor,
   input: ModeratorAdminRoleInput
@@ -176,3 +200,38 @@ export const updateRole = async (
   return role;
 };
 
+export const deleteRole = async (
+  executor: QueryExecutor,
+  roleId: string
+): Promise<"deleted" | "not-found" | "protected" | "in-use"> => {
+  const role = await readRole(executor, roleId);
+
+  if (!role) {
+    return "not-found";
+  }
+  if (role.isOwnerRank || role.isSystem) {
+    return "protected";
+  }
+
+  const [usageRows] = await executor.execute(
+    `
+      SELECT
+        (SELECT COUNT(*) FROM user_roles WHERE role_id = ?) AS grantCount,
+        (SELECT COUNT(*) FROM role_grant_audit_logs WHERE role_id = ?) AS auditCount,
+        (SELECT COUNT(*) FROM roles WHERE next_role_id = ?) AS promotionCount
+    `,
+    [roleId, roleId, roleId]
+  );
+  const usage = Array.isArray(usageRows)
+    ? usageRows[0] as { grantCount?: number | string; auditCount?: number | string; promotionCount?: number | string } | undefined
+    : undefined;
+
+  if (Number(usage?.grantCount ?? 0) > 0
+    || Number(usage?.auditCount ?? 0) > 0
+    || Number(usage?.promotionCount ?? 0) > 0) {
+    return "in-use";
+  }
+
+  await executor.execute("DELETE FROM roles WHERE id = ?", [roleId]);
+  return "deleted";
+};

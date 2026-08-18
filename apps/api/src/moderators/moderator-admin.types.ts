@@ -176,6 +176,23 @@ export type ModeratorAdminRoleMutationResult =
       | "moderator_admin_role_exists";
   };
 
+export type ModeratorAdminDeleteResult =
+  | {
+    ok: true;
+    id: string;
+  }
+  | {
+    ok: false;
+    reason:
+      | "moderator_admin_user_unlinked"
+      | "moderator_admin_forbidden"
+      | "moderator_admin_rank_path_not_found"
+      | "moderator_admin_role_not_found"
+      | "moderator_admin_rank_path_in_use"
+      | "moderator_admin_role_in_use"
+      | "moderator_admin_role_protected";
+  };
+
 export interface ModeratorAdminRepository {
   resolveActor(authUserId: string): Promise<ModeratorAdminActor | null>;
   listUsers(): Promise<readonly ModeratorAdminUser[]>;
@@ -210,6 +227,8 @@ export interface ModeratorAdminRepository {
   } | "not-found">;
   createRankPath(input: ModeratorAdminRankPathInput): Promise<ModeratorAdminRankPath | "exists">;
   updateRankPath(rankPathId: string, input: ModeratorAdminRankPathInput): Promise<ModeratorAdminRankPath | "not-found" | "exists">;
+  deleteRankPath(rankPathId: string): Promise<"deleted" | "not-found" | "in-use">;
   createRole(input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found">;
   updateRole(roleId: string, input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found">;
+  deleteRole(roleId: string): Promise<"deleted" | "not-found" | "protected" | "in-use">;
 }

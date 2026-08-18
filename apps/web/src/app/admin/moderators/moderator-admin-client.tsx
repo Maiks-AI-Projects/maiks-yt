@@ -29,6 +29,7 @@ import {
   type ModeratorAdminRankPath,
   type ModeratorAdminRole,
   type ModeratorAdminUser,
+  type RankDeleteResponse,
   type RankPathFormState,
   type RankPathMutationResponse,
   type RoleFormState,
@@ -310,6 +311,73 @@ const ModeratorAdminClient = (): React.ReactNode => {
     }
   };
 
+  const deleteRankPath = async (): Promise<void> => {
+    const rankPathId = rankPathForm.id;
+    if (!rankPathId || !window.confirm(`Remove the ${rankPathForm.name} promotion path?`)) return;
+
+    setBusy(true);
+    setMessage("Removing promotion path...");
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/moderators/rank-paths/${encodeURIComponent(rankPathId)}`, {
+        method: "DELETE",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<RankDeleteResponse>(response);
+      if (response.ok && payload?.ok) {
+        const remaining = rankPaths.filter((path) => path.id !== payload.id);
+        setRankPaths(remaining);
+        setSelectedRankPathId(remaining[0]?.id ?? "");
+        setRankPathForm(emptyRankPathForm);
+        setRankEditorMode("role");
+        setMessage("Promotion path removed.");
+        return;
+      }
+      setMessage(payload?.ok === false && payload.reason === "moderator_admin_rank_path_in_use"
+        ? "Remove or move every rank in this path first."
+        : payload?.ok === false ? payload.reason : `Promotion path removal failed with ${response.status}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Removing promotion path failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteRole = async (): Promise<void> => {
+    const roleId = roleForm.id;
+    if (!roleId || !window.confirm(`Remove the ${roleForm.name} rank?`)) return;
+
+    setBusy(true);
+    setMessage("Removing rank...");
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/moderators/roles/${encodeURIComponent(roleId)}`, {
+        method: "DELETE",
+        headers: createApiHeaders(),
+        credentials: "include"
+      });
+      const payload = await parseJson<RankDeleteResponse>(response);
+      if (response.ok && payload?.ok) {
+        const remaining = roles.filter((role) => role.id !== payload.id);
+        const nextRole = remaining.find((role) => role.rankPathId === selectedRankPathId) ?? null;
+        setRoles(remaining);
+        setSelectedRoleId(nextRole?.id ?? null);
+        setRoleForm(nextRole ? getRoleForm(nextRole) : emptyRoleForm);
+        setMessage("Rank removed.");
+        return;
+      }
+      const reason = payload?.ok === false ? payload.reason : null;
+      setMessage(reason === "moderator_admin_role_protected"
+        ? "Owner and system ranks cannot be removed."
+        : reason === "moderator_admin_role_in_use"
+          ? "This rank is assigned, audited, or referenced by a promotion and cannot be removed."
+          : reason ?? `Rank removal failed with ${response.status}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Removing rank failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveGrant = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
@@ -436,8 +504,10 @@ const ModeratorAdminClient = (): React.ReactNode => {
         onNewPath={resetRankPathForm}
         onEditPath={editRankPath}
         onSavePath={(event) => void saveRankPath(event)}
+        onDeletePath={() => void deleteRankPath()}
         onNewRole={resetRoleForm}
         onSaveRole={(event) => void saveRole(event)}
+        onDeleteRole={() => void deleteRole()}
         onCancelRole={cancelRoleEdit}
         setGrantForm={setForm}
         setRankPathForm={setRankPathForm}

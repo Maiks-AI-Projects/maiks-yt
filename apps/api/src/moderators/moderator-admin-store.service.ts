@@ -30,7 +30,7 @@ import {
   readUser,
   resolveActor
 } from "./moderator-admin-store-queries.service.js";
-import { createRankPath, createRole, updateRankPath, updateRole } from "./moderator-admin-store-roles.service.js";
+import { createRankPath, createRole, deleteRankPath, deleteRole, updateRankPath, updateRole } from "./moderator-admin-store-roles.service.js";
 
 export const createModeratorAdminRepository = (
   pool: DatabasePool
@@ -82,6 +82,14 @@ export const createModeratorAdminRepository = (
     );
 
     return Array.isArray(rows) ? (rows as ModeratorAuditLogRow[]).map(mapAuditLog) : [];
+  },
+
+  async deleteRankPath(rankPathId) {
+    return await deleteRankPath(pool, rankPathId);
+  },
+
+  async deleteRole(roleId) {
+    return await deleteRole(pool, roleId);
   },
 
   async getUser(userId) {

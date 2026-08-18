@@ -30,8 +30,10 @@ type ModeratorAdminRouteDependencies = {
     | "revokeGrant"
     | "createRankPath"
     | "updateRankPath"
+    | "deleteRankPath"
     | "createRole"
     | "updateRole"
+    | "deleteRole"
   >;
 };
 
@@ -153,8 +155,10 @@ export const registerModeratorAdminRoutes = (
     | "revokeGrant"
     | "createRankPath"
     | "updateRankPath"
+    | "deleteRankPath"
     | "createRole"
     | "updateRole"
+    | "deleteRole"
   > =>
     dependencies.createService?.()
     ?? new ModeratorAdminService(createModeratorAdminRepository(dependencies.getDatabasePool()));
@@ -408,6 +412,34 @@ export const registerModeratorAdminRoutes = (
     }
   });
 
+  server.delete<{ Params: { id: string } }>("/admin/moderators/rank-paths/:id", async (request, reply) => {
+    const session = await getSession(request, reply);
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "moderator_admin_unavailable" : "not_authenticated" };
+    }
+
+    const parsedParams = idParamsSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      reply.code(400);
+      return { ok: false, reason: "moderator_admin_invalid_input" };
+    }
+
+    try {
+      const result = await getService().deleteRankPath({
+        authUserId: session.user.id,
+        rankPathId: parsedParams.data.id
+      });
+      if (!result.ok) {
+        reply.code(result.reason === "moderator_admin_rank_path_not_found" ? 404 : result.reason === "moderator_admin_rank_path_in_use" ? 409 : 403);
+      }
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Moderator rank path delete failed.");
+      reply.code(503);
+      return { ok: false, reason: "moderator_admin_unavailable" };
+    }
+  });
+
   server.post("/admin/moderators/roles", async (request, reply) => {
     const session = await getSession(request, reply);
 
@@ -503,6 +535,34 @@ export const registerModeratorAdminRoutes = (
         ok: false,
         reason: "moderator_admin_unavailable"
       };
+    }
+  });
+
+  server.delete<{ Params: { id: string } }>("/admin/moderators/roles/:id", async (request, reply) => {
+    const session = await getSession(request, reply);
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "moderator_admin_unavailable" : "not_authenticated" };
+    }
+
+    const parsedParams = idParamsSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      reply.code(400);
+      return { ok: false, reason: "moderator_admin_invalid_input" };
+    }
+
+    try {
+      const result = await getService().deleteRole({
+        authUserId: session.user.id,
+        roleId: parsedParams.data.id
+      });
+      if (!result.ok) {
+        reply.code(result.reason === "moderator_admin_role_not_found" ? 404 : result.reason === "moderator_admin_role_in_use" ? 409 : 403);
+      }
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Moderator role delete failed.");
+      reply.code(503);
+      return { ok: false, reason: "moderator_admin_unavailable" };
     }
   });
 };
