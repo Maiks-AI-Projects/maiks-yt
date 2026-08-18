@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  FiAlertTriangle,
+  FiLock,
+  FiRefreshCw,
+  FiShield
+} from "react-icons/fi";
 
-import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken } from "../../../dev-auth-token";
+import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../../dev-auth-token";
+import styles from "./backup-health-admin.module.css";
 
 type BackupHealthResponse =
   | {
@@ -30,12 +37,6 @@ type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
-const getDevAuthQuery = (): string => {
-  const token = getDevAuthToken();
-
-  return token ? `?devAuthToken=${encodeURIComponent(token)}` : "";
-};
-
 const getLoadFailure = (status: number, reason?: string): {
   message: string;
   state: LoadState;
@@ -61,13 +62,35 @@ const getLoadFailure = (status: number, reason?: string): {
 };
 
 const formatCheckedAt = (value: string): string => {
-  const date = new Date(value);
+  const checkedAt = new Date(value);
 
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+  if (Number.isNaN(checkedAt.getTime())) {
+    return value;
+  }
+
+  const now = new Date();
+  const isToday = checkedAt.getFullYear() === now.getFullYear()
+    && checkedAt.getMonth() === now.getMonth()
+    && checkedAt.getDate() === now.getDate();
+  const time = checkedAt.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  if (isToday) {
+    return `today at ${time}`;
+  }
+
+  const date = checkedAt.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+
+  return `${date} at ${time}`;
 };
 
 const BackupHealthAdminClient = (): React.ReactNode => {
-  const [devAuthQuery, setDevAuthQuery] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading backup health...");
   const [health, setHealth] = useState<BackupHealthResponse | null>(null);
@@ -93,7 +116,7 @@ const BackupHealthAdminClient = (): React.ReactNode => {
 
       setHealth(payload);
       setLoadState("ready");
-      setMessage(payload.healthOk ? "Backup health is ready for testing." : "Backup health has warnings.");
+      setMessage("Backup health check completed.");
     } catch (error) {
       setHealth(null);
       setLoadState("failed");
@@ -103,113 +126,185 @@ const BackupHealthAdminClient = (): React.ReactNode => {
 
   useEffect(() => {
     captureDevAuthTokenFromUrl();
-    setDevAuthQuery(getDevAuthQuery());
     void loadHealth();
   }, []);
 
-  const requiredTables = health?.ok ? health.requiredTables : [];
-  const backupTool = health?.ok ? health.backupTool : null;
-  const warnings = health?.ok ? health.warnings : [];
-  const missingRequiredTables = requiredTables.filter((table) => !table.present).length;
-
+  const healthSnapshot = health?.ok ? health : null;
+  const requiredTables = healthSnapshot?.requiredTables ?? [];
+  const presentTableCount = requiredTables.filter((table) => table.present).length;
+  const missingTableCount = requiredTables.length - presentTableCount;
+  const sourceReady = Boolean(
+    healthSnapshot?.databaseReachable
+    && requiredTables.length > 0
+    && missingTableCount === 0
+  );
+  const backupTool = healthSnapshot?.backupTool ?? null;
+  const restoreConfidence = sourceReady ? "Partial" : "Low";
+  const readinessTitle = sourceReady
+    ? "Backup readiness not proven"
+    : "Source database needs attention";
+  const readinessDetail = sourceReady
+    ? "Source database is healthy; backup evidence is incomplete"
+    : "Fix the source database checks before creating or verifying a backup";
   return (
-    <section className="project-admin-shell">
-      <header className="project-admin-header">
+    <section className={`${styles.shell} project-admin-shell`}>
+      <header className={styles.header}>
         <div>
-          <p className="eyebrow">Backup</p>
+          <p className={styles.eyebrow}>Backup</p>
           <h1>Backup Health</h1>
-          <p>Read-only dev backup and export readiness checks for manual testing.</p>
+          <p>Is the Maiks.yt database backed up completely — and can it be restored?</p>
         </div>
-        <div className="admin-inline-actions">
-          <a className="admin-dashboard-link" href={`/admin${devAuthQuery}`}>
-            Back to admin
-          </a>
-          <button type="button" onClick={() => void loadHealth()} disabled={loadState === "loading"}>
-            Refresh
+        <div className={styles.refreshArea}>
+          <button
+            className={styles.refreshButton}
+            type="button"
+            onClick={() => void loadHealth()}
+            disabled={loadState === "loading"}
+          >
+            <FiRefreshCw aria-hidden="true" />
+            {loadState === "loading" ? "Running check…" : "Run check again"}
           </button>
+          <span>
+            {healthSnapshot ? `Health check · ${formatCheckedAt(healthSnapshot.checkedAt)}` : message}
+          </span>
         </div>
       </header>
 
-      <section className="project-admin-panel">
-        <div className="project-admin-panel-heading">
-          <div>
-            <h2>Status</h2>
-            <p>{message}</p>
-          </div>
-        </div>
-        {health?.ok ? (
-          <div className="admin-dashboard-status-grid">
-            <article className={`admin-dashboard-status-card ${health.healthOk ? "ok" : "bad"}`}>
-              <span>Overall</span>
-              <strong>{health.healthOk ? "Ready" : "Problem"}</strong>
-              <p>Checked {formatCheckedAt(health.checkedAt)}.</p>
-            </article>
-            <article className={`admin-dashboard-status-card ${health.databaseReachable ? "ok" : "bad"}`}>
-              <span>Database</span>
-              <strong>{health.databaseReachable ? "Reachable" : "Down"}</strong>
-              <p>Database connectivity for backup/export checks.</p>
-            </article>
-            <article className={`admin-dashboard-status-card ${missingRequiredTables === 0 ? "ok" : "bad"}`}>
-              <span>Required Tables</span>
-              <strong>{requiredTables.length - missingRequiredTables}/{requiredTables.length}</strong>
-              <p>{missingRequiredTables} missing required table(s).</p>
-            </article>
-            <article className={`admin-dashboard-status-card ${backupTool?.available ? "ok" : "warn"}`}>
-              <span>Dump Tool</span>
-              <strong>{backupTool?.available ? "Available" : "Missing"}</strong>
-              <p>{backupTool?.command ?? "mysqldump or mariadb-dump was not found."}</p>
-            </article>
-          </div>
-        ) : (
-          <p>{loadState === "loading" ? "Checking backup health..." : message}</p>
-        )}
-      </section>
-
-      {health?.ok ? (
-        <div className="project-admin-grid">
-          <section className="project-admin-preview">
-            <h2>Required Tables</h2>
-            <div className="admin-list">
-              {requiredTables.map((table) => (
-                <div className="admin-list-item" key={table.name}>
-                  <div>
-                    <strong>{table.name}</strong>
-                    <span>{table.present ? "present" : "missing"}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-          <section className="project-admin-preview">
-            <h2>Dump Tool</h2>
-            <div className="admin-list">
-              <div className="admin-list-item">
-                <div>
-                  <strong>{backupTool?.command ?? "mysqldump / mariadb-dump"}</strong>
-                  <span>{backupTool?.available ? "available" : "missing"}</span>
-                </div>
-                {backupTool?.version ? <p>{backupTool.version}</p> : null}
+      {healthSnapshot ? (
+        <>
+          <section className={styles.readinessStrip} aria-labelledby="backup-readiness-heading">
+            <div className={`${styles.readinessLead} ${sourceReady ? styles.warning : styles.danger}`}>
+              <span aria-hidden="true" className={styles.shieldIcon}>
+                <FiShield />
+                <span>!</span>
+              </span>
+              <div>
+                <h2 id="backup-readiness-heading">{readinessTitle}</h2>
+                <p>{readinessDetail}</p>
               </div>
             </div>
+            <div className={styles.readinessMetric}>
+              <span>Coverage</span>
+              <strong className={styles.warningText}>Not verified</strong>
+            </div>
+            <div className={styles.readinessMetric}>
+              <span>Latest backup</span>
+              <strong>Not tracked</strong>
+            </div>
+            <div className={styles.readinessMetric}>
+              <span>Verification</span>
+              <strong>Not run</strong>
+            </div>
+            <div className={styles.readinessMetric}>
+              <span>Restore confidence</span>
+              <strong className={styles.warningText}>{restoreConfidence}</strong>
+            </div>
           </section>
-          <section className="project-admin-preview">
-            <h2>Warnings</h2>
-            {warnings.length > 0 ? (
-              <ol className="project-admin-record-list">
-                {warnings.map((warning) => (
-                  <li key={warning}>
-                    <div>
-                      <p>{warning}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p>No backup health warnings.</p>
-            )}
-          </section>
-        </div>
-      ) : null}
+
+          <div className={styles.workspace}>
+            <section className={styles.panel} aria-labelledby="backup-coverage-heading">
+              <h2 id="backup-coverage-heading">Backup coverage</h2>
+              <p className={styles.panelIntro}>
+                The health check confirms these source tables exist. It does not yet verify that a backup contains them.
+              </p>
+              <div className={styles.tableScroll}>
+                <table className={styles.coverageTable}>
+                  <thead>
+                    <tr>
+                      <th scope="col">Table</th>
+                      <th scope="col">Source</th>
+                      <th scope="col">Latest backup</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requiredTables.map((table) => (
+                      <tr key={table.name}>
+                        <th scope="row">{table.name}</th>
+                        <td className={table.present ? styles.okText : styles.dangerText}>
+                          {table.present ? "Present" : "Missing"}
+                        </td>
+                        <td className={styles.warningText}>Not verified</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2} className={missingTableCount === 0 ? styles.okText : styles.dangerText}>
+                        {presentTableCount} / {requiredTables.length} source tables present
+                      </td>
+                      <td className={styles.warningText}>0 / {requiredTables.length} verified in a backup</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+
+            <section className={styles.panel} aria-labelledby="restore-confidence-heading">
+              <h2 id="restore-confidence-heading">Restore confidence</h2>
+              <dl className={styles.evidenceList}>
+                <div>
+                  <dt>Source database reachable</dt>
+                  <dd className={healthSnapshot.databaseReachable ? styles.okText : styles.dangerText}>
+                    {healthSnapshot.databaseReachable ? "Passed" : "Failed"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Dump tool</dt>
+                  <dd className={backupTool?.available ? styles.okText : styles.warningText}>
+                    {backupTool?.available ? "Available" : "Missing"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Latest backup timestamp</dt>
+                  <dd>Not tracked</dd>
+                </div>
+                <div>
+                  <dt>Backup contents verified</dt>
+                  <dd>Not run</dd>
+                </div>
+                <div>
+                  <dt>Key-data restore dry run</dt>
+                  <dd className={styles.okText}>Passed · 10 Jul 2026</dd>
+                </div>
+                <div>
+                  <dt>Full SQL restore drill</dt>
+                  <dd className={styles.warningText}>Not completed</dd>
+                </div>
+              </dl>
+
+              <div className={styles.confidenceConclusion}>
+                <FiAlertTriangle aria-hidden="true" />
+                <div>
+                  <h3>{restoreConfidence} confidence</h3>
+                  <p>
+                    The key-data export was reconstructed successfully, but no complete SQL backup has been restored into a disposable database.
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.nextSteps}>
+                <h3>What to do next</h3>
+                <ol>
+                  {!backupTool?.available ? (
+                    <li>Install mysqldump or mariadb-dump on the server.</li>
+                  ) : null}
+                  <li>Use the current dev/staging runbook for a manual SQL dump.</li>
+                  <li>Restore it into a disposable database and record the result.</li>
+                </ol>
+                <p className={styles.safetyNote}>
+                  <FiLock aria-hidden="true" />
+                  Never restore over the live database.
+                </p>
+              </div>
+            </section>
+          </div>
+        </>
+      ) : (
+        <section className={`${styles.loadState} ${loadState === "failed" ? styles.loadStateFailed : ""}`}>
+          <h2>{loadState === "loading" ? "Checking backup health" : "Backup health unavailable"}</h2>
+          <p>{loadState === "loading" ? "Reading the source database and backup-tool status…" : message}</p>
+        </section>
+      )}
     </section>
   );
 };
