@@ -1,6 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FiArrowRight,
+  FiBold,
+  FiCheck,
+  FiEdit3,
+  FiExternalLink,
+  FiHash,
+  FiItalic,
+  FiLink,
+  FiList,
+  FiLock,
+  FiPlus,
+  FiShield
+} from "react-icons/fi";
 import {
   contentPageBodyMaxLength,
   contentPagePathMaxLength,
@@ -13,6 +27,22 @@ import type { ContentPageSource } from "@maiks-yt/domain/pages";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { PageMarkdown } from "../../page-markdown";
+import {
+  countWords,
+  defaultPageForm,
+  getFailureMessage,
+  getLoadStateForFailure,
+  getLocalFormIssue,
+  getSavedLabel,
+  sortPages,
+  toPageForm,
+  toPayload,
+  type LoadState,
+  type PageFormState,
+  type WorkspaceTab
+} from "./page-creator-admin.rules";
+import styles from "./page-creator-admin.module.css";
+import PageCreatorInventory, { type PageFilter } from "./page-creator-inventory";
 
 type AdminPagesResponse =
   | {
@@ -44,136 +74,7 @@ type AdminPageDeleteResponse =
     reason: string;
   };
 
-type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
-
-type PageFormState = {
-  title: string;
-  path: string;
-  seoTitle: string;
-  seoDescription: string;
-  body: string;
-};
-
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
-
-const defaultPageForm: PageFormState = {
-  title: "",
-  path: "/",
-  seoTitle: "",
-  seoDescription: "",
-  body: "# New Page\n\nDraft the page body here."
-};
-
-const toPageForm = (page: ContentPageSource): PageFormState => ({
-  title: page.title,
-  path: page.normalizedPath,
-  seoTitle: page.seoTitle ?? "",
-  seoDescription: page.seoDescription ?? "",
-  body: page.body
-});
-
-const toPayload = (form: PageFormState): Record<string, unknown> => ({
-  title: form.title.trim(),
-  path: form.path.trim(),
-  seoTitle: form.seoTitle.trim() || null,
-  seoDescription: form.seoDescription.trim() || null,
-  body: form.body.trim()
-});
-
-const getLocalFormIssue = (form: PageFormState): string | null => {
-  const title = form.title.trim();
-  const body = form.body.trim();
-  const seoTitle = form.seoTitle.trim();
-  const seoDescription = form.seoDescription.trim();
-  const path = normalizeContentPagePath(form.path);
-
-  if (title.length === 0) {
-    return "Add a page title before saving.";
-  }
-
-  if (title.length > contentPageTitleMaxLength) {
-    return `Page title must be ${contentPageTitleMaxLength} characters or fewer.`;
-  }
-
-  if (!path.ok) {
-    if (path.reason === "reserved_path") {
-      return "That path is reserved for code-owned, admin, tool, API, overlay, dev, auth, account, or static asset routes.";
-    }
-
-    if (path.reason === "path_too_long") {
-      return `Page path must be ${contentPagePathMaxLength} characters or fewer.`;
-    }
-
-    return "Use a simple path such as /channel-rules with lowercase letters, numbers, and hyphens.";
-  }
-
-  if (seoTitle.length > contentPageSeoTitleMaxLength) {
-    return `SEO title must be ${contentPageSeoTitleMaxLength} characters or fewer.`;
-  }
-
-  if (seoDescription.length > contentPageSeoDescriptionMaxLength) {
-    return `SEO description must be ${contentPageSeoDescriptionMaxLength} characters or fewer.`;
-  }
-
-  if (body.length === 0) {
-    return "Add Markdown body content before saving.";
-  }
-
-  if (body.length > contentPageBodyMaxLength) {
-    return `Markdown body must be ${contentPageBodyMaxLength} characters or fewer.`;
-  }
-
-  return null;
-};
-
-const sortPages = (pages: readonly ContentPageSource[]): readonly ContentPageSource[] =>
-  pages
-    .slice()
-    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.title.localeCompare(right.title));
-
-const getFailureMessage = (response: Response, reason?: string): string => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "Sign in before managing pages.";
-  }
-
-  if (response.status === 403 || reason === "content_page_admin_forbidden") {
-    return "Your account does not have page creator permission.";
-  }
-
-  if (reason === "content_page_reserved_path") {
-    return "That path is reserved for code-owned, admin, tool, API, overlay, dev, auth, account, or static asset routes.";
-  }
-
-  if (reason === "content_page_path_conflict") {
-    return "That path is already owned by another page record.";
-  }
-
-  if (reason === "content_page_public_delete_blocked") {
-    return "Unpublish this page before deleting it.";
-  }
-
-  if (reason === "content_page_invalid_input") {
-    return "The page request has invalid or missing fields.";
-  }
-
-  if (reason === "content_page_not_found") {
-    return "That page could not be found.";
-  }
-
-  return `Page creator request failed with ${response.status}.`;
-};
-
-const getLoadStateForFailure = (response: Response, reason?: string): LoadState => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "signed-out";
-  }
-
-  if (response.status === 403 || reason === "content_page_admin_forbidden" || reason === "content_page_admin_user_unlinked") {
-    return "forbidden";
-  }
-
-  return "failed";
-};
 
 const ContentPageAdminClient = (): React.ReactNode => {
   const [pages, setPages] = useState<readonly ContentPageSource[]>([]);
@@ -183,6 +84,11 @@ const ContentPageAdminClient = (): React.ReactNode => {
   const [message, setMessage] = useState<string>("Loading Page Creator...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [savedPreview, setSavedPreview] = useState<ContentPageSource | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [pageFilter, setPageFilter] = useState<PageFilter>("all");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("content");
+  const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const lineNumberRef = useRef<HTMLDivElement | null>(null);
 
   const selectedPage = useMemo(
     () => pages.find((page) => page.id === selectedId) ?? null,
@@ -194,6 +100,14 @@ const ContentPageAdminClient = (): React.ReactNode => {
     && savedPreview.id === selectedPage.id
     && savedPreview.updatedAt === selectedPage.updatedAt
   );
+  const selectedPageIsPublished = selectedPage?.status === "published" && selectedPage.visibility === "public";
+  const formPath = normalizeContentPagePath(pageForm.path);
+  const formPathConflict = formPath.ok
+    ? pages.find((page) => page.id !== selectedId && page.normalizedPath === formPath.path) ?? null
+    : null;
+  const pageFormIssue = getLocalFormIssue(pageForm);
+  const wordCount = countWords(pageForm.body);
+  const lineCount = Math.max(1, pageForm.body.split("\n").length);
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
     try {
@@ -215,6 +129,8 @@ const ContentPageAdminClient = (): React.ReactNode => {
     setSelectedId(page.id);
     setPageForm(toPageForm(page));
     setSavedPreview(null);
+    setActiveTab("content");
+    setPageFilter((current) => current === "all" || current === page.status ? current : "all");
   }, []);
 
   const loadPages = useCallback(async (): Promise<void> => {
@@ -236,6 +152,7 @@ const ContentPageAdminClient = (): React.ReactNode => {
         setSelectedId(firstPage?.id ?? "");
         setPageForm(firstPage ? toPageForm(firstPage) : defaultPageForm);
         setSavedPreview(null);
+        setActiveTab("content");
         setLoadState("ready");
         setMessage(orderedPages.length === 0 ? "No manual pages exist yet." : "Page Creator loaded.");
         return;
@@ -301,6 +218,7 @@ const ContentPageAdminClient = (): React.ReactNode => {
 
     setSelectedId(id);
     setSavedPreview(null);
+    setActiveTab("content");
     if (page) {
       setPageForm(toPageForm(page));
     }
@@ -313,6 +231,8 @@ const ContentPageAdminClient = (): React.ReactNode => {
       path: `/manual-page-${pages.length + 1}`
     });
     setSavedPreview(null);
+    setActiveTab("content");
+    setPageFilter("all");
   };
 
   const createPage = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
@@ -368,6 +288,7 @@ const ContentPageAdminClient = (): React.ReactNode => {
 
       if (response.ok && payload?.ok) {
         setSavedPreview(payload.page);
+        setActiveTab("preview");
         setMessage("Saved preview loaded. Publishing is available while this preview matches the saved page.");
         return;
       }
@@ -438,6 +359,8 @@ const ContentPageAdminClient = (): React.ReactNode => {
         setSelectedId(nextPage?.id ?? "");
         setPageForm(nextPage ? toPageForm(nextPage) : defaultPageForm);
         setSavedPreview(null);
+        setActiveTab("content");
+        setPageFilter("all");
         setLoadState("ready");
         setMessage(nextPage ? "Page deleted." : "Page deleted. No manual pages exist yet.");
         return;
@@ -453,7 +376,39 @@ const ContentPageAdminClient = (): React.ReactNode => {
     }
   };
 
-  const visiblePages = sortPages(pages);
+  const applyMarkdownFormat = (before: string, after: string, placeholder: string): void => {
+    const textarea = bodyTextareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const selectedText = pageForm.body.slice(selectionStart, selectionEnd) || placeholder;
+    const nextBody = `${pageForm.body.slice(0, selectionStart)}${before}${selectedText}${after}${pageForm.body.slice(selectionEnd)}`;
+    const nextSelectionStart = selectionStart + before.length;
+    const nextSelectionEnd = nextSelectionStart + selectedText.length;
+
+    setSavedPreview(null);
+    setPageForm((current) => ({ ...current, body: nextBody }));
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+    });
+  };
+
+  const visiblePages = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    return sortPages(pages).filter((page) => {
+      const matchesFilter = pageFilter === "all" || page.status === pageFilter;
+      const matchesQuery = query.length === 0
+        || page.title.toLocaleLowerCase().includes(query)
+        || page.normalizedPath.toLocaleLowerCase().includes(query);
+
+      return matchesFilter && matchesQuery;
+    });
+  }, [pageFilter, pages, searchQuery]);
+  const draftCount = pages.filter((page) => page.status === "draft").length;
   const previewPage = savedPreview ?? {
     ...selectedPage,
     id: selectedPage?.id ?? "unsaved-preview",
@@ -469,15 +424,21 @@ const ContentPageAdminClient = (): React.ReactNode => {
   } as ContentPageSource;
 
   return (
-    <>
-      <header className="project-admin-header">
-        <p className="eyebrow">Owner Admin</p>
-        <h1>Page Creator</h1>
-        <p aria-live="polite">{message}</p>
+    <div className={styles.pageCreator}>
+      <header className={styles.header}>
+        <div className={styles.headerCopy}>
+          <h1>Pages</h1>
+          <p>Create and publish manual website pages.</p>
+        </div>
+        <div className={styles.headerActions}>
+          <button disabled={loadState !== "ready"} type="button" onClick={startNewPage}>
+            <FiPlus aria-hidden="true" /> New draft
+          </button>
+        </div>
       </header>
 
       {loadState !== "ready" ? (
-        <section className={`project-admin-state ${loadState}`}>
+        <section className={styles.loadState}>
           <h2>{loadState === "loading" ? "Loading" : loadState === "signed-out" ? "Sign In Required" : loadState === "forbidden" ? "Forbidden" : "Unavailable"}</h2>
           <p>{message}</p>
           {loadState !== "loading" ? (
@@ -489,137 +450,312 @@ const ContentPageAdminClient = (): React.ReactNode => {
       ) : null}
 
       {loadState === "ready" ? (
-        <div className="project-admin-layout">
-          <aside className="project-admin-sidebar" aria-label="Manual pages">
-            <div className="project-admin-sidebar-heading">
-              <h2>Pages</h2>
-              <button type="button" className="secondary-action" onClick={startNewPage}>
-                New
-              </button>
-            </div>
-            {visiblePages.length === 0 ? (
-              <p>No manual pages yet.</p>
-            ) : (
-              <div className="project-admin-selector">
-                {visiblePages.map((page) => (
+        <div className={styles.layout}>
+          <PageCreatorInventory
+            draftCount={draftCount}
+            filter={pageFilter}
+            onFilterChange={setPageFilter}
+            onSearchChange={setSearchQuery}
+            onSelect={selectPage}
+            pages={pages}
+            searchQuery={searchQuery}
+            selectedId={selectedId}
+            visiblePages={visiblePages}
+          />
+
+          <section className={styles.workspace} aria-label="Manual page editor">
+            <div className={styles.workspaceHeader}>
+              <div className={styles.workspaceHeaderTop}>
+                <div className={styles.workspaceTitle}>
+                  <span className={styles.breadcrumb}>Pages / {selectedPage ? selectedPage.title : "New draft"}</span>
+                  <div className={styles.titleLine}>
+                    <h2>{selectedPage?.title ?? "New manual page"}</h2>
+                    <span className={styles.statusPill} data-published={selectedPageIsPublished}>
+                      {selectedPageIsPublished ? "Published · Public" : "Draft · Hidden"}
+                    </span>
+                  </div>
+                  <span className={styles.routeLabel}>maiks.yt{selectedPage?.normalizedPath ?? pageForm.path}</span>
+                  <span className={styles.savedTime}>{selectedPage ? getSavedLabel(selectedPage.updatedAt) : "Not saved yet"}</span>
+                </div>
+                <div className={styles.workspaceActions}>
                   <button
-                    key={page.id}
-                    type="button"
-                    className={page.id === selectedId ? "selected" : ""}
-                    onClick={() => selectPage(page.id)}
+                    className="secondary-action"
+                    disabled={busyAction !== null}
+                    form="page-editor-form"
+                    type="submit"
                   >
-                    <strong>{page.title}</strong>
-                    <span>{page.normalizedPath} / {page.status} / {page.visibility}</span>
+                    {busyAction ? "Working..." : selectedPage ? "Save changes" : "Create draft"}
+                  </button>
+                  <button
+                    className="secondary-action"
+                    disabled={busyAction !== null || !selectedPage}
+                    onClick={() => void previewSavedPage()}
+                    type="button"
+                  >
+                    Preview saved <FiExternalLink aria-hidden="true" />
+                  </button>
+                  {selectedPageIsPublished ? (
+                    <>
+                      <a className="button-link secondary-action" href={selectedPage.normalizedPath}>
+                        Public page
+                      </a>
+                      <button
+                        disabled={busyAction !== null}
+                        onClick={() => void unpublishSelectedPage()}
+                        type="button"
+                      >
+                        Unpublish
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      disabled={busyAction !== null || !selectedPage || !previewIsCurrent}
+                      onClick={() => void publishSelectedPage()}
+                      type="button"
+                    >
+                      Publish
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className={styles.workflowArea}>
+                <div className={styles.workflow} aria-label="Publishing workflow">
+                  <span className={styles.workflowStep} data-complete={Boolean(selectedPage)} data-current={!selectedPage}>
+                    {selectedPage ? <FiCheck aria-hidden="true" /> : <FiEdit3 aria-hidden="true" />}
+                    Saved
+                  </span>
+                  <FiArrowRight className={styles.workflowArrow} aria-hidden="true" />
+                  <span className={styles.workflowStep} data-complete={previewIsCurrent || selectedPageIsPublished} data-current={Boolean(selectedPage) && !previewIsCurrent && !selectedPageIsPublished}>
+                    {previewIsCurrent || selectedPageIsPublished ? <FiCheck aria-hidden="true" /> : <FiExternalLink aria-hidden="true" />}
+                    Preview saved version
+                  </span>
+                  <FiArrowRight className={styles.workflowArrow} aria-hidden="true" />
+                  <span className={styles.workflowStep} data-complete={selectedPageIsPublished} data-current={previewIsCurrent && !selectedPageIsPublished}>
+                    {selectedPageIsPublished ? <FiCheck aria-hidden="true" /> : <FiLock aria-hidden="true" />}
+                    Publish
+                  </span>
+                </div>
+                <span className={styles.workflowHint}>
+                  {selectedPageIsPublished
+                    ? "This page is live. Unpublish it before deleting."
+                    : previewIsCurrent
+                      ? "The saved preview is current. Publishing is unlocked."
+                      : "Publish unlocks after the latest saved version is previewed."}
+                </span>
+              </div>
+            </div>
+
+            <nav className={styles.tabs} aria-label="Page editor sections">
+              <div className={styles.tabList} role="tablist">
+                {([
+                  ["content", "Content"],
+                  ["seo", "SEO"],
+                  ...(savedPreview ? [["preview", "Saved preview"]] as const : [])
+                ] as readonly (readonly [WorkspaceTab, string])[]).map(([tab, label]) => (
+                  <button
+                    aria-selected={activeTab === tab}
+                    className={styles.tabButton}
+                    data-active={activeTab === tab}
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    role="tab"
+                    type="button"
+                  >
+                    {label}
                   </button>
                 ))}
               </div>
-            )}
-          </aside>
+            </nav>
 
-          <section className="project-admin-workspace" aria-label="Manual page editor">
-            <section className="project-admin-panel visibility-panel">
-              <div>
-                <h2>Publish State</h2>
-                <p>
-                  {selectedPage
-                    ? selectedPage.status === "published"
-                      ? "This page is public when its exact path is not code-owned and the record stays visible."
-                      : "This page is a hidden draft until the saved preview is loaded and published."
-                    : "Create a draft, save it, preview the saved record, then publish."}
-                </p>
+            <div className={styles.editorBody}>
+              <form
+                className={styles.form}
+                data-tab={activeTab}
+                id="page-editor-form"
+                onSubmit={(event) => selectedPage ? void updatePage(event) : void createPage(event)}
+              >
+                {activeTab === "content" ? (
+                  <>
+                    <div className={styles.fieldGrid}>
+                      <label className={styles.field}>
+                        Page title
+                        <input
+                          maxLength={contentPageTitleMaxLength}
+                          onChange={(event) => {
+                            setSavedPreview(null);
+                            setPageForm((current) => ({ ...current, title: event.target.value }));
+                          }}
+                          required
+                          value={pageForm.title}
+                        />
+                      </label>
+                      <label className={styles.field}>
+                        Public path
+                        <span className={styles.pathInput}>
+                          <span className={styles.pathPrefix}>maiks.yt</span>
+                          <input
+                            maxLength={contentPagePathMaxLength}
+                            onChange={(event) => {
+                              setSavedPreview(null);
+                              setPageForm((current) => ({ ...current, path: event.target.value }));
+                            }}
+                            placeholder="/channel-rules"
+                            required
+                            value={pageForm.path}
+                          />
+                        </span>
+                        <span className={styles.pathState} data-error={!formPath.ok || Boolean(formPathConflict)}>
+                          {formPath.ok && !formPathConflict ? <FiCheck aria-hidden="true" /> : <FiShield aria-hidden="true" />}
+                          {formPathConflict
+                            ? `Already owned by ${formPathConflict.title}`
+                            : formPath.ok
+                              ? "Available · manual page route"
+                              : formPath.reason === "reserved_path"
+                                ? "Reserved · choose another path"
+                                : "Use a valid path beginning with /"}
+                        </span>
+                      </label>
+                    </div>
+                    <div className={styles.bodyField}>
+                      <label htmlFor="page-markdown-body">Markdown body</label>
+                      <span className={styles.markdownFrame}>
+                        <span className={styles.markdownToolbar} aria-label="Markdown formatting">
+                          <button aria-label="Add heading" className={styles.toolButton} onClick={() => applyMarkdownFormat("## ", "", "Heading")} title="Heading" type="button">
+                            <FiHash aria-hidden="true" />
+                          </button>
+                          <button aria-label="Bold selected text" className={styles.toolButton} onClick={() => applyMarkdownFormat("**", "**", "bold text")} title="Bold" type="button">
+                            <FiBold aria-hidden="true" />
+                          </button>
+                          <button aria-label="Italicize selected text" className={styles.toolButton} onClick={() => applyMarkdownFormat("*", "*", "italic text")} title="Italic" type="button">
+                            <FiItalic aria-hidden="true" />
+                          </button>
+                          <button aria-label="Add link" className={styles.toolButton} onClick={() => applyMarkdownFormat("[", "](https://)", "link text")} title="Link" type="button">
+                            <FiLink aria-hidden="true" />
+                          </button>
+                          <button aria-label="Add bulleted list item" className={styles.toolButton} onClick={() => applyMarkdownFormat("- ", "", "List item")} title="Bulleted list" type="button">
+                            <FiList aria-hidden="true" />
+                          </button>
+                        </span>
+                        <span className={styles.markdownEditor}>
+                          <span className={styles.lineNumbers} ref={lineNumberRef} aria-hidden="true">
+                            {Array.from({ length: lineCount }, (_, index) => <span key={index}>{index + 1}</span>)}
+                          </span>
+                          <textarea
+                            id="page-markdown-body"
+                            maxLength={contentPageBodyMaxLength}
+                            onChange={(event) => {
+                              setSavedPreview(null);
+                              setPageForm((current) => ({ ...current, body: event.target.value }));
+                            }}
+                            onScroll={(event) => {
+                              if (lineNumberRef.current) {
+                                lineNumberRef.current.scrollTop = event.currentTarget.scrollTop;
+                              }
+                            }}
+                            ref={bodyTextareaRef}
+                            required
+                            rows={16}
+                            value={pageForm.body}
+                          />
+                        </span>
+                        <span className={styles.wordCount}>
+                          <span>{wordCount} {wordCount === 1 ? "word" : "words"}</span>
+                          <span>{contentPageBodyMaxLength.toLocaleString()} character limit</span>
+                        </span>
+                      </span>
+                    </div>
+                  </>
+                ) : null}
+
+                {activeTab === "seo" ? (
+                  <div className={styles.seoPanel}>
+                    <label className={styles.field}>
+                      SEO title
+                      <input
+                        maxLength={contentPageSeoTitleMaxLength}
+                        onChange={(event) => {
+                          setSavedPreview(null);
+                          setPageForm((current) => ({ ...current, seoTitle: event.target.value }));
+                        }}
+                        placeholder={pageForm.title || "Page title"}
+                        value={pageForm.seoTitle}
+                      />
+                    </label>
+                    <label className={styles.field}>
+                      SEO description
+                      <textarea
+                        maxLength={contentPageSeoDescriptionMaxLength}
+                        onChange={(event) => {
+                          setSavedPreview(null);
+                          setPageForm((current) => ({ ...current, seoDescription: event.target.value }));
+                        }}
+                        placeholder="Short description shown by search engines and link previews."
+                        value={pageForm.seoDescription}
+                      />
+                    </label>
+                  </div>
+                ) : null}
+
+                {activeTab === "preview" && savedPreview ? (
+                  <section className={styles.previewPanel} aria-label="Saved page preview">
+                    <div className={styles.previewMeta}>
+                      <span>Saved preview · maiks.yt{savedPreview.normalizedPath}</span>
+                      <span>No changes since this saved version.</span>
+                    </div>
+                    <article className={styles.previewArticle}>
+                      <header>
+                        <span className="eyebrow">Manual Page</span>
+                        <h1>{previewPage.title}</h1>
+                        {previewPage.seoDescription ? <p>{previewPage.seoDescription}</p> : null}
+                      </header>
+                      <PageMarkdown body={previewPage.body} />
+                    </article>
+                  </section>
+                ) : null}
+              </form>
+            </div>
+
+            <footer className={styles.workspaceFooter}>
+              <div className={styles.footerStart}>
+                {selectedPage && !selectedPageIsPublished ? (
+                  <button
+                    className={styles.deleteButton}
+                    disabled={busyAction !== null}
+                    onClick={() => void deleteSelectedPage()}
+                    type="button"
+                  >
+                    Delete draft
+                  </button>
+                ) : null}
+                <span className={styles.footerHint}>
+                  {selectedPageIsPublished ? "Published pages must be unpublished before deletion." : "Drafts stay hidden until published."}
+                </span>
+                <p aria-live="polite" className={styles.message}>{message}</p>
               </div>
-              {selectedPage ? (
-                <div className="project-admin-actions">
-                  <button type="button" className="secondary-action" onClick={() => void previewSavedPage()} disabled={busyAction !== null}>
-                    Preview Saved
-                  </button>
-                  {selectedPage.status === "published" ? (
-                    <a className="button-link secondary-action" href={selectedPage.normalizedPath}>
-                      Public Page
-                    </a>
-                  ) : null}
-                  <button type="button" className="secondary-action" onClick={() => void unpublishSelectedPage()} disabled={busyAction !== null || selectedPage.status === "draft"}>
-                    Unpublish
-                  </button>
-                  <button type="button" className="secondary-action danger-action" onClick={() => void deleteSelectedPage()} disabled={busyAction !== null || (selectedPage.status === "published" && selectedPage.visibility === "public")}>
-                    Delete Draft
-                  </button>
-                  <button type="button" onClick={() => void publishSelectedPage()} disabled={busyAction !== null || selectedPage.status === "published" || !previewIsCurrent}>
+              <div className={styles.footerActions}>
+                <button
+                  className="secondary-action"
+                  disabled={busyAction !== null}
+                  form="page-editor-form"
+                  type="submit"
+                >
+                  {busyAction ? "Working..." : selectedPage ? "Save changes" : "Create draft"}
+                </button>
+                {!selectedPageIsPublished ? (
+                  <button
+                    disabled={busyAction !== null || !selectedPage || !previewIsCurrent || Boolean(pageFormIssue)}
+                    onClick={() => void publishSelectedPage()}
+                    type="button"
+                  >
                     Publish
                   </button>
-                </div>
-              ) : null}
-            </section>
-
-            <form className="project-admin-panel project-admin-form page-creator-form" onSubmit={(event) => selectedPage ? void updatePage(event) : void createPage(event)}>
-              <div className="project-admin-panel-heading">
-                <h2>{selectedPage ? "Page Details" : "Create Draft"}</h2>
-                <button type="submit" disabled={busyAction !== null}>
-                  {busyAction ? "Saving..." : selectedPage ? "Save Page" : "Create Draft"}
-                </button>
+                ) : null}
               </div>
-              <label>
-                Title
-                <input value={pageForm.title} onChange={(event) => {
-                  setSavedPreview(null);
-                  setPageForm((current) => ({ ...current, title: event.target.value }));
-                }} required maxLength={191} />
-              </label>
-              <label>
-                Path
-                <input value={pageForm.path} onChange={(event) => {
-                  setSavedPreview(null);
-                  setPageForm((current) => ({ ...current, path: event.target.value }));
-                }} required maxLength={191} placeholder="/channel-rules" />
-              </label>
-              <div className="project-admin-form-grid">
-                <label>
-                  SEO Title
-                  <input value={pageForm.seoTitle} onChange={(event) => {
-                    setSavedPreview(null);
-                    setPageForm((current) => ({ ...current, seoTitle: event.target.value }));
-                  }} maxLength={191} />
-                </label>
-                <label>
-                  SEO Description
-                  <input value={pageForm.seoDescription} onChange={(event) => {
-                    setSavedPreview(null);
-                    setPageForm((current) => ({ ...current, seoDescription: event.target.value }));
-                  }} maxLength={320} />
-                </label>
-              </div>
-              <label>
-                Markdown Body
-                <textarea value={pageForm.body} onChange={(event) => {
-                  setSavedPreview(null);
-                  setPageForm((current) => ({ ...current, body: event.target.value }));
-                }} required maxLength={50_000} rows={14} />
-              </label>
-            </form>
-
-            <section className="project-admin-panel page-creator-preview-panel">
-              <div className="project-admin-panel-heading">
-                <h2>{savedPreview ? "Saved Preview" : "Editing Preview"}</h2>
-                <span>{previewPage.status} / {previewPage.visibility} / {previewPage.normalizedPath}</span>
-              </div>
-              <article className="content-page-article preview">
-                <header className="content-page-header">
-                  <p className="eyebrow">Manual Page</p>
-                  <h1>{previewPage.title}</h1>
-                  {previewPage.seoDescription ? <p>{previewPage.seoDescription}</p> : null}
-                </header>
-                <PageMarkdown body={previewPage.body} />
-              </article>
-            </section>
-
-            <section className="project-admin-panel project-admin-note">
-              <h2>Reserved For Later</h2>
-              <p>Host/subdomain routing, Cloudflare automation, redirects, aliases, AI publishing, reusable blocks, provider integrations, and money/legal final wording stay outside this runtime slice.</p>
-            </section>
+            </footer>
           </section>
         </div>
       ) : null}
-    </>
+    </div>
   );
 };
 
