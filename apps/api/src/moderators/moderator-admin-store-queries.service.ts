@@ -147,13 +147,20 @@ export const listUsers = async (executor: QueryExecutor): Promise<readonly Moder
         users.display_name AS displayName,
         users.profile_visibility AS profileVisibility,
         users.avatar_url AS avatarUrl,
-        auth_users.email AS authEmail,
+        MIN(auth_users.email) AS authEmail,
         users.created_at AS createdAt,
         users.updated_at AS updatedAt
       FROM users
       LEFT JOIN auth_user_links ON auth_user_links.user_id = users.id
       LEFT JOIN auth_users ON auth_users.id = auth_user_links.auth_user_id
       WHERE users.deleted_at IS NULL
+      GROUP BY
+        users.id,
+        users.display_name,
+        users.profile_visibility,
+        users.avatar_url,
+        users.created_at,
+        users.updated_at
       ORDER BY users.display_name, users.created_at DESC
     `
   );
@@ -315,7 +322,7 @@ export const readUser = async (
         users.display_name AS displayName,
         users.profile_visibility AS profileVisibility,
         users.avatar_url AS avatarUrl,
-        auth_users.email AS authEmail,
+        MIN(auth_users.email) AS authEmail,
         users.created_at AS createdAt,
         users.updated_at AS updatedAt
       FROM users
@@ -323,6 +330,13 @@ export const readUser = async (
       LEFT JOIN auth_users ON auth_users.id = auth_user_links.auth_user_id
       WHERE users.id = ?
         AND users.deleted_at IS NULL
+      GROUP BY
+        users.id,
+        users.display_name,
+        users.profile_visibility,
+        users.avatar_url,
+        users.created_at,
+        users.updated_at
       LIMIT 1
     `,
     [userId]
