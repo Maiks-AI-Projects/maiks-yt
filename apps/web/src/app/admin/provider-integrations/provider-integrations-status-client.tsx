@@ -1,21 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 
 import {
-  formatDate,
   getFailureMessage,
   getLoadStateForFailure,
   parseJson
 } from "./provider-integrations-status.service";
-import ProviderIntegrationsStatusSection from "./provider-integrations-status-section";
+import ProviderIntegrationsWorkspace from "./provider-integrations-workspace";
 import type {
   DiscordChatIntakeResponse,
   DiscordChatIntakeStatus,
   LoadState,
-  ProviderIntegrationState,
   ProviderIntegrationsStatusResponse,
   TwitchChatIntakeResponse,
   TwitchChatIntakeStatus,
@@ -34,7 +32,6 @@ import type {
 } from "./provider-integrations-status.types";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 const youtubeLiveChatReadScope = "https://www.googleapis.com/auth/youtube.readonly";
-const youtubeLiveChatWriteScope = "https://www.googleapis.com/auth/youtube.force-ssl";
 const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [snapshot, setSnapshot] = useState<Extract<ProviderIntegrationsStatusResponse, { ok: true }> | null>(null);
   const [twitchChatStatus, setTwitchChatStatus] = useState<TwitchChatIntakeStatus | null>(null);
@@ -62,25 +59,6 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [twitchEventSubActionMessage, setTwitchEventSubActionMessage] = useState<string>("Twitch EventSub subscriptions not checked.");
   const [youtubePubSubActionMessage, setYouTubePubSubActionMessage] = useState<string>("YouTube PubSub subscription target not checked.");
   const [youtubeActivitiesActionMessage, setYouTubeActivitiesActionMessage] = useState<string>("YouTube activities have not been polled yet.");
-
-  const stateCounts = useMemo(() => {
-    const counts: Record<ProviderIntegrationState, number> = {
-      configured: 0,
-      missing: 0,
-      invalid: 0,
-      disabled: 0,
-      error: 0
-    };
-
-    for (const provider of snapshot?.providers ?? []) {
-      counts[provider.state] += 1;
-    }
-
-    return counts;
-  }, [snapshot]);
-  const youtubeHasWriteScope = youtubeCredential?.scopes.includes(youtubeLiveChatWriteScope)
-    || youtubeCredential?.scopes.includes("https://www.googleapis.com/auth/youtube")
-    || false;
 
   const loadStatus = useCallback(async (): Promise<void> => {
     setLoadState("loading");
@@ -540,464 +518,85 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
 
   return (
     <>
-      <header className="project-admin-header">
-        <p className="eyebrow">Owner status</p>
-        <h1>Provider Integrations</h1>
-        <p>Twitch, YouTube, and Discord configuration readiness.</p>
-      </header>
-
-      <section className={`project-admin-state ${loadState}`}>
-        <div>
-          <h2>{loadState === "ready" ? "Status" : loadState === "loading" ? "Loading" : "Needs attention"}</h2>
-          <p>{message}</p>
-        </div>
-        <div className="project-admin-actions">
-          <button type="button" onClick={() => void loadStatus()}>Refresh</button>
-        </div>
-      </section>
-
-      {snapshot ? (
+      {!snapshot ? (
         <>
-          <section className="provider-integrations-summary-grid" aria-label="Provider integration summary">
-            <div className="live-helper-kpi">
-              <span>Configured</span>
-              <strong>{stateCounts.configured}</strong>
+          <header className="project-admin-header">
+            <p className="eyebrow">Owner status</p>
+            <h1>Provider Integrations</h1>
+            <p>Runtime connections for Twitch, YouTube, and Discord.</p>
+          </header>
+          <section className={`project-admin-state ${loadState}`}>
+            <div>
+              <h2>{loadState === "loading" ? "Loading" : "Needs attention"}</h2>
+              <p>{message}</p>
             </div>
-            <div className="live-helper-kpi">
-              <span>Missing</span>
-              <strong>{stateCounts.missing}</strong>
-            </div>
-            <div className="live-helper-kpi">
-              <span>Invalid</span>
-              <strong>{stateCounts.invalid}</strong>
-            </div>
-            <div className="live-helper-kpi">
-              <span>Disabled</span>
-              <strong>{stateCounts.disabled}</strong>
+            <div className="project-admin-actions">
+              <button type="button" onClick={() => void loadStatus()}>Refresh</button>
             </div>
           </section>
-
-          <section className="project-admin-panel">
-            <div className="project-admin-panel-heading">
-              <div>
-                <h2>Discord Chat Intake</h2>
-                <p>Read-only dev Gateway connection for private streamer chat.</p>
-              </div>
-              <div className="project-admin-actions">
-                <button
-                  type="button"
-                  disabled={discordChatStatus?.state === "connected" || discordChatStatus?.state === "connecting"}
-                  onClick={() => void runDiscordChatAction("start")}
-                >
-                  Start
-                </button>
-                <button
-                  type="button"
-                  disabled={discordChatStatus?.state === "stopped" || discordChatStatus?.state === "unconfigured"}
-                  onClick={() => void runDiscordChatAction("stop")}
-                >
-                  Stop
-                </button>
-                <button type="button" onClick={() => void loadDiscordChatStatus()}>Refresh</button>
-              </div>
-            </div>
-            <div className="provider-chat-status-grid">
-              <div className={`provider-chat-state ${discordChatStatus?.state ?? "unconfigured"}`}>
-                <span>State</span>
-                <strong>{discordChatStatus?.state ?? "Unknown"}</strong>
-              </div>
-              <div>
-                <span>Channels</span>
-                <strong>{discordChatStatus?.channelIds.length ? `${discordChatStatus.channelIds.length} configured` : "Guild-wide"}</strong>
-              </div>
-              <div>
-                <span>Last message</span>
-                <strong>{discordChatStatus?.lastMessageAt ? formatDate(discordChatStatus.lastMessageAt) : "None yet"}</strong>
-              </div>
-            </div>
-            <p className="provider-chat-action-message">{discordActionMessage}</p>
-            {discordChatStatus?.lastError ? (
-              <p className="provider-chat-error">{discordChatStatus.lastError}</p>
-            ) : null}
-            {discordChatStatus?.recentMessages.length ? (
-              <ol className="provider-chat-recent-list" aria-label="Recent Discord chat messages">
-                {discordChatStatus.recentMessages.slice(0, 5).map((chatMessage) => (
-                  <li key={chatMessage.id}>
-                    <div>
-                      <strong>{chatMessage.authorName}</strong>
-                      <span>{chatMessage.channelName}</span>
-                      <time dateTime={chatMessage.createdAt}>{formatDate(chatMessage.createdAt)}</time>
-                    </div>
-                    <p>{chatMessage.message}</p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="provider-chat-empty">No Discord messages captured in this API runtime yet.</p>
-            )}
-          </section>
-
-          <section className="project-admin-panel">
-            <div className="project-admin-panel-heading">
-              <div>
-                <h2>Twitch Chat Intake</h2>
-                <p>Read-only dev connection for private streamer chat.</p>
-              </div>
-              <div className="project-admin-actions">
-                <button
-                  type="button"
-                  disabled={twitchChatStatus?.state === "connected" || twitchChatStatus?.state === "connecting"}
-                  onClick={() => void runTwitchChatAction("start")}
-                >
-                  Start
-                </button>
-                <button
-                  type="button"
-                  disabled={twitchChatStatus?.state === "stopped" || twitchChatStatus?.state === "unconfigured"}
-                  onClick={() => void runTwitchChatAction("stop")}
-                >
-                  Stop
-                </button>
-                <button type="button" onClick={() => void loadTwitchChatStatus()}>Refresh</button>
-              </div>
-            </div>
-            <div className="provider-chat-status-grid">
-              <div className={`provider-chat-state ${twitchChatStatus?.state ?? "unconfigured"}`}>
-                <span>State</span>
-                <strong>{twitchChatStatus?.state ?? "Unknown"}</strong>
-              </div>
-              <div>
-                <span>Channel</span>
-                <strong>{twitchChatStatus?.channelName ?? "Not configured"}</strong>
-              </div>
-              <div>
-                <span>Last message</span>
-                <strong>{twitchChatStatus?.lastMessageAt ? formatDate(twitchChatStatus.lastMessageAt) : "None yet"}</strong>
-              </div>
-            </div>
-            <p className="provider-chat-action-message">{twitchActionMessage}</p>
-            {twitchChatStatus?.lastError ? (
-              <p className="provider-chat-error">{twitchChatStatus.lastError}</p>
-            ) : null}
-            {twitchChatStatus?.recentMessages.length ? (
-              <ol className="provider-chat-recent-list" aria-label="Recent Twitch chat messages">
-                {twitchChatStatus.recentMessages.slice(0, 5).map((chatMessage) => (
-                  <li key={chatMessage.id}>
-                    <div>
-                      <strong>{chatMessage.authorName}</strong>
-                      <time dateTime={chatMessage.createdAt}>{formatDate(chatMessage.createdAt)}</time>
-                    </div>
-                    <p>{chatMessage.message}</p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="provider-chat-empty">No Twitch messages captured in this API runtime yet.</p>
-            )}
-          </section>
-
-          <section className="project-admin-panel">
-            <div className="project-admin-panel-heading">
-              <div>
-                <h2>Twitch EventSub</h2>
-                <p>Verified log-only webhook subscriptions for offline and online Twitch events.</p>
-              </div>
-              <div className="project-admin-actions">
-                <button type="button" onClick={() => void ensureTwitchEventSubSubscriptions()}>
-                  Create missing
-                </button>
-                <button type="button" onClick={() => void loadTwitchEventSubSubscriptions()}>Refresh</button>
-              </div>
-            </div>
-            <div className="provider-chat-status-grid">
-              <div>
-                <span>Defaults</span>
-                <strong>{twitchEventSubDefaults.length ? `${twitchEventSubDefaults.length} tracked` : "Unknown"}</strong>
-              </div>
-              <div>
-                <span>Subscriptions</span>
-                <strong>{twitchEventSubSubscriptionCount}</strong>
-              </div>
-              <div>
-                <span>Callback</span>
-                <strong>{twitchEventSubCallbackUrl ? "Configured" : "Unknown"}</strong>
-              </div>
-            </div>
-            <p className="provider-chat-action-message">{twitchEventSubActionMessage}</p>
-            {twitchEventSubDefaults.length ? (
-              <ol className="provider-chat-recent-list" aria-label="Twitch EventSub default subscriptions">
-                {twitchEventSubDefaults.map((entry) => (
-                  <li key={`${entry.desired.type}:${entry.desired.version}`}>
-                    <div>
-                      <strong>{entry.desired.type}</strong>
-                      <span>v{entry.desired.version}</span>
-                      <span>{entry.state}</span>
-                      {entry.existing?.status ? <span>{entry.existing.status}</span> : null}
-                    </div>
-                    <p>{entry.existing?.id ?? "No matching subscription yet."}</p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="provider-chat-empty">Twitch EventSub subscription status has not loaded yet.</p>
-            )}
-          </section>
-
-          <section className="project-admin-panel">
-            <div className="project-admin-panel-heading">
-              <div>
-                <h2>YouTube Owner Consent</h2>
-                <p>Owner OAuth credential for live-chat intake and warning-message delivery.</p>
-              </div>
-              <div className="project-admin-actions">
-                <button type="button" onClick={() => void connectYouTube()}>Connect</button>
-                <button type="button" onClick={() => void loadYouTubeCredential()}>Refresh</button>
-                <button
-                  type="button"
-                  disabled={youtubeCredential?.status !== "active"}
-                  onClick={() => void discoverYouTubeChannels()}
-                >
-                  Discover channels
-                </button>
-              </div>
-            </div>
-            <div className="provider-chat-status-grid">
-              <div className={`provider-chat-state ${youtubeCredential?.status ?? "unconfigured"}`}>
-                <span>Credential</span>
-                <strong>{youtubeCredential?.status ?? "Not connected"}</strong>
-              </div>
-              <div>
-                <span>Last verified</span>
-                <strong>{youtubeCredential?.lastVerifiedAt ? formatDate(youtubeCredential.lastVerifiedAt) : "Never"}</strong>
-              </div>
-              <div>
-                <span>Read scope</span>
-                <strong>{youtubeRequiredScope}</strong>
-              </div>
-              <div className={`provider-chat-state ${youtubeHasWriteScope ? "configured" : "missing"}`}>
-                <span>Warning write scope</span>
-                <strong>{youtubeHasWriteScope ? "Ready" : "Reconnect needed"}</strong>
-              </div>
-            </div>
-            {!youtubeHasWriteScope && youtubeCredential?.status === "active" ? (
-              <p className="provider-chat-empty">Reconnect YouTube owner consent before testing YouTube Warn; the current stored credential is still read-only.</p>
-            ) : null}
-            <p className="provider-chat-action-message">{youtubeActionMessage}</p>
-            <p className="provider-chat-action-message">{youtubeChannelActionMessage}</p>
-            {youtubeCredential?.lastError ? (
-              <p className="provider-chat-error">{youtubeCredential.lastError}</p>
-            ) : null}
-            {youtubeSelectedChannelId ? (
-              <p className="provider-chat-empty">Selected live-chat channel: {youtubeSelectedChannelId}</p>
-            ) : null}
-            {youtubeChannels.length ? (
-              <ol className="provider-chat-recent-list youtube-channel-list" aria-label="Saved YouTube channels">
-                {youtubeChannels.map((channel) => (
-                  <li key={channel.id}>
-                    <div>
-                      {channel.thumbnailUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img alt="" src={channel.thumbnailUrl} />
-                      ) : null}
-                      <strong>{channel.title}</strong>
-                      {channel.customUrl ? <span>{channel.customUrl}</span> : null}
-                      <time dateTime={channel.lastSeenAt}>{formatDate(channel.lastSeenAt)}</time>
-                      {channel.selectedForLiveChat ? <span>Selected</span> : null}
-                    </div>
-                    <p>{channel.id}</p>
-                    <div className="project-admin-actions">
-                      <button
-                        type="button"
-                        disabled={channel.selectedForLiveChat}
-                        onClick={() => void selectYouTubeChannel(channel.id)}
-                      >
-                        Select for live chat
-                      </button>
-                      {channel.selectedForLiveChat ? (
-                        <button type="button" onClick={() => void selectYouTubeChannel(null)}>
-                          Clear selection
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="provider-chat-empty">No YouTube channels saved yet.</p>
-            )}
-            <div className="project-admin-panel-heading">
-              <div>
-                <h3>YouTube Live Chat Polling</h3>
-                <p>Read-only polling from the selected channel into private streamer chat.</p>
-              </div>
-              <div className="project-admin-actions">
-                <button
-                  type="button"
-                  disabled={
-                    youtubeLiveChatStatus?.state === "connected"
-                    || youtubeLiveChatStatus?.state === "connecting"
-                    || youtubeLiveChatStatus?.state === "waiting"
-                  }
-                  onClick={() => void runYouTubeLiveChatAction("start")}
-                >
-                  Start
-                </button>
-                <button
-                  type="button"
-                  disabled={youtubeLiveChatStatus?.state === "stopped" || youtubeLiveChatStatus?.state === "unconfigured"}
-                  onClick={() => void runYouTubeLiveChatAction("stop")}
-                >
-                  Stop
-                </button>
-                <button type="button" onClick={() => void loadYouTubeLiveChatStatus()}>Refresh</button>
-              </div>
-            </div>
-            <div className="provider-chat-status-grid">
-              <div className={`provider-chat-state ${youtubeLiveChatStatus?.state ?? "unconfigured"}`}>
-                <span>Polling</span>
-                <strong>{youtubeLiveChatStatus?.state ?? "Unknown"}</strong>
-              </div>
-              <div>
-                <span>Selected channel</span>
-                <strong>{youtubeLiveChatStatus?.channelName ?? youtubeSelectedChannelId ?? "None"}</strong>
-              </div>
-              <div>
-                <span>Last message</span>
-                <strong>{youtubeLiveChatStatus?.lastMessageAt ? formatDate(youtubeLiveChatStatus.lastMessageAt) : "None yet"}</strong>
-              </div>
-            </div>
-            <p className="provider-chat-action-message">{youtubeLiveChatActionMessage}</p>
-            {youtubeLiveChatStatus?.nextPollAt ? (
-              <p className="provider-chat-empty">Next poll: {formatDate(youtubeLiveChatStatus.nextPollAt)}</p>
-            ) : null}
-            {youtubeLiveChatStatus?.lastError ? (
-              <p className="provider-chat-error">{youtubeLiveChatStatus.lastError}</p>
-            ) : null}
-            {youtubeLiveChatStatus?.recentMessages.length ? (
-              <ol className="provider-chat-recent-list" aria-label="Recent YouTube live chat messages">
-                {youtubeLiveChatStatus.recentMessages.slice(0, 5).map((chatMessage) => (
-                  <li key={chatMessage.id}>
-                    <div>
-                      <strong>{chatMessage.authorName}</strong>
-                      <time dateTime={chatMessage.createdAt}>{formatDate(chatMessage.createdAt)}</time>
-                    </div>
-                    <p>{chatMessage.message}</p>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="provider-chat-empty">No YouTube live chat messages captured in this API runtime yet.</p>
-            )}
-            <div className="provider-env-grid" aria-label="YouTube OAuth setup details">
-              <div className="provider-env-item">
-                <span>Google redirect URI</span>
-                <strong>{youtubeRedirectUri}</strong>
-                <small>Add this exact URI in Google OAuth before connecting.</small>
-              </div>
-            </div>
-            <div className="project-admin-panel-heading">
-              <div>
-                <h3>YouTube PubSub</h3>
-                <p>Read-only push notifications for uploads and video metadata updates.</p>
-              </div>
-              <div className="project-admin-actions">
-                <button
-                  type="button"
-                  disabled={!youtubePubSubSubscription}
-                  onClick={() => void requestYouTubePubSubSubscription("subscribe")}
-                >
-                  Subscribe
-                </button>
-                <button
-                  type="button"
-                  disabled={!youtubePubSubSubscription}
-                  onClick={() => void requestYouTubePubSubSubscription("unsubscribe")}
-                >
-                  Unsubscribe
-                </button>
-                <button type="button" onClick={() => void loadYouTubePubSubSubscription()}>Refresh</button>
-              </div>
-            </div>
-            <div className="provider-chat-status-grid">
-              <div className={`provider-chat-state ${youtubePubSubSubscription ? "configured" : "unconfigured"}`}>
-                <span>Target</span>
-                <strong>{youtubePubSubSubscription ? "Ready" : "Not ready"}</strong>
-              </div>
-              <div>
-                <span>Channel</span>
-                <strong>{youtubePubSubSubscription?.channelId ?? youtubeSelectedChannelId ?? "None"}</strong>
-              </div>
-              <div>
-                <span>Hub</span>
-                <strong>{youtubePubSubSubscription ? "Google hub" : "Unknown"}</strong>
-              </div>
-            </div>
-            <p className="provider-chat-action-message">{youtubePubSubActionMessage}</p>
-            {youtubePubSubSubscription ? (
-              <div className="provider-env-grid" aria-label="YouTube PubSub setup details">
-                <div className="provider-env-item">
-                  <span>Callback</span>
-                  <strong>{youtubePubSubSubscription.callbackUrl}</strong>
-                  <small>Google hub verifies this public callback.</small>
-                </div>
-                <div className="provider-env-item">
-                  <span>Topic</span>
-                  <strong>{youtubePubSubSubscription.topicUrl}</strong>
-                  <small>Selected channel feed topic.</small>
-                </div>
-              </div>
-            ) : null}
-            <div className="project-admin-panel-heading">
-              <div>
-                <h3>YouTube Activities</h3>
-                <p>Manual read-only poll for recent channel activity into the intake ledger.</p>
-              </div>
-              <div className="project-admin-actions">
-                <button type="button" onClick={() => void pollYouTubeActivities()}>
-                  Poll recent
-                </button>
-              </div>
-            </div>
-            <p className="provider-chat-action-message">{youtubeActivitiesActionMessage}</p>
-            {youtubeActivitiesPoll ? (
-              <>
-                <div className="provider-chat-status-grid">
-                  <div>
-                    <span>Fetched</span>
-                    <strong>{youtubeActivitiesPoll.fetched}</strong>
-                  </div>
-                  <div>
-                    <span>Inserted</span>
-                    <strong>{youtubeActivitiesPoll.inserted}</strong>
-                  </div>
-                  <div>
-                    <span>Polled</span>
-                    <strong>{formatDate(youtubeActivitiesPoll.polledAt)}</strong>
-                  </div>
-                </div>
-                {youtubeActivitiesPoll.events.length ? (
-                  <ol className="provider-chat-recent-list" aria-label="Recent YouTube activities">
-                    {youtubeActivitiesPoll.events.slice(0, 5).map((event) => (
-                      <li key={event.sourceEventId}>
-                        <div>
-                          <strong>{event.providerEventName}</strong>
-                          <span>{event.catalogKnown ? "Cataloged" : "Unknown-safe"}</span>
-                          <span>{event.inserted ? "Stored" : "Already stored"}</span>
-                        </div>
-                        <p>{event.providerMessageId ?? event.sourceEventId}</p>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="provider-chat-empty">No recent YouTube activities returned by the API.</p>
-                )}
-              </>
-            ) : null}
-          </section>
-
-          <ProviderIntegrationsStatusSection snapshot={snapshot} />
         </>
-      ) : null}
+      ) : (
+        <ProviderIntegrationsWorkspace
+          actionMessages={{
+            twitch: twitchActionMessage,
+            discord: discordActionMessage,
+            youtube: youtubeActionMessage,
+            youtubeChannel: youtubeChannelActionMessage,
+            youtubeLiveChat: youtubeLiveChatActionMessage,
+            twitchEventSub: twitchEventSubActionMessage,
+            youtubePubSub: youtubePubSubActionMessage,
+            youtubeActivities: youtubeActivitiesActionMessage
+          }}
+          discordChatStatus={discordChatStatus}
+          onConnectYouTube={() => void connectYouTube()}
+          onDiscoverYouTubeChannels={() => void discoverYouTubeChannels()}
+          onDiscordChatAction={(action) => void runDiscordChatAction(action)}
+          onEnsureTwitchSubscriptions={() => void ensureTwitchEventSubSubscriptions()}
+          onPollYouTubeActivities={() => void pollYouTubeActivities()}
+          onRefreshAll={() => {
+            void loadStatus();
+            void loadTwitchChatStatus();
+            void loadTwitchEventSubSubscriptions();
+            void loadDiscordChatStatus();
+            void loadYouTubeCredential();
+            void loadYouTubeChannelSelection();
+            void loadYouTubeLiveChatStatus();
+            void loadYouTubePubSubSubscription();
+          }}
+          onRefreshDiscord={() => {
+            void loadDiscordChatStatus();
+            void loadStatus();
+          }}
+          onRefreshTwitch={() => {
+            void loadTwitchChatStatus();
+            void loadTwitchEventSubSubscriptions();
+            void loadStatus();
+          }}
+          onRefreshYouTube={() => {
+            void loadYouTubeCredential();
+            void loadYouTubeChannelSelection();
+            void loadYouTubeLiveChatStatus();
+            void loadYouTubePubSubSubscription();
+          }}
+          onSelectYouTubeChannel={(channelId) => void selectYouTubeChannel(channelId)}
+          onTwitchChatAction={(action) => void runTwitchChatAction(action)}
+          onYouTubeLiveChatAction={(action) => void runYouTubeLiveChatAction(action)}
+          onYouTubePubSubAction={(mode) => void requestYouTubePubSubSubscription(mode)}
+          snapshot={snapshot}
+          twitchChatStatus={twitchChatStatus}
+          twitchEventSubCallbackUrl={twitchEventSubCallbackUrl}
+          twitchEventSubDefaults={twitchEventSubDefaults}
+          twitchEventSubSubscriptionCount={twitchEventSubSubscriptionCount}
+          youtubeActivitiesPoll={youtubeActivitiesPoll}
+          youtubeChannels={youtubeChannels}
+          youtubeCredential={youtubeCredential}
+          youtubeLiveChatStatus={youtubeLiveChatStatus}
+          youtubePubSubSubscription={youtubePubSubSubscription}
+          youtubeRedirectUri={youtubeRedirectUri}
+          youtubeRequiredScope={youtubeRequiredScope}
+          youtubeSelectedChannelId={youtubeSelectedChannelId}
+        />
+      )}
     </>
   );
 };
