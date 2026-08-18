@@ -197,3 +197,13 @@ export const historyPayloadSchema = z.object({
 export const limitQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(50)
 }).strict();
+
+export const musicAudioUploadPayloadSchema = z.object({
+  filename: z.string().trim().min(1).max(191),
+  contentType: z.string().trim().min(1).max(120),
+  dataBase64: z.string().trim().min(1)
+}).strict();
+
+export const youtubeAudioLibraryImportPayloadSchema = z.object({
+  manifest: z.unknown()
+}).strict();

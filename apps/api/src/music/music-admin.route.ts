@@ -1,12 +1,24 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
+import { createMusicRepository } from "./music-store.service.js";
 import { adminMutation, adminMutationWithId, adminOverview, createMusicService, getMusicSession, sendAdminResult } from "./music-route-helpers.service.js";
-import { blacklistSchema, historyPayloadSchema, idParamsSchema, licenseSnapshotSchema, limitQuerySchema, playlistSchema, playlistTracksSchema, providerPolicySchema, reviewResolveSchema, revokeSchema, sourceSchema, trackSchema } from "./music-route.schema.js";
+import { blacklistSchema, historyPayloadSchema, idParamsSchema, licenseSnapshotSchema, limitQuerySchema, musicAudioUploadPayloadSchema, playlistSchema, playlistTracksSchema, providerPolicySchema, reviewResolveSchema, revokeSchema, sourceSchema, trackSchema, youtubeAudioLibraryImportPayloadSchema } from "./music-route.schema.js";
 import type { MusicRouteDependencies } from "./music-route.types.js";
 import type { MusicLicenseSnapshotInput, MusicPlaybackOutcomeInput, MusicTrackSourceInput } from "./music.types.js";
+import { MusicAudioStorageVerificationService, MusicAudioUploadService, musicAudioUploadMaxBytes } from "./music-audio-upload.service.js";
+import { createMusicYouTubeAudioLibraryImportRepository } from "./music-youtube-audio-library-import-store.service.js";
+import { MusicYouTubeAudioLibraryImportService } from "./music-youtube-audio-library-import.service.js";
 
 export const registerMusicAdminRoutes = (server: FastifyInstance, dependencies: MusicRouteDependencies): void => {
   const getService = () => createMusicService(dependencies);
+  const getImportService = () => dependencies.createImportService?.()
+    ?? new MusicYouTubeAudioLibraryImportService(
+      createMusicRepository(dependencies.getDatabasePool()),
+      createMusicYouTubeAudioLibraryImportRepository(dependencies.getDatabasePool()),
+      new MusicAudioStorageVerificationService()
+    );
+  const getAudioUploadService = () => dependencies.createAudioUploadService?.()
+    ?? new MusicAudioUploadService(createMusicRepository(dependencies.getDatabasePool()));
   const getSession = async (request: FastifyRequest, reply: FastifyReply) =>
     await getMusicSession(request, reply, dependencies, server);
 
@@ -143,6 +155,110 @@ export const registerMusicAdminRoutes = (server: FastifyInstance, dependencies: 
       ), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Music license snapshot update failed.");
+      reply.code(503);
+      return { ok: false, reason: "music_admin_unavailable" };
+    }
+  });
+
+  server.post("/admin/music/imports/audio", {
+    bodyLimit: musicAudioUploadMaxBytes * 2
+  }, async (request, reply) => {
+    const session = await getSession(request, reply);
+    const body = musicAudioUploadPayloadSchema.safeParse(request.body);
+
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "music_admin_unavailable" : "not_authenticated" };
+    }
+    if (!body.success) {
+      reply.code(400);
+      return { ok: false, reason: "music_invalid_input" };
+    }
+
+    try {
+      const result = await getAudioUploadService().upload({
+        authUserId: session.user.id,
+        filename: body.data.filename,
+        contentType: body.data.contentType,
+        dataBase64: body.data.dataBase64
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "music_audio_upload_invalid_input" ? 400 : 403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Music audio upload failed.");
+      reply.code(503);
+      return { ok: false, reason: "music_admin_unavailable" };
+    }
+  });
+
+  server.post("/admin/music/imports/youtube-audio-library/dry-run", async (request, reply) => {
+    const session = await getSession(request, reply);
+    const body = youtubeAudioLibraryImportPayloadSchema.safeParse(request.body);
+
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "music_admin_unavailable" : "not_authenticated" };
+    }
+    if (!body.success) {
+      reply.code(400);
+      return { ok: false, reason: "music_invalid_input" };
+    }
+
+    try {
+      const result = await getImportService().dryRun(session.user.id, body.data.manifest);
+
+      if (!result.ok) {
+        reply.code(
+          result.reason === "music_import_invalid_manifest"
+            || result.reason === "music_import_incomplete_manifest"
+            || result.reason === "music_import_audio_unverified"
+            || result.reason === "music_import_stale_manifest"
+            || result.reason === "music_import_future_manifest"
+            ? 400
+            : 403
+        );
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Music YouTube Audio Library dry-run failed.");
+      reply.code(503);
+      return { ok: false, reason: "music_admin_unavailable" };
+    }
+  });
+
+  server.post("/admin/music/imports/youtube-audio-library/apply", async (request, reply) => {
+    const session = await getSession(request, reply);
+    const body = youtubeAudioLibraryImportPayloadSchema.safeParse(request.body);
+
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "music_admin_unavailable" : "not_authenticated" };
+    }
+    if (!body.success) {
+      reply.code(400);
+      return { ok: false, reason: "music_invalid_input" };
+    }
+
+    try {
+      const result = await getImportService().apply(session.user.id, body.data.manifest);
+
+      if (!result.ok) {
+        reply.code(
+          result.reason === "music_import_invalid_manifest"
+            || result.reason === "music_import_incomplete_manifest"
+            || result.reason === "music_import_audio_unverified"
+            || result.reason === "music_import_stale_manifest"
+            || result.reason === "music_import_future_manifest"
+            ? 400
+            : 403
+        );
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Music YouTube Audio Library import failed.");
       reply.code(503);
       return { ok: false, reason: "music_admin_unavailable" };
     }

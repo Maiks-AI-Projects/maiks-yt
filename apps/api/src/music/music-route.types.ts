@@ -3,6 +3,8 @@ import type { FastifyRequest } from "fastify";
 
 import type { MusicService } from "./music.service.js";
 import type { MusicAuthSession } from "./music.types.js";
+import type { MusicAudioUploadService } from "./music-audio-upload.service.js";
+import type { MusicYouTubeAudioLibraryImportService } from "./music-youtube-audio-library-import.service.js";
 
 export type MusicRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MusicAuthSession>;
@@ -29,4 +31,6 @@ export type MusicRouteDependencies = {
     | "resolveReviewQueueItem"
     | "appendPlayHistory"
   >;
+  createImportService?: () => Pick<MusicYouTubeAudioLibraryImportService, "dryRun" | "apply">;
+  createAudioUploadService?: () => Pick<MusicAudioUploadService, "upload">;
 };

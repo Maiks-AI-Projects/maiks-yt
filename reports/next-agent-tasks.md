@@ -5,7 +5,7 @@
 - Domain, schema, API, public request, member Top 10, searchable preview player, and focused music admin pages are implemented in the production worktree.
 - Review model: eligible + allowed/current provider/license + unreviewed or approved is selectable; blacklist is immediate; skip/queued-skip creates review; stop does not; review actions are keep, restrict, reject, and blacklist.
 - Applied production migration: `packages/database/drizzle/0027_jazzy_crystal.sql`, after protected logical backup `pre-music-20260818-165415.sql`.
-- Production rollout is complete for the empty-catalog foundation. Next music work is to configure an allowed provider policy, add real catalog/source/license records, and browser-smoke request, Top 10, blacklist/review, playlists, previews, and history with actual tracks.
+- Production rollout is complete for the empty-catalog foundation. The first local owner-run YouTube Audio Library bulk importer is implemented with a Playwright Studio UI exporter/downloader plus manifest import; it is partial unless the exporter proves the Attribution required filter was applied, reaches the end cleanly, exports at least one accepted track, and has no skipped candidates or cap. Stale/future manifests, full-zero/incomplete full manifests, and unverified or unparsable local audio fail closed. Next music work is to run it with a current Studio session, browser-smoke request, Top 10, blacklist/review, playlists, previews, and history with actual tracks, then continue toward the player/overlay slices.
 - Still separate: provider search/import adapters, uncertain-source suggestions, control-panel play controls, OBS `/music/player`, `/music/overlay`, votes, and real stream playback.
 
 Updated: 2026-08-18

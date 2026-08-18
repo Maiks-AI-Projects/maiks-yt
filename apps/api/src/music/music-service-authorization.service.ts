@@ -36,7 +36,10 @@ export const normalizeMusicPermissions = (
 };
 
 
-export const requireMusicManageActor = async (repository: MusicRepository, authUserId: string) => {
+export const requireMusicManageActor = async (
+  repository: Pick<MusicRepository, "resolveActor">,
+  authUserId: string
+) => {
   const actor = await repository.resolveActor(authUserId);
 
   if (!actor) {

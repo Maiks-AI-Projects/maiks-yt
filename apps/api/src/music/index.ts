@@ -3,3 +3,6 @@ export * from "./music.route.js";
 export * from "./music.service.js";
 export * from "./music-store.service.js";
 export * from "./music.types.js";
+export * from "./music-audio-upload.service.js";
+export * from "./music-youtube-audio-library-import.service.js";
+export * from "./music-youtube-audio-library-import.types.js";
