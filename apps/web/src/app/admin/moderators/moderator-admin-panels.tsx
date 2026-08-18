@@ -185,7 +185,7 @@ const RoleEditor = (props: ModeratorAdminWorkspaceProps & { selectedRole: Modera
     <label className={styles.check}><input type="checkbox" checked={props.roleForm.isOwnerRank} disabled={protectedOwner} onChange={(event) => props.setRoleForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} /> Owner rank {protectedOwner ? <FiLock /> : null}</label>
     {!protectedOwner ? <div className={styles.addRight}><label>Custom right<input value={customRight} onChange={(event) => setCustomRight(event.target.value)} placeholder="area:action" /></label><button type="button" onClick={addRight} disabled={!customRight.trim()}>Add</button></div> : null}
     <div className={styles.note}><strong>Grant settings</strong><p>Trust, scope, availability and expiry are chosen on each grant.</p></div>
-    <span className={styles.formActions}>{props.roleForm.id ? <button className={styles.danger} type="button" onClick={props.onDeleteRole} disabled={props.busy || protectedOwner}>Remove rank</button> : null}<button className={styles.primary} type="submit" disabled={props.busy || protectedOwner}>{props.busy ? "Saving…" : "Save rank"}</button><button type="button" onClick={props.onCancelRole} disabled={props.busy}>Cancel</button></span>
+    <span className={styles.formActions}>{props.roleForm.id ? <button className={styles.danger} type="button" onClick={props.onDeleteRole} disabled={props.busy || protectedOwner || props.selectedRole?.isSystem}>Remove rank</button> : null}<button className={styles.primary} type="submit" disabled={props.busy || protectedOwner}>{props.busy ? "Saving…" : "Save rank"}</button><button type="button" onClick={props.onCancelRole} disabled={props.busy}>Cancel</button></span>
   </form>;
 };
 
