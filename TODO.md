@@ -462,7 +462,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - Eligible tracks from an allowed, currently valid provider/license policy are selectable while unreviewed or approved. Review, restricted, rejected, blacklisted, uncertain, ineligible, expired, and ambiguous policy states fail closed for public/member selection.
   - Skip and queued-skip outcomes enter review; a normal stop does not. Blacklist wins immediately. Owner review can keep, restrict, reject, or blacklist a queued track.
 - [x] Build the rights-aware music catalog, playlist, request, member-pick, blacklist, and played-history API.
-  - Generated migration `packages/database/drizzle/0027_jazzy_crystal.sql` is intentionally unapplied pending coordinator review. The API includes immutable source/license/safety snapshots, atomic anonymous daily request buckets, atomic review decisions, a hard Spotify exclusion, and provider-source identity matching.
+  - Production migration `packages/database/drizzle/0027_jazzy_crystal.sql` is applied. The API includes immutable source/license/safety snapshots, atomic anonymous daily request buckets, atomic review decisions, a hard Spotify exclusion, and provider-source identity matching.
 - [x] Add signed-in ranked Top 10 page with a default ten-track allowance and future tier extension.
 - [x] Add public eligible-track request page with one accepted request per privacy-preserving IP key per Europe/Amsterdam day.
 - [x] Add website admin pages for catalog, playlists, keep/restrict/reject/blacklist review, license metadata, preview playback, and played history.
