@@ -1,14 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { IconType } from "react-icons";
+import {
+  FaArrowsRotate,
+  FaBell,
+  FaBrain,
+  FaChevronRight,
+  FaCircleInfo,
+  FaComments,
+  FaDisplay,
+  FaShieldHalved,
+  FaSliders
+} from "react-icons/fa6";
 
 import { createApiHeaders, withDevAuthToken } from "../dev-auth-token";
 import { useAdminAccess } from "./admin-access";
-import { adminNavigationGroups, helperAdminNavigationItem, type AdminNavigationItem } from "./admin-navigation-data";
+import { helperAdminNavigationItem } from "./admin-navigation-data";
 import { createControlUrl, overlayBaseUrl } from "../tool-surface-urls.service";
 import styles from "./admin-dashboard.module.css";
 
 type DashboardStatusTone = "loading" | "ok" | "warn" | "bad";
+type HealthSummaryTone = "loading" | "ok" | "neutral" | "bad";
 
 type DashboardStatusCard = {
   key: string;
@@ -18,24 +31,21 @@ type DashboardStatusCard = {
   tone: DashboardStatusTone;
 };
 
-type AdminDashboardLinkBadge = {
-  label: string;
-  tone: Exclude<DashboardStatusTone, "loading">;
-};
-
 type LiveWindowLink = {
   href: string;
   label: string;
   description: string;
+  icon: IconType;
+  note?: string;
   statusKey?: string;
 };
 
-type DashboardStatusSummary = {
-  key: string;
-  label: string;
-  value: string;
+type HealthSummaryRow = {
+  key: "core" | "backup" | "access" | "finance";
+  area: string;
+  state: string;
   detail: string;
-  tone: DashboardStatusTone;
+  tone: HealthSummaryTone;
 };
 
 type NotificationListResponse =
@@ -137,52 +147,52 @@ type MoneyLedgerDashboardResponse =
       reason: string;
     };
 
-type ExportStatusTone = "idle" | "working" | "ok" | "bad";
-
-type DashboardToneState = {
-  tone: ExportStatusTone;
-  message: string;
-};
-
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
 const liveWindowLinks: readonly LiveWindowLink[] = [
   {
     href: createControlUrl("/chat"),
-    label: "Streamer Chat",
+    label: "Streamer chat",
     description: "Private live chat and service dots.",
+    icon: FaComments,
     statusKey: "moderation"
   },
   {
     href: createControlUrl("/moderation"),
-    label: "Moderation Window",
+    label: "Moderation",
     description: "Chat-first moderation and helper context.",
+    icon: FaShieldHalved,
     statusKey: "moderation"
   },
   {
     href: createControlUrl("/control"),
-    label: "Control Panel",
-    description: "Scene controls and live stream tools."
+    label: "Control panel",
+    description: "Scene controls and live stream tools.",
+    icon: FaSliders
   },
   {
     href: createControlUrl("/ai"),
-    label: "AI Controls",
-    description: "Safety-gated controls, currently inert."
+    label: "AI controls",
+    description: "Safety-gated controls, currently inert.",
+    icon: FaBrain,
+    note: "Safety-gated"
   },
   {
     href: overlayBaseUrl,
-    label: "OBS Overlay",
-    description: "Shared browser-source check surface."
+    label: "OBS overlay",
+    description: "Shared browser-source check surface.",
+    icon: FaDisplay
   },
   {
     href: "/tools/notifications",
     label: "Notifications",
     description: "Owner device notices and smoke alerts.",
+    icon: FaBell,
     statusKey: "notifications"
   }
 ];
 
-const liveActivityLinks: readonly LiveWindowLink[] = [
+const liveActivityLinks: readonly Omit<LiveWindowLink, "icon">[] = [
   {
     href: "/admin/event-routing",
     label: "Approvals",
@@ -323,36 +333,12 @@ const readJson = async <Payload,>(path: string, authenticated = false): Promise<
   }
 };
 
-const getFilenameFromContentDisposition = (header: string | null): string | null => {
-  const match = header?.match(/filename="([^"]+)"/i);
-  return match?.[1] ?? null;
-};
-
 const getHumanDate = (value: string | null): string => {
   if (!value) {
     return "not recorded";
   }
 
   return new Date(value).toLocaleString();
-};
-
-const getDashboardItemBadge = (
-  item: Pick<AdminNavigationItem, "statusKey">,
-  statusCards: readonly DashboardStatusCard[]
-): AdminDashboardLinkBadge | null => {
-  if (!item.statusKey) {
-    return null;
-  }
-
-  const statusCard = statusCards.find((card) => card.key === item.statusKey);
-  if (!statusCard || statusCard.tone === "loading") {
-    return null;
-  }
-
-  return {
-    label: statusCard.value,
-    tone: statusCard.tone
-  };
 };
 
 const findStatusCard = (
@@ -579,53 +565,6 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   ];
 };
 
-const toneLabel: Record<ExportStatusTone, string> = {
-  idle: "Neutral",
-  working: "Working",
-  ok: "Good",
-  bad: "Attention"
-};
-
-const statusToneClass = (tone: DashboardStatusTone): string => {
-  if (tone === "loading") {
-    return styles.statusLoading ?? "";
-  }
-
-  if (tone === "ok") {
-    return styles.statusOk ?? "";
-  }
-
-  if (tone === "warn") {
-    return styles.statusWarn ?? "";
-  }
-
-  return styles.statusBad ?? "";
-};
-
-const exportStatusClass = (tone: ExportStatusTone): string => {
-  if (tone === "ok") {
-    return styles.exportOk ?? "";
-  }
-
-  if (tone === "bad") {
-    return styles.exportBad ?? "";
-  }
-
-  return tone === "working" ? styles.exportWorking ?? "" : styles.exportIdle ?? "";
-};
-
-const badgeClass = (tone: DashboardStatusTone): string => {
-  if (tone === "ok") {
-    return styles.badgeOk ?? "";
-  }
-
-  if (tone === "warn") {
-    return styles.badgeWarn ?? "";
-  }
-
-  return styles.badgeBad ?? "";
-};
-
 const getDashboardLinkHref = (href: string, devAuthToken: string | null): string => withDevAuthToken(href, devAuthToken);
 
 const getWorstTone = (cards: readonly DashboardStatusCard[]): DashboardStatusTone => {
@@ -644,59 +583,90 @@ const getWorstTone = (cards: readonly DashboardStatusCard[]): DashboardStatusTon
   return "ok";
 };
 
-const toneSummaryLabel: Record<DashboardStatusTone, string> = {
-  loading: "Checking",
-  ok: "Clear",
-  warn: "Review",
-  bad: "Attention"
+const getHealthSummaryRows = (statusCards: readonly DashboardStatusCard[]): readonly HealthSummaryRow[] => {
+  const api = findStatusCard(statusCards, "api");
+  const database = findStatusCard(statusCards, "database");
+  const backup = findStatusCard(statusCards, "backup");
+  const sessions = findStatusCard(statusCards, "sessions");
+  const money = findStatusCard(statusCards, "money");
+  const coreTone = getWorstTone([api, database].filter((card): card is DashboardStatusCard => Boolean(card)));
+
+  const backupTableSummary = backup?.value.match(/^(\d+)\/(\d+) tables$/);
+  const backupDetail = backupTableSummary
+    ? `${backupTableSummary[1]} / ${backupTableSummary[2]} source tables present · Coverage and recency unverified`
+    : backup?.tone === "loading"
+      ? "Checking source table presence"
+      : "Source table presence unavailable · Coverage and recency unverified";
+
+  return [
+    {
+      key: "core",
+      area: "Core services",
+      state: coreTone === "loading" ? "Checking" : coreTone === "ok" ? "Healthy" : "Attention",
+      detail: `API ${api?.value.toLowerCase() ?? "unknown"} · Database ${database?.value.toLowerCase() ?? "unknown"}`,
+      tone: coreTone === "warn" ? "bad" : coreTone
+    },
+    {
+      key: "backup",
+      area: "Backup",
+      state: backup?.tone === "loading" ? "Checking" : backup?.tone === "bad" ? "Attention" : "Unverified",
+      detail: backupDetail,
+      tone: backup?.tone === "loading" ? "loading" : backup?.tone === "bad" ? "bad" : "neutral"
+    },
+    {
+      key: "access",
+      area: "Access",
+      state: sessions?.value ?? "Unknown",
+      detail: "Owner sessions",
+      tone: sessions?.tone === "loading" ? "loading" : sessions?.tone === "bad" ? "bad" : "neutral"
+    },
+    {
+      key: "finance",
+      area: "Finance",
+      state: money?.tone === "loading" ? "Checking" : money?.tone === "ok" ? "Clear" : "Attention",
+      detail: money?.tone === "ok" ? `0 money warnings` : money?.detail ?? "Money warning state unavailable",
+      tone: money?.tone === "warn" ? "bad" : money?.tone ?? "loading"
+    }
+  ];
 };
 
-const buildStatusSummary = (
-  key: string,
-  label: string,
-  statusCards: readonly DashboardStatusCard[],
-  statusKeys: readonly string[]
-): DashboardStatusSummary => {
-  const cards = statusKeys
-    .map((statusKey) => findStatusCard(statusCards, statusKey))
-    .filter((card): card is DashboardStatusCard => Boolean(card));
-  const tone = getWorstTone(cards);
+const getProviderActivitySummary = (statusCard: DashboardStatusCard | undefined): string => {
+  const counts = statusCard?.value.match(/^(\d+)\/(\d+) healthy$/);
 
-  return {
-    key,
-    label,
-    value: toneSummaryLabel[tone],
-    detail: cards.map((card) => `${card.label}: ${card.value}`).join(" · "),
-    tone
-  };
+  if (counts) {
+    return `${counts[1]} / ${counts[2]} mechanisms recently active`;
+  }
+
+  return statusCard?.tone === "loading" ? "checking" : statusCard?.value.toLowerCase() ?? "unavailable";
 };
 
-const buildStatusSummaries = (statusCards: readonly DashboardStatusCard[]): readonly DashboardStatusSummary[] => [
-  buildStatusSummary("platform", "Platform Health", statusCards, ["api", "database", "backup", "smoke"]),
-  buildStatusSummary("safety", "Safety Signals", statusCards, ["notifications", "provider-intake", "live-alerts"]),
-  buildStatusSummary("access", "Access", statusCards, ["sessions", "helpers"]),
-  buildStatusSummary("finance", "Finance", statusCards, ["money"])
-];
+const getSmokeSummary = (statusCard: DashboardStatusCard | undefined): string => {
+  if (!statusCard || statusCard.tone === "loading") {
+    return "checking";
+  }
+
+  if (statusCard.value === "Unknown") {
+    return "no recorded run";
+  }
+
+  return statusCard.value.toLowerCase();
+};
 
 const AdminDashboardClient = (): React.ReactNode => {
   const { accessState, devAuthToken } = useAdminAccess();
   const [statusCards, setStatusCards] = useState<readonly DashboardStatusCard[]>(() => loadingCards());
-  const [statusMessage, setStatusMessage] = useState("Loading dashboard status...");
-  const [exportStatus, setExportStatus] = useState<DashboardToneState>({
-    tone: "idle",
-    message: "Ready to download a read-only key-data JSON export."
-  });
+  const [statusMessage, setStatusMessage] = useState("Checking now");
 
   const refreshStatus = async (): Promise<void> => {
     setStatusCards(loadingCards());
-    setStatusMessage("Loading dashboard status...");
+    setStatusMessage("Checking now");
 
     try {
       setStatusCards(await loadStatusCards());
-      setStatusMessage("Dashboard status loaded.");
+      setStatusMessage("Checked just now");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Dashboard status failed.";
-      setStatusMessage(message);
+      setStatusMessage("Check failed");
       setStatusCards((cards) =>
         cards.map((card) => ({
           ...card,
@@ -705,49 +675,6 @@ const AdminDashboardClient = (): React.ReactNode => {
           tone: "bad"
         }))
       );
-    }
-  };
-
-  const downloadKeyDataExport = async (): Promise<void> => {
-    setExportStatus({
-      tone: "working",
-      message: "Preparing key-data export..."
-    });
-
-    try {
-      const response = await fetch(`${apiBaseUrl}/admin/backup/key-data-export`, {
-        credentials: "include",
-        headers: createApiHeaders()
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { reason?: string } | null;
-        throw new Error(payload?.reason ?? `Export failed with HTTP ${response.status}.`);
-      }
-
-      const blob = await response.blob();
-      const filename =
-        getFilenameFromContentDisposition(response.headers.get("content-disposition"))
-        ?? `maiks-yt-key-data-export-${new Date().toISOString().slice(0, 10)}.json`;
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = url;
-      link.download = filename;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-
-      setExportStatus({
-        tone: "ok",
-        message: `Downloaded ${filename}.`
-      });
-    } catch (error) {
-      setExportStatus({
-        tone: "bad",
-        message: error instanceof Error ? error.message : "Key-data export failed."
-      });
     }
   };
 
@@ -791,7 +718,9 @@ const AdminDashboardClient = (): React.ReactNode => {
   }
 
   const apiStatus = findStatusCard(statusCards, "api");
-  const statusSummaries = buildStatusSummaries(statusCards);
+  const healthSummaryRows = getHealthSummaryRows(statusCards);
+  const providerActivity = getProviderActivitySummary(findStatusCard(statusCards, "provider-intake"));
+  const smokeSummary = getSmokeSummary(findStatusCard(statusCards, "smoke"));
   const liveActivity = liveActivityLinks.map((item) => ({
     ...item,
     status: item.statusKey ? findStatusCard(statusCards, item.statusKey) : undefined
@@ -800,124 +729,111 @@ const AdminDashboardClient = (): React.ReactNode => {
   return (
     <section className={styles.adminShell}>
       <header className={styles.dashboardHeader}>
-        <div>
+        <div className={styles.headingBlock}>
           <p className={styles.eyebrow}>Private Admin</p>
-          <h1>Admin</h1>
+          <div className={styles.titleRow}>
+            <h1>Overview</h1>
+            <span>{statusMessage}</span>
+          </div>
         </div>
-        <p className={styles.statusPill}>
-          API status: {apiStatus?.value ?? "Unknown"}
-        </p>
+        <div className={styles.headerActions}>
+          <p className={styles.statusPill} data-tone={apiStatus?.tone ?? "loading"}>
+            API status: {apiStatus?.value ?? "Unknown"}
+          </p>
+          <button type="button" className={styles.refreshButton} onClick={() => void refreshStatus()}>
+            <FaArrowsRotate aria-hidden="true" />
+            Refresh
+          </button>
+        </div>
       </header>
 
-      <section className={styles.controlPanel}>
-        <div className={styles.controlPanelHeader}>
-          <div>
-            <h2>Overview Status</h2>
-            <p>{statusMessage}</p>
-          </div>
-          <div className={styles.actions}>
-            <button type="button" className={styles.primaryButton} onClick={() => void downloadKeyDataExport()}>
-              Download key data
-            </button>
-            <button type="button" className={styles.secondaryButton} onClick={() => void refreshStatus()}>
-              Refresh status
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.statusSummaryGrid}>
-          {statusSummaries.map((summary) => (
-            <article className={`${styles.statusSummaryCard} ${statusToneClass(summary.tone)}`} key={summary.key}>
-              <span>{summary.label}</span>
-              <strong>{summary.value}</strong>
-              <p>{summary.detail}</p>
-            </article>
-          ))}
-        </div>
-
-        <div className={styles.liveActivityStrip} aria-label="Live activity">
-          <strong className={styles.liveActivityLabel}>Live activity</strong>
-          <div className={styles.liveActivityItems}>
-            {liveActivity.map((item) => (
-              <a
-                className={styles.liveActivityItem}
-                data-tone={item.status?.tone ?? "loading"}
-                href={getDashboardLinkHref(item.href, devAuthToken)}
-                key={item.label}
-                title={item.description}
-              >
-                <span>{item.label}</span>
-                <strong>{item.status?.value ?? "Checking"}</strong>
-              </a>
-            ))}
-          </div>
-        </div>
-
-        <p className={`${styles.exportStatus} ${exportStatusClass(exportStatus.tone)}`}>
-          <span>{toneLabel[exportStatus.tone]}</span>
-          {exportStatus.message}
-        </p>
-      </section>
-
-      <section className={styles.areaSection} aria-labelledby="admin-areas-title">
-        <div className={styles.sectionHeading}>
-          <h2 id="admin-areas-title">Admin Areas</h2>
-        </div>
-        <div className={styles.areaGrid}>
-          {adminNavigationGroups.map((group) => {
-            const statusItems = group.items
-              .map((item) => getDashboardItemBadge(item, statusCards))
-              .filter((badge): badge is AdminDashboardLinkBadge => Boolean(badge));
-
-            return (
-              <a
-                className={styles.areaCard}
-                href={getDashboardLinkHref(group.href, devAuthToken)}
-                key={group.id}
-                title={group.description}
-              >
-                <div className={styles.areaCardHeader}>
-                  <span>{group.shortLabel}</span>
-                  <strong>{group.label}</strong>
-                </div>
-                <div className={styles.areaMeta}>
-                  <span>{group.items.length} {group.items.length === 1 ? "destination" : "destinations"}</span>
-                  {statusItems.slice(0, 2).map((badge, index) => (
-                    <span className={`${styles.badge} ${badgeClass(badge.tone)}`} key={`${group.id}-${badge.label}-${index}`}>
-                      {badge.label}
-                    </span>
-                  ))}
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className={styles.launchSection} aria-labelledby="admin-live-windows-title">
-        <div className={styles.sectionHeading}>
-          <h2 id="admin-live-windows-title">Live Windows</h2>
-        </div>
-        <div className={styles.launchGrid}>
+      <section className={styles.streamSection} aria-labelledby="admin-stream-windows-title">
+        <h2 id="admin-stream-windows-title">Stream windows</h2>
+        <div className={styles.streamWindowGrid}>
           {liveWindowLinks.map((item) => {
-            const badge = getDashboardItemBadge(item, statusCards);
+            const Icon = item.icon;
+            const status = item.statusKey ? findStatusCard(statusCards, item.statusKey) : undefined;
 
             return (
               <a
-                className={styles.launchLink}
+                className={styles.streamWindowLink}
                 href={getDashboardLinkHref(item.href, devAuthToken)}
                 key={item.href}
                 title={item.description}
               >
-                <strong>{item.label}</strong>
-                {badge ? (
-                  <span className={`${styles.badge} ${badgeClass(badge.tone)}`}>
-                    {badge.label}
+                <Icon aria-hidden="true" />
+                <span className={styles.streamWindowCopy}>
+                  <strong>{item.label}</strong>
+                  {item.note ? <small>{item.note}</small> : null}
+                </span>
+                {status ? (
+                  <span className={styles.compactStatus} data-tone={status.tone}>
+                    {status.value}
                   </span>
                 ) : null}
               </a>
             );
           })}
+        </div>
+      </section>
+
+      <section className={styles.liveActivitySection} aria-labelledby="admin-live-activity-title">
+        <h2 id="admin-live-activity-title">Live activity</h2>
+        <div className={styles.liveActivityGrid}>
+          {liveActivity.map((item) => (
+            <a
+              className={styles.liveActivityLink}
+              data-tone={item.status?.tone ?? "loading"}
+              href={getDashboardLinkHref(item.href, devAuthToken)}
+              key={item.label}
+              title={item.description}
+            >
+              <span className={styles.activityDot} aria-hidden="true" />
+              <span>
+                <span>{item.label}</span>
+                <strong>{item.status?.value ?? "Checking"}</strong>
+              </span>
+              <FaChevronRight aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.healthSection} aria-labelledby="admin-health-summary-title">
+        <h2 id="admin-health-summary-title">Health summary</h2>
+        <div className={styles.healthTableWrapper}>
+          <table className={styles.healthTable}>
+            <thead>
+              <tr>
+                <th scope="col">Area</th>
+                <th scope="col">State</th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {healthSummaryRows.map((row) => (
+                <tr key={row.key}>
+                  <th scope="row">{row.area}</th>
+                  <td>
+                    <span className={styles.healthState} data-tone={row.tone}>
+                      <span aria-hidden="true" />
+                      {row.state}
+                    </span>
+                  </td>
+                  <td>{row.detail}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className={styles.informationalNote}>
+          <FaCircleInfo aria-hidden="true" />
+          <div>
+            <strong>Informational</strong>
+            <p>Provider activity: {providerActivity} · Recurring smoke: {smokeSummary}</p>
+            <small>Inactive provider mechanisms are expected when services are not running.</small>
+          </div>
         </div>
       </section>
     </section>
