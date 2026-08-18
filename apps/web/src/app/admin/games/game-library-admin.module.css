@@ -1,0 +1,700 @@
+.page {
+  display: grid;
+  gap: 0;
+  min-height: 100%;
+  position: relative;
+}
+
+.pageHeader {
+  align-items: center;
+  border-bottom: 1px solid var(--admin-line);
+  display: flex;
+  justify-content: space-between;
+  min-height: 3.4rem;
+  padding: 0 0.65rem;
+}
+
+.pageHeader button,
+.detailHeader button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.titleGroup {
+  align-items: baseline;
+  display: flex;
+  gap: 1rem;
+}
+
+.titleGroup h1 {
+  font-size: 1.65rem;
+  line-height: 1;
+  margin: 0;
+}
+
+.titleGroup span,
+.statusMessage {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
+.statusMessage {
+  background: #142026;
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  margin: 0.45rem 0.65rem 0;
+  padding: 0.45rem 0.6rem;
+}
+
+.tabs {
+  border-bottom: 1px solid var(--admin-line);
+  display: flex;
+  gap: 0.8rem;
+  min-height: 3.25rem;
+  padding: 0 0.65rem;
+}
+
+.page .tabs button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--admin-muted);
+  display: inline-flex;
+  gap: 0.45rem;
+  min-height: 3.25rem;
+  padding: 0 0.35rem;
+}
+
+.page .tabs button:hover,
+.page .tabs button:focus-visible {
+  color: var(--admin-text);
+  filter: none;
+}
+
+.page .tabs button.activeTab {
+  border-bottom-color: var(--admin-mint);
+  color: var(--admin-text);
+}
+
+.tabs span,
+.suggestionHeading span {
+  background: var(--admin-surface-raised);
+  border-radius: 5px;
+  color: var(--admin-text);
+  font-size: 0.75rem;
+  min-width: 1.45rem;
+  padding: 0.15rem 0.35rem;
+  text-align: center;
+}
+
+.workspace,
+.suggestionWorkspace {
+  display: grid;
+  grid-template-columns: minmax(35rem, 1.35fr) minmax(28rem, 1fr);
+  min-height: 0;
+}
+
+.masterPane,
+.suggestionListPane {
+  border-right: 1px solid var(--admin-line);
+  min-width: 0;
+  padding: 0.65rem;
+}
+
+.libraryToolbar {
+  align-items: center;
+  display: flex;
+  gap: 0.65rem;
+  min-width: 0;
+  padding-bottom: 0.65rem;
+}
+
+.searchField {
+  align-items: center;
+  background: #091116;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 6px;
+  color: var(--admin-muted);
+  display: flex;
+  flex: 1 1 16rem;
+  gap: 0.5rem;
+  min-width: 10rem;
+  padding-left: 0.65rem;
+}
+
+.searchField:focus-within {
+  border-color: var(--admin-mint);
+  outline: 2px solid rgb(69 214 173 / 22%);
+}
+
+.searchField svg {
+  flex: 0 0 auto;
+}
+
+.page .searchField input {
+  background: transparent;
+  border: 0;
+  min-height: 2.25rem;
+  outline: 0;
+  padding: 0.45rem 0;
+  width: 100%;
+}
+
+.filters {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.4rem;
+}
+
+.page .filters button {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  color: var(--admin-text);
+  min-height: 2.25rem;
+  padding: 0.4rem 0.65rem;
+}
+
+.page .filters button.activeFilter {
+  background: var(--admin-surface-active);
+  border-color: #2f6958;
+}
+
+.gameListHeader,
+.gameRow {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: minmax(12rem, 1.7fr) minmax(6rem, 0.75fr) minmax(6.4rem, 0.78fr) minmax(6.4rem, 0.85fr) minmax(5.8rem, 0.7fr);
+}
+
+.gameListHeader {
+  border-bottom: 1px solid var(--admin-line);
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.gameList {
+  display: grid;
+}
+
+.page button.gameRow {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--admin-line);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  color: var(--admin-text);
+  min-height: 3.7rem;
+  padding: 0.4rem 0.65rem;
+  text-align: left;
+  width: 100%;
+}
+
+.page button.gameRow:hover,
+.page button.gameRow:focus-visible {
+  background: var(--admin-surface-raised);
+  filter: none;
+}
+
+.page button.selectedRow {
+  background: var(--admin-surface-active);
+  border-left-color: var(--admin-mint);
+}
+
+.gameIdentity,
+.platformCell,
+.visibilityCell {
+  align-items: center;
+  display: flex;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.gameIdentity strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.artwork,
+.artworkFallback {
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  flex: 0 0 3.6rem;
+  height: 2.5rem;
+  object-fit: cover;
+  width: 3.6rem;
+}
+
+.artworkFallback,
+.artworkFallbackLarge {
+  align-items: center;
+  background: #1a3430;
+  color: #d9fff4;
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 900;
+  justify-content: center;
+}
+
+.artworkLarge,
+.artworkFallbackLarge {
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  flex: 0 0 6.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+  width: 6.5rem;
+}
+
+.artworkFallbackLarge {
+  font-size: 1.7rem;
+}
+
+.pill {
+  border-radius: 4px;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  justify-self: start;
+  overflow: hidden;
+  padding: 0.3rem 0.5rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ownershipPill {
+  background: #174a3d;
+  color: #d8fff2;
+}
+
+.interestPill {
+  background: #1a3548;
+  color: #dcefff;
+}
+
+.platformCell,
+.visibilityCell {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+}
+
+.platformCell svg,
+.visibilityCell svg {
+  color: var(--admin-mint);
+  flex: 0 0 auto;
+}
+
+.detailPane,
+.suggestionDetail {
+  align-content: start;
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0.75rem;
+}
+
+.detailHeader {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 5rem;
+}
+
+.detailTitle {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.formSection h3 {
+  margin: 0;
+}
+
+.page .detailTitle input {
+  background: transparent;
+  border: 1px solid transparent;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.1rem 0.2rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.page .detailTitle input:focus {
+  border-color: var(--admin-line-strong);
+  outline: 2px solid rgb(69 214 173 / 18%);
+}
+
+.page .detailTitle .titleInput {
+  color: var(--admin-text);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.page .detailTitle .slugInput {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.detailTitle a,
+.suggestionDetail header a {
+  align-items: center;
+  color: var(--admin-mint);
+  display: inline-flex;
+  font-size: 0.8rem;
+  gap: 0.25rem;
+  justify-self: start;
+  text-decoration: none;
+}
+
+.formSection,
+.suggestionDetail {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+}
+
+.formSection {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+}
+
+.formSection h3 {
+  font-size: 0.95rem;
+}
+
+.formSection label,
+.suggestionDetail label {
+  display: grid;
+  font-size: 0.75rem;
+  gap: 0.3rem;
+}
+
+.page .formSection input,
+.page .formSection select,
+.page .formSection textarea,
+.page .suggestionDetail input,
+.page .suggestionDetail select {
+  border-radius: 5px;
+  font-size: 0.82rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.55rem;
+  width: 100%;
+}
+
+.page .formSection textarea {
+  min-height: 3.25rem;
+  resize: vertical;
+}
+
+.twoColumnFields,
+.threeColumnFields,
+.storeFields {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.twoColumnFields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.threeColumnFields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.storeFields {
+  grid-template-columns: minmax(7rem, 0.7fr) minmax(6rem, 0.55fr) minmax(12rem, 1.7fr);
+}
+
+.urlField {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  position: relative;
+}
+
+.urlField a {
+  align-items: center;
+  color: var(--admin-muted);
+  display: flex;
+  padding: 0 0.6rem;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.urlField input {
+  padding-right: 2.2rem !important;
+}
+
+.sortField {
+  max-width: 7rem;
+}
+
+.scheduleLink {
+  align-items: center;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 3.2rem;
+  padding: 0.6rem 0.75rem;
+  text-decoration: none;
+}
+
+.scheduleLink > svg {
+  color: var(--admin-muted);
+}
+
+.scheduleLink span {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+}
+
+.scheduleLink strong {
+  align-items: center;
+  display: flex;
+  font-size: 0.78rem;
+  gap: 0.25rem;
+}
+
+.emptyState,
+.emptyDetail {
+  color: var(--admin-muted);
+  display: grid;
+  gap: 0.3rem;
+  justify-items: start;
+  padding: 1.2rem 0.75rem;
+}
+
+.emptyState span,
+.emptyDetail p,
+.mutedLine {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.suggestionListPane {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.suggestionHeading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.2rem;
+  padding: 0.45rem 0.3rem;
+}
+
+.suggestionHeading h2 {
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.page button.suggestionRow {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom-color: var(--admin-line);
+  border-radius: 5px;
+  color: var(--admin-text);
+  display: grid;
+  gap: 0.18rem;
+  justify-items: start;
+  min-height: 3.5rem;
+  padding: 0.6rem;
+  text-align: left;
+}
+
+.page button.suggestionRow:hover,
+.page button.suggestionRow:focus-visible,
+.page button.selectedSuggestion {
+  background: var(--admin-surface-active);
+  border-color: #2f6958;
+  filter: none;
+}
+
+.suggestionRow span,
+.suggestionRow small {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.suggestionDetail {
+  min-height: 17rem;
+}
+
+.suggestionDetail header {
+  align-items: start;
+  display: flex;
+  justify-content: space-between;
+}
+
+.suggestionDetail header h2,
+.suggestionDetail header p,
+.suggestionReason {
+  margin: 0.3rem 0 0;
+}
+
+.suggestionDetail header p,
+.suggestionReason {
+  color: var(--admin-muted);
+  font-size: 0.83rem;
+}
+
+.suggestionLabel {
+  color: var(--admin-mint);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.tags,
+.suggestionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.tags span {
+  background: var(--admin-surface-raised);
+  border-radius: 999px;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.reviewSummary {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.reviewSummary div {
+  border-top: 1px solid var(--admin-line);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  padding: 0.65rem 0;
+}
+
+.reviewSummary dt,
+.reviewSummary dd {
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.reviewSummary dd {
+  color: var(--admin-muted);
+}
+
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+@media (max-width: 1420px) {
+  .workspace,
+  .suggestionWorkspace {
+    grid-template-columns: minmax(31rem, 1.1fr) minmax(25rem, 1fr);
+  }
+
+  .gameListHeader,
+  .gameRow {
+    grid-template-columns: minmax(11rem, 1.7fr) minmax(5rem, 0.7fr) minmax(5.7rem, 0.8fr) minmax(5.7rem, 0.8fr);
+  }
+
+  .gameListHeader span:nth-child(5),
+  .gameRow > :nth-child(5) {
+    display: none;
+  }
+
+  .libraryToolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 1120px) {
+  .workspace,
+  .suggestionWorkspace {
+    grid-template-columns: 1fr;
+  }
+
+  .masterPane,
+  .suggestionListPane {
+    border-bottom: 1px solid var(--admin-line);
+    border-right: 0;
+  }
+
+  .detailPane {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .pageHeader,
+  .tabs,
+  .masterPane,
+  .detailPane,
+  .suggestionListPane,
+  .suggestionDetail {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .filters {
+    flex-wrap: wrap;
+  }
+
+  .gameListHeader {
+    display: none;
+  }
+
+  .page button.gameRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gameRow > :not(.gameIdentity) {
+    display: none;
+  }
+
+  .detailHeader {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .detailHeader > button {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  .twoColumnFields,
+  .threeColumnFields,
+  .storeFields {
+    grid-template-columns: 1fr;
+  }
+
+  .scheduleLink {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .scheduleLink strong {
+    grid-column: 2;
+  }
+}

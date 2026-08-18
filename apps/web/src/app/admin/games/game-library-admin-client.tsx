@@ -2,6 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FiCalendar,
+  FiExternalLink,
+  FiEye,
+  FiEyeOff,
+  FiPlus,
+  FiSearch
+} from "react-icons/fi";
+import { FaSteam } from "react-icons/fa";
+import {
   createGameSlugFromTitle,
   gameInterestStatuses,
   gameOwnershipStatuses,
@@ -19,6 +28,7 @@ import type {
 } from "@maiks-yt/domain/games";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import styles from "./game-library-admin.module.css";
 
 type AdminGamesResponse =
   | {
@@ -52,6 +62,8 @@ type AdminSuggestionMutationResponse =
   };
 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
+type ActiveView = "library" | "suggestions";
+type GameFilter = "all" | "owned" | "not-owned" | "gifted" | "private";
 
 type GameFormState = {
   title: string;
@@ -234,12 +246,43 @@ const formatReviewedDate = (value: string | null): string => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 };
 
+const formatStatus = (value: string): string =>
+  value
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const GameArtwork = ({ game, large = false }: { game: GameLibrarySource; large?: boolean }): React.ReactNode => {
+  const [failed, setFailed] = useState(false);
+  const initial = game.title.trim().charAt(0).toUpperCase() || "G";
+
+  return game.artworkUrl && !failed ? (
+    <img
+      alt=""
+      className={large ? styles.artworkLarge : styles.artwork}
+      height={large ? 72 : 40}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      src={game.artworkUrl}
+      width={large ? 104 : 58}
+    />
+  ) : (
+    <span aria-hidden="true" className={large ? styles.artworkFallbackLarge : styles.artworkFallback}>
+      {initial}
+    </span>
+  );
+};
+
 const GameLibraryAdminClient = (): React.ReactNode => {
   const [games, setGames] = useState<readonly GameLibrarySource[]>([]);
   const [suggestions, setSuggestions] = useState<readonly GameSuggestionSource[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [gameForm, setGameForm] = useState<GameFormState>(defaultGameForm);
   const [suggestionReview, setSuggestionReview] = useState<SuggestionReviewState>(defaultSuggestionReviewState);
+  const [activeView, setActiveView] = useState<ActiveView>("library");
+  const [gameFilter, setGameFilter] = useState<GameFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSuggestionId, setSelectedSuggestionId] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading Game Library...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -403,6 +446,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   };
 
   const startNewGame = (): void => {
+    setActiveView("library");
     setSelectedId("");
     setGameForm(defaultGameForm);
   };
@@ -471,6 +515,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   };
 
   const draftGameFromSuggestion = (suggestion: GameSuggestionSource): void => {
+    setActiveView("library");
     setSelectedId("");
     setGameForm(suggestionToGameForm(suggestion));
     setSuggestionReview((current) => ({
@@ -488,14 +533,41 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     .slice()
     .sort((left, right) => getReviewedSortValue(right) - getReviewedSortValue(left))
     .slice(0, 8);
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
+  const filteredGames = visibleGames.filter((game) => {
+    const matchesFilter = gameFilter === "all"
+      || (gameFilter === "private" ? game.visibility === "private" : game.ownershipStatus === gameFilter);
+    const matchesSearch = normalizedSearch.length === 0
+      || [game.title, game.platformLabel, game.categoryLabel, game.storeProvider]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLocaleLowerCase().includes(normalizedSearch));
+
+    return matchesFilter && matchesSearch;
+  });
+  const selectedSuggestion = suggestions.find((suggestion) => suggestion.id === selectedSuggestionId)
+    ?? pendingSuggestions[0]
+    ?? reviewedSuggestions[0]
+    ?? null;
 
   return (
-    <>
-      <header className="project-admin-header">
-        <p className="eyebrow">Owner Admin</p>
-        <h1>Game Library</h1>
-        <p aria-live="polite">{message}</p>
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <div className={styles.titleGroup}>
+          <h1>Games</h1>
+          <span>{visibleGames.length} records</span>
+        </div>
+        <button type="button" onClick={startNewGame}>
+          <FiPlus aria-hidden="true" />
+          New game
+        </button>
       </header>
+
+      <p
+        aria-live="polite"
+        className={`${styles.statusMessage} ${message === "Game Library loaded." ? styles.visuallyHidden : ""}`}
+      >
+        {message}
+      </p>
 
       {loadState !== "ready" ? (
         <section className={`project-admin-state ${loadState}`}>
@@ -510,207 +582,325 @@ const GameLibraryAdminClient = (): React.ReactNode => {
       ) : null}
 
       {loadState === "ready" ? (
-        <div className="project-admin-layout">
-          <aside className="project-admin-sidebar" aria-label="Game records">
-            <div className="project-admin-sidebar-heading">
-              <h2>Games</h2>
-              <button type="button" className="secondary-action" onClick={startNewGame}>
-                New
-              </button>
+        <>
+          <nav aria-label="Game management views" className={styles.tabs}>
+            <button
+              aria-current={activeView === "library" ? "page" : undefined}
+              className={activeView === "library" ? styles.activeTab : undefined}
+              onClick={() => setActiveView("library")}
+              type="button"
+            >
+              Library <span>{visibleGames.length}</span>
+            </button>
+            <button
+              aria-current={activeView === "suggestions" ? "page" : undefined}
+              className={activeView === "suggestions" ? styles.activeTab : undefined}
+              onClick={() => setActiveView("suggestions")}
+              type="button"
+            >
+              Suggestions <span>{pendingSuggestions.length}</span>
+            </button>
+          </nav>
+
+          {activeView === "library" ? (
+            <div className={styles.workspace}>
+              <section aria-label="Game library" className={styles.masterPane}>
+                <div className={styles.libraryToolbar}>
+                  <label className={styles.searchField}>
+                    <FiSearch aria-hidden="true" />
+                    <span className={styles.visuallyHidden}>Search games</span>
+                    <input
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Search games..."
+                      type="search"
+                      value={searchQuery}
+                    />
+                  </label>
+                  <div aria-label="Filter games" className={styles.filters} role="group">
+                    {([
+                      ["all", "All"],
+                      ["owned", "Owned"],
+                      ["not-owned", "Not owned"],
+                      ["gifted", "Gifted"],
+                      ["private", "Private"]
+                    ] as const).map(([value, label]) => (
+                      <button
+                        aria-pressed={gameFilter === value}
+                        className={gameFilter === value ? styles.activeFilter : undefined}
+                        key={value}
+                        onClick={() => setGameFilter(value)}
+                        type="button"
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={styles.gameListHeader} aria-hidden="true">
+                  <span>Game</span>
+                  <span>Platform</span>
+                  <span>Ownership</span>
+                  <span>Interest</span>
+                  <span>Visibility</span>
+                  <span />
+                </div>
+                <div className={styles.gameList}>
+                  {filteredGames.length === 0 ? (
+                    <div className={styles.emptyState}>
+                      <strong>No matching games</strong>
+                      <span>Change the search or filter to see other records.</span>
+                    </div>
+                  ) : filteredGames.map((game) => (
+                    <button
+                      aria-pressed={game.id === selectedId}
+                      className={`${styles.gameRow} ${game.id === selectedId ? styles.selectedRow : ""}`}
+                      key={game.id}
+                      onClick={() => selectGame(game.id)}
+                      type="button"
+                    >
+                      <span className={styles.gameIdentity}>
+                        <GameArtwork game={game} />
+                        <strong>{game.title}</strong>
+                      </span>
+                      <span className={styles.platformCell}>
+                        {game.storeProvider?.toLocaleLowerCase() === "steam" ? <FaSteam aria-hidden="true" /> : null}
+                        {game.platformLabel ?? "—"}
+                      </span>
+                      <span className={`${styles.pill} ${styles.ownershipPill}`}>{formatStatus(game.ownershipStatus)}</span>
+                      <span className={`${styles.pill} ${styles.interestPill}`}>{formatStatus(game.interestStatus)}</span>
+                      <span className={styles.visibilityCell}>
+                        {game.visibility === "public" ? <FiEye aria-hidden="true" /> : <FiEyeOff aria-hidden="true" />}
+                        {formatStatus(game.visibility)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <form className={styles.detailPane} id="game-editor-form" onSubmit={(event) => void saveGame(event)}>
+                <header className={styles.detailHeader}>
+                  {selectedGame ? <GameArtwork game={selectedGame} key={selectedGame.id} large /> : (
+                    <span aria-hidden="true" className={styles.artworkFallbackLarge}>+</span>
+                  )}
+                  <div className={styles.detailTitle}>
+                    <h2 className={styles.visuallyHidden}>{selectedGame?.title ?? "New game"}</h2>
+                    <input
+                      aria-label="Title"
+                      className={styles.titleInput}
+                      maxLength={191}
+                      onChange={(event) => setGameForm((current) => ({ ...current, title: event.target.value }))}
+                      placeholder="Game title"
+                      required
+                      value={gameForm.title}
+                    />
+                    <input
+                      aria-label="Slug"
+                      className={styles.slugInput}
+                      maxLength={191}
+                      onChange={(event) => setGameForm((current) => ({ ...current, slug: event.target.value }))}
+                      placeholder="derived from title"
+                      value={gameForm.slug}
+                    />
+                    {gameForm.storeUrl ? (
+                      <a href={gameForm.storeUrl} rel="noreferrer" target="_blank">
+                        Open store <FiExternalLink aria-hidden="true" />
+                      </a>
+                    ) : null}
+                  </div>
+                  <button disabled={busyAction !== null} type="submit">
+                    {busyAction ? "Saving..." : selectedGame ? "Save changes" : "Create game"}
+                  </button>
+                </header>
+
+                <section className={styles.formSection}>
+                  <h3>State</h3>
+                  <div className={styles.threeColumnFields}>
+                    <label>
+                      Ownership
+                      <select value={gameForm.ownershipStatus} onChange={(event) => setGameForm((current) => ({ ...current, ownershipStatus: event.target.value as GameOwnershipStatus }))}>
+                        {gameOwnershipStatuses.map((status) => <option key={status} value={status}>{formatStatus(status)}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      Interest
+                      <select value={gameForm.interestStatus} onChange={(event) => setGameForm((current) => ({ ...current, interestStatus: event.target.value as GameInterestStatus }))}>
+                        {gameInterestStatuses.map((status) => <option key={status} value={status}>{formatStatus(status)}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      Visibility
+                      <select value={gameForm.visibility} onChange={(event) => setGameForm((current) => ({ ...current, visibility: event.target.value as GameVisibility }))}>
+                        {gameVisibilities.map((visibility) => <option key={visibility} value={visibility}>{formatStatus(visibility)}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                </section>
+
+                <section className={styles.formSection}>
+                  <h3>Store</h3>
+                  <div className={styles.storeFields}>
+                    <label>
+                      Platform
+                      <input value={gameForm.platformLabel} onChange={(event) => setGameForm((current) => ({ ...current, platformLabel: event.target.value }))} maxLength={120} />
+                    </label>
+                    <label>
+                      Provider
+                      <input value={gameForm.storeProvider} onChange={(event) => setGameForm((current) => ({ ...current, storeProvider: event.target.value }))} maxLength={80} />
+                    </label>
+                    <label>
+                      Store URL
+                      <span className={styles.urlField}>
+                        <input value={gameForm.storeUrl} onChange={(event) => setGameForm((current) => ({ ...current, storeUrl: event.target.value }))} maxLength={1024} />
+                        {gameForm.storeUrl ? (
+                          <a aria-label="Open store URL" href={gameForm.storeUrl} rel="noreferrer" target="_blank"><FiExternalLink aria-hidden="true" /></a>
+                        ) : null}
+                      </span>
+                    </label>
+                  </div>
+                </section>
+
+                <section className={styles.formSection}>
+                  <h3>Planning notes</h3>
+                  <label>
+                    Stream fit notes
+                    <textarea value={gameForm.streamFitNote} onChange={(event) => setGameForm((current) => ({ ...current, streamFitNote: event.target.value }))} maxLength={500} rows={2} />
+                  </label>
+                  <label>
+                    Content warnings
+                    <textarea value={gameForm.contentWarnings} onChange={(event) => setGameForm((current) => ({ ...current, contentWarnings: event.target.value }))} maxLength={2000} rows={2} />
+                  </label>
+                  <label>
+                    Category / theme
+                    <input value={gameForm.categoryLabel} onChange={(event) => setGameForm((current) => ({ ...current, categoryLabel: event.target.value }))} maxLength={120} />
+                  </label>
+                </section>
+
+                <section className={styles.formSection}>
+                  <h3>Ordering</h3>
+                  <label className={styles.sortField}>
+                    Sort order
+                    <input type="number" value={gameForm.sortOrder} onChange={(event) => setGameForm((current) => ({ ...current, sortOrder: Number.parseInt(event.target.value, 10) || 0 }))} min={-10000} max={10000} />
+                  </label>
+                </section>
+
+                <a className={styles.scheduleLink} href="/admin/schedule">
+                  <FiCalendar aria-hidden="true" />
+                  <span>Stream links are managed in Schedule</span>
+                  <strong>Open Schedule <FiExternalLink aria-hidden="true" /></strong>
+                </a>
+              </form>
             </div>
-            {visibleGames.length === 0 ? (
-              <p>No game records yet.</p>
-            ) : (
-              <div className="project-admin-selector">
-                {visibleGames.map((game) => (
+          ) : (
+            <div className={styles.suggestionWorkspace}>
+              <section aria-label="Game suggestions" className={styles.suggestionListPane}>
+                <div className={styles.suggestionHeading}>
+                  <h2>Pending</h2>
+                  <span>{pendingSuggestions.length}</span>
+                </div>
+                {pendingSuggestions.length === 0 ? (
+                  <div className={styles.emptyState}>
+                    <strong>No suggestions waiting</strong>
+                    <span>New viewer suggestions will appear here for private review.</span>
+                  </div>
+                ) : pendingSuggestions.map((suggestion) => (
                   <button
-                    key={game.id}
+                    className={`${styles.suggestionRow} ${selectedSuggestion?.id === suggestion.id ? styles.selectedSuggestion : ""}`}
+                    key={suggestion.id}
+                    onClick={() => {
+                      setSelectedSuggestionId(suggestion.id);
+                      setSuggestionReview(defaultSuggestionReviewState);
+                    }}
                     type="button"
-                    className={game.id === selectedId ? "selected" : ""}
-                    onClick={() => selectGame(game.id)}
                   >
-                    <strong>{game.title}</strong>
-                    <span>{game.interestStatus} / {game.ownershipStatus} / {game.visibility}</span>
+                    <strong>{suggestion.title}</strong>
+                    <span>{suggestion.platformLabel ?? "Platform not provided"}</span>
+                    {suggestion.reason ? <small>{suggestion.reason}</small> : null}
                   </button>
                 ))}
-              </div>
-            )}
-          </aside>
 
-          <section className="project-admin-workspace" aria-label="Game editor">
-            <section className="project-admin-panel">
-              <div className="project-admin-panel-heading">
-                <h2>Suggestions</h2>
-                <span>{pendingSuggestions.length} pending</span>
-              </div>
-              {pendingSuggestions.length === 0 ? (
-                <p>No pending game suggestions.</p>
-              ) : (
-                <div className="project-admin-selector">
-                  {pendingSuggestions.map((suggestion) => (
-                    <article className="project-admin-state" key={suggestion.id}>
-                      <h3>{suggestion.title}</h3>
-                      <p>
-                        {[suggestion.platformLabel, suggestion.suggestedByName].filter(Boolean).join(" / ") || "Viewer suggestion"}
-                      </p>
-                      {suggestion.reason ? <p>{suggestion.reason}</p> : null}
-                      {suggestion.storeUrl ? (
-                        <a href={suggestion.storeUrl} rel="noreferrer" target="_blank">
-                          Store Page
-                        </a>
-                      ) : null}
-                      {suggestion.tags.length > 0 ? <p>{suggestion.tags.join(", ")}</p> : null}
-                      <div className="project-admin-form-grid">
-                        <label>
-                          Link Existing Game
-                          <select value={suggestionReview.linkedGameId} onChange={(event) => setSuggestionReview((current) => ({ ...current, linkedGameId: event.target.value }))}>
-                            <option value="">No linked game</option>
-                            {visibleGames.map((game) => (
-                              <option key={game.id} value={game.id}>{game.title}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <label>
-                          Review Note
-                          <input value={suggestionReview.reviewerNote} onChange={(event) => setSuggestionReview((current) => ({ ...current, reviewerNote: event.target.value }))} maxLength={1000} />
-                        </label>
-                      </div>
-                      <div className="project-admin-actions">
-                        <button type="button" onClick={() => void createPrivateGameFromSuggestion(suggestion)} disabled={busyAction !== null}>
-                          Create Private Game
-                        </button>
-                        <button type="button" className="secondary-action" onClick={() => void createPrivateGameFromSuggestion(suggestion, { gifted: true })} disabled={busyAction !== null}>
-                          Create Gifted Game
-                        </button>
-                        <button type="button" className="secondary-action" onClick={() => draftGameFromSuggestion(suggestion)} disabled={busyAction !== null}>
-                          Draft Game
-                        </button>
-                        <button type="button" onClick={() => void reviewSuggestion(suggestion.id, "accepted")} disabled={busyAction !== null}>
-                          Accept
-                        </button>
-                        <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(suggestion.id, "maybe-later")} disabled={busyAction !== null}>
-                          Maybe Later
-                        </button>
-                        <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(suggestion.id, "rejected")} disabled={busyAction !== null}>
-                          Reject
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                <div className={styles.suggestionHeading}>
+                  <h2>Recently reviewed</h2>
+                  <span>{reviewedSuggestions.length}</span>
                 </div>
-              )}
-            </section>
+                {reviewedSuggestions.length === 0 ? (
+                  <p className={styles.mutedLine}>No reviewed suggestions yet.</p>
+                ) : reviewedSuggestions.map((suggestion) => (
+                  <button
+                    className={`${styles.suggestionRow} ${selectedSuggestion?.id === suggestion.id ? styles.selectedSuggestion : ""}`}
+                    key={suggestion.id}
+                    onClick={() => setSelectedSuggestionId(suggestion.id)}
+                    type="button"
+                  >
+                    <strong>{suggestion.title}</strong>
+                    <span>{formatStatus(suggestion.status)} · {formatReviewedDate(suggestion.reviewedAt)}</span>
+                  </button>
+                ))}
+              </section>
 
-            <section className="project-admin-panel">
-              <div className="project-admin-panel-heading">
-                <h2>Reviewed Suggestions</h2>
-                <span>{reviewedSuggestions.length} recent</span>
-              </div>
-              {reviewedSuggestions.length === 0 ? (
-                <p>No reviewed suggestions yet.</p>
-              ) : (
-                <div className="project-admin-selector">
-                  {reviewedSuggestions.map((suggestion) => (
-                    <article className="project-admin-state" key={suggestion.id}>
-                      <h3>{suggestion.title}</h3>
-                      <p>
-                        {suggestion.status} · Reviewed {formatReviewedDate(suggestion.reviewedAt)}
-                      </p>
-                      {suggestion.linkedGameId ? (
-                        <p>Linked game: {gameTitleById.get(suggestion.linkedGameId) ?? suggestion.linkedGameId}</p>
+              <section className={styles.suggestionDetail}>
+                {selectedSuggestion ? (
+                  <>
+                    <header>
+                      <div>
+                        <span className={styles.suggestionLabel}>{formatStatus(selectedSuggestion.status)}</span>
+                        <h2>{selectedSuggestion.title}</h2>
+                        <p>{[selectedSuggestion.platformLabel, selectedSuggestion.suggestedByName].filter(Boolean).join(" · ") || "Viewer suggestion"}</p>
+                      </div>
+                      {selectedSuggestion.storeUrl ? (
+                        <a href={selectedSuggestion.storeUrl} rel="noreferrer" target="_blank">Open store <FiExternalLink aria-hidden="true" /></a>
                       ) : null}
-                      {suggestion.reviewerNote ? <p>{suggestion.reviewerNote}</p> : null}
-                      {suggestion.suggestedByName ? <p>Suggested by {suggestion.suggestedByName}</p> : null}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
+                    </header>
+                    {selectedSuggestion.reason ? <p className={styles.suggestionReason}>{selectedSuggestion.reason}</p> : null}
+                    {selectedSuggestion.tags.length > 0 ? (
+                      <div className={styles.tags}>{selectedSuggestion.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>
+                    ) : null}
 
-            <form className="project-admin-panel project-admin-form" onSubmit={(event) => void saveGame(event)}>
-              <div className="project-admin-panel-heading">
-                <h2>{selectedGame ? "Game Details" : "Create Game"}</h2>
-                <button type="submit" disabled={busyAction !== null}>
-                  {busyAction ? "Saving..." : selectedGame ? "Save Game" : "Create Game"}
-                </button>
-              </div>
-
-              <div className="project-admin-form-grid">
-                <label>
-                  Title
-                  <input value={gameForm.title} onChange={(event) => setGameForm((current) => ({ ...current, title: event.target.value }))} required maxLength={191} />
-                </label>
-                <label>
-                  Slug
-                  <input value={gameForm.slug} onChange={(event) => setGameForm((current) => ({ ...current, slug: event.target.value }))} maxLength={191} placeholder="derived from title" />
-                </label>
-              </div>
-
-              <div className="project-admin-form-grid">
-                <label>
-                  Ownership
-                  <select value={gameForm.ownershipStatus} onChange={(event) => setGameForm((current) => ({ ...current, ownershipStatus: event.target.value as GameOwnershipStatus }))}>
-                    {gameOwnershipStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Interest
-                  <select value={gameForm.interestStatus} onChange={(event) => setGameForm((current) => ({ ...current, interestStatus: event.target.value as GameInterestStatus }))}>
-                    {gameInterestStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                  </select>
-                </label>
-                <label>
-                  Visibility
-                  <select value={gameForm.visibility} onChange={(event) => setGameForm((current) => ({ ...current, visibility: event.target.value as GameVisibility }))}>
-                    {gameVisibilities.map((visibility) => <option key={visibility} value={visibility}>{visibility}</option>)}
-                  </select>
-                </label>
-              </div>
-
-              <div className="project-admin-form-grid">
-                <label>
-                  Platform
-                  <input value={gameForm.platformLabel} onChange={(event) => setGameForm((current) => ({ ...current, platformLabel: event.target.value }))} maxLength={120} />
-                </label>
-                <label>
-                  Store Provider
-                  <input value={gameForm.storeProvider} onChange={(event) => setGameForm((current) => ({ ...current, storeProvider: event.target.value }))} maxLength={80} />
-                </label>
-                <label>
-                  Sort
-                  <input type="number" value={gameForm.sortOrder} onChange={(event) => setGameForm((current) => ({ ...current, sortOrder: Number.parseInt(event.target.value, 10) || 0 }))} min={-10000} max={10000} />
-                </label>
-              </div>
-
-              <label>
-                Store URL
-                <input value={gameForm.storeUrl} onChange={(event) => setGameForm((current) => ({ ...current, storeUrl: event.target.value }))} maxLength={1024} />
-              </label>
-
-              <label>
-                Stream Fit Notes
-                <textarea value={gameForm.streamFitNote} onChange={(event) => setGameForm((current) => ({ ...current, streamFitNote: event.target.value }))} maxLength={500} rows={4} />
-              </label>
-
-              <label>
-                Content Warnings
-                <textarea value={gameForm.contentWarnings} onChange={(event) => setGameForm((current) => ({ ...current, contentWarnings: event.target.value }))} maxLength={2000} rows={4} />
-              </label>
-
-              <label>
-                Category / Theme
-                <input value={gameForm.categoryLabel} onChange={(event) => setGameForm((current) => ({ ...current, categoryLabel: event.target.value }))} maxLength={120} />
-              </label>
-            </form>
-
-            <section className="project-admin-panel project-admin-note">
-              <h2>Later</h2>
-              <p>Gifted games can be marked from suggestions now. Gift giver details, key/redeem state, provider/store sync, auto category updates, money behavior, and external wishlist automation stay outside this first runtime slice.</p>
-            </section>
-          </section>
-        </div>
+                    {selectedSuggestion.status === "pending" ? (
+                      <>
+                        <div className={styles.twoColumnFields}>
+                          <label>
+                            Link existing game
+                            <select value={suggestionReview.linkedGameId} onChange={(event) => setSuggestionReview((current) => ({ ...current, linkedGameId: event.target.value }))}>
+                              <option value="">No linked game</option>
+                              {visibleGames.map((game) => <option key={game.id} value={game.id}>{game.title}</option>)}
+                            </select>
+                          </label>
+                          <label>
+                            Review note
+                            <input value={suggestionReview.reviewerNote} onChange={(event) => setSuggestionReview((current) => ({ ...current, reviewerNote: event.target.value }))} maxLength={1000} />
+                          </label>
+                        </div>
+                        <div className={styles.suggestionActions}>
+                          <button type="button" onClick={() => void createPrivateGameFromSuggestion(selectedSuggestion)} disabled={busyAction !== null}>Create private game</button>
+                          <button type="button" className="secondary-action" onClick={() => void createPrivateGameFromSuggestion(selectedSuggestion, { gifted: true })} disabled={busyAction !== null}>Create gifted game</button>
+                          <button type="button" className="secondary-action" onClick={() => draftGameFromSuggestion(selectedSuggestion)} disabled={busyAction !== null}>Draft game</button>
+                          <button type="button" onClick={() => void reviewSuggestion(selectedSuggestion.id, "accepted")} disabled={busyAction !== null}>Accept</button>
+                          <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(selectedSuggestion.id, "maybe-later")} disabled={busyAction !== null}>Maybe later</button>
+                          <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(selectedSuggestion.id, "rejected")} disabled={busyAction !== null}>Reject</button>
+                        </div>
+                      </>
+                    ) : (
+                      <dl className={styles.reviewSummary}>
+                        <div><dt>Status</dt><dd>{formatStatus(selectedSuggestion.status)}</dd></div>
+                        <div><dt>Reviewed</dt><dd>{formatReviewedDate(selectedSuggestion.reviewedAt)}</dd></div>
+                        <div><dt>Linked game</dt><dd>{selectedSuggestion.linkedGameId ? gameTitleById.get(selectedSuggestion.linkedGameId) ?? selectedSuggestion.linkedGameId : "None"}</dd></div>
+                        <div><dt>Review note</dt><dd>{selectedSuggestion.reviewerNote ?? "None"}</dd></div>
+                      </dl>
+                    )}
+                  </>
+                ) : (
+                  <div className={styles.emptyDetail}>
+                    <h2>No suggestion selected</h2>
+                    <p>There are no pending or reviewed suggestions to show.</p>
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
+        </>
       ) : null}
-    </>
+    </div>
   );
 };
 
