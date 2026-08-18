@@ -4,6 +4,8 @@ import {
   buildDefaultEventRoutingRule,
   buildStreamVisibilityPreferenceValues,
   canManageEventRouting,
+  eventRoutingDestinationCapabilities,
+  getEventRoutingDestinationCapability,
   resolveSafeSimulatedEventRoutingDecision,
   streamVisibilityPreferenceScopes,
   validateSafeSimulatedEventRoutingDispatch,
@@ -107,6 +109,49 @@ describe("event routing rule validation", () => {
       requiresCooldownCheck: true,
       requiresApprovalByDefault: true
     });
+  });
+
+  it("declares honest runtime and rendering capabilities for every destination", () => {
+    expect(eventRoutingDestinationCapabilities).toHaveLength(8);
+    expect(getEventRoutingDestinationCapability("control_panel")).toMatchObject({
+      runtimeConsumer: "unavailable",
+      supportsPriority: false,
+      supportsSound: false
+    });
+    expect(getEventRoutingDestinationCapability("top_notification")).toMatchObject({
+      runtimeConsumer: "available",
+      supportsPriority: true,
+      supportsTemplate: true,
+      supportsTheme: true,
+      supportsSound: true
+    });
+    expect(getEventRoutingDestinationCapability("center_notification").supportsSound).toBe(true);
+    expect(eventRoutingDestinationCapabilities
+      .filter((capability) => capability.supportsSound)
+      .map((capability) => capability.destination))
+      .toEqual(["top_notification", "center_notification"]);
+  });
+
+  it("rejects unavailable consumers and destination inputs that cannot be consumed", () => {
+    expect(validateEventRoutingRule(validRule({
+      destination: "control_panel",
+      enabled: true
+    })).issues).toContain("event_routing_enabled_destination_unavailable");
+
+    const unsupported = validateEventRoutingRule(validRule({
+      destination: "internal_audit",
+      notificationPriority: "high",
+      templateKey: "template",
+      themeKey: "theme",
+      soundKey: "sound"
+    }));
+
+    expect(unsupported.issues).toEqual(expect.arrayContaining([
+      "event_routing_unsupported_priority",
+      "event_routing_unsupported_template",
+      "event_routing_unsupported_theme",
+      "event_routing_unsupported_sound"
+    ]));
   });
 
   it("builds user stream visibility preference values with safe missing-row defaults", () => {

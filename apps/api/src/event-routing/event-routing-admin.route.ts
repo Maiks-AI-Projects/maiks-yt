@@ -3,7 +3,11 @@ import {
   eventKinds,
   eventRoutingDestinations,
   eventRoutingNotificationPriorities,
-  eventRoutingRuleSourcePlatforms
+  eventRoutingRuleSourcePlatforms,
+  isEventKind,
+  isEventRoutingRuleSourcePlatform,
+  type EventKind,
+  type EventRoutingRuleSourcePlatform
 } from "@maiks-yt/domain/events";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -12,7 +16,6 @@ import { EventRoutingAdminService } from "./event-routing-admin.service.js";
 import { createEventRoutingAdminRepository } from "./event-routing-admin-store.service.js";
 import type {
   EventRoutingAdminApprovalReviewResult,
-  EventRoutingAdminPlaybackPublisher,
   EventRoutingAdminUpdateResult
 } from "./event-routing-admin.types.js";
 
@@ -25,8 +28,14 @@ type EventRoutingAdminAuthSession = {
 type EventRoutingAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<EventRoutingAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
-  publishPlayback?: EventRoutingAdminPlaybackPublisher;
-  createService?: () => Pick<EventRoutingAdminService, "listRules" | "updateRule" | "listPendingApprovals" | "reviewApproval">;
+  createService?: () => Pick<EventRoutingAdminService,
+    | "listRules"
+    | "updateRule"
+    | "deleteRule"
+    | "listPendingApprovals"
+    | "reviewApproval"
+    | "getCooldownSummary"
+    | "listOperationalHistory">;
 };
 
 const optionalKeySchema = z.string().trim().min(1).max(80).nullable();
@@ -61,6 +70,42 @@ const approvalReviewPayloadSchema = z.object({
   reviewNote: z.string().trim().min(1).max(1000).nullable().optional()
 }).strict();
 
+const ruleDeleteParamsSchema = z.object({
+  eventKind: z.string().trim().min(1).max(191),
+  sourcePlatform: z.string().trim().min(1).max(191)
+}).strict();
+
+const cooldownSummaryQuerySchema = z.object({
+  eventKind: z.enum(eventKinds),
+  sourcePlatform: z.enum(eventRoutingRuleSourcePlatforms)
+}).strict();
+
+const operationalHistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional()
+}).strict();
+
+const decodeRuleDeleteParams = (value: unknown): {
+  eventKind: EventKind;
+  sourcePlatform: EventRoutingRuleSourcePlatform;
+} | null => {
+  const parsed = ruleDeleteParamsSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return null;
+  }
+
+  try {
+    const eventKind = decodeURIComponent(parsed.data.eventKind);
+    const sourcePlatform = decodeURIComponent(parsed.data.sourcePlatform);
+
+    return isEventKind(eventKind) && isEventRoutingRuleSourcePlatform(sourcePlatform)
+      ? { eventKind, sourcePlatform }
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const sendUpdateResult = (
   result: EventRoutingAdminUpdateResult,
   reply: FastifyReply
@@ -92,7 +137,11 @@ const sendApprovalReviewResult = (
     return result;
   }
 
-  reply.code(result.reason === "event_routing_admin_approval_not_found" ? 404 : 400);
+  reply.code(result.reason === "event_routing_admin_approval_not_found"
+    ? 404
+    : result.reason === "event_routing_admin_production_execution_unavailable"
+      ? 409
+      : 400);
   return result;
 };
 
@@ -100,12 +149,16 @@ export const registerEventRoutingAdminRoutes = (
   server: FastifyInstance,
   dependencies: EventRoutingAdminRouteDependencies
 ): void => {
-  const getService = (): Pick<EventRoutingAdminService, "listRules" | "updateRule" | "listPendingApprovals" | "reviewApproval"> =>
+  const getService = (): Pick<EventRoutingAdminService,
+    | "listRules"
+    | "updateRule"
+    | "deleteRule"
+    | "listPendingApprovals"
+    | "reviewApproval"
+    | "getCooldownSummary"
+    | "listOperationalHistory"> =>
     dependencies.createService?.()
-    ?? new EventRoutingAdminService(
-      createEventRoutingAdminRepository(dependencies.getDatabasePool()),
-      dependencies.publishPlayback
-    );
+    ?? new EventRoutingAdminService(createEventRoutingAdminRepository(dependencies.getDatabasePool()));
 
   const getSession = async (
     request: FastifyRequest,
@@ -196,6 +249,88 @@ export const registerEventRoutingAdminRoutes = (
     }
   });
 
+  server.get("/admin/event-routing/cooldowns/summary", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "event_routing_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedQuery = cooldownSummaryQuerySchema.safeParse(request.query);
+
+    if (!parsedQuery.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "event_routing_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().getCooldownSummary({
+        authUserId: session.user.id,
+        ...parsedQuery.data
+      });
+
+      if (!result.ok) {
+        reply.code(403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Event routing cooldown summary failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "event_routing_admin_unavailable"
+      };
+    }
+  });
+
+  server.get("/admin/event-routing/history", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "event_routing_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedQuery = operationalHistoryQuerySchema.safeParse(request.query);
+
+    if (!parsedQuery.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "event_routing_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().listOperationalHistory({
+        authUserId: session.user.id,
+        ...(parsedQuery.data.limit === undefined ? {} : { limit: parsedQuery.data.limit })
+      });
+
+      if (!result.ok) {
+        reply.code(403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Event routing operational history failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "event_routing_admin_unavailable"
+      };
+    }
+  });
+
   server.post("/admin/event-routing/approvals/:approvalId/review", async (request, reply) => {
     const session = await getSession(request, reply);
 
@@ -261,6 +396,47 @@ export const registerEventRoutingAdminRoutes = (
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Event routing admin update failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "event_routing_admin_unavailable"
+      };
+    }
+  });
+
+  server.delete("/admin/event-routing/rules/:eventKind/:sourcePlatform", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "event_routing_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = decodeRuleDeleteParams(request.params);
+
+    if (!parsedParams) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "event_routing_admin_invalid_input"
+      };
+    }
+
+    try {
+      const result = await getService().deleteRule({
+        authUserId: session.user.id,
+        ...parsedParams
+      });
+
+      if (!result.ok) {
+        reply.code(403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Event routing rule reset failed.");
       reply.code(503);
       return {
         ok: false,

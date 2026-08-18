@@ -1,7 +1,9 @@
 import {
   buildDefaultEventRoutingRule,
   canManageEventRouting,
+  eventRoutingDestinationCapabilities,
   eventKinds,
+  getEventRoutingDestinationCapability,
   getEventRegistryEntry,
   validateEventRoutingRule,
   type EventRoutingRuleInput
@@ -10,16 +12,20 @@ import {
 import type {
   EventRoutingAdminActor,
   EventRoutingAdminApprovalListResult,
-  EventRoutingAdminApprovalRecord,
   EventRoutingAdminApprovalReviewResult,
-  EventRoutingAdminPlaybackPublisher,
+  EventRoutingAdminCooldownSummaryResult,
+  EventRoutingAdminDeleteResult,
+  EventRoutingAdminHistoryResult,
   EventRoutingAdminListResult,
   EventRoutingAdminRepository,
   EventRoutingAdminRuleListItem,
   EventRoutingAdminRuleRecord,
   EventRoutingAdminUpdateResult
 } from "./event-routing-admin.types.js";
-import { buildSafeEventRoutingPlaybackProjection } from "./event-routing-playback.service.js";
+import {
+  projectEventRoutingAdminApproval,
+  projectEventRoutingOperationalHistory
+} from "./event-routing-admin-projection.service.js";
 
 const parsePermissionArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -66,6 +72,7 @@ const toRuleListItem = (
     description: entry.description,
     safety: entry.safety,
     validation: validateEventRoutingRule(rule),
+    destinationCapability: getEventRoutingDestinationCapability(rule.destination),
     persisted: Boolean(rule.id),
     createdAt: rule.createdAt ?? null,
     updatedAt: rule.updatedAt ?? null
@@ -75,10 +82,17 @@ const toRuleListItem = (
 const ruleKey = (rule: Pick<EventRoutingRuleInput, "eventKind" | "sourcePlatform">): string =>
   `${rule.eventKind}:${rule.sourcePlatform}`;
 
+const isProductionApproval = (
+  approval: Parameters<typeof projectEventRoutingAdminApproval>[0]
+): boolean => !approval.event.isTest
+  && !approval.event.isSimulated
+  && !approval.event.testResettable
+  && approval.event.sourcePlatform !== "test/system"
+  && !getEventRegistryEntry(approval.event.eventKind).safety.simulatedOnly;
+
 export class EventRoutingAdminService {
   public constructor(
-    private readonly repository: EventRoutingAdminRepository,
-    private readonly publishPlayback?: EventRoutingAdminPlaybackPublisher
+    private readonly repository: EventRoutingAdminRepository
   ) {}
 
   public async listRules(input: { authUserId: string }): Promise<EventRoutingAdminListResult> {
@@ -105,7 +119,8 @@ export class EventRoutingAdminService {
 
     return {
       ok: true,
-      rules: [...listItems, ...providerSpecificRules]
+      rules: [...listItems, ...providerSpecificRules],
+      destinationCapabilities: eventRoutingDestinationCapabilities
     };
   }
 
@@ -155,7 +170,9 @@ export class EventRoutingAdminService {
 
     return {
       ok: true,
-      approvals: approvals.map((approval) => this.toApprovalRecord(approval, null))
+      approvals: approvals
+        .filter(isProductionApproval)
+        .map((approval) => projectEventRoutingAdminApproval(approval, null))
     };
   }
 
@@ -173,7 +190,7 @@ export class EventRoutingAdminService {
 
     const approval = await this.repository.getPendingApproval(input.approvalId);
 
-    if (!approval) {
+    if (!approval || !isProductionApproval(approval)) {
       return {
         ok: false,
         reason: "event_routing_admin_approval_not_found"
@@ -192,7 +209,7 @@ export class EventRoutingAdminService {
       return reviewed
         ? {
           ok: true,
-          approval: this.toApprovalRecord(reviewed, null)
+          approval: projectEventRoutingAdminApproval(reviewed, null)
         }
         : {
           ok: false,
@@ -200,60 +217,100 @@ export class EventRoutingAdminService {
         };
     }
 
-    const projected = buildSafeEventRoutingPlaybackProjection({
-      history: approval.event,
-      destination: approval.destination,
-      notificationPriority: approval.rule.notificationPriority
-    });
-    const shouldBlockApproval = !projected.ok
-      && projected.reason !== "event_routing_playback_inert_destination";
+    // Production approval review is visible now, but real provider events do not
+    // execute routing rules yet. Keep the queue row pending until that consumer exists.
+    return {
+      ok: false,
+      reason: "event_routing_admin_production_execution_unavailable"
+    };
+  }
 
-    if (shouldBlockApproval) {
-      const playback = {
-        projected,
-        published: null
-      };
-      await this.repository.reviewApproval({
-        id: input.approvalId,
-        status: "rejected",
-        reviewerUserId: actor.domainUserId,
-        reviewNote: input.reviewNote ?? `Blocked playback: ${projected.reason}`,
-        playback
-      });
+  public async deleteRule(input: {
+    authUserId: string;
+    eventKind: EventRoutingRuleInput["eventKind"];
+    sourcePlatform: EventRoutingRuleInput["sourcePlatform"];
+  }): Promise<EventRoutingAdminDeleteResult> {
+    const actor = await this.requireOwner(input.authUserId);
 
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const removed = await this.repository.deleteRule(input.eventKind, input.sourcePlatform);
+    const fallback = input.sourcePlatform === "any"
+      ? buildDefaultEventRoutingRule(input.eventKind)
+      : await this.repository.getRule(input.eventKind, "any")
+        ?? buildDefaultEventRoutingRule(input.eventKind);
+
+    return {
+      ok: true,
+      removed,
+      fallback: toRuleListItem(fallback)
+    };
+  }
+
+  public async getCooldownSummary(input: {
+    authUserId: string;
+    eventKind: EventRoutingRuleInput["eventKind"];
+    sourcePlatform: EventRoutingRuleInput["sourcePlatform"];
+  }): Promise<EventRoutingAdminCooldownSummaryResult> {
+    const actor = await this.requireOwner(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const selectedRule = await this.repository.getRule(input.eventKind, input.sourcePlatform)
+      ?? (input.sourcePlatform === "any"
+        ? null
+        : await this.repository.getRule(input.eventKind, "any"));
+
+    if (!selectedRule) {
       return {
-        ok: false,
-        reason: "event_routing_admin_approval_playback_blocked",
-        playback
+        ok: true,
+        summary: {
+          activeCount: 0,
+          nearestExpiry: null,
+          rulePersisted: false
+        }
       };
     }
 
-    const published = projected.ok
-      ? await this.publishPlayback?.(projected.projection) ?? {
-        emitted: false
+    return {
+      ok: true,
+      summary: {
+        ...await this.repository.getActiveCooldownSummary({
+          routingRuleId: selectedRule.id,
+          eventKind: input.eventKind,
+          sourcePlatform: input.sourcePlatform
+        }),
+        rulePersisted: true
       }
-      : null;
-    const playback = {
-      projected,
-      published
     };
-    const reviewed = await this.repository.reviewApproval({
-      id: input.approvalId,
-      status: "approved",
-      reviewerUserId: actor.domainUserId,
-      reviewNote: input.reviewNote,
-      playback
-    });
+  }
 
-    return reviewed
-      ? {
-        ok: true,
-        approval: this.toApprovalRecord(reviewed, playback)
-      }
-      : {
-        ok: false,
-        reason: "event_routing_admin_approval_not_found"
-      };
+  public async listOperationalHistory(input: {
+    authUserId: string;
+    limit?: number;
+  }): Promise<EventRoutingAdminHistoryResult> {
+    const actor = await this.requireOwner(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const limit = Math.max(1, Math.min(input.limit ?? 50, 100));
+    const history = await this.repository.listOperationalHistory(limit);
+
+    return {
+      ok: true,
+      history: history
+        .filter((record) => !record.isTest
+          && !record.isSimulated
+          && !record.testResettable
+          && !getEventRegistryEntry(record.eventKind).safety.simulatedOnly)
+        .map(projectEventRoutingOperationalHistory)
+    };
   }
 
   private async requireActor(authUserId: string): Promise<{
@@ -285,18 +342,32 @@ export class EventRoutingAdminService {
     };
   }
 
-  private toApprovalRecord(
-    approval: EventRoutingAdminApprovalRecord,
-    playback: EventRoutingAdminApprovalRecord["playback"]
-  ): EventRoutingAdminApprovalRecord {
-    const entry = getEventRegistryEntry(approval.event.eventKind);
+  private async requireOwner(authUserId: string): Promise<{
+    ok: true;
+    domainUserId: string;
+  } | {
+    ok: false;
+    reason: "event_routing_admin_user_unlinked" | "event_routing_admin_forbidden";
+  }> {
+    const actor = await this.repository.resolveActor(authUserId);
+
+    if (!actor) {
+      return {
+        ok: false,
+        reason: "event_routing_admin_user_unlinked"
+      };
+    }
+
+    if (!normalizeEventRoutingAdminPermissions(actor.rolePermissionValues).includes("*")) {
+      return {
+        ok: false,
+        reason: "event_routing_admin_forbidden"
+      };
+    }
 
     return {
-      ...approval,
-      label: entry.label,
-      description: entry.description,
-      safety: entry.safety,
-      playback
+      ok: true,
+      domainUserId: actor.domainUserId
     };
   }
 }

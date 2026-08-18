@@ -24,6 +24,20 @@ export const eventRoutingDestinations = [
 
 export type EventRoutingDestination = typeof eventRoutingDestinations[number];
 
+export type EventRoutingRuntimeConsumerAvailability =
+  | "available"
+  | "unavailable"
+  | "not_required";
+
+export type EventRoutingDestinationCapability = {
+  destination: EventRoutingDestination;
+  runtimeConsumer: EventRoutingRuntimeConsumerAvailability;
+  supportsPriority: boolean;
+  supportsTemplate: boolean;
+  supportsTheme: boolean;
+  supportsSound: boolean;
+};
+
 export const eventRoutingNotificationPriorities = ["low", "normal", "high", "urgent"] as const;
 
 export type EventRoutingNotificationPriority = typeof eventRoutingNotificationPriorities[number];
@@ -53,6 +67,11 @@ export type EventRoutingRuleValidationIssue =
   | "event_routing_live_offline_conflict"
   | "event_routing_negative_per_user_cooldown"
   | "event_routing_negative_global_cooldown"
+  | "event_routing_enabled_destination_unavailable"
+  | "event_routing_unsupported_priority"
+  | "event_routing_unsupported_template"
+  | "event_routing_unsupported_theme"
+  | "event_routing_unsupported_sound"
   | "event_routing_internal_only_public_destination"
   | "event_routing_overlay_ineligible_public_destination"
   | "event_routing_internal_only_enabled_public_destination";

@@ -4,11 +4,12 @@ import type { DatabasePool } from "@maiks-yt/database";
 
 import type {
   EventRoutingAdminActor,
-  EventRoutingAdminApprovalRecord,
+  EventRoutingAdminApprovalRepositoryRecord,
   EventRoutingApprovalQueueStatus,
   EventRoutingAdminRepository,
   EventRoutingAdminRuleRecord,
-  EventRoutingAdminUpsertInput
+  EventRoutingAdminUpsertInput,
+  EventRoutingOperationalHistoryRepositoryRecord
 } from "./event-routing-admin.types.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
@@ -39,15 +40,15 @@ type EventRoutingApprovalRow = {
   id: string;
   eventHistoryId: string;
   routingRuleId?: string | null;
-  destination: EventRoutingAdminApprovalRecord["destination"];
+  destination: EventRoutingAdminApprovalRepositoryRecord["destination"];
   status: EventRoutingApprovalQueueStatus;
   reviewerUserId?: string | null;
   reviewedAt?: Date | string | null;
   reviewNote?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
-  sourcePlatform: EventRoutingAdminApprovalRecord["event"]["sourcePlatform"];
-  eventKind: EventRoutingAdminApprovalRecord["event"]["eventKind"];
+  sourcePlatform: EventRoutingAdminApprovalRepositoryRecord["event"]["sourcePlatform"];
+  eventKind: EventRoutingAdminApprovalRepositoryRecord["event"]["eventKind"];
   sourceEventId?: string | null;
   routingOutcome: "queued_for_approval";
   actorUserId?: string | null;
@@ -64,8 +65,21 @@ type EventRoutingApprovalRow = {
   redactedPayload: unknown;
   occurredAt: Date | string;
   historyCreatedAt: Date | string;
-  notificationPriority?: EventRoutingAdminApprovalRecord["rule"]["notificationPriority"] | null;
-  ruleSourcePlatform?: EventRoutingAdminApprovalRecord["rule"]["sourcePlatform"] | null;
+  notificationPriority?: EventRoutingAdminApprovalRepositoryRecord["rule"]["notificationPriority"] | null;
+  ruleSourcePlatform?: EventRoutingAdminApprovalRepositoryRecord["rule"]["sourcePlatform"] | null;
+};
+
+type EventRoutingOperationalHistoryRow = {
+  sourcePlatform: EventRoutingOperationalHistoryRepositoryRecord["sourcePlatform"];
+  eventKind: EventRoutingOperationalHistoryRepositoryRecord["eventKind"];
+  routingOutcome: EventRoutingOperationalHistoryRepositoryRecord["routingOutcome"];
+  destination?: EventRoutingOperationalHistoryRepositoryRecord["destination"];
+  actorDisplayName?: string | null;
+  isTest: number | boolean;
+  isSimulated: number | boolean;
+  testResettable: number | boolean;
+  redactedPayload: unknown;
+  occurredAt: Date | string;
 };
 
 const toIsoString = (value: Date | string): string =>
@@ -168,7 +182,7 @@ const selectApprovalFields = `
   r.source_platform AS ruleSourcePlatform
 `;
 
-const mapApproval = (row: EventRoutingApprovalRow): EventRoutingAdminApprovalRecord => {
+const mapApproval = (row: EventRoutingApprovalRow): EventRoutingAdminApprovalRepositoryRecord => {
   const createdAt = toIsoString(row.createdAt);
 
   return {
@@ -206,28 +220,30 @@ const mapApproval = (row: EventRoutingApprovalRow): EventRoutingAdminApprovalRec
     rule: {
       notificationPriority: row.notificationPriority ?? "normal",
       sourcePlatform: row.ruleSourcePlatform ?? null
-    },
-    label: "",
-    description: "",
-    safety: {
-      overlayEligible: false,
-      internalOnly: false,
-      moneyGated: false,
-      providerGated: false,
-      approvalRecommended: false,
-      optOutSupported: false,
-      cooldownRecommended: false,
-      simulatedOnly: false
-    },
-    playback: null
+    }
   };
 };
+
+const mapOperationalHistory = (
+  row: EventRoutingOperationalHistoryRow
+): EventRoutingOperationalHistoryRepositoryRecord => ({
+  sourcePlatform: row.sourcePlatform,
+  eventKind: row.eventKind,
+  routingOutcome: row.routingOutcome,
+  destination: row.destination ?? null,
+  actorDisplayName: row.actorDisplayName ?? null,
+  isTest: Boolean(row.isTest),
+  isSimulated: Boolean(row.isSimulated),
+  testResettable: Boolean(row.testResettable),
+  redactedPayload: parseRedactedPayload(row.redactedPayload),
+  occurredAt: toIsoString(row.occurredAt)
+});
 
 const readApproval = async (
   executor: QueryExecutor,
   id: string,
   status?: EventRoutingApprovalQueueStatus
-): Promise<EventRoutingAdminApprovalRecord | null> => {
+): Promise<EventRoutingAdminApprovalRepositoryRecord | null> => {
   const [rows] = await executor.execute(
     `
       SELECT ${selectApprovalFields}
@@ -237,8 +253,9 @@ const readApproval = async (
       WHERE q.id = ?
         ${status ? "AND q.status = ?" : ""}
         AND h.is_real_money = false
-        AND (h.is_test = true OR h.is_simulated = true)
-        AND h.test_resettable = true
+        AND h.is_test = false
+        AND h.is_simulated = false
+        AND h.test_resettable = false
       LIMIT 1
     `,
     status ? [id, status] : [id]
@@ -341,8 +358,9 @@ export const createEventRoutingAdminRepository = (
         WHERE q.status = 'pending'
           AND h.routing_outcome = 'queued_for_approval'
           AND h.is_real_money = false
-          AND (h.is_test = true OR h.is_simulated = true)
-          AND h.test_resettable = true
+          AND h.is_test = false
+          AND h.is_simulated = false
+          AND h.test_resettable = false
         ORDER BY q.created_at ASC
         LIMIT ?
       `,
@@ -360,6 +378,84 @@ export const createEventRoutingAdminRepository = (
 
   async getRule(eventKind, sourcePlatform) {
     return await readRule(pool, eventKind, sourcePlatform);
+  },
+
+  async deleteRule(eventKind, sourcePlatform) {
+    const [result] = await pool.execute(
+      `
+        DELETE FROM event_routing_rules
+        WHERE event_kind = ?
+          AND source_platform = ?
+      `,
+      [eventKind, sourcePlatform]
+    );
+
+    return Boolean(result
+      && typeof result === "object"
+      && "affectedRows" in result
+      && typeof result.affectedRows === "number"
+      && result.affectedRows > 0);
+  },
+
+  async getActiveCooldownSummary(input) {
+    const sourceClause = input.sourcePlatform === "any"
+      ? ""
+      : "AND source_platform = ?";
+    const parameters = input.sourcePlatform === "any"
+      ? [input.routingRuleId, input.eventKind]
+      : [input.routingRuleId, input.eventKind, input.sourcePlatform];
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          COUNT(*) AS activeCount,
+          MIN(window_ends_at) AS nearestExpiry
+        FROM event_cooldown_state
+        WHERE routing_rule_id = ?
+          AND event_kind = ?
+          AND window_ends_at > NOW()
+          ${sourceClause}
+      `,
+      parameters
+    );
+    const row = Array.isArray(rows)
+      ? rows[0] as { activeCount?: number | string; nearestExpiry?: Date | string | null } | undefined
+      : undefined;
+    const activeCount = Number(row?.activeCount ?? 0);
+
+    return {
+      activeCount: Number.isSafeInteger(activeCount) && activeCount >= 0 ? activeCount : 0,
+      nearestExpiry: row?.nearestExpiry ? toIsoString(row.nearestExpiry) : null
+    };
+  },
+
+  async listOperationalHistory(limit) {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          source_platform AS sourcePlatform,
+          event_kind AS eventKind,
+          routing_outcome AS routingOutcome,
+          destination,
+          actor_display_name AS actorDisplayName,
+          is_test AS isTest,
+          is_simulated AS isSimulated,
+          test_resettable AS testResettable,
+          redacted_payload AS redactedPayload,
+          occurred_at AS occurredAt
+        FROM event_history
+        WHERE is_test = false
+          AND is_simulated = false
+          AND test_resettable = false
+          AND event_kind <> 'simulated.support-money'
+        ORDER BY occurred_at DESC, created_at DESC
+        LIMIT ?
+      `,
+      [limit]
+    );
+
+    return Array.isArray(rows)
+      ? (rows as EventRoutingOperationalHistoryRow[]).map(mapOperationalHistory)
+      : [];
   },
 
   async upsertRule(input: EventRoutingAdminUpsertInput) {
@@ -456,11 +552,6 @@ export const createEventRoutingAdminRepository = (
 
     const approval = await readApproval(pool, input.id);
 
-    return approval
-      ? {
-        ...approval,
-        playback: input.playback
-      }
-      : null;
+    return approval;
   }
 });

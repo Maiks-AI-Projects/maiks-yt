@@ -9,6 +9,7 @@ import {
   eventRoutingDestinations,
   eventRoutingNotificationPriorities,
   eventRoutingRuleSourcePlatforms,
+  type EventRoutingDestinationCapability,
   type EventRoutingDestination,
   type EventRoutingRuleDefault,
   type EventRoutingRuleInput,
@@ -21,6 +22,77 @@ import {
 const eventRoutingRuleSourcePlatformSet = new Set<string>(eventRoutingRuleSourcePlatforms);
 const eventRoutingDestinationSet = new Set<string>(eventRoutingDestinations);
 const eventRoutingNotificationPrioritySet = new Set<string>(eventRoutingNotificationPriorities);
+
+export const eventRoutingDestinationCapabilities = [
+  {
+    destination: "ignore",
+    runtimeConsumer: "not_required",
+    supportsPriority: false,
+    supportsTemplate: false,
+    supportsTheme: false,
+    supportsSound: false
+  },
+  {
+    destination: "internal_audit",
+    runtimeConsumer: "available",
+    supportsPriority: false,
+    supportsTemplate: false,
+    supportsTheme: false,
+    supportsSound: false
+  },
+  {
+    destination: "control_panel",
+    runtimeConsumer: "unavailable",
+    supportsPriority: false,
+    supportsTemplate: false,
+    supportsTheme: false,
+    supportsSound: false
+  },
+  {
+    destination: "top_notification",
+    runtimeConsumer: "available",
+    supportsPriority: true,
+    supportsTemplate: true,
+    supportsTheme: true,
+    supportsSound: true
+  },
+  {
+    destination: "center_notification",
+    runtimeConsumer: "available",
+    supportsPriority: true,
+    supportsTemplate: true,
+    supportsTheme: true,
+    supportsSound: true
+  },
+  {
+    destination: "streamer_feed",
+    runtimeConsumer: "unavailable",
+    supportsPriority: false,
+    supportsTemplate: false,
+    supportsTheme: false,
+    supportsSound: false
+  },
+  {
+    destination: "streamer_chat",
+    runtimeConsumer: "unavailable",
+    supportsPriority: false,
+    supportsTemplate: false,
+    supportsTheme: false,
+    supportsSound: false
+  },
+  {
+    destination: "approval_queue",
+    runtimeConsumer: "available",
+    supportsPriority: false,
+    supportsTemplate: false,
+    supportsTheme: false,
+    supportsSound: false
+  }
+] as const satisfies readonly EventRoutingDestinationCapability[];
+
+const eventRoutingDestinationCapabilityByDestination = new Map(
+  eventRoutingDestinationCapabilities.map((capability) => [capability.destination, capability])
+);
 
 const streamVisibleDestinations = new Set<EventRoutingDestination>([
   "top_notification",
@@ -53,6 +125,18 @@ export const isEventRoutingNotificationPriority = (
 export const isStreamVisibleEventRoutingDestination = (
   destination: EventRoutingDestination
 ): boolean => streamVisibleDestinations.has(destination);
+
+export const getEventRoutingDestinationCapability = (
+  destination: EventRoutingDestination
+): EventRoutingDestinationCapability => {
+  const capability = eventRoutingDestinationCapabilityByDestination.get(destination);
+
+  if (!capability) {
+    throw new Error(`Unknown Event Routing destination: ${destination}`);
+  }
+
+  return capability;
+};
 
 export const buildDefaultEventRoutingRule = (
   eventKind: EventKind
@@ -116,6 +200,30 @@ export const validateEventRoutingRule = (
 
   if (input.globalCooldownSeconds !== null && input.globalCooldownSeconds < 0) {
     issues.push("event_routing_negative_global_cooldown");
+  }
+
+  if (isEventRoutingDestination(destination)) {
+    const capability = getEventRoutingDestinationCapability(destination);
+
+    if (input.enabled && capability.runtimeConsumer === "unavailable") {
+      issues.push("event_routing_enabled_destination_unavailable");
+    }
+
+    if (!capability.supportsPriority && input.notificationPriority !== "normal") {
+      issues.push("event_routing_unsupported_priority");
+    }
+
+    if (!capability.supportsTemplate && input.templateKey !== null) {
+      issues.push("event_routing_unsupported_template");
+    }
+
+    if (!capability.supportsTheme && input.themeKey !== null) {
+      issues.push("event_routing_unsupported_theme");
+    }
+
+    if (!capability.supportsSound && input.soundKey !== null) {
+      issues.push("event_routing_unsupported_sound");
+    }
   }
 
   if (entry && isEventRoutingDestination(destination) && isStreamVisibleEventRoutingDestination(destination)) {

@@ -747,6 +747,14 @@ Reviewer gate:
 - Owner wildcard access is enough for dev; `event-routing:manage` remains available for later explicit role seeding if needed.
 - Deployed and dev-smoked on `dev`: unauthenticated API returned `401`, owner-auth list returned 25 rules, `/admin/event-routing` returned `200`, and a disabled internal-audit `website.signup:any` rule saved successfully.
 
+Production follow-up (2026-08-18):
+
+- Event Routing admin now owns real operational history because the retired Live Helper page is no longer an interface dependency.
+- Current implementation adds safe approval context/notes, explicit provider overrides, rule reset/fallback, destination capabilities, and privacy-safe cooldown aggregates while excluding simulation-only data from production presentation.
+- Next Event Routing implementation must connect normalized real provider/website intake to actual rule resolution and consumers. Real intake already exists; describing provider intake itself as unavailable is incorrect.
+- Live/offline routing remains disabled until authoritative stream state is supplied and unknown state fails closed.
+- Template/theme/sound catalogs and consumers remain planned work, not rejected work. Opt-out administration stays in account/privacy settings.
+
 ## Chunk 21B: Safe Simulated Event Routing Dispatch (Completed On Dev)
 
 Worker scope:

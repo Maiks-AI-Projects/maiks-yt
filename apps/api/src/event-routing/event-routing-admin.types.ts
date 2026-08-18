@@ -1,9 +1,11 @@
 import type {
   EventKind,
   EventRegistryEntry,
+  EventRoutingDestinationCapability,
   EventRoutingDestination,
   EventRoutingNotificationPriority,
   EventRoutingRuleInput,
+  EventRoutingRuleSourcePlatform,
   EventRoutingRuleValidationIssue,
   EventRoutingRuleValidationResult,
   EventSourcePlatform
@@ -14,8 +16,7 @@ import type {
   EventRoutingPlaybackProjectionResult
 } from "./event-routing-playback.service.js";
 import type {
-  EventRoutingPlaybackPublishResult,
-  EventRoutingPlaybackPublisher
+  EventRoutingPlaybackPublishResult
 } from "./event-routing-dispatch.types.js";
 
 export type EventRoutingAdminActor = {
@@ -37,6 +38,7 @@ export type EventRoutingAdminRuleListItem = EventRoutingRuleInput & {
   description: string;
   safety: EventRegistryEntry["safety"];
   validation: EventRoutingRuleValidationResult;
+  destinationCapability: EventRoutingDestinationCapability;
   persisted: boolean;
   createdAt: string | null;
   updatedAt: string | null;
@@ -55,7 +57,16 @@ export type EventRoutingApprovalReviewPlayback = {
   published: EventRoutingPlaybackPublishResult | null;
 };
 
-export type EventRoutingAdminApprovalRecord = {
+export type EventRoutingAdminSafeContext = {
+  displayText: string | null;
+  displayName: string | null;
+  title: string | null;
+  projectLabel: string | null;
+  amount: number | string | null;
+  currency: string | null;
+};
+
+export type EventRoutingAdminApprovalRepositoryRecord = {
   id: string;
   eventHistoryId: string;
   routingRuleId: string | null;
@@ -81,6 +92,27 @@ export type EventRoutingAdminApprovalRecord = {
     notificationPriority: EventRoutingNotificationPriority;
     sourcePlatform: EventSourcePlatform | "any" | null;
   };
+};
+
+export type EventRoutingAdminApprovalRecord = {
+  id: string;
+  productionEvent: boolean;
+  destination: EventRoutingDestination;
+  status: EventRoutingApprovalQueueStatus;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  event: {
+    sourcePlatform: EventSourcePlatform;
+    eventKind: EventKind;
+    occurredAt: string;
+    context: EventRoutingAdminSafeContext;
+  };
+  rule: {
+    notificationPriority: EventRoutingNotificationPriority;
+    sourcePlatform: EventSourcePlatform | "any" | null;
+  };
   label: string;
   description: string;
   safety: EventRegistryEntry["safety"];
@@ -91,6 +123,7 @@ export type EventRoutingAdminListResult =
   | {
     ok: true;
     rules: readonly EventRoutingAdminRuleListItem[];
+    destinationCapabilities: readonly EventRoutingDestinationCapability[];
   }
   | {
     ok: false;
@@ -132,15 +165,83 @@ export type EventRoutingAdminApprovalReviewResult =
       | "event_routing_admin_user_unlinked"
       | "event_routing_admin_forbidden"
       | "event_routing_admin_approval_not_found"
-      | "event_routing_admin_approval_playback_blocked";
+      | "event_routing_admin_production_execution_unavailable";
     playback?: EventRoutingApprovalReviewPlayback;
+  };
+
+export type EventRoutingAdminDeleteResult =
+  | {
+    ok: true;
+    removed: boolean;
+    fallback: EventRoutingAdminRuleListItem;
+  }
+  | {
+    ok: false;
+    reason: "event_routing_admin_user_unlinked" | "event_routing_admin_forbidden";
+  };
+
+export type EventRoutingAdminCooldownSummary = {
+  activeCount: number;
+  nearestExpiry: string | null;
+  rulePersisted: boolean;
+};
+
+export type EventRoutingAdminCooldownSummaryResult =
+  | {
+    ok: true;
+    summary: EventRoutingAdminCooldownSummary;
+  }
+  | {
+    ok: false;
+    reason: "event_routing_admin_user_unlinked" | "event_routing_admin_forbidden";
+  };
+
+export type EventRoutingOperationalHistoryRepositoryRecord = {
+  sourcePlatform: EventSourcePlatform;
+  eventKind: EventKind;
+  routingOutcome:
+    | "ignored"
+    | "stored_internal"
+    | "routed"
+    | "queued_for_approval"
+    | "blocked_opt_out"
+    | "blocked_cooldown"
+    | "blocked_safety"
+    | "failed";
+  destination: EventRoutingDestination | null;
+  actorDisplayName: string | null;
+  isTest: boolean;
+  isSimulated: boolean;
+  testResettable: boolean;
+  redactedPayload: Record<string, unknown>;
+  occurredAt: string;
+};
+
+export type EventRoutingAdminOperationalHistoryRecord = {
+  sourcePlatform: EventSourcePlatform;
+  eventKind: EventKind;
+  label: string;
+  destination: EventRoutingDestination | null;
+  routingOutcome: EventRoutingOperationalHistoryRepositoryRecord["routingOutcome"];
+  occurredAt: string;
+  context: EventRoutingAdminSafeContext;
+};
+
+export type EventRoutingAdminHistoryResult =
+  | {
+    ok: true;
+    history: readonly EventRoutingAdminOperationalHistoryRecord[];
+  }
+  | {
+    ok: false;
+    reason: "event_routing_admin_user_unlinked" | "event_routing_admin_forbidden";
   };
 
 export interface EventRoutingAdminRepository {
   resolveActor(authUserId: string): Promise<EventRoutingAdminActor | null>;
   listRules(): Promise<readonly EventRoutingAdminRuleRecord[]>;
-  listPendingApprovals(limit: number): Promise<readonly EventRoutingAdminApprovalRecord[]>;
-  getPendingApproval(id: string): Promise<EventRoutingAdminApprovalRecord | null>;
+  listPendingApprovals(limit: number): Promise<readonly EventRoutingAdminApprovalRepositoryRecord[]>;
+  getPendingApproval(id: string): Promise<EventRoutingAdminApprovalRepositoryRecord | null>;
   upsertRule(input: EventRoutingAdminUpsertInput): Promise<EventRoutingAdminRuleRecord>;
   reviewApproval(input: {
     id: string;
@@ -148,8 +249,13 @@ export interface EventRoutingAdminRepository {
     reviewerUserId: string;
     reviewNote: string | null;
     playback: EventRoutingApprovalReviewPlayback | null;
-  }): Promise<EventRoutingAdminApprovalRecord | null>;
+  }): Promise<EventRoutingAdminApprovalRepositoryRecord | null>;
   getRule(eventKind: EventKind, sourcePlatform: EventRoutingRuleInput["sourcePlatform"]): Promise<EventRoutingAdminRuleRecord | null>;
+  deleteRule(eventKind: EventKind, sourcePlatform: EventRoutingRuleSourcePlatform): Promise<boolean>;
+  getActiveCooldownSummary(input: {
+    routingRuleId: string;
+    eventKind: EventKind;
+    sourcePlatform: EventRoutingRuleSourcePlatform;
+  }): Promise<Omit<EventRoutingAdminCooldownSummary, "rulePersisted">>;
+  listOperationalHistory(limit: number): Promise<readonly EventRoutingOperationalHistoryRepositoryRecord[]>;
 }
-
-export type EventRoutingAdminPlaybackPublisher = EventRoutingPlaybackPublisher;
