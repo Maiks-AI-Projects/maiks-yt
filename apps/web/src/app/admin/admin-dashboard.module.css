@@ -206,6 +206,76 @@
   border-color: #8d3b43;
 }
 
+.liveActivityStrip {
+  align-items: center;
+  border-block: 1px solid var(--line);
+  display: flex;
+  gap: 0.8rem;
+  min-width: 0;
+  padding: 0.45rem 0;
+}
+
+.liveActivityLabel {
+  color: var(--text);
+  flex: 0 0 auto;
+  font-size: 0.82rem;
+}
+
+.liveActivityItems {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  min-width: 0;
+}
+
+.liveActivityItem {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  gap: 0.4rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.liveActivityItem::before {
+  background: #7f9098;
+  border-radius: 50%;
+  content: "";
+  height: 0.48rem;
+  width: 0.48rem;
+}
+
+.liveActivityItem[data-tone="ok"]::before {
+  background: var(--mint);
+}
+
+.liveActivityItem[data-tone="warn"]::before {
+  background: var(--yellow);
+}
+
+.liveActivityItem[data-tone="bad"]::before {
+  background: var(--coral);
+}
+
+.liveActivityItem:hover,
+.liveActivityItem:focus-visible {
+  color: var(--text);
+  outline: none;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.liveActivityItem strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.liveActivityItem span {
+  font-size: 0.78rem;
+}
+
 .exportStatus {
   border-radius: 7px;
   margin: 0;

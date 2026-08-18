@@ -182,6 +182,33 @@ const liveWindowLinks: readonly LiveWindowLink[] = [
   }
 ];
 
+const liveActivityLinks: readonly LiveWindowLink[] = [
+  {
+    href: "/admin/event-routing",
+    label: "Approvals",
+    description: "Safe simulated events waiting for review.",
+    statusKey: "pending-approvals"
+  },
+  {
+    href: "/tools/notifications",
+    label: "Live alerts",
+    description: "Open warning and critical notifications.",
+    statusKey: "live-alerts"
+  },
+  {
+    href: "/admin/moderators",
+    label: "Helpers",
+    description: "Active non-owner helper and moderator grants.",
+    statusKey: "helpers"
+  },
+  {
+    href: createControlUrl("/moderation"),
+    label: "Local test state",
+    description: "Active fake/local moderation state.",
+    statusKey: "moderation"
+  }
+];
+
 const loadingCards = (): readonly DashboardStatusCard[] => [
   {
     key: "api",
@@ -237,6 +264,13 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     label: "Approvals",
     value: "Checking",
     detail: "Loading live-helper counts.",
+    tone: "loading"
+  },
+  {
+    key: "live-alerts",
+    label: "Live Alerts",
+    value: "Checking",
+    detail: "Loading warning and critical state.",
     tone: "loading"
   },
   {
@@ -485,6 +519,23 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
           : "ok"
     },
     {
+      key: "live-alerts",
+      label: "Live Alerts",
+      value: liveHelperResult?.payload?.ok
+        ? `${liveHelperOpenWarnings + liveHelperOpenCriticals} open`
+        : "Unavailable",
+      detail: liveHelperResult?.payload?.ok
+        ? `${liveHelperOpenWarnings} warning · ${liveHelperOpenCriticals} critical`
+        : `HTTP ${liveHelperResult?.status ?? "failed"}`,
+      tone: !liveHelperResult?.payload?.ok
+        ? "bad"
+        : liveHelperOpenCriticals > 0
+          ? "bad"
+          : liveHelperOpenWarnings > 0
+            ? "warn"
+            : "ok"
+    },
+    {
       key: "helpers",
       label: "Helpers",
       value: activeHelpers === null ? "Unavailable" : `${activeHelpers} active`,
@@ -495,11 +546,11 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     },
     {
       key: "moderation",
-      label: "Moderation",
+      label: "Local Test State",
       value: activeModeration === null ? "Unavailable" : `${activeModeration} active`,
       detail: activeModeration === null
         ? `HTTP ${liveHelperResult?.status ?? "failed"}`
-        : `${liveHelperOpenWarnings + liveHelperOpenCriticals} open local alerts`,
+        : "Fake/local moderation only",
       tone:
         activeModeration === null
           ? "bad"
@@ -622,7 +673,7 @@ const buildStatusSummary = (
 
 const buildStatusSummaries = (statusCards: readonly DashboardStatusCard[]): readonly DashboardStatusSummary[] => [
   buildStatusSummary("platform", "Platform Health", statusCards, ["api", "database", "backup", "smoke"]),
-  buildStatusSummary("safety", "Safety Signals", statusCards, ["notifications", "provider-intake", "pending-approvals", "moderation"]),
+  buildStatusSummary("safety", "Safety Signals", statusCards, ["notifications", "provider-intake", "live-alerts"]),
   buildStatusSummary("access", "Access", statusCards, ["sessions", "helpers"]),
   buildStatusSummary("finance", "Finance", statusCards, ["money"])
 ];
@@ -741,6 +792,10 @@ const AdminDashboardClient = (): React.ReactNode => {
 
   const apiStatus = findStatusCard(statusCards, "api");
   const statusSummaries = buildStatusSummaries(statusCards);
+  const liveActivity = liveActivityLinks.map((item) => ({
+    ...item,
+    status: item.statusKey ? findStatusCard(statusCards, item.statusKey) : undefined
+  }));
 
   return (
     <section className={styles.adminShell}>
@@ -778,6 +833,24 @@ const AdminDashboardClient = (): React.ReactNode => {
               <p>{summary.detail}</p>
             </article>
           ))}
+        </div>
+
+        <div className={styles.liveActivityStrip} aria-label="Live activity">
+          <strong className={styles.liveActivityLabel}>Live activity</strong>
+          <div className={styles.liveActivityItems}>
+            {liveActivity.map((item) => (
+              <a
+                className={styles.liveActivityItem}
+                data-tone={item.status?.tone ?? "loading"}
+                href={getDashboardLinkHref(item.href, devAuthToken)}
+                key={item.label}
+                title={item.description}
+              >
+                <span>{item.label}</span>
+                <strong>{item.status?.value ?? "Checking"}</strong>
+              </a>
+            ))}
+          </div>
         </div>
 
         <p className={`${styles.exportStatus} ${exportStatusClass(exportStatus.tone)}`}>
