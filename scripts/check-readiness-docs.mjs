@@ -6,7 +6,6 @@ import { resolve } from "node:path";
 const repoRoot = resolve(new URL("..", import.meta.url).pathname);
 
 const activeReadinessFiles = [
-  "apps/web/src/app/admin/testing/page.tsx",
   "reports/current-work.md",
   "reports/dev-manual-testing-guide.md",
   "reports/next-agent-tasks.md",
@@ -26,13 +25,6 @@ const stalePatterns = [
 ];
 
 const requiredSnippets = [
-  {
-    file: "apps/web/src/app/admin/testing/page.tsx",
-    snippets: [
-      "bounded dev API startup wait",
-      "79-check dev smoke dry-run"
-    ]
-  },
   {
     file: "reports/dev-manual-testing-guide.md",
     snippets: [

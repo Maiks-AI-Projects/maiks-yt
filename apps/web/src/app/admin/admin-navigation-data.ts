@@ -8,7 +8,6 @@ import {
   FaGaugeHigh,
   FaKey,
   FaLink,
-  FaListCheck,
   FaPeopleGroup,
   FaPlug,
   FaRoute,
@@ -49,19 +48,12 @@ export const adminOverviewNavigationItem: AdminNavigationItem = {
 export const adminNavigationGroups: readonly AdminNavigationGroup[] = [
   {
     id: "testing-safety",
-    label: "Testing & Safety",
-    shortLabel: "Testing",
-    href: "/admin/testing",
-    description: "Readiness checks, provider intake, and event routing.",
+    label: "Events & Providers",
+    shortLabel: "Events",
+    href: "/admin/connections",
+    description: "Provider intake, integrations, and event routing.",
     icon: FaShieldHalved,
     items: [
-      {
-        href: "/admin/testing",
-        label: "Testing Guide",
-        description: "Manual test runbook and readiness commands.",
-        icon: FaListCheck,
-        statusKey: "smoke"
-      },
       {
         href: "/admin/connections",
         label: "Connections",

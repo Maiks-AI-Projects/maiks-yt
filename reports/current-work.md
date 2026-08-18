@@ -8,6 +8,7 @@ Build the production public website page by page on the dedicated `production` b
 
 ## Production Website Lane
 
+- Retired the owner-facing `/admin/testing` page because it duplicated the Todo Viewer, exposed stale hard-coded dev evidence, and did not execute tests. Admin navigation and PWA recovery now point to active operational surfaces. The owner-gated `/admin/testing/smoke-state` API remains as a live data source for the compact Admin Overview status.
 - Rebuilt `/admin` as a standalone dark application portal instead of a public website page with an added sidebar. All existing admin routes now share a compact top bar, grouped icon rail, mobile destination menu, tooltip explanations, permission-aware navigation, real Maiks.yt account identity, and sign-out. The public header portrait was also enlarged and bottom-aligned so its intentional crop meets the header divider.
 - Split account settings into focused `/account/profile`, `/account/connections`, `/account/privacy`, and `/account/stream` pages behind a compact `/account` overview. Connected-provider rows now prioritize each identity's avatar, provider name, display name, and provider-supplied email when available, with conventional green/red state pills and fallback labels when live provider profile data is unavailable.
 - Integrated the approved C2 no-border cartoon portrait as the public Maiks.yt header mark and browser favicon/touch-icon set. Standalone stream-tool PWA branding remains unchanged so this public-site identity update does not silently redefine those operational surfaces.

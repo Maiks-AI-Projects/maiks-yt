@@ -142,8 +142,8 @@ const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }):
             <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin/tokens"))}>
               Access Tokens
             </a>
-            <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin/testing"))}>
-              Testing Guide
+            <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin"))}>
+              Admin Overview
             </a>
           </div>
         </>
