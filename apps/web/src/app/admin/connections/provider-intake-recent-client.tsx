@@ -1,55 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FiRefreshCw } from "react-icons/fi";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
-
-type Provider = "twitch" | "youtube" | "discord";
-type ProcessingStatus = "stored" | "normalized" | "mapped_to_event_history" | "ignored" | "failed";
-
-type ProviderEventIntakeRow = {
-  id: string;
-  provider: Provider;
-  mechanism: string;
-  providerEventName: string;
-  internalTrigger: string;
-  category: string;
-  providerChannelId: string | null;
-  actorDisplayName: string | null;
-  catalogKnown: boolean;
-  moneyShaped: boolean;
-  moderationShaped: boolean;
-  authOrTokenShaped: boolean;
-  highVolume: boolean;
-  processingStatus: ProcessingStatus;
-  eventHistoryId: string | null;
-  redactedPayloadPreview: Record<string, unknown>;
-  occurredAt: string | null;
-  receivedAt: string;
-};
-
-type ProviderIntakeHealthStatus = "healthy" | "stale" | "missing";
-
-type ProviderIntakeHealthEntry = {
-  provider: Provider;
-  mechanism: string;
-  label: string;
-  lastProviderEventName: string | null;
-  lastReceivedAt: string | null;
-  rowCount: number;
-  status: ProviderIntakeHealthStatus;
-};
+import type {
+  ConnectionsSource,
+  ProcessingStatus,
+  Provider,
+  ProviderEventIntakeRow,
+  ProviderIntakeHealthEntry
+} from "./connections.types";
 
 type IntakeResponse =
-  | {
-    ok: true;
-    readOnly: true;
-    rows: ProviderEventIntakeRow[];
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
+  | { ok: true; readOnly: true; rows: ProviderEventIntakeRow[] }
+  | { ok: false; reason: string };
 
 type IntakeHealthResponse =
   | {
@@ -59,10 +24,7 @@ type IntakeHealthResponse =
     staleAfterMinutes: number;
     entries: ProviderIntakeHealthEntry[];
   }
-  | {
-    ok: false;
-    reason: string;
-  };
+  | { ok: false; reason: string };
 
 type ReviewResponse =
   | {
@@ -77,12 +39,13 @@ type ReviewResponse =
       destination: "internal_audit";
     } | null;
   }
-  | {
-    ok: false;
-    reason: string;
-  };
+  | { ok: false; reason: string };
 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
+type CatalogFilter = "any" | "known" | "unknown";
+type SafetyFilter = "any" | "money" | "moderation" | "auth-token" | "high-volume";
+type StatusFilter = ProcessingStatus | "any";
+type RowLimit = 25 | 50 | 100;
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
 
@@ -92,81 +55,132 @@ const providerLabels: Record<Provider, string> = {
   youtube: "YouTube"
 };
 
+const nonProviderSourceLabels: Record<Extract<ConnectionsSource, "website" | "test/system">, string> = {
+  "test/system": "Test/System",
+  website: "Website"
+};
+
+const isProvider = (source: ConnectionsSource): source is Provider =>
+  source === "twitch" || source === "youtube" || source === "discord";
+
+const formatTime = (value: string): string =>
+  new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+
 const formatDate = (value: string): string =>
   new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(new Date(value));
 
-const summarizePayload = (payload: Record<string, unknown>): string => {
-  const message = payload.message;
-  if (typeof message === "string" && message.trim()) {
-    return message.trim().slice(0, 140);
-  }
+const formatRelativeTime = (value: string): string => {
+  const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
+  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
-  const keys = Object.keys(payload).slice(0, 5);
-  return keys.length > 0 ? keys.join(", ") : "No preview fields";
+  if (Math.abs(seconds) < 60) return formatter.format(seconds, "second");
+  const minutes = Math.round(seconds / 60);
+  if (Math.abs(minutes) < 60) return formatter.format(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return formatter.format(hours, "hour");
+  return formatter.format(Math.round(hours / 24), "day");
+};
+
+const statusLabel = (status: ProcessingStatus): string => {
+  if (status === "mapped_to_event_history") return "mapped";
+  return status;
 };
 
 const getFailureState = (response: Response, reason?: string): LoadState => {
-  if (response.status === 401 || reason === "not_authenticated") {
-    return "signed-out";
-  }
-
-  if (response.status === 403 || reason?.includes("forbidden")) {
-    return "forbidden";
-  }
-
+  if (response.status === 401 || reason === "not_authenticated") return "signed-out";
+  if (response.status === 403 || reason?.includes("forbidden")) return "forbidden";
   return "failed";
 };
 
-const ProviderIntakeRecentClient = (): React.ReactNode => {
-  const [filter, setFilter] = useState<Provider | "any">("any");
+const safetyBadges = (row: ProviderEventIntakeRow): string[] => {
+  const badges: string[] = [row.catalogKnown ? "known" : "unknown"];
+  if (row.moneyShaped) badges.push("money");
+  if (row.moderationShaped) badges.push("moderation");
+  if (row.authOrTokenShaped) badges.push("auth/token");
+  if (row.highVolume) badges.push("high-volume");
+  return badges;
+};
+
+const ProviderIntakeRecentClient = ({
+  source,
+  onSourceChange
+}: {
+  source: ConnectionsSource;
+  onSourceChange: (source: ConnectionsSource) => void;
+}): React.ReactNode => {
+  const [catalogFilter, setCatalogFilter] = useState<CatalogFilter>("any");
   const [healthEntries, setHealthEntries] = useState<ProviderIntakeHealthEntry[]>([]);
+  const [limit, setLimit] = useState<RowLimit>(25);
   const [loadState, setLoadState] = useState<LoadState>("loading");
-  const [reviewMessage, setReviewMessage] = useState<string>("Review actions stay internal-only until Event Routing rules explicitly allow more.");
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [rows, setRows] = useState<ProviderEventIntakeRow[]>([]);
+  const [safetyFilter, setSafetyFilter] = useState<SafetyFilter>("any");
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("any");
 
   useEffect(() => {
     captureDevAuthTokenFromUrl();
   }, []);
 
-  const requestUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      limit: "25"
-    });
+  const hasProviderHistory = source === "any" || isProvider(source);
 
-    if (filter !== "any") {
-      params.set("provider", filter);
-    }
+  const requestUrl = useMemo(() => {
+    const params = new URLSearchParams({ limit: String(limit) });
+
+    if (isProvider(source)) params.set("provider", source);
+    if (statusFilter !== "any") params.set("processingStatus", statusFilter);
+    if (catalogFilter !== "any") params.set("catalogKnown", String(catalogFilter === "known"));
+    if (safetyFilter === "money") params.set("moneyShaped", "true");
+    if (safetyFilter === "moderation") params.set("moderationShaped", "true");
+    if (safetyFilter === "auth-token") params.set("authOrTokenShaped", "true");
+    if (safetyFilter === "high-volume") params.set("highVolume", "true");
 
     return `${apiBaseUrl}/admin/connections/intake?${params.toString()}`;
-  }, [filter]);
+  }, [catalogFilter, limit, safetyFilter, source, statusFilter]);
 
   const loadRows = useCallback(async () => {
     setLoadState("loading");
+    setReviewMessage(null);
+
+    if (!hasProviderHistory) {
+      setRows([]);
+      setSelectedRowId(null);
+    }
+
     try {
       const headers = createApiHeaders();
-      const [healthResponse, response] = await Promise.all([
-        fetch(`${apiBaseUrl}/admin/connections/intake/health`, {
-          cache: "no-store",
-          credentials: "include",
-          headers
-        }),
-        fetch(requestUrl, {
+      const healthRequest = fetch(`${apiBaseUrl}/admin/connections/intake/health`, {
+        cache: "no-store",
+        credentials: "include",
+        headers
+      });
+
+      const rowsRequest = hasProviderHistory
+        ? fetch(requestUrl, {
           cache: "no-store",
           credentials: "include",
           headers
         })
-      ]);
-      const healthPayload = await healthResponse.json() as IntakeHealthResponse;
-      const payload = await response.json() as IntakeResponse;
+        : null;
 
-      if (!healthResponse.ok || !healthPayload.ok) {
-        setHealthEntries([]);
-      } else {
-        setHealthEntries(healthPayload.entries);
+      const healthResponse = await healthRequest;
+      const healthPayload = await healthResponse.json() as IntakeHealthResponse;
+      setHealthEntries(healthResponse.ok && healthPayload.ok ? healthPayload.entries : []);
+
+      if (!rowsRequest) {
+        setRows([]);
+        setLoadState("ready");
+        return;
       }
+
+      const response = await rowsRequest;
+      const payload = await response.json() as IntakeResponse;
 
       if (!response.ok || !payload.ok) {
         setRows([]);
@@ -181,28 +195,37 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
       setRows([]);
       setLoadState("failed");
     }
-  }, [requestUrl]);
+  }, [hasProviderHistory, requestUrl]);
 
   useEffect(() => {
     void loadRows();
   }, [loadRows]);
 
-  const reviewRow = useCallback(async (row: ProviderEventIntakeRow, action: "map_internal" | "ignore") => {
-    setReviewMessage(action === "map_internal" ? "Mapping intake row to internal audit..." : "Marking intake row ignored...");
+  const reviewRow = useCallback(async (
+    row: ProviderEventIntakeRow,
+    action: "map_internal" | "ignore"
+  ) => {
+    setReviewMessage(action === "map_internal"
+      ? "Mapping the event to internal audit..."
+      : "Marking the event ignored...");
+
     try {
-      const response = await fetch(`${apiBaseUrl}/admin/connections/intake/${encodeURIComponent(row.id)}/review`, {
-        body: JSON.stringify({ action }),
-        cache: "no-store",
-        credentials: "include",
-        headers: createApiHeaders({
-          "Content-Type": "application/json"
-        }),
-        method: "POST"
-      });
+      const response = await fetch(
+        `${apiBaseUrl}/admin/connections/intake/${encodeURIComponent(row.id)}/review`,
+        {
+          body: JSON.stringify({ action }),
+          cache: "no-store",
+          credentials: "include",
+          headers: createApiHeaders({ "Content-Type": "application/json" }),
+          method: "POST"
+        }
+      );
       const payload = await response.json() as ReviewResponse;
 
       if (!response.ok || !payload.ok) {
-        setReviewMessage(payload.ok ? `Review failed with ${response.status}.` : `Review blocked: ${payload.reason}`);
+        setReviewMessage(payload.ok
+          ? `Review failed with ${response.status}.`
+          : `Review blocked: ${payload.reason}`);
         return;
       }
 
@@ -216,116 +239,180 @@ const ProviderIntakeRecentClient = (): React.ReactNode => {
           : currentRow
       ));
       setReviewMessage(payload.action === "map_internal"
-        ? `Mapped to ${payload.eventHistory?.eventKind ?? "internal event"} as internal audit.`
-        : "Intake row marked ignored.");
+        ? `Mapped to ${payload.eventHistory?.eventKind ?? "internal audit"}.`
+        : "Event marked ignored.");
     } catch (error) {
       setReviewMessage(error instanceof Error ? error.message : "Review action failed.");
     }
   }, []);
 
+  const selectedRow = rows.find((row) => row.id === selectedRowId) ?? rows[0] ?? null;
+  const reviewDisabled = selectedRow
+    ? Boolean(selectedRow.eventHistoryId)
+      || selectedRow.processingStatus === "mapped_to_event_history"
+      || selectedRow.processingStatus === "ignored"
+    : true;
+
   return (
-    <section className="project-admin-panel connections-intake-panel">
-      <div className="project-admin-panel-heading">
-        <div>
-          <h2>Provider Intake Health</h2>
-          <p>Latest received rows by intake mechanism. Quiet mechanisms are not routed anywhere automatically.</p>
-        </div>
-        <div className="connections-intake-controls">
-          <select
-            aria-label="Filter provider intake rows"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value as Provider | "any")}
-          >
-            <option value="any">All providers</option>
-            <option value="twitch">Twitch</option>
-            <option value="youtube">YouTube</option>
-            <option value="discord">Discord</option>
-          </select>
-          <button className="secondary-action" type="button" onClick={() => void loadRows()}>
-            Refresh
-          </button>
-        </div>
+    <section className="connections-intake-panel" aria-label="Observed provider event intake">
+      <div className="connections-health-heading">
+        <h2>Mechanism health</h2>
+        <p>Latest received event for each provider receiver.</p>
       </div>
-      <p className="form-note">{reviewMessage}</p>
 
       {healthEntries.length > 0 ? (
-        <div className="connections-intake-health-grid">
+        <div className="connections-health-strip">
           {healthEntries.map((entry) => (
-            <article className="connections-intake-health-card" key={`${entry.provider}:${entry.mechanism}`}>
+            <article key={`${entry.provider}:${entry.mechanism}`}>
               <div>
                 <span className={`service-dot ${entry.status === "healthy" ? "connected" : entry.status === "stale" ? "warning" : "disconnected"}`} aria-hidden="true" />
                 <strong>{entry.label}</strong>
               </div>
               <span>{entry.status}</span>
-              <small>
-                {entry.lastReceivedAt
-                  ? `${entry.lastProviderEventName ?? "event"} - ${formatDate(entry.lastReceivedAt)}`
-                  : "No rows captured"}
-              </small>
-              <small>{entry.rowCount} stored row{entry.rowCount === 1 ? "" : "s"}</small>
+              <small>{entry.lastReceivedAt
+                ? `${entry.lastProviderEventName ?? "event"} · ${formatRelativeTime(entry.lastReceivedAt)}`
+                : "No rows captured"}</small>
+              <small>{entry.rowCount.toLocaleString()} stored row{entry.rowCount === 1 ? "" : "s"}</small>
             </article>
           ))}
         </div>
-      ) : null}
-
-      {loadState === "loading" ? (
-        <p className="form-note">Loading recent intake rows...</p>
-      ) : null}
-      {loadState === "signed-out" ? (
-        <p className="form-note warning">Sign in to view recent provider intake rows.</p>
-      ) : null}
-      {loadState === "forbidden" ? (
-        <p className="form-note warning">Your account cannot view provider intake rows.</p>
-      ) : null}
-      {loadState === "failed" ? (
-        <p className="form-note warning">Provider intake rows are unavailable.</p>
-      ) : null}
-      {loadState === "ready" && rows.length === 0 ? (
-        <p className="form-note">No provider intake rows captured yet.</p>
-      ) : null}
-
-      {rows.length > 0 ? (
-        <div className="connections-intake-list">
-          {rows.map((row) => (
-            <article className="connections-intake-row" key={row.id}>
-              <div>
-                <strong>{providerLabels[row.provider]} / {row.providerEventName}</strong>
-                <span>{row.actorDisplayName ?? "Unknown actor"} - {row.providerChannelId ?? "unknown channel"}</span>
-                <code>{row.internalTrigger}</code>
-              </div>
-              <p>{summarizePayload(row.redactedPayloadPreview)}</p>
-              <div className="dev-test-console-badges">
-                <span>{row.catalogKnown ? "known" : "unknown"}</span>
-                <span>{row.processingStatus}</span>
-                {row.eventHistoryId ? <span>event history</span> : null}
-                {row.moneyShaped ? <span className="warning">money</span> : null}
-                {row.moderationShaped ? <span className="warning">moderation</span> : null}
-                {row.authOrTokenShaped ? <span className="warning">auth/token</span> : null}
-                {row.highVolume ? <span className="warning">high-volume</span> : null}
-                <span>{formatDate(row.receivedAt)}</span>
-              </div>
-              <div className="connections-intake-row-actions">
-                <button
-                  className="secondary-action"
-                  disabled={Boolean(row.eventHistoryId) || row.processingStatus === "mapped_to_event_history" || row.processingStatus === "ignored"}
-                  type="button"
-                  onClick={() => void reviewRow(row, "map_internal")}
-                >
-                  Map internal
-                </button>
-                <button
-                  className="secondary-action"
-                  disabled={Boolean(row.eventHistoryId) || row.processingStatus === "mapped_to_event_history" || row.processingStatus === "ignored"}
-                  type="button"
-                  onClick={() => void reviewRow(row, "ignore")}
-                >
-                  Ignore
-                </button>
-              </div>
-            </article>
-          ))}
+      ) : (
+        <div className="connections-health-empty">
+          {loadState === "loading" ? "Loading mechanism health..." : "Mechanism health is unavailable."}
         </div>
-      ) : null}
+      )}
+
+      <div className="connections-intake-layout">
+        <section className="connections-history" aria-labelledby="connections-history-title">
+          <div className="connections-section-heading">
+            <div>
+              <h2 id="connections-history-title">Observed history</h2>
+              <p>Latest received provider events.</p>
+            </div>
+          </div>
+
+          <div className="connections-intake-controls">
+            <select aria-label="Filter event source" value={source} onChange={(event) => onSourceChange(event.target.value as ConnectionsSource)}>
+              <option value="any">All sources</option>
+              <option value="twitch">Twitch</option>
+              <option value="youtube">YouTube</option>
+              <option value="discord">Discord</option>
+              <option value="website">Website</option>
+              <option value="test/system">Test/System</option>
+            </select>
+            <select aria-label="Filter processing status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+              <option value="any">All statuses</option>
+              <option value="stored">Stored</option>
+              <option value="normalized">Normalized</option>
+              <option value="mapped_to_event_history">Mapped internal</option>
+              <option value="ignored">Ignored</option>
+              <option value="failed">Failed</option>
+            </select>
+            <select aria-label="Filter catalogue recognition" value={catalogFilter} onChange={(event) => setCatalogFilter(event.target.value as CatalogFilter)}>
+              <option value="any">Known + unknown</option>
+              <option value="known">Known only</option>
+              <option value="unknown">Unknown only</option>
+            </select>
+            <select aria-label="Filter safety flags" value={safetyFilter} onChange={(event) => setSafetyFilter(event.target.value as SafetyFilter)}>
+              <option value="any">All safety flags</option>
+              <option value="money">Money-shaped</option>
+              <option value="moderation">Moderation-shaped</option>
+              <option value="auth-token">Auth/token-shaped</option>
+              <option value="high-volume">High-volume</option>
+            </select>
+            <select aria-label="Number of intake rows" value={limit} onChange={(event) => setLimit(Number(event.target.value) as RowLimit)}>
+              <option value={25}>25 rows</option>
+              <option value={50}>50 rows</option>
+              <option value={100}>100 rows</option>
+            </select>
+            <button aria-label="Refresh observed history" className="connections-icon-button" onClick={() => void loadRows()} type="button">
+              <FiRefreshCw aria-hidden="true" />
+            </button>
+            <button className="connections-filter-link" onClick={() => setStatusFilter("failed")} type="button">Show failed</button>
+          </div>
+
+          {reviewMessage ? <p className="connections-review-message" role="status">{reviewMessage}</p> : null}
+
+          {!hasProviderHistory ? (
+            <div className="connections-empty-state">
+              <strong>{nonProviderSourceLabels[source as "website" | "test/system"]} event types are registered in the catalogue.</strong>
+              <span>The current provider-intake API does not expose observed history for this source yet.</span>
+            </div>
+          ) : null}
+          {hasProviderHistory && loadState === "loading" ? <div className="connections-empty-state">Loading observed history...</div> : null}
+          {hasProviderHistory && loadState === "signed-out" ? <div className="connections-empty-state warning">Sign in to view observed history.</div> : null}
+          {hasProviderHistory && loadState === "forbidden" ? <div className="connections-empty-state warning">Your account cannot view observed history.</div> : null}
+          {hasProviderHistory && loadState === "failed" ? <div className="connections-empty-state warning">Observed history is unavailable.</div> : null}
+          {hasProviderHistory && loadState === "ready" && rows.length === 0 ? <div className="connections-empty-state">No intake rows match these filters.</div> : null}
+
+          {hasProviderHistory && rows.length > 0 ? (
+            <>
+              <div className="connections-table-scroll">
+                <table className="connections-data-table connections-history-table">
+                  <thead><tr><th>Received</th><th>Source / event</th><th>Mechanism</th><th>Trigger</th><th>Safety</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {rows.map((row) => (
+                      <tr className={selectedRow?.id === row.id ? "selected" : undefined} key={row.id}>
+                        <td><time dateTime={row.receivedAt} title={formatDate(row.receivedAt)}>{formatTime(row.receivedAt)}</time></td>
+                        <td>
+                          <button className="connections-row-select" onClick={() => setSelectedRowId(row.id)} type="button">
+                            <strong>{providerLabels[row.provider]}</strong>
+                            <span>{row.providerEventName}</span>
+                          </button>
+                        </td>
+                        <td>{row.mechanism}</td>
+                        <td><code>{row.internalTrigger}</code></td>
+                        <td><div className="connections-badges">{safetyBadges(row).map((badge) => <span key={badge}>{badge}</span>)}</div></td>
+                        <td><span className={`connections-status ${row.processingStatus}`}>{statusLabel(row.processingStatus)}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="connections-row-count">Showing the latest {rows.length} row{rows.length === 1 ? "" : "s"}</p>
+            </>
+          ) : null}
+        </section>
+
+        <aside className="connections-inspection" aria-labelledby="connections-inspection-title">
+          <h2 id="connections-inspection-title">Safe inspection</h2>
+          {selectedRow ? (
+            <>
+              <dl>
+                <dt>Source</dt><dd>{providerLabels[selectedRow.provider]}</dd>
+                <dt>Event</dt><dd>{selectedRow.providerEventName}</dd>
+                <dt>Mechanism</dt><dd>{selectedRow.mechanism}</dd>
+                <dt>Trigger</dt><dd><code>{selectedRow.internalTrigger}</code></dd>
+                <dt>Category</dt><dd>{selectedRow.category}</dd>
+                <dt>Received</dt><dd>{formatDate(selectedRow.receivedAt)}</dd>
+                <dt>Occurred</dt><dd>{selectedRow.occurredAt ? formatDate(selectedRow.occurredAt) : "—"}</dd>
+                <dt>Channel</dt><dd><code>{selectedRow.providerChannelId ?? "—"}</code></dd>
+                <dt>Actor</dt><dd>{selectedRow.actorDisplayName ?? "Unknown actor"}</dd>
+                <dt>Catalogue</dt><dd>{selectedRow.catalogKnown ? "known" : "unknown"}</dd>
+                <dt>Processing</dt><dd><span className={`connections-status ${selectedRow.processingStatus}`}>{statusLabel(selectedRow.processingStatus)}</span></dd>
+                <dt>Event history</dt><dd><code>{selectedRow.eventHistoryId ?? "—"}</code></dd>
+              </dl>
+
+              <div className="connections-payload">
+                <h3>Redacted payload preview</h3>
+                <pre>{JSON.stringify(selectedRow.redactedPayloadPreview, null, 2)}</pre>
+              </div>
+
+              <div className="connections-badges connections-inspection-badges">
+                {safetyBadges(selectedRow).map((badge) => <span key={badge}>{badge}</span>)}
+              </div>
+
+              <div className="connections-review-actions">
+                <button className="connections-primary-action" disabled={reviewDisabled} onClick={() => void reviewRow(selectedRow, "map_internal")} type="button">Map internal</button>
+                <button className="secondary-action" disabled={reviewDisabled} onClick={() => void reviewRow(selectedRow, "ignore")} type="button">Ignore</button>
+              </div>
+              <p>Internal review only. No public playback or provider write.</p>
+            </>
+          ) : (
+            <div className="connections-inspection-empty">Select an observed event to inspect its sanitized fields.</div>
+          )}
+        </aside>
+      </div>
     </section>
   );
 };
