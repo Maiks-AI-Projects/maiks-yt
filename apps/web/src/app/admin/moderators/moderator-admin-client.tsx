@@ -4,14 +4,9 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import {
-  AuditPanel,
-  GrantFormPanel,
-  GrantsPanel,
-  OwnerOnlyNote,
-  RankPathsPanel,
-  RoleRightsPanel,
-  RolesPanel,
-  UsersSidebar
+  ModeratorAdminWorkspace,
+  type ModeratorAdminView,
+  type RankEditorMode
 } from "./moderator-admin-panels";
 import {
   apiBaseUrl,
@@ -40,6 +35,20 @@ import {
   type RoleMutationResponse
 } from "./moderator-admin-client.service";
 
+const getRoleForm = (role: ModeratorAdminRole): RoleFormState => ({
+  id: role.id,
+  key: role.key,
+  name: role.name,
+  permissions: role.permissions.join("\n"),
+  rankPathId: role.rankPathId ?? "",
+  rankLevel: role.rankLevel === null ? "" : String(role.rankLevel),
+  displayLabel: role.displayLabel ?? "",
+  nextRoleId: role.nextRoleId ?? "",
+  discordRoleId: role.discordRoleId ?? "",
+  isOwnerRank: role.isOwnerRank,
+  isSystem: role.isSystem
+});
+
 const ModeratorAdminClient = (): React.ReactNode => {
   const [users, setUsers] = useState<readonly ModeratorAdminUser[]>([]);
   const [rankPaths, setRankPaths] = useState<readonly ModeratorAdminRankPath[]>([]);
@@ -55,20 +64,14 @@ const ModeratorAdminClient = (): React.ReactNode => {
   const [canManageRanks, setCanManageRanks] = useState<boolean>(false);
   const [rankPathForm, setRankPathForm] = useState<RankPathFormState>(emptyRankPathForm);
   const [roleForm, setRoleForm] = useState<RoleFormState>(emptyRoleForm);
+  const [view, setView] = useState<ModeratorAdminView>("ranks");
+  const [rankEditorMode, setRankEditorMode] = useState<RankEditorMode>("role");
+  const [selectedRankPathId, setSelectedRankPathId] = useState<string>("");
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
 
   const grantableRoles = useMemo(
     () => roles.filter((role) => role.grantable),
     [roles]
-  );
-
-  const selectedUserGrants = useMemo(
-    () => grants.filter((grant) => grant.userId === selectedUserId),
-    [grants, selectedUserId]
-  );
-
-  const selectedGrant = useMemo(
-    () => grants.find((grant) => grant.id === editingGrantId) ?? null,
-    [editingGrantId, grants]
   );
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
@@ -91,12 +94,22 @@ const ModeratorAdminClient = (): React.ReactNode => {
       const payload = await parseJson<ModeratorAdminListResponse>(response);
 
       if (response.ok && payload?.ok) {
+        const defaultPath = payload.rankPaths.find((path) => path.key === "mod") ?? payload.rankPaths[0] ?? null;
+        const defaultRole = payload.roles.find((role) => role.rankPathId === defaultPath?.id && role.rankLevel === 2)
+          ?? payload.roles.find((role) => role.rankPathId === defaultPath?.id)
+          ?? payload.roles[0]
+          ?? null;
         setUsers(payload.users);
         setRankPaths(payload.rankPaths);
         setRoles(payload.roles);
         setGrants(payload.grants);
         setAuditLogs(payload.auditLogs);
         setCanManageRanks(payload.canManageRanks);
+        setSelectedRankPathId((current) => current || defaultPath?.id || "");
+        setSelectedRoleId((current) => current ?? defaultRole?.id ?? null);
+        if (defaultRole) {
+          setRoleForm((current) => current.id ? current : getRoleForm(defaultRole));
+        }
         setSelectedUserId((current) => current || payload.users[0]?.id || "");
         setForm((current) => ({
           ...current,
@@ -122,24 +135,71 @@ const ModeratorAdminClient = (): React.ReactNode => {
     void loadModeratorAdmin();
   }, [loadModeratorAdmin]);
 
-  const resetForm = (): void => {
+  const resetForm = (targetUserId?: string): void => {
     setEditingGrantId(null);
+    const nextUserId = targetUserId || selectedUserId || users[0]?.id || "";
+    setSelectedUserId(nextUserId);
     setForm({
       ...emptyForm,
-      targetUserId: selectedUserId || users[0]?.id || "",
+      targetUserId: nextUserId,
       roleId: grantableRoles[0]?.id || ""
     });
+    setView("grants");
   };
 
   const resetRankPathForm = (): void => {
     setRankPathForm(emptyRankPathForm);
+    setRankEditorMode("path");
+    setView("ranks");
   };
 
   const resetRoleForm = (): void => {
+    setSelectedRoleId(null);
+    setRankEditorMode("role");
     setRoleForm({
       ...emptyRoleForm,
-      rankPathId: rankPaths[0]?.id ?? ""
+      rankPathId: selectedRankPathId || rankPaths[0]?.id || ""
     });
+    setView("ranks");
+  };
+
+  const cancelRoleEdit = (): void => {
+    const selectedRole = roles.find((role) => role.id === selectedRoleId)
+      ?? roles.find((role) => role.rankPathId === selectedRankPathId)
+      ?? null;
+    if (selectedRole) {
+      selectRole(selectedRole);
+      return;
+    }
+    setRoleForm(emptyRoleForm);
+  };
+
+  const selectRankPath = (rankPathId: string): void => {
+    const nextRole = roles
+      .filter((role) => role.rankPathId === rankPathId)
+      .sort((left, right) => (left.rankLevel ?? 999) - (right.rankLevel ?? 999))[0] ?? null;
+    setSelectedRankPathId(rankPathId);
+    setSelectedRoleId(nextRole?.id ?? null);
+    setRankEditorMode("role");
+    if (nextRole) setRoleForm(getRoleForm(nextRole));
+  };
+
+  const selectRole = (role: ModeratorAdminRole): void => {
+    setSelectedRoleId(role.id);
+    setSelectedRankPathId(role.rankPathId ?? selectedRankPathId);
+    setRoleForm(getRoleForm(role));
+    setRankEditorMode("role");
+  };
+
+  const editRankPath = (rankPath: ModeratorAdminRankPath): void => {
+    setRankPathForm({
+      id: rankPath.id,
+      key: rankPath.key,
+      name: rankPath.name,
+      description: rankPath.description ?? "",
+      sortOrder: String(rankPath.sortOrder)
+    });
+    setRankEditorMode("path");
   };
 
   const startEdit = (grant: ModeratorAdminGrant): void => {
@@ -155,6 +215,7 @@ const ModeratorAdminClient = (): React.ReactNode => {
       expiresAt: toDateTimeInput(grant.expiresAt),
       reason: ""
     });
+    setView("grants");
   };
 
   const applyMutation = (grant: ModeratorAdminGrant, auditLog: ModeratorAdminAuditLog): void => {
@@ -192,7 +253,14 @@ const ModeratorAdminClient = (): React.ReactNode => {
             : [...current, payload.rankPath].sort((left, right) => left.sortOrder - right.sortOrder || left.key.localeCompare(right.key));
         });
         setMessage(rankPathForm.id ? "Rank path updated." : "Rank path created.");
-        resetRankPathForm();
+        setSelectedRankPathId(payload.rankPath.id);
+        setRankPathForm({
+          id: payload.rankPath.id,
+          key: payload.rankPath.key,
+          name: payload.rankPath.name,
+          description: payload.rankPath.description ?? "",
+          sortOrder: String(payload.rankPath.sortOrder)
+        });
         return;
       }
 
@@ -227,8 +295,10 @@ const ModeratorAdminClient = (): React.ReactNode => {
             ? current.map((candidate) => candidate.id === payload.role.id ? payload.role : candidate)
             : [...current, payload.role];
         });
+        setSelectedRoleId(payload.role.id);
+        setSelectedRankPathId(payload.role.rankPathId ?? selectedRankPathId);
+        setRoleForm(getRoleForm(payload.role));
         setMessage(roleForm.id ? "Role updated." : "Role created.");
-        resetRoleForm();
         return;
       }
 
@@ -280,6 +350,10 @@ const ModeratorAdminClient = (): React.ReactNode => {
   };
 
   const revokeGrant = async (grant: ModeratorAdminGrant): Promise<void> => {
+    if (!window.confirm(`Revoke ${grant.roleName}? This change is recorded in the grant audit.`)) {
+      return;
+    }
+
     setBusy(true);
     setMessage("Revoking role grant...");
 
@@ -317,88 +391,58 @@ const ModeratorAdminClient = (): React.ReactNode => {
 
   return (
     <>
-      <header className="project-admin-header">
-        <p className="eyebrow">Owner admin</p>
-        <h1>Moderators</h1>
-        <p>{grants.length} role grant{grants.length === 1 ? "" : "s"} across {users.length} user{users.length === 1 ? "" : "s"}.</p>
-      </header>
+      {loadState !== "ready" ? <>
+        <header className="project-admin-header">
+          <p className="eyebrow">Owner admin</p>
+          <h1>Moderators</h1>
+          <p>Ranks, rights and access grants.</p>
+        </header>
+        <section className={`project-admin-state ${loadState}`}>
+          <h2>{loadState === "loading" ? "Loading" : "Needs attention"}</h2>
+          <p>{message}</p>
+        </section>
+      </> : null}
 
-      <section className={`project-admin-state ${loadState}`}>
-        <h2>{loadState === "ready" ? "Ready" : loadState === "loading" ? "Loading" : "Needs attention"}</h2>
-        <p>{message}</p>
-      </section>
-
-      {loadState === "ready" ? (
-        <div className="project-admin-layout">
-          <UsersSidebar
-            users={users}
-            selectedUserId={selectedUserId}
-            onSelectUser={(userId) => {
-              setSelectedUserId(userId);
-              setForm((current) => ({ ...current, targetUserId: userId }));
-            }}
-          />
-
-          <section className="project-admin-workspace" aria-label="Moderator grant editor">
-            <GrantsPanel
-              users={users}
-              selectedUserId={selectedUserId}
-              grants={selectedUserGrants}
-              busy={busy}
-              onNewGrant={resetForm}
-              onEditGrant={startEdit}
-              onRevokeGrant={(grant) => void revokeGrant(grant)}
-            />
-
-            <GrantFormPanel
-              users={users}
-              grantableRoles={grantableRoles}
-              selectedGrant={selectedGrant}
-              editingGrantId={editingGrantId}
-              form={form}
-              busy={busy}
-              onSubmit={(event) => void saveGrant(event)}
-              onCancelEdit={resetForm}
-              setForm={setForm}
-            />
-
-            {canManageRanks ? (
-              <RankPathsPanel
-                rankPaths={rankPaths}
-                form={rankPathForm}
-                busy={busy}
-                onSubmit={(event) => void saveRankPath(event)}
-                onNewPath={resetRankPathForm}
-                setForm={setRankPathForm}
-              />
-            ) : null}
-
-            {canManageRanks ? (
-              <RoleRightsPanel
-                rankPaths={rankPaths}
-                roles={roles}
-                form={roleForm}
-                busy={busy}
-                onSubmit={(event) => void saveRole(event)}
-                onNewRole={resetRoleForm}
-                setForm={setRoleForm}
-              />
-            ) : null}
-
-            <RolesPanel
-              rankPaths={rankPaths}
-              roles={roles}
-              busy={busy}
-              canManageRanks={canManageRanks}
-              setRoleForm={setRoleForm}
-            />
-
-            <AuditPanel auditLogs={auditLogs} />
-
-            <OwnerOnlyNote />
-          </section>
-        </div>
-      ) : null}
+      {loadState === "ready" ? <ModeratorAdminWorkspace
+        users={users}
+        rankPaths={rankPaths}
+        roles={roles}
+        grants={grants}
+        auditLogs={auditLogs}
+        selectedUserId={selectedUserId}
+        selectedRankPathId={selectedRankPathId}
+        selectedRoleId={selectedRoleId}
+        editingGrantId={editingGrantId}
+        view={view}
+        rankEditorMode={rankEditorMode}
+        grantForm={form}
+        rankPathForm={rankPathForm}
+        roleForm={roleForm}
+        busy={busy}
+        message={message}
+        canManageRanks={canManageRanks}
+        onViewChange={setView}
+        onSelectUser={(userId) => {
+          setSelectedUserId(userId);
+          setForm((current) => ({ ...current, targetUserId: userId }));
+        }}
+        onSelectRankPath={selectRankPath}
+        onSelectRole={selectRole}
+        onNewGrant={resetForm}
+        onEditGrant={startEdit}
+        onRevokeGrant={(grant) => void revokeGrant(grant)}
+        onSaveGrant={(event) => void saveGrant(event)}
+        onCancelGrant={() => resetForm(selectedUserId)}
+        onNewPath={resetRankPathForm}
+        onEditPath={editRankPath}
+        onSavePath={(event) => void saveRankPath(event)}
+        onNewRole={resetRoleForm}
+        onSaveRole={(event) => void saveRole(event)}
+        onCancelRole={cancelRoleEdit}
+        setGrantForm={setForm}
+        setRankPathForm={setRankPathForm}
+        setRoleForm={setRoleForm}
+      /> : null}
     </>
   );
 };

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   grantableModeratorTrustLevels,
   moderatorGrantAvailabilities,
@@ -8,14 +10,14 @@ import type {
   ModeratorGrantAvailability,
   ModeratorGrantScopeKind
 } from "@maiks-yt/domain/community";
-import type { Dispatch, FormEvent, SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { FiChevronRight, FiEdit2, FiLock, FiPlus, FiSearch, FiShield, FiUser, FiUsers, FiX } from "react-icons/fi";
 
 import {
   actionLabels,
   availabilityLabels,
   formatDate,
-  getRankPathLabel,
-  getUserLabel,
+  parsePermissionText,
   scopeLabels,
   trustLevelLabels,
   type GrantFormState,
@@ -27,459 +29,250 @@ import {
   type RankPathFormState,
   type RoleFormState
 } from "./moderator-admin-client.service";
+import styles from "./moderator-admin.module.css";
 
-type UsersSidebarProps = {
+export type ModeratorAdminView = "grants" | "ranks";
+export type RankEditorMode = "path" | "role";
+
+export type ModeratorAdminWorkspaceProps = {
   users: readonly ModeratorAdminUser[];
+  rankPaths: readonly ModeratorAdminRankPath[];
+  roles: readonly ModeratorAdminRole[];
+  grants: readonly ModeratorAdminGrant[];
+  auditLogs: readonly ModeratorAdminAuditLog[];
   selectedUserId: string;
+  selectedRankPathId: string;
+  selectedRoleId: string | null;
+  editingGrantId: string | null;
+  view: ModeratorAdminView;
+  rankEditorMode: RankEditorMode;
+  grantForm: GrantFormState;
+  rankPathForm: RankPathFormState;
+  roleForm: RoleFormState;
+  busy: boolean;
+  message: string;
+  canManageRanks: boolean;
+  onViewChange: (view: ModeratorAdminView) => void;
   onSelectUser: (userId: string) => void;
+  onSelectRankPath: (rankPathId: string) => void;
+  onSelectRole: (role: ModeratorAdminRole) => void;
+  onNewGrant: (userId?: string) => void;
+  onEditGrant: (grant: ModeratorAdminGrant) => void;
+  onRevokeGrant: (grant: ModeratorAdminGrant) => void;
+  onSaveGrant: (event: FormEvent<HTMLFormElement>) => void;
+  onCancelGrant: () => void;
+  onNewPath: () => void;
+  onEditPath: (rankPath: ModeratorAdminRankPath) => void;
+  onSavePath: (event: FormEvent<HTMLFormElement>) => void;
+  onNewRole: () => void;
+  onSaveRole: (event: FormEvent<HTMLFormElement>) => void;
+  onCancelRole: () => void;
+  setGrantForm: Dispatch<SetStateAction<GrantFormState>>;
+  setRankPathForm: Dispatch<SetStateAction<RankPathFormState>>;
+  setRoleForm: Dispatch<SetStateAction<RoleFormState>>;
 };
 
-export const UsersSidebar = ({
-  users,
-  selectedUserId,
-  onSelectUser
-}: UsersSidebarProps): React.ReactNode => (
-  <aside className="project-admin-sidebar" aria-label="Users">
-    <div className="project-admin-sidebar-heading">
-      <h2>Users</h2>
-      <span>{users.length}</span>
+const permissionLabels: Record<string, string> = {
+  "chat:view": "View chat",
+  "chat:allow-message": "Allow message",
+  "chat:hide-message": "Hide message",
+  "chat:warn-user": "Warn user",
+  "chat:emergency-clear": "Emergency clear",
+  "chat:ban-user-local": "Local ban",
+  "moderation-rules:view": "View active rules",
+  "moderation-rules:retract": "Retract rule"
+};
+
+const Avatar = ({ user }: { user: ModeratorAdminUser }): React.ReactNode => (
+  <span className={styles.avatar} aria-hidden="true">
+    {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <FiUser />}
+  </span>
+);
+
+const getPathRoles = (roles: readonly ModeratorAdminRole[], pathId: string): readonly ModeratorAdminRole[] =>
+  roles.filter((role) => role.rankPathId === pathId)
+    .sort((left, right) => (left.rankLevel ?? 999) - (right.rankLevel ?? 999));
+
+const getUser = (users: readonly ModeratorAdminUser[], userId: string): ModeratorAdminUser | null =>
+  users.find((user) => user.id === userId) ?? null;
+
+const grantIsProtected = (roles: readonly ModeratorAdminRole[], grant: ModeratorAdminGrant): boolean =>
+  !(roles.find((role) => role.id === grant.roleId)?.grantable ?? false);
+
+const PathRail = (props: ModeratorAdminWorkspaceProps): React.ReactNode => (
+  <aside className={styles.rail} aria-label="Promotion paths and active grants">
+    <div className={styles.headingRow}><h2>Promotion paths</h2><button className={styles.iconButton} type="button" onClick={props.onNewPath} disabled={props.busy} aria-label="New promotion path"><FiPlus /></button></div>
+    <div className={styles.pathList}>
+      {props.rankPaths.map((path) => {
+        const pathRoles = getPathRoles(props.roles, path.id);
+        const finalRole = pathRoles.at(-1);
+        const nextRole = props.roles.find((role) => role.id === finalRole?.nextRoleId);
+        return (
+          <button key={path.id} type="button" className={`${styles.pathItem} ${path.id === props.selectedRankPathId ? styles.selected : ""}`} onClick={() => props.onSelectRankPath(path.id)}>
+            {path.key === "owner" ? <FiShield /> : <FiUsers />}
+            <span><strong>{path.name}</strong><small>{path.key === "owner" ? `${pathRoles.length} protected rank` : `${pathRoles.length} rank${pathRoles.length === 1 ? "" : "s"}${nextRole ? ` · leads to ${nextRole.displayLabel ?? nextRole.name}` : ""}`}</small></span>
+            <FiChevronRight />
+          </button>
+        );
+      })}
     </div>
-    <div className="project-admin-selector">
-      {users.map((user) => (
-        <button
-          key={user.id}
-          type="button"
-          className={user.id === selectedUserId ? "selected" : ""}
-          onClick={() => onSelectUser(user.id)}
-        >
-          <strong>{user.displayName}</strong>
-          <span>{user.authEmail ?? user.profileVisibility}</span>
-        </button>
+    <div className={styles.divider} />
+    <div className={styles.headingRow}><h2>Current grants</h2><button className={styles.textButton} type="button" onClick={() => props.onNewGrant()}>Add grant</button></div>
+    <div className={styles.compactList}>
+      {props.grants.filter((grant) => grant.status === "active").slice(0, 4).map((grant) => {
+        const user = getUser(props.users, grant.userId);
+        if (!user) return null;
+        return <button key={grant.id} type="button" onClick={() => props.onEditGrant(grant)}><Avatar user={user} /><span><strong>{user.displayName}</strong><small>{grant.roleName}</small></span><em data-tone={grant.availability === "live_only" ? "amber" : "mint"}>{availabilityLabels[grant.availability]}</em></button>;
+      })}
+      {props.users.filter((user) => !props.grants.some((grant) => grant.userId === user.id && grant.status === "active")).slice(0, 2).map((user) => (
+        <button key={user.id} type="button" onClick={() => props.onNewGrant(user.id)}><Avatar user={user} /><span><strong>{user.displayName}</strong><small>No helper grant</small></span><em data-tone="muted">None</em></button>
       ))}
     </div>
   </aside>
 );
 
-type GrantsPanelProps = {
-  users: readonly ModeratorAdminUser[];
-  selectedUserId: string;
-  grants: readonly ModeratorAdminGrant[];
-  busy: boolean;
-  onNewGrant: () => void;
-  onEditGrant: (grant: ModeratorAdminGrant) => void;
-  onRevokeGrant: (grant: ModeratorAdminGrant) => void;
+const PromotionTrack = ({ pathRoles, roles, selectedRole }: { pathRoles: readonly ModeratorAdminRole[]; roles: readonly ModeratorAdminRole[]; selectedRole: ModeratorAdminRole | null }): React.ReactNode => {
+  const first = pathRoles.slice(0, 3);
+  const last = pathRoles.at(-1);
+  const externalNext = roles.find((role) => role.id === last?.nextRoleId) ?? null;
+  const items: Array<{ key: string; label: string; marker: string; role: ModeratorAdminRole | null }> = first.map((role) => ({ key: role.id, label: `lvl ${role.rankLevel ?? "–"}`, marker: String(role.rankLevel ?? "–"), role }));
+  if (pathRoles.length > 3) items.push({ key: "reserved", label: `lvl ${pathRoles[3]?.rankLevel ?? 4}–${last?.rankLevel ?? 10}`, marker: `${pathRoles[3]?.rankLevel ?? 4}–${last?.rankLevel ?? 10}`, role: null });
+  if (externalNext) items.push({ key: externalNext.id, label: externalNext.name, marker: "★", role: externalNext });
+
+  return <div className={styles.track}>{items.map((item, index) => <div key={item.key} className={item.role?.id === selectedRole?.id ? styles.current : ""}><span>{item.marker}</span><strong>{item.label}</strong>{index < items.length - 1 ? <i /> : null}</div>)}</div>;
 };
 
-export const GrantsPanel = ({
-  users,
-  selectedUserId,
-  grants,
-  busy,
-  onNewGrant,
-  onEditGrant,
-  onRevokeGrant
-}: GrantsPanelProps): React.ReactNode => (
-  <section className="project-admin-panel visibility-panel">
-    <div className="project-admin-panel-heading">
-      <div>
-        <h2>{getUserLabel(users, selectedUserId)}</h2>
-        <p>Current helper and moderator grants.</p>
-      </div>
-      <div className="project-admin-actions">
-        <button type="button" onClick={onNewGrant} disabled={busy}>New grant</button>
-      </div>
-    </div>
+const RightsMatrix = ({ role, permissionText, options, busy, setRoleForm }: { role: ModeratorAdminRole | null; permissionText: string; options: readonly string[]; busy: boolean; setRoleForm: Dispatch<SetStateAction<RoleFormState>> }): React.ReactNode => {
+  const selected = new Set(parsePermissionText(permissionText));
+  const protectedOwner = role?.isOwnerRank ?? false;
+  const toggle = (permission: string, enabled: boolean): void => setRoleForm((current) => {
+    const next = new Set(parsePermissionText(current.permissions));
+    if (enabled) next.add(permission); else next.delete(permission);
+    return { ...current, permissions: [...next].sort().join("\n") };
+  });
+  const groups = [
+    ["Chat", options.filter((permission) => permission.startsWith("chat:"))],
+    ["Moderation rules", options.filter((permission) => permission.startsWith("moderation-rules:"))],
+    ["Other", options.filter((permission) => !permission.startsWith("chat:") && !permission.startsWith("moderation-rules:"))]
+  ] as const;
 
-    {grants.length === 0 ? (
-      <p className="project-admin-note">No role grants for this user.</p>
-    ) : (
-      <ul className="project-admin-record-list">
-        {grants.map((grant) => (
-          <li key={grant.id}>
-            <div>
-              <strong>{grant.roleName}</strong>
-              <p>
-                {trustLevelLabels[grant.trustLevel]} · {scopeLabels[grant.scopeKind]}
-                {grant.scopeId ? ` / ${grant.scopeId}` : ""} · {availabilityLabels[grant.availability]}
-              </p>
-              <p>Status: {grant.status}. Expires: {formatDate(grant.expiresAt)}.</p>
-            </div>
-            <div className="project-admin-actions">
-              <button type="button" onClick={() => onEditGrant(grant)} disabled={busy || grant.status === "revoked"}>Edit</button>
-              <button type="button" onClick={() => onRevokeGrant(grant)} disabled={busy || grant.status === "revoked"}>Revoke</button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    )}
-  </section>
-);
-
-type GrantFormPanelProps = {
-  users: readonly ModeratorAdminUser[];
-  grantableRoles: readonly ModeratorAdminRole[];
-  selectedGrant: ModeratorAdminGrant | null;
-  editingGrantId: string | null;
-  form: GrantFormState;
-  busy: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onCancelEdit: () => void;
-  setForm: Dispatch<SetStateAction<GrantFormState>>;
+  return <div className={styles.rights}>
+    {groups.filter(([, permissions]) => permissions.length > 0).map(([label, permissions]) => <div className={styles.rightGroup} key={label}><strong>{label}</strong><div>{permissions.map((permission) => <label key={permission}><input type="checkbox" checked={protectedOwner || selected.has(permission)} disabled={busy || protectedOwner} onChange={(event) => toggle(permission, event.target.checked)} /><span>{permissionLabels[permission] ?? permission}</span>{permission === "chat:emergency-clear" ? <em>sensitive</em> : null}</label>)}</div></div>)}
+    <p>Rights are checked individually. Rank labels never grant access by themselves.</p>
+    {protectedOwner ? <div className={styles.lockNote}><FiLock /> Owner has all rights (*) and cannot be reduced from this page.</div> : null}
+  </div>;
 };
 
-export const GrantFormPanel = ({
-  users,
-  grantableRoles,
-  selectedGrant,
-  editingGrantId,
-  form,
-  busy,
-  onSubmit,
-  onCancelEdit,
-  setForm
-}: GrantFormPanelProps): React.ReactNode => (
-  <form className="project-admin-panel project-admin-form moderator-admin-form" onSubmit={onSubmit}>
-    <div className="project-admin-panel-heading">
-      <div>
-        <h2>{editingGrantId ? "Edit Grant" : "Grant Role"}</h2>
-        <p>{selectedGrant ? `${selectedGrant.roleName} for ${getUserLabel(users, selectedGrant.userId)}` : "Manual helper/moderator access."}</p>
-      </div>
-    </div>
-
-    <div className="project-admin-form-grid">
-      <label>
-        User
-        <select value={form.targetUserId} onChange={(event) => setForm((current) => ({ ...current, targetUserId: event.target.value }))} disabled={Boolean(editingGrantId)}>
-          {users.map((user) => (
-            <option key={user.id} value={user.id}>{user.displayName}</option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Role
-        <select value={form.roleId} onChange={(event) => setForm((current) => ({ ...current, roleId: event.target.value }))} disabled={Boolean(editingGrantId)}>
-          {grantableRoles.length === 0 ? (
-            <option value="">No grantable roles</option>
-          ) : grantableRoles.map((role) => (
-            <option key={role.id} value={role.id}>{role.name} ({role.key})</option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Trust level
-        <select value={form.trustLevel} onChange={(event) => setForm((current) => ({ ...current, trustLevel: event.target.value as GrantableModeratorTrustLevel }))}>
-          {grantableModeratorTrustLevels.map((trustLevel) => (
-            <option key={trustLevel} value={trustLevel}>{trustLevelLabels[trustLevel]}</option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Scope
-        <select value={form.scopeKind} onChange={(event) => setForm((current) => ({ ...current, scopeKind: event.target.value as ModeratorGrantScopeKind, scopeId: "" }))}>
-          {moderatorGrantScopeKinds.map((scopeKind) => (
-            <option key={scopeKind} value={scopeKind}>{scopeLabels[scopeKind]}</option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Scope ID
-        <input value={form.scopeId} onChange={(event) => setForm((current) => ({ ...current, scopeId: event.target.value }))} disabled={form.scopeKind === "global"} maxLength={191} />
-      </label>
-
-      <label>
-        Availability
-        <select value={form.availability} onChange={(event) => setForm((current) => ({ ...current, availability: event.target.value as ModeratorGrantAvailability }))}>
-          {moderatorGrantAvailabilities.map((availability) => (
-            <option key={availability} value={availability}>{availabilityLabels[availability]}</option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        Expires
-        <input type="datetime-local" value={form.expiresAt} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} />
-      </label>
-
-      <label>
-        Reason
-        <input value={form.reason} onChange={(event) => setForm((current) => ({ ...current, reason: event.target.value }))} maxLength={280} />
-      </label>
-    </div>
-
-    <div className="project-admin-actions">
-      <button type="submit" disabled={busy || grantableRoles.length === 0}>{editingGrantId ? "Save grant" : "Grant role"}</button>
-      {editingGrantId ? <button type="button" onClick={onCancelEdit} disabled={busy}>Cancel edit</button> : null}
-    </div>
-  </form>
-);
-
-type RankPathsPanelProps = {
-  rankPaths: readonly ModeratorAdminRankPath[];
-  form: RankPathFormState;
-  busy: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onNewPath: () => void;
-  setForm: Dispatch<SetStateAction<RankPathFormState>>;
+const RoleEditor = (props: ModeratorAdminWorkspaceProps & { selectedRole: ModeratorAdminRole | null }): React.ReactNode => {
+  const [customRight, setCustomRight] = useState("");
+  const protectedOwner = props.selectedRole?.isOwnerRank ?? false;
+  const addRight = (): void => {
+    if (!customRight.trim()) return;
+    props.setRoleForm((current) => ({ ...current, permissions: [...new Set([...parsePermissionText(current.permissions), customRight.trim()])].sort().join("\n") }));
+    setCustomRight("");
+  };
+  return <form className={styles.editor} onSubmit={props.onSaveRole}>
+    <div className={styles.headingRow}><h2>{props.roleForm.id ? "Edit rank" : "New rank"}</h2></div>
+    {!props.roleForm.id ? <label>Key<input value={props.roleForm.key} onChange={(event) => props.setRoleForm((current) => ({ ...current, key: event.target.value }))} required maxLength={80} /></label> : null}
+    <label>Name<input value={props.roleForm.name} onChange={(event) => props.setRoleForm((current) => ({ ...current, name: event.target.value }))} required maxLength={191} /></label>
+    <label>Display label<input value={props.roleForm.displayLabel} onChange={(event) => props.setRoleForm((current) => ({ ...current, displayLabel: event.target.value }))} maxLength={191} /></label>
+    <div className={styles.twoCols}><label>Path<select value={props.roleForm.rankPathId} onChange={(event) => props.setRoleForm((current) => ({ ...current, rankPathId: event.target.value }))}><option value="">No path</option>{props.rankPaths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}</select></label><label>Level<input type="number" min={1} value={props.roleForm.rankLevel} onChange={(event) => props.setRoleForm((current) => ({ ...current, rankLevel: event.target.value }))} /></label></div>
+    <label>Next promotion<select value={props.roleForm.nextRoleId} onChange={(event) => props.setRoleForm((current) => ({ ...current, nextRoleId: event.target.value }))}><option value="">None</option>{props.roles.filter((role) => role.id !== props.roleForm.id).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+    <label>Discord role ID<input value={props.roleForm.discordRoleId} onChange={(event) => props.setRoleForm((current) => ({ ...current, discordRoleId: event.target.value }))} maxLength={80} /><small>Future mapping only · sync is not active</small></label>
+    <label className={styles.check}><input type="checkbox" checked={props.roleForm.isSystem} onChange={(event) => props.setRoleForm((current) => ({ ...current, isSystem: event.target.checked }))} /> System/default rank</label>
+    <label className={styles.check}><input type="checkbox" checked={props.roleForm.isOwnerRank} disabled={protectedOwner} onChange={(event) => props.setRoleForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} /> Owner rank {protectedOwner ? <FiLock /> : null}</label>
+    {!protectedOwner ? <div className={styles.addRight}><label>Custom right<input value={customRight} onChange={(event) => setCustomRight(event.target.value)} placeholder="area:action" /></label><button type="button" onClick={addRight} disabled={!customRight.trim()}>Add</button></div> : null}
+    <div className={styles.note}><strong>Grant settings</strong><p>Trust, scope, availability and expiry are chosen on each grant.</p></div>
+    <span className={styles.formActions}><button className={styles.primary} type="submit" disabled={props.busy || protectedOwner}>{props.busy ? "Saving…" : "Save rank"}</button><button type="button" onClick={props.onCancelRole} disabled={props.busy}>Cancel</button></span>
+  </form>;
 };
 
-export const RankPathsPanel = ({
-  rankPaths,
-  form,
-  busy,
-  onSubmit,
-  onNewPath,
-  setForm
-}: RankPathsPanelProps): React.ReactNode => (
-  <section className="project-admin-panel project-admin-form">
-    <div className="project-admin-panel-heading">
-      <div>
-        <h2>Rank Paths</h2>
-        <p>Owner-only role paths and promotion lanes.</p>
-      </div>
-      <div className="project-admin-actions">
-        <button type="button" onClick={onNewPath} disabled={busy}>New path</button>
-      </div>
-    </div>
+const PathEditor = (props: ModeratorAdminWorkspaceProps): React.ReactNode => <form className={styles.editor} onSubmit={props.onSavePath}>
+  <div className={styles.headingRow}><h2>{props.rankPathForm.id ? "Edit path" : "New path"}</h2></div>
+  <label>Key<input value={props.rankPathForm.key} onChange={(event) => props.setRankPathForm((current) => ({ ...current, key: event.target.value }))} required maxLength={80} /></label>
+  <label>Name<input value={props.rankPathForm.name} onChange={(event) => props.setRankPathForm((current) => ({ ...current, name: event.target.value }))} required maxLength={191} /></label>
+  <label>Description<textarea rows={4} value={props.rankPathForm.description} onChange={(event) => props.setRankPathForm((current) => ({ ...current, description: event.target.value }))} maxLength={280} /></label>
+  <label>Sort order<input type="number" min={0} value={props.rankPathForm.sortOrder} onChange={(event) => props.setRankPathForm((current) => ({ ...current, sortOrder: event.target.value }))} /></label>
+  <div className={styles.note}><strong>Promotion path</strong><p>Ranks inside this path define their own level and next promotion.</p></div>
+  <button className={styles.primary} type="submit" disabled={props.busy}>{props.busy ? "Saving…" : "Save path"}</button>
+</form>;
 
-    <form className="project-admin-form-grid" onSubmit={onSubmit}>
-      <label>
-        Key
-        <input value={form.key} onChange={(event) => setForm((current) => ({ ...current, key: event.target.value }))} maxLength={80} />
-      </label>
-      <label>
-        Name
-        <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} maxLength={191} />
-      </label>
-      <label>
-        Sort
-        <input type="number" min={0} value={form.sortOrder} onChange={(event) => setForm((current) => ({ ...current, sortOrder: event.target.value }))} />
-      </label>
-      <label>
-        Description
-        <input value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} maxLength={280} />
-      </label>
-      <div className="project-admin-actions">
-        <button type="submit" disabled={busy}>{form.id ? "Save path" : "Create path"}</button>
-      </div>
-    </form>
-
-    <ul className="project-admin-record-list">
-      {rankPaths.map((rankPath) => (
-        <li key={rankPath.id}>
-          <div>
-            <strong>{rankPath.name}</strong>
-            <p>{rankPath.key} · sort {rankPath.sortOrder}</p>
-            <p>{rankPath.description ?? "No description"}</p>
-          </div>
-          <div className="project-admin-actions">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setForm({
-                id: rankPath.id,
-                key: rankPath.key,
-                name: rankPath.name,
-                description: rankPath.description ?? "",
-                sortOrder: String(rankPath.sortOrder)
-              })}
-            >
-              Edit
-            </button>
-          </div>
-        </li>
-      ))}
-    </ul>
-  </section>
-);
-
-type RoleRightsPanelProps = {
-  rankPaths: readonly ModeratorAdminRankPath[];
-  roles: readonly ModeratorAdminRole[];
-  form: RoleFormState;
-  busy: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onNewRole: () => void;
-  setForm: Dispatch<SetStateAction<RoleFormState>>;
+const SelectedGrant = (props: ModeratorAdminWorkspaceProps & { grant: ModeratorAdminGrant | null }): React.ReactNode => {
+  if (!props.grant) return null;
+  const user = getUser(props.users, props.grant.userId);
+  if (!user) return null;
+  const protectedGrant = grantIsProtected(props.roles, props.grant);
+  return <section className={styles.selectedGrant}><div><small>Selected grant</small><span><Avatar user={user} /><strong>{user.displayName}</strong></span></div><dl><div><dt>Role</dt><dd>{props.grant.roleName}</dd></div><div><dt>Trust</dt><dd>{trustLevelLabels[props.grant.trustLevel]}</dd></div><div><dt>Scope</dt><dd>{scopeLabels[props.grant.scopeKind]}</dd></div><div><dt>Availability</dt><dd>{availabilityLabels[props.grant.availability]}</dd></div><div><dt>Expires</dt><dd>{formatDate(props.grant.expiresAt)}</dd></div><div><dt>State</dt><dd>{props.grant.status}</dd></div></dl><span><button className={styles.iconButton} type="button" onClick={() => props.onEditGrant(props.grant!)} disabled={protectedGrant}><FiEdit2 /></button><button className={styles.danger} type="button" onClick={() => props.onRevokeGrant(props.grant!)} disabled={protectedGrant}>Revoke</button></span></section>;
 };
 
-export const RoleRightsPanel = ({
-  rankPaths,
-  roles,
-  form,
-  busy,
-  onSubmit,
-  onNewRole,
-  setForm
-}: RoleRightsPanelProps): React.ReactNode => (
-  <section className="project-admin-panel project-admin-form">
-    <div className="project-admin-panel-heading">
-      <div>
-        <h2>Role Rights</h2>
-        <p>Owner-only action rights collected by ranks.</p>
-      </div>
-      <div className="project-admin-actions">
-        <button type="button" onClick={onNewRole} disabled={busy}>New role</button>
-      </div>
-    </div>
-
-    <form className="project-admin-form-grid" onSubmit={onSubmit}>
-      <label>
-        Key
-        <input value={form.key} onChange={(event) => setForm((current) => ({ ...current, key: event.target.value }))} maxLength={80} />
-      </label>
-      <label>
-        Name
-        <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} maxLength={191} />
-      </label>
-      <label>
-        Rank path
-        <select value={form.rankPathId} onChange={(event) => setForm((current) => ({ ...current, rankPathId: event.target.value }))}>
-          <option value="">No path</option>
-          {rankPaths.map((rankPath) => (
-            <option key={rankPath.id} value={rankPath.id}>{rankPath.name}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Level
-        <input type="number" min={1} value={form.rankLevel} onChange={(event) => setForm((current) => ({ ...current, rankLevel: event.target.value }))} />
-      </label>
-      <label>
-        Display label
-        <input value={form.displayLabel} onChange={(event) => setForm((current) => ({ ...current, displayLabel: event.target.value }))} maxLength={191} />
-      </label>
-      <label>
-        Next promotion
-        <select value={form.nextRoleId} onChange={(event) => setForm((current) => ({ ...current, nextRoleId: event.target.value }))}>
-          <option value="">None</option>
-          {roles.map((role) => (
-            <option key={role.id} value={role.id}>{role.name}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Discord role ID
-        <input value={form.discordRoleId} onChange={(event) => setForm((current) => ({ ...current, discordRoleId: event.target.value }))} maxLength={80} />
-      </label>
-      <label>
-        Permissions
-        <textarea value={form.permissions} onChange={(event) => setForm((current) => ({ ...current, permissions: event.target.value }))} rows={4} />
-      </label>
-      <label className="project-admin-checkbox">
-        <input type="checkbox" checked={form.isOwnerRank} onChange={(event) => setForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} />
-        Owner rank
-      </label>
-      <label className="project-admin-checkbox">
-        <input type="checkbox" checked={form.isSystem} onChange={(event) => setForm((current) => ({ ...current, isSystem: event.target.checked }))} />
-        System/default rank
-      </label>
-      <div className="project-admin-actions">
-        <button type="submit" disabled={busy}>{form.id ? "Save role" : "Create role"}</button>
-      </div>
-    </form>
-  </section>
-);
-
-type RolesPanelProps = {
-  rankPaths: readonly ModeratorAdminRankPath[];
-  roles: readonly ModeratorAdminRole[];
-  busy: boolean;
-  canManageRanks: boolean;
-  setRoleForm: Dispatch<SetStateAction<RoleFormState>>;
+const RankSetup = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
+  const path = props.rankPaths.find((candidate) => candidate.id === props.selectedRankPathId) ?? props.rankPaths[0] ?? null;
+  const pathRoles = path ? getPathRoles(props.roles, path.id) : [];
+  const selectedRole = props.selectedRoleId
+    ? props.roles.find((role) => role.id === props.selectedRoleId) ?? null
+    : null;
+  const permissions = useMemo(() => [...new Set([
+    ...Object.keys(permissionLabels),
+    ...(selectedRole?.permissions ?? [])
+  ])].filter((permission) => permission !== "*"), [selectedRole]);
+  const selectedGrant = props.grants.find((grant) => grant.id === props.editingGrantId) ?? props.grants.find((grant) => grant.status === "active" && !grantIsProtected(props.roles, grant)) ?? props.grants.find((grant) => grant.status === "active") ?? null;
+  const visiblePathRoles = pathRoles.slice(0, 3);
+  const reservedPathRoles = pathRoles.slice(3);
+  const finalRole = pathRoles.at(-1) ?? null;
+  const finalNextRole = props.roles.find((role) => role.id === finalRole?.nextRoleId) ?? null;
+  return <div className={styles.rankLayout}>
+    <PathRail {...props} />
+    <main className={styles.detail}>
+      <div className={styles.titleRow}><span><h2>{path?.name ?? "Rank"} path</h2><p>{path?.description ?? "Reusable ranks and promotion steps."}</p></span>{path ? <button className={styles.linkButton} type="button" onClick={() => props.onEditPath(path)}>Edit path</button> : null}</div>
+      <PromotionTrack pathRoles={pathRoles} roles={props.roles} selectedRole={selectedRole} />
+      <p className={styles.trackNote}>Each rank points to its next allowed promotion.</p>
+      <div className={styles.headingRow}><h2>Ranks in this path</h2><button className={styles.textButton} type="button" onClick={props.onNewRole}><FiPlus /> New rank</button></div>
+      <div className={styles.rankTable}><div className={styles.tableHead}><span>Rank</span><span>Rights</span><span>Next</span><span /></div>{visiblePathRoles.map((role) => <button key={role.id} type="button" className={role.id === selectedRole?.id ? styles.selected : ""} onClick={() => props.onSelectRole(role)}><strong>{role.name}</strong><span>{role.isOwnerRank ? "All rights" : `${role.permissions.length} rights`}</span><span>{props.roles.find((candidate) => candidate.id === role.nextRoleId)?.name ?? "End of path"}</span><FiChevronRight /></button>)}{reservedPathRoles.length > 0 ? <details className={styles.reservedRanks} open={reservedPathRoles.some((role) => role.id === selectedRole?.id) || undefined}><summary><strong>{path?.name ?? "Rank"} lvl {reservedPathRoles[0]?.rankLevel ?? 4}–{finalRole?.rankLevel ?? 10}</strong><span>reserved rights</span><span>{finalNextRole ? `ends at ${finalNextRole.name}` : "End of path"}</span><FiChevronRight /></summary><div>{reservedPathRoles.map((role) => <button key={role.id} type="button" className={role.id === selectedRole?.id ? styles.selected : ""} onClick={() => props.onSelectRole(role)}><strong>{role.name}</strong><span>{role.isOwnerRank ? "All rights" : `${role.permissions.length} rights`}</span><span>{props.roles.find((candidate) => candidate.id === role.nextRoleId)?.name ?? "End of path"}</span><FiChevronRight /></button>)}</div></details> : null}</div>
+      <div className={styles.headingRow}><h2>Rights — {selectedRole?.name ?? (props.roleForm.id ? "Select a rank" : "New rank")}</h2></div>
+      <RightsMatrix role={selectedRole} permissionText={props.roleForm.permissions} options={permissions} busy={props.busy} setRoleForm={props.setRoleForm} />
+    </main>
+    {props.canManageRanks ? props.rankEditorMode === "path" ? <PathEditor {...props} /> : <RoleEditor {...props} selectedRole={selectedRole} /> : <aside className={styles.editor}><div className={styles.lockNote}><FiLock /> Rank editing requires owner access.</div></aside>}
+    <SelectedGrant {...props} grant={selectedGrant} />
+  </div>;
 };
 
-export const RolesPanel = ({
-  rankPaths,
-  roles,
-  busy,
-  canManageRanks,
-  setRoleForm
-}: RolesPanelProps): React.ReactNode => (
-  <section className="project-admin-panel">
-    <div className="project-admin-panel-heading">
-      <div>
-        <h2>Roles</h2>
-        <p>Grantable roles exclude owner-only and dangerous capabilities.</p>
-      </div>
-    </div>
-    <ul className="project-admin-record-list">
-      {roles.map((role) => (
-        <li key={role.id}>
-          <div>
-            <strong>{role.name}</strong>
-            <p>
-              {role.key} · {getRankPathLabel(rankPaths, role.rankPathId)}
-              {role.rankLevel ? ` lvl ${role.rankLevel}` : ""} · {role.grantable ? "Grantable" : "Protected"}
-            </p>
-            <p>{role.displayLabel ? `Display: ${role.displayLabel}. ` : ""}{role.discordRoleId ? `Discord: ${role.discordRoleId}. ` : ""}{role.nextRoleId ? `Next: ${roles.find((candidate) => candidate.id === role.nextRoleId)?.name ?? role.nextRoleId}.` : ""}</p>
-            <p>{role.permissions.length > 0 ? role.permissions.join(", ") : "No permissions"}</p>
-          </div>
-          {canManageRanks ? (
-            <div className="project-admin-actions">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => setRoleForm({
-                  id: role.id,
-                  key: role.key,
-                  name: role.name,
-                  permissions: role.permissions.join("\n"),
-                  rankPathId: role.rankPathId ?? "",
-                  rankLevel: role.rankLevel === null ? "" : String(role.rankLevel),
-                  displayLabel: role.displayLabel ?? "",
-                  nextRoleId: role.nextRoleId ?? "",
-                  discordRoleId: role.discordRoleId ?? "",
-                  isOwnerRank: role.isOwnerRank,
-                  isSystem: role.isSystem
-                })}
-              >
-                Edit
-              </button>
-            </div>
-          ) : null}
-        </li>
-      ))}
-    </ul>
-  </section>
-);
-
-type AuditPanelProps = {
-  auditLogs: readonly ModeratorAdminAuditLog[];
+const GrantEditor = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
+  const grantableRoles = props.roles.filter((role) => role.grantable);
+  return <form className={styles.editor} onSubmit={props.onSaveGrant}>
+    <div className={styles.headingRow}><h2>{props.editingGrantId ? "Edit grant" : "Add grant"}</h2>{props.editingGrantId ? <button className={styles.iconButton} type="button" onClick={props.onCancelGrant}><FiX /></button> : null}</div>
+    <label>Person<select value={props.grantForm.targetUserId} disabled={Boolean(props.editingGrantId)} onChange={(event) => props.setGrantForm((current) => ({ ...current, targetUserId: event.target.value }))}>{props.users.map((user) => <option key={user.id} value={user.id}>{user.displayName}{user.authEmail ? ` · ${user.authEmail}` : ""}</option>)}</select></label>
+    <label>Role<select value={props.grantForm.roleId} disabled={Boolean(props.editingGrantId)} onChange={(event) => props.setGrantForm((current) => ({ ...current, roleId: event.target.value }))}>{grantableRoles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+    <label>Trust level<select value={props.grantForm.trustLevel} onChange={(event) => props.setGrantForm((current) => ({ ...current, trustLevel: event.target.value as GrantableModeratorTrustLevel }))}>{grantableModeratorTrustLevels.map((level) => <option key={level} value={level}>{trustLevelLabels[level]}</option>)}</select></label>
+    <label>Scope<select value={props.grantForm.scopeKind} onChange={(event) => props.setGrantForm((current) => ({ ...current, scopeKind: event.target.value as ModeratorGrantScopeKind, scopeId: "" }))}>{moderatorGrantScopeKinds.map((scope) => <option key={scope} value={scope}>{scopeLabels[scope]}</option>)}</select></label>
+    <label>Scope ID<input value={props.grantForm.scopeId} disabled={props.grantForm.scopeKind === "global"} onChange={(event) => props.setGrantForm((current) => ({ ...current, scopeId: event.target.value }))} maxLength={191} /></label>
+    <label>Availability<select value={props.grantForm.availability} onChange={(event) => props.setGrantForm((current) => ({ ...current, availability: event.target.value as ModeratorGrantAvailability }))}>{moderatorGrantAvailabilities.map((availability) => <option key={availability} value={availability}>{availabilityLabels[availability]}</option>)}</select><small>Use Live only for help that is needed while streaming.</small></label>
+    <label>Expires<input type="datetime-local" value={props.grantForm.expiresAt} onChange={(event) => props.setGrantForm((current) => ({ ...current, expiresAt: event.target.value }))} /></label>
+    <label>Reason<textarea rows={3} value={props.grantForm.reason} placeholder="Why is this changing?" onChange={(event) => props.setGrantForm((current) => ({ ...current, reason: event.target.value }))} maxLength={280} /></label>
+    <span className={styles.formActions}><button className={styles.primary} type="submit" disabled={props.busy}>{props.busy ? "Saving…" : props.editingGrantId ? "Save grant" : "Add grant"}</button>{props.editingGrantId ? <button type="button" onClick={props.onCancelGrant}>Cancel</button> : null}</span>
+    <div className={styles.lockNote}><FiLock /> Owner/admin assignment and dangerous capabilities stay owner-only.</div>
+  </form>;
 };
 
-export const AuditPanel = ({ auditLogs }: AuditPanelProps): React.ReactNode => (
-  <section className="project-admin-panel">
-    <div className="project-admin-panel-heading">
-      <div>
-        <h2>Recent Audit</h2>
-        <p>Role grant changes from newest to oldest.</p>
-      </div>
-    </div>
-    {auditLogs.length === 0 ? (
-      <p className="project-admin-note">No role grant audit entries yet.</p>
-    ) : (
-      <ul className="project-admin-record-list">
-        {auditLogs.map((log) => (
-          <li key={log.id}>
-            <div>
-              <strong>{actionLabels[log.action]} {log.roleName ?? log.roleId}</strong>
-              <p>{log.targetDisplayName ?? log.targetUserId} by {log.actorDisplayName ?? log.actorUserId ?? "system"} · {formatDate(log.createdAt)}</p>
-              <p>{log.reason ?? "No reason recorded"}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    )}
-  </section>
-);
+const AuditList = ({ logs }: { logs: readonly ModeratorAdminAuditLog[] }): React.ReactNode => <section className={styles.audit} id="grant-audit"><div className={styles.headingRow}><h2>Recent grant audit</h2><span>{logs.length}</span></div>{logs.length === 0 ? <p className={styles.empty}>No grant changes recorded.</p> : logs.slice(0, 8).map((log) => <div key={log.id}><strong>{actionLabels[log.action]} {log.roleName ?? log.roleId}</strong><span>{log.targetDisplayName ?? log.targetUserId}</span><span>{log.actorDisplayName ?? "system"}</span><time>{formatDate(log.createdAt)}</time></div>)}</section>;
 
-export const OwnerOnlyNote = (): React.ReactNode => (
-  <section className="project-admin-panel project-admin-note">
-    <h2>Owner-only</h2>
-    <p>Owner/admin assignment, production auth and secrets, provider credentials, real money authority, irreversible user deletion, role-management permission, and audit log disabling stay unavailable from this page.</p>
-  </section>
-);
+const GrantsView = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
+  const [query, setQuery] = useState("");
+  const selectedUser = getUser(props.users, props.selectedUserId);
+  const userGrants = props.grants.filter((grant) => grant.userId === props.selectedUserId);
+  return <div className={styles.grantsLayout}>
+    <aside className={styles.rail}><div className={styles.headingRow}><h2>Grant recipients</h2><span>{props.users.length}</span></div><label className={styles.search}><FiSearch /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a person" /></label><div className={styles.people}>{props.users.filter((user) => `${user.displayName} ${user.authEmail ?? ""}`.toLowerCase().includes(query.toLowerCase())).map((user) => { const active = props.grants.find((grant) => grant.userId === user.id && grant.status === "active"); return <button key={user.id} type="button" className={user.id === props.selectedUserId ? styles.selected : ""} onClick={() => props.onSelectUser(user.id)}><Avatar user={user} /><span><strong>{user.displayName}</strong><small>{active?.roleName ?? "No helper grant"}</small></span><i data-tone={active ? "mint" : "muted"} /></button>; })}</div></aside>
+    <main className={styles.detail}><div className={styles.titleRow}><span><h2>{selectedUser?.displayName ?? "Select a person"}</h2><p>{selectedUser?.authEmail ?? "Current helper and moderator access."}</p></span><button className={styles.primary} type="button" onClick={() => props.onNewGrant(selectedUser?.id)}>Add grant</button></div><div className={styles.grantTable}><div className={styles.grantHead}><span>Role</span><span>Trust</span><span>Scope</span><span>Available</span><span>Expires</span><span>State</span><span /></div>{userGrants.length === 0 ? <p className={styles.empty}>No grants for this person.</p> : userGrants.map((grant) => { const protectedGrant = grantIsProtected(props.roles, grant); return <div className={styles.grantRow} key={grant.id}><strong>{grant.roleName}</strong><span>{trustLevelLabels[grant.trustLevel]}</span><span>{scopeLabels[grant.scopeKind]}</span><span>{availabilityLabels[grant.availability]}</span><span>{formatDate(grant.expiresAt)}</span><span>{grant.status}</span><span><button className={styles.iconButton} type="button" disabled={protectedGrant} onClick={() => props.onEditGrant(grant)}><FiEdit2 /></button><button className={styles.danger} type="button" disabled={protectedGrant || grant.status === "revoked"} onClick={() => props.onRevokeGrant(grant)}>Revoke</button></span></div>; })}</div><AuditList logs={props.auditLogs.filter((log) => log.targetUserId === props.selectedUserId)} /></main>
+    <GrantEditor {...props} />
+  </div>;
+};
+
+export const ModeratorAdminWorkspace = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
+  const [search, setSearch] = useState("");
+  const matchingRole = search.trim() ? props.roles.find((role) => `${role.name} ${role.permissions.join(" ")}`.toLowerCase().includes(search.toLowerCase())) : null;
+  return <div className={styles.page}>
+    <header className={styles.pageHeader}><div><p>Owner admin</p><h1>Moderators</h1><span>Ranks, rights and access grants</span></div><div><label className={styles.search}><FiSearch /><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && matchingRole) { event.preventDefault(); props.onSelectRole(matchingRole); props.onViewChange("ranks"); } }} placeholder="Find a rank or right" /></label><button className={styles.primary} type="button" onClick={props.onNewRole} disabled={!props.canManageRanks}><FiPlus /> New rank</button></div></header>
+    <nav className={styles.tabs}><button type="button" className={props.view === "grants" ? styles.selected : ""} onClick={() => props.onViewChange("grants")}>Grants</button><button type="button" className={props.view === "ranks" ? styles.selected : ""} onClick={() => props.onViewChange("ranks")}>Rank setup</button><button type="button" className={styles.auditLink} onClick={() => props.onViewChange("grants")}>Grant audit</button></nav>
+    {props.message !== "Moderator admin loaded." ? <div className={styles.status} role="status">{props.message}</div> : null}
+    {props.view === "ranks" ? <RankSetup {...props} /> : <GrantsView {...props} />}
+  </div>;
+};
