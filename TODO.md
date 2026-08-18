@@ -295,6 +295,12 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
   - 2026-07-10 follow-up adds a one-click admin path to create a private game record from a pending suggestion and accept/link it for review.
   - 2026-07-10 follow-up adds a no-schema gifted-game shortcut in `/admin/games`: pending suggestions can create private records with `ownershipStatus: gifted` and accept/link the suggestion in one action. Rich gift metadata such as giver credit, key/redeem state, value, and accounting remains future schema/provider-store work.
   - 2026-07-10 follow-up adds a reviewed suggestions panel in `/admin/games` so accepted/maybe-later/rejected suggestions remain visible during manual testing after leaving the pending queue.
+  - 2026-08-18 Games admin follow-up adds complete client-side ownership/interest filters, the existing duplicate/already-played review outcomes, expandable reviewed-suggestion search/status filtering, and strictly validated Steam app deep links. Public Games copy now describes manual ordering and optional store links instead of promising live Steam activity.
+  - [ ] Add a deliberate artwork and Steam-activity cache with provider persistence, refresh timestamps, honest stale/error states, and an owner-only refresh operation. `artworkUrl` and `popularityScore` are currently always `null`.
+  - [ ] Add immutable suggestion review/correction history before exposing an admin action that changes an already-reviewed decision.
+  - [ ] Design private gifted-game metadata for giver, received date, and redemption state. The current shortcut only creates a private record with `ownershipStatus: gifted`; never store plaintext product keys without a separately reviewed secure-secret design.
+  - [ ] Add an owner-only reverse read model for upcoming/planned schedule links in Games while keeping all schedule mutations in Schedule.
+  - Current data-contract notes: suggestion `isPublic` is forced false during review; `suggestedByUserId` is not bound by the public submission route; no dead clickable Games admin controls were found in the 2026-08-18 audit. Audit timestamps and creator/updater ids stay out of the normal editor; if later needed for debugging, expose them only in collapsed owner diagnostics with resolved names rather than raw ids.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.
 

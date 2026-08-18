@@ -47,17 +47,17 @@ const GamesPage = async (): Promise<React.ReactNode> => {
           <section className={styles.wishlist} aria-labelledby="game-wishlist-title">
             <div className={styles.sectionHeading}>
               <div>
-                <p className={styles.eyebrow}>Steam wishlist</p>
+                <p className={styles.eyebrow}>Wishlist</p>
                 <h2 id="game-wishlist-title">Games I may play next</h2>
               </div>
               <p>
-                Games I do not own yet, ordered by current Steam activity. These stay linked to
-                Steam so their details can be inspected there before I decide what to add.
+                Games I do not own yet, shown in my manual library order. Store links are included
+                when available so I can inspect each game before deciding what to add.
               </p>
             </div>
 
             {wishlistGames.length === 0 ? (
-              <p className={styles.formMessage}>The live Steam wishlist is currently empty.</p>
+              <p className={styles.formMessage}>No wishlist games are currently published.</p>
             ) : (
               <div className={styles.gameList}>
                 {wishlistGames.map((game, index) => (

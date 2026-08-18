@@ -5,23 +5,7 @@ import { SiSteam } from "react-icons/si";
 import { formatGameStatus } from "./game-library-data";
 import { GameIcon } from "./game-icon";
 import styles from "./games.module.css";
-
-const getSteamAppUrl = (storeUrl: string | null): string | null => {
-  if (!storeUrl) {
-    return null;
-  }
-
-  try {
-    const url = new URL(storeUrl);
-    const appId = url.hostname === "store.steampowered.com"
-      ? /^\/app\/(\d+)(?:\/|$)/.exec(url.pathname)?.[1]
-      : null;
-
-    return appId ? `steam://store/${appId}` : null;
-  } catch {
-    return null;
-  }
-};
+import { getSteamAppUrl } from "./steam-store-url-data";
 
 export const GameLibraryEntry = ({
   game,

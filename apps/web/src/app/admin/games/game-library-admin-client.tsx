@@ -14,6 +14,7 @@ import {
   createGameSlugFromTitle,
   gameInterestStatuses,
   gameOwnershipStatuses,
+  gameSuggestionStatuses,
   gameVisibilities,
   isValidGameLibraryAdminInput,
   normalizeGameSlug
@@ -28,6 +29,7 @@ import type {
 } from "@maiks-yt/domain/games";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import { getSteamAppUrl } from "../../games/steam-store-url-data";
 import styles from "./game-library-admin.module.css";
 
 type AdminGamesResponse =
@@ -64,6 +66,10 @@ type AdminSuggestionMutationResponse =
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 type ActiveView = "library" | "suggestions";
 type GameFilter = "all" | "owned" | "not-owned" | "gifted" | "private";
+type OwnershipFilter = "all" | GameOwnershipStatus;
+type InterestFilter = "all" | GameInterestStatus;
+type ReviewedSuggestionStatus = Exclude<GameSuggestionStatus, "pending">;
+type ReviewedStatusFilter = "all" | ReviewedSuggestionStatus;
 
 type GameFormState = {
   title: string;
@@ -106,6 +112,10 @@ const defaultSuggestionReviewState: SuggestionReviewState = {
   linkedGameId: "",
   reviewerNote: ""
 };
+
+const reviewedSuggestionStatuses = gameSuggestionStatuses.filter(
+  (status): status is ReviewedSuggestionStatus => status !== "pending"
+);
 
 const toGameForm = (game: GameLibrarySource): GameFormState => ({
   title: game.title,
@@ -281,8 +291,13 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   const [suggestionReview, setSuggestionReview] = useState<SuggestionReviewState>(defaultSuggestionReviewState);
   const [activeView, setActiveView] = useState<ActiveView>("library");
   const [gameFilter, setGameFilter] = useState<GameFilter>("all");
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("all");
+  const [interestFilter, setInterestFilter] = useState<InterestFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSuggestionId, setSelectedSuggestionId] = useState("");
+  const [showAllReviewed, setShowAllReviewed] = useState(false);
+  const [reviewedSearchQuery, setReviewedSearchQuery] = useState("");
+  const [reviewedStatusFilter, setReviewedStatusFilter] = useState<ReviewedStatusFilter>("all");
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading Game Library...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -531,19 +546,36 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   const reviewedSuggestions = suggestions
     .filter((suggestion) => suggestion.status !== "pending")
     .slice()
-    .sort((left, right) => getReviewedSortValue(right) - getReviewedSortValue(left))
-    .slice(0, 8);
+    .sort((left, right) => getReviewedSortValue(right) - getReviewedSortValue(left));
+  const normalizedReviewedSearch = reviewedSearchQuery.trim().toLocaleLowerCase();
+  const filteredReviewedSuggestions = reviewedSuggestions.filter((suggestion) => {
+    const matchesStatus = reviewedStatusFilter === "all" || suggestion.status === reviewedStatusFilter;
+    const matchesSearch = normalizedReviewedSearch.length === 0
+      || [suggestion.title, suggestion.platformLabel, suggestion.suggestedByName, suggestion.reviewerNote]
+        .filter((value): value is string => Boolean(value))
+        .some((value) => value.toLocaleLowerCase().includes(normalizedReviewedSearch));
+
+    return matchesStatus && matchesSearch;
+  });
+  const displayedReviewedSuggestions = showAllReviewed
+    ? filteredReviewedSuggestions
+    : reviewedSuggestions.slice(0, 8);
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
   const filteredGames = visibleGames.filter((game) => {
-    const matchesFilter = gameFilter === "all"
+    const matchesQuickFilter = gameFilter === "all"
       || (gameFilter === "private" ? game.visibility === "private" : game.ownershipStatus === gameFilter);
+    const matchesOwnership = ownershipFilter === "all" || game.ownershipStatus === ownershipFilter;
+    const matchesInterest = interestFilter === "all" || game.interestStatus === interestFilter;
     const matchesSearch = normalizedSearch.length === 0
       || [game.title, game.platformLabel, game.categoryLabel, game.storeProvider]
         .filter((value): value is string => Boolean(value))
         .some((value) => value.toLocaleLowerCase().includes(normalizedSearch));
 
-    return matchesFilter && matchesSearch;
+    return matchesQuickFilter && matchesOwnership && matchesInterest && matchesSearch;
   });
+  const steamAppUrl = gameForm.storeProvider.trim().toLocaleLowerCase() === "steam"
+    ? getSteamAppUrl(gameForm.storeUrl.trim() || null)
+    : null;
   const selectedSuggestion = suggestions.find((suggestion) => suggestion.id === selectedSuggestionId)
     ?? pendingSuggestions[0]
     ?? reviewedSuggestions[0]
@@ -616,7 +648,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                       value={searchQuery}
                     />
                   </label>
-                  <div aria-label="Filter games" className={styles.filters} role="group">
+                  <div aria-label="Quick game filters" className={styles.filters} role="group">
                     {([
                       ["all", "All"],
                       ["owned", "Owned"],
@@ -628,13 +660,47 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                         aria-pressed={gameFilter === value}
                         className={gameFilter === value ? styles.activeFilter : undefined}
                         key={value}
-                        onClick={() => setGameFilter(value)}
+                        onClick={() => {
+                          setGameFilter(value);
+                          setOwnershipFilter("all");
+                        }}
                         type="button"
                       >
                         {label}
                       </button>
                     ))}
                   </div>
+                </div>
+                <div className={styles.advancedFilters}>
+                  <label>
+                    <span>Ownership</span>
+                    <select
+                      aria-label="Filter by ownership"
+                      onChange={(event) => {
+                        setOwnershipFilter(event.target.value as OwnershipFilter);
+                        setGameFilter("all");
+                      }}
+                      value={ownershipFilter}
+                    >
+                      <option value="all">Any ownership</option>
+                      {gameOwnershipStatuses.map((status) => (
+                        <option key={status} value={status}>{formatStatus(status)}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Interest</span>
+                    <select
+                      aria-label="Filter by interest"
+                      onChange={(event) => setInterestFilter(event.target.value as InterestFilter)}
+                      value={interestFilter}
+                    >
+                      <option value="all">Any interest</option>
+                      {gameInterestStatuses.map((status) => (
+                        <option key={status} value={status}>{formatStatus(status)}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
 
                 <div className={styles.gameListHeader} aria-hidden="true">
@@ -703,9 +769,16 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                       value={gameForm.slug}
                     />
                     {gameForm.storeUrl ? (
-                      <a href={gameForm.storeUrl} rel="noreferrer" target="_blank">
-                        Open store <FiExternalLink aria-hidden="true" />
-                      </a>
+                      <span className={styles.storeLinks}>
+                        {steamAppUrl ? (
+                          <a href={steamAppUrl} title="Open in Steam app">
+                            <FaSteam aria-hidden="true" /> Open in Steam
+                          </a>
+                        ) : null}
+                        <a href={gameForm.storeUrl} rel="noreferrer" target="_blank">
+                          Open store <FiExternalLink aria-hidden="true" />
+                        </a>
+                      </span>
                     ) : null}
                   </div>
                   <button disabled={busyAction !== null} type="submit">
@@ -823,9 +896,38 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                   <h2>Recently reviewed</h2>
                   <span>{reviewedSuggestions.length}</span>
                 </div>
+                {showAllReviewed ? (
+                  <div className={styles.reviewedToolbar}>
+                    <label className={styles.searchField}>
+                      <FiSearch aria-hidden="true" />
+                      <span className={styles.visuallyHidden}>Search reviewed suggestions</span>
+                      <input
+                        onChange={(event) => setReviewedSearchQuery(event.target.value)}
+                        placeholder="Search reviewed..."
+                        type="search"
+                        value={reviewedSearchQuery}
+                      />
+                    </label>
+                    <label>
+                      <span className={styles.visuallyHidden}>Filter reviewed suggestions by status</span>
+                      <select
+                        aria-label="Filter reviewed suggestions by status"
+                        onChange={(event) => setReviewedStatusFilter(event.target.value as ReviewedStatusFilter)}
+                        value={reviewedStatusFilter}
+                      >
+                        <option value="all">All decisions</option>
+                        {reviewedSuggestionStatuses.map((status) => (
+                          <option key={status} value={status}>{formatStatus(status)}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : null}
                 {reviewedSuggestions.length === 0 ? (
                   <p className={styles.mutedLine}>No reviewed suggestions yet.</p>
-                ) : reviewedSuggestions.map((suggestion) => (
+                ) : displayedReviewedSuggestions.length === 0 ? (
+                  <p className={styles.mutedLine}>No reviewed suggestions match these filters.</p>
+                ) : displayedReviewedSuggestions.map((suggestion) => (
                   <button
                     className={`${styles.suggestionRow} ${selectedSuggestion?.id === suggestion.id ? styles.selectedSuggestion : ""}`}
                     key={suggestion.id}
@@ -836,6 +938,15 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                     <span>{formatStatus(suggestion.status)} · {formatReviewedDate(suggestion.reviewedAt)}</span>
                   </button>
                 ))}
+                {reviewedSuggestions.length > 8 ? (
+                  <button
+                    className={`secondary-action ${styles.reviewedToggle}`}
+                    onClick={() => setShowAllReviewed((current) => !current)}
+                    type="button"
+                  >
+                    {showAllReviewed ? "Show less" : `Show all (${reviewedSuggestions.length})`}
+                  </button>
+                ) : null}
               </section>
 
               <section className={styles.suggestionDetail}>
@@ -878,6 +989,8 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                           <button type="button" onClick={() => void reviewSuggestion(selectedSuggestion.id, "accepted")} disabled={busyAction !== null}>Accept</button>
                           <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(selectedSuggestion.id, "maybe-later")} disabled={busyAction !== null}>Maybe later</button>
                           <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(selectedSuggestion.id, "rejected")} disabled={busyAction !== null}>Reject</button>
+                          <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(selectedSuggestion.id, "duplicate")} disabled={busyAction !== null}>Duplicate</button>
+                          <button type="button" className="secondary-action" onClick={() => void reviewSuggestion(selectedSuggestion.id, "already-played")} disabled={busyAction !== null}>Already played</button>
                         </div>
                       </>
                     ) : (
