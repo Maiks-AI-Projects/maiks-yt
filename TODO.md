@@ -175,7 +175,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - 2026-08-20 added typed `chat`, `stream-goal`, `sponsor`, and `alerts-effects` descriptors; global theme version; server-session-aware revisioned widget state; exclusive effect delivery and acknowledgements; and heartbeat/error messages. Widget snapshots intentionally contain no scene coordinates or camera/game reservations.
 - [x] Add the authenticated Maiks.yt OBS bridge transport while preserving the master overlay fallback.
   - 2026-08-20 added `/obs-bridge/live` using the existing `overlay:connect` access token through a Bearer header, one active bridge installation, state updates from overlay/chat runtimes, deduplicated effect delivery, send-failure fallback, and token-gated `/obs-bridge/status`. A bridge becomes the sole transient owner only while its local Alerts & Effects Browser Source explicitly reports ready; otherwise the master overlay remains the owner.
-- [ ] Complete and locally run the OBS loopback broker against protocol v1.
+- [x] Complete and locally run the OBS loopback broker against protocol v1.
+  - 2026-08-20 the companion is built in `/home/michael/Documents/Codex/maiks-yt-obs-bridge`, connects to production and local OBS through one authenticated remote session, and runs as the enabled `maiks-yt-obs-bridge.service` user service. It reports no ready widgets until their Browser Sources connect, preserving master-overlay effect ownership.
 - [ ] Apply the first game-specific theme assets to all four widget renderers.
 - [ ] Smoke the OBS bridge with real Browser Sources, state changes, one alert/audio delivery, disconnect fallback, and OBS restart recovery.
 - [ ] Keep the current master overlay available until the widget path has succeeded through multiple streams.
