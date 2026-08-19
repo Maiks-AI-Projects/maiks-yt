@@ -84,4 +84,26 @@ describe("OverlayRuntime", () => {
       theme: "default"
     })).toBeNull();
   });
+
+  it("lets an external bridge claim transient effects without sending them to the master", () => {
+    const runtime = new OverlayRuntime();
+    const socket = new FakeOverlaySocket();
+    runtime.openLiveConnection(
+      "connection-1",
+      {
+        scene: "default",
+        layout: "standard",
+        theme: "default",
+        mode: "normal"
+      },
+      socket
+    );
+    runtime.setTransientMessageHandler((message) =>
+      message.type === "overlay.top-bar-notification.queued"
+    );
+
+    runtime.broadcastMessage(runtime.createDemoTopBarNotification(0));
+
+    expect(socket.sentMessages).toHaveLength(0);
+  });
 });

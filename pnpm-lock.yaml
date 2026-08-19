@@ -66,6 +66,9 @@ importers:
       '@types/web-push':
         specifier: ^3.6.4
         version: 3.6.4
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       tsx:
         specifier: 4.22.4
         version: 4.22.4
@@ -75,6 +78,9 @@ importers:
       vitest:
         specifier: 4.1.8
         version: 4.1.8(@types/node@24.10.2)(vite@8.0.16(@types/node@24.10.2)(esbuild@0.28.0)(tsx@4.22.4))
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
 
   apps/control-panel:
     dependencies:
@@ -2929,6 +2935,18 @@ packages:
       utf-8-validate:
         optional: true
 
+  ws@8.21.3:
+    resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   xml-naming@0.1.0:
     resolution: {integrity: sha512-k8KO9hrMyNk6tUWqUfkTEZbezRRpONVOzUTnc97VnCvyj6Tf9lyUR9EDAIeiVLv56jsMcoXEwjW8Kv5yPY52lw==}
     engines: {node: '>=16.0.0'}
@@ -5158,6 +5176,8 @@ snapshots:
   wrappy@1.0.2: {}
 
   ws@8.21.0: {}
+
+  ws@8.21.3: {}
 
   xml-naming@0.1.0: {}
 

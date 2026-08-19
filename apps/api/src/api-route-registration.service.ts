@@ -24,6 +24,7 @@ import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
 import { registerMoneyAdminRoutes } from "./money/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
+import { registerObsWidgetBridgeRoute, type ObsWidgetBridgeRuntime } from "./obs-bridge/index.js";
 import { registerOverlayRoutes } from "./overlay/index.js";
 import { registerContentPageRoutes } from "./pages/index.js";
 import {
@@ -86,6 +87,7 @@ type RegisterApplicationRoutesInput = {
   fakeLocalModerationRuntime: InMemoryFakeLocalModerationRuntime;
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
   getDatabasePool: () => DatabasePool;
+  obsWidgetBridgeRuntime: ObsWidgetBridgeRuntime;
   overlayRuntime: OverlayRuntime;
   publishEventRoutingPlayback: EventRoutingPlaybackPublisher;
   providerEventIntakeLogService: ProviderEventIntakeLogService;
@@ -111,6 +113,7 @@ export const registerApplicationRoutes = ({
   fakeLocalModerationRuntime,
   getAuthSession,
   getDatabasePool,
+  obsWidgetBridgeRuntime,
   overlayRuntime,
   publishEventRoutingPlayback,
   providerEventIntakeLogService,
@@ -303,6 +306,10 @@ export const registerApplicationRoutes = ({
     overlayRuntime,
     recordFakeLocalStreamerChatMessage,
     requireStreamerChatModerationPermission,
+    validateUrlAccessToken: validateUrlAccessTokenForRequest
+  });
+  registerObsWidgetBridgeRoute(server, {
+    runtime: obsWidgetBridgeRuntime,
     validateUrlAccessToken: validateUrlAccessTokenForRequest
   });
   registerEventRoutingDispatchRoutes(server, {

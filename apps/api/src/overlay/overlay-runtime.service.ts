@@ -37,6 +37,9 @@ export type OverlayRuntimeStatus = {
   activeGoal: OverlayActiveGoalState | null;
 };
 
+type OverlayStateListener = () => void;
+type OverlayTransientMessageHandler = (message: OverlayLiveMessage) => boolean;
+
 type OverlayLiveClient = {
   requestedScene: OverlaySceneKey;
   requestedLayout: OverlayLayoutKey;
@@ -129,7 +132,21 @@ export class OverlayRuntime {
   private readonly sceneDefinitions = new Map<string, OverlaySceneDefinition>(
     allThemeScenes.map((scene) => [`${scene.themeKey}:${scene.sceneKey}`, structuredClone(scene)])
   );
+  private readonly stateListeners = new Set<OverlayStateListener>();
+  private transientMessageHandler: OverlayTransientMessageHandler | null = null;
   private globalPresentationState: OverlayPresentationState | null = null;
+
+  public subscribeToStateChanges(listener: OverlayStateListener): () => void {
+    this.stateListeners.add(listener);
+
+    return () => {
+      this.stateListeners.delete(listener);
+    };
+  }
+
+  public setTransientMessageHandler(handler: OverlayTransientMessageHandler | null): void {
+    this.transientMessageHandler = handler;
+  }
 
   public getActiveConnectionCount(): number {
     return this.activeConnections.size;
@@ -288,6 +305,10 @@ export class OverlayRuntime {
   }
 
   public broadcastMessage(message: OverlayLiveMessage): void {
+    if (this.transientMessageHandler?.(message)) {
+      return;
+    }
+
     const serializedMessage = JSON.stringify(message);
 
     for (const client of this.liveClients.values()) {
@@ -310,6 +331,10 @@ export class OverlayRuntime {
         type: "overlay.state.snapshot",
         payload: client.snapshot
       } satisfies OverlayLiveMessage));
+    }
+
+    for (const listener of this.stateListeners) {
+      listener();
     }
   }
 

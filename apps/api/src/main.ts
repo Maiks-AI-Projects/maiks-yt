@@ -38,6 +38,7 @@ import {
   createNotificationAdminRepository,
   NotificationAdminService
 } from "./notifications/index.js";
+import { ObsWidgetBridgeRuntime } from "./obs-bridge/index.js";
 import { OverlayRuntime } from "./overlay/index.js";
 import {
   createProviderEventIntakeLogRepository,
@@ -68,6 +69,25 @@ const getDatabasePool = (): DatabasePool => {
 const overlayRuntime = new OverlayRuntime();
 const maxStreamerChatHistory = 75;
 const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: maxStreamerChatHistory });
+const obsWidgetBridgeRuntime = new ObsWidgetBridgeRuntime({
+  createOverlaySnapshot: () => overlayRuntime.createSnapshotFromRequestedState({
+    scene: "default",
+    layout: "standard",
+    theme: "default",
+    mode: "normal"
+  }),
+  listChatMessages: () => streamerChatRuntime.listVisibleMessages()
+});
+
+overlayRuntime.subscribeToStateChanges(() => {
+  obsWidgetBridgeRuntime.broadcastStateSnapshot();
+});
+streamerChatRuntime.subscribeToStateChanges(() => {
+  obsWidgetBridgeRuntime.broadcastStateSnapshot();
+});
+overlayRuntime.setTransientMessageHandler((message) =>
+  obsWidgetBridgeRuntime.handleOverlayMessage(message)
+);
 
 await server.register(fastifyCors, {
   origin: getTrustedOrigins(),
@@ -360,6 +380,7 @@ registerApplicationRoutes({
   fakeLocalModerationRuntime,
   getAuthSession,
   getDatabasePool,
+  obsWidgetBridgeRuntime,
   overlayRuntime,
   publishEventRoutingPlayback,
   providerEventIntakeLogService,

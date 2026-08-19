@@ -7,10 +7,12 @@ export interface StreamerChatLiveSocket {
 }
 
 export type StreamerChatVisibilityFilter = (message: StreamerChatMessage) => boolean;
+export type StreamerChatStateListener = () => void;
 
 export class StreamerChatRuntime {
   private readonly liveClients = new Map<string, StreamerChatLiveSocket>();
   private readonly messages: StreamerChatMessage[] = [];
+  private readonly stateListeners = new Set<StreamerChatStateListener>();
   private visibilityFilter: StreamerChatVisibilityFilter = () => true;
 
   public constructor(private readonly options: {
@@ -21,6 +23,14 @@ export class StreamerChatRuntime {
     this.visibilityFilter = filter;
   }
 
+  public subscribeToStateChanges(listener: StreamerChatStateListener): () => void {
+    this.stateListeners.add(listener);
+
+    return () => {
+      this.stateListeners.delete(listener);
+    };
+  }
+
   public appendMessage(message: StreamerChatMessage): StreamerChatMessage {
     this.messages.unshift(message);
     this.messages.splice(this.options.maxHistory);
@@ -28,6 +38,8 @@ export class StreamerChatRuntime {
     if (this.isVisible(message)) {
       this.broadcastMessage(message);
     }
+
+    this.notifyStateListeners();
 
     return message;
   }
@@ -78,6 +90,8 @@ export class StreamerChatRuntime {
     for (const client of this.liveClients.values()) {
       client.send(serializedMessage);
     }
+
+    this.notifyStateListeners();
   }
 
   public registerLiveClient(connectionId: string, socket: StreamerChatLiveSocket): void {
@@ -101,5 +115,11 @@ export class StreamerChatRuntime {
 
   private isVisible(message: StreamerChatMessage): boolean {
     return this.visibilityFilter(message);
+  }
+
+  private notifyStateListeners(): void {
+    for (const listener of this.stateListeners) {
+      listener();
+    }
   }
 }
