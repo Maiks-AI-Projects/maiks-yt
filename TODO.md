@@ -368,6 +368,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 
 - [x] Add a provider-independent private chat attention/readout fallback.
   - 2026-08-21 the standalone Chat and Moderation chat views gained local new-human-message cues, sender-plus-message speech, optional desktop notifications, unread title/count state, replay-latest, and a test control. Initial history, reconnect snapshots, duplicate events, empty messages, and bot output remain silent. This path does not depend on an AI provider and does not send speech or messages to stream outputs.
+- [x] Add per-PWA custom output selection for routable attention audio.
+  - Chat and Moderation store separate device-local output choices and route Web Audio cues through Chromium's selected audio sink. Browser `speechSynthesis` has no sink API, so read-aloud continues to follow the full PWA/system/extension route until it is replaced by routable generated audio.
 - [ ] Define public speech, private-message audio, and control-panel text modes.
 - [ ] Add paid-message readout behavior.
 - [ ] Add selected chat readout heard by streamer and stream.

@@ -8,6 +8,12 @@ import {
   shouldAnnounceChatMessage
 } from "./chat-attention.service.js";
 import type { ChatAttentionPreferences } from "./chat-attention.types.js";
+import {
+  getAudioOutputStorageKey,
+  normalizeAudioOutputLabel,
+  parseSavedAudioOutput,
+  type SavedAudioOutput
+} from "./audio-output.service.js";
 
 const preferencesStorageKey = "maiks.yt.chat.attention.preferences";
 const defaultPreferences: ChatAttentionPreferences = {
@@ -25,7 +31,15 @@ const readPreferences = (): ChatAttentionPreferences => {
   }
 };
 
-const playAttentionCue = (): void => {
+type SelectableMediaDevices = MediaDevices & {
+  selectAudioOutput?: (options?: { deviceId?: string }) => Promise<MediaDeviceInfo>;
+};
+
+type SinkSelectableAudioContext = AudioContext & {
+  setSinkId?: (sinkId: string) => Promise<void>;
+};
+
+const playAttentionCue = async (deviceId: string | null): Promise<void> => {
   const AudioContextClass = window.AudioContext
     ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
@@ -33,7 +47,11 @@ const playAttentionCue = (): void => {
     return;
   }
 
-  const context = new AudioContextClass();
+  const context = new AudioContextClass() as SinkSelectableAudioContext;
+
+  if (deviceId && context.setSinkId) {
+    await context.setSinkId(deviceId);
+  }
   const oscillator = context.createOscillator();
   const gain = context.createGain();
   const now = context.currentTime;
@@ -70,6 +88,10 @@ export const useChatAttention = (enabled: boolean): {
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestMessage, setLatestMessage] = useState<StreamerChatMessage | null>(null);
   const [status, setStatus] = useState("Listening for new human messages.");
+  const audioOutputStorageKey = getAudioOutputStorageKey(window.location.pathname);
+  const [audioOutput, setAudioOutput] = useState<SavedAudioOutput | null>(() =>
+    parseSavedAudioOutput(window.localStorage.getItem(audioOutputStorageKey))
+  );
   const preferencesRef = useRef(preferences);
   const seenMessageIds = useRef(new Set<string>());
   const baselineReady = useRef(false);
@@ -94,7 +116,9 @@ export const useChatAttention = (enabled: boolean): {
     const currentPreferences = preferencesRef.current;
 
     if (currentPreferences.cueEnabled) {
-      playAttentionCue();
+      void playAttentionCue(audioOutput?.deviceId ?? null).catch(() => {
+        setStatus("Selected cue output is unavailable. Choose it again or use the system output.");
+      });
     }
 
     if (currentPreferences.speechEnabled) {
@@ -111,7 +135,39 @@ export const useChatAttention = (enabled: boolean): {
         notification.close();
       };
     }
-  }, []);
+  }, [audioOutput]);
+
+  const selectAudioOutput = async (): Promise<void> => {
+    const mediaDevices = navigator.mediaDevices as SelectableMediaDevices | undefined;
+
+    if (!mediaDevices?.selectAudioOutput) {
+      setStatus("This browser cannot select an output inside the PWA. Route the PWA through the system audio mixer or an extension.");
+      return;
+    }
+
+    try {
+      const selected = await mediaDevices.selectAudioOutput(audioOutput
+        ? { deviceId: audioOutput.deviceId }
+        : undefined);
+      const nextOutput = {
+        deviceId: selected.deviceId,
+        label: normalizeAudioOutputLabel(selected.label)
+      } satisfies SavedAudioOutput;
+      window.localStorage.setItem(audioOutputStorageKey, JSON.stringify(nextOutput));
+      setAudioOutput(nextOutput);
+      setStatus(`Cue output set to ${nextOutput.label}. Browser read-aloud still follows the PWA/system route.`);
+    } catch (error) {
+      setStatus(error instanceof DOMException && error.name === "NotAllowedError"
+        ? "Audio output selection was cancelled or not allowed."
+        : "Audio output selection failed.");
+    }
+  };
+
+  const resetAudioOutput = (): void => {
+    window.localStorage.removeItem(audioOutputStorageKey);
+    setAudioOutput(null);
+    setStatus("Cue output reset to the system default.");
+  };
 
   const baselineMessages = useCallback((messages: readonly StreamerChatMessage[]): void => {
     for (const message of messages) {
@@ -192,6 +248,12 @@ export const useChatAttention = (enabled: boolean): {
         >
           Desktop {preferences.desktopEnabled ? "on" : "off"}
         </button>
+        <button type="button" onClick={() => void selectAudioOutput()}>
+          Output: {audioOutput?.label ?? "System"}
+        </button>
+        {audioOutput ? (
+          <button type="button" onClick={resetAudioOutput}>Reset output</button>
+        ) : null}
         <button type="button" onClick={runTest}>Test</button>
         {latestMessage && preferences.speechEnabled ? (
           <button type="button" onClick={() => speakMessage(latestMessage)}>Read latest</button>
