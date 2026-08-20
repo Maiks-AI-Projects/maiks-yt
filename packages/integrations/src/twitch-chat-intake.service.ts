@@ -2,7 +2,7 @@ import { ChatClient } from "@twurple/chat";
 
 import {
   projectTwitchChatMessage,
-  resolveTwitchChatChannelName
+  resolveTwitchChatChannelNames
 } from "./twitch-chat-intake.rules.js";
 import type {
   TwitchChatIntakeStatus,
@@ -19,7 +19,7 @@ type TwitchChatClientLike = Pick<
 };
 
 type TwitchChatReadOnlyIntakeOptions = {
-  createClient?: (channelName: string) => TwitchChatClientLike;
+  createClient?: (channelNames: readonly string[]) => TwitchChatClientLike;
   env?: Record<string, string | undefined>;
   maxRecentMessages?: number;
   maxUnexpectedDisconnectsInWindow?: number;
@@ -41,9 +41,9 @@ const sanitizeError = (error: unknown): string => {
 };
 
 export class TwitchChatReadOnlyIntakeService {
-  private readonly channelName: string;
+  private readonly channelNames: readonly string[];
   private readonly clearTimeoutFn: (handle: unknown) => void;
-  private readonly createClient: (channelName: string) => TwitchChatClientLike;
+  private readonly createClient: (channelNames: readonly string[]) => TwitchChatClientLike;
   private readonly maxUnexpectedDisconnectsInWindow: number;
   private readonly maxRecentMessages: number;
   private readonly now: () => Date;
@@ -66,12 +66,12 @@ export class TwitchChatReadOnlyIntakeService {
   private reconnectTimer: unknown | null = null;
 
   public constructor(options: TwitchChatReadOnlyIntakeOptions = {}) {
-    this.channelName = resolveTwitchChatChannelName(options.env ?? process.env);
+    this.channelNames = resolveTwitchChatChannelNames(options.env ?? process.env);
     this.clearTimeoutFn = options.clearTimeoutFn ?? ((handle) => {
       clearTimeout(handle as ReturnType<typeof setTimeout>);
     });
-    this.createClient = options.createClient ?? ((channelName) => new ChatClient({
-      channels: [channelName],
+    this.createClient = options.createClient ?? ((channelNames) => new ChatClient({
+      channels: [...channelNames],
       readOnly: true
     }));
     this.maxUnexpectedDisconnectsInWindow = options.maxUnexpectedDisconnectsInWindow ?? 10;
@@ -85,9 +85,12 @@ export class TwitchChatReadOnlyIntakeService {
   }
 
   public getStatus(): TwitchChatIntakeStatus {
-    if (!this.channelName) {
+    const primaryChannelName = this.channelNames[0];
+
+    if (!primaryChannelName) {
       return {
         channelName: null,
+        channelNames: [],
         connectedAt: null,
         disconnectsInWindow: 0,
         lastError: "TWITCH_CHAT_CHANNEL is empty.",
@@ -101,7 +104,8 @@ export class TwitchChatReadOnlyIntakeService {
     }
 
     return {
-      channelName: this.channelName,
+      channelName: primaryChannelName,
+      channelNames: [...this.channelNames],
       connectedAt: this.connectedAt,
       disconnectsInWindow: this.getDisconnectsInWindow(),
       lastError: this.lastError,
@@ -143,8 +147,8 @@ export class TwitchChatReadOnlyIntakeService {
   }
 
   private startInternal({ resetDisconnectWindow }: { resetDisconnectWindow: boolean }): TwitchChatIntakeStatus {
-    if (!this.channelName) {
-      this.lastError = "TWITCH_CHAT_CHANNEL is empty.";
+    if (this.channelNames.length === 0) {
+      this.lastError = "TWITCH_CHAT_CHANNELS is empty.";
       return this.getStatus();
     }
 
@@ -161,7 +165,7 @@ export class TwitchChatReadOnlyIntakeService {
     }
 
     this.clearListeners();
-    const nextClient = this.createClient(this.channelName);
+    const nextClient = this.createClient(this.channelNames);
     this.client = nextClient;
     this.lastError = null;
     this.nextReconnectAt = null;

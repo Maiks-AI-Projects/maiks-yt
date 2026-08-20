@@ -315,7 +315,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
   const twitchTone = getTwitchServiceTone(status);
   const twitchDetail = [
     status ? twitchIntakeStateLabels[status.state] : "Loading",
-    status?.channelName ? `#${status.channelName}` : null,
+    status?.channelNames.length ? status.channelNames.map((channelName) => `#${channelName}`).join(" + ") : null,
     status?.lastMessageAt ? `last ${formatChatTime(status.lastMessageAt)}` : null,
     status?.nextReconnectAt ? `retry ${formatChatTime(status.nextReconnectAt)}` : null,
     status?.disconnectsInWindow ? `${status.disconnectsInWindow}/10 disconnects` : null

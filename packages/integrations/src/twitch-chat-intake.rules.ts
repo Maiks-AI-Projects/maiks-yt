@@ -64,11 +64,21 @@ const projectMessageParts = (
   return boundedParts.some((part) => part.type === "emote") ? boundedParts : undefined;
 };
 
-export const resolveTwitchChatChannelName = (env: Record<string, string | undefined>): string => {
-  const configured = env.TWITCH_CHAT_CHANNEL ?? env.TWITCH_CHANNEL ?? env.TWITCH_LOGIN;
+export const resolveTwitchChatChannelNames = (env: Record<string, string | undefined>): string[] => {
+  const configured = env.TWITCH_CHAT_CHANNELS
+    ?? env.TWITCH_CHAT_CHANNEL
+    ?? env.TWITCH_CHANNEL
+    ?? env.TWITCH_LOGIN
+    ?? "maiksmc";
 
-  return normalizeChannelName(configured ?? "maiksmc");
+  return [...new Set(configured
+    .split(",")
+    .map(normalizeChannelName)
+    .filter((channelName) => channelName.length > 0))];
 };
+
+export const resolveTwitchChatChannelName = (env: Record<string, string | undefined>): string =>
+  resolveTwitchChatChannelNames(env)[0] ?? "";
 
 export const projectTwitchChatMessage = (
   input: TwitchChatProjectionInput

@@ -170,7 +170,9 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
 
   const selectedYouTubeChannel = props.youtubeChannels.find((channel) => channel.id === props.youtubeSelectedChannelId) ?? null;
   const targetLabels: Record<ProviderId, string> = {
-    twitch: props.twitchChatStatus?.channelName ?? "Not configured",
+    twitch: props.twitchChatStatus?.channelNames.length
+      ? props.twitchChatStatus.channelNames.join(" + ")
+      : "Not configured",
     youtube: selectedYouTubeChannel?.title ?? props.youtubeLiveChatStatus?.channelName ?? "No channel selected",
     discord: props.discordChatStatus?.channelIds.length
       ? `${props.discordChatStatus.channelIds.length} channels`

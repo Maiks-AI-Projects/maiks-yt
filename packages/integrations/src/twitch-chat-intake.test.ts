@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
 
-import { projectTwitchChatMessage, resolveTwitchChatChannelName } from "./twitch-chat-intake.rules.js";
+import { projectTwitchChatMessage, resolveTwitchChatChannelName, resolveTwitchChatChannelNames } from "./twitch-chat-intake.rules.js";
 import { TwitchChatReadOnlyIntakeService } from "./twitch-chat-intake.service.js";
 
 type Listener = unknown;
@@ -135,6 +135,12 @@ describe("projectTwitchChatMessage", () => {
     expect(resolveTwitchChatChannelName({})).toBe("maiksmc");
     expect(resolveTwitchChatChannelName({ TWITCH_CHAT_CHANNEL: "#CustomChannel" })).toBe("customchannel");
   });
+
+  it("normalizes and deduplicates a configured Twitch channel set", () => {
+    expect(resolveTwitchChatChannelNames({
+      TWITCH_CHAT_CHANNELS: "#MaiksMC, MaiksPlays, maiksmc"
+    })).toEqual(["maiksmc", "maiksplays"]);
+  });
 });
 
 describe("TwitchChatReadOnlyIntakeService", () => {
@@ -147,10 +153,12 @@ describe("TwitchChatReadOnlyIntakeService", () => {
 
     expect(service.getStatus()).toMatchObject({
       channelName: "maiksmc",
+      channelNames: ["maiksmc"],
       state: "stopped"
     });
     expect(service.start()).toMatchObject({
       channelName: "maiksmc",
+      channelNames: ["maiksmc"],
       state: "connected"
     });
     expect(fakeClient.connect).toHaveBeenCalledTimes(1);

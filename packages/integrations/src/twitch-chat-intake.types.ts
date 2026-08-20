@@ -49,6 +49,7 @@ export type TwitchChatProjectionResult =
 export type TwitchChatIntakeStatus =
   | {
     channelName: string;
+    channelNames: readonly string[];
     connectedAt: string | null;
     disconnectsInWindow: number;
     lastError: string | null;
@@ -61,6 +62,7 @@ export type TwitchChatIntakeStatus =
   }
   | {
     channelName: string | null;
+    channelNames: readonly string[];
     connectedAt: null;
     disconnectsInWindow: 0;
     lastError: string;
