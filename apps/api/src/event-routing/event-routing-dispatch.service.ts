@@ -221,7 +221,8 @@ export class EventRoutingDispatchService {
       ? await this.publishDirectPlayback({
         history,
         destination: decision.destination,
-        notificationPriority: rule.notificationPriority
+        notificationPriority: rule.notificationPriority,
+        soundKey: rule.soundKey
       })
       : null;
 
@@ -296,11 +297,13 @@ export class EventRoutingDispatchService {
     history: EventRoutingHistoryRecord;
     destination: EventRoutingDestination;
     notificationPriority: EventRoutingDispatchRuleRecord["notificationPriority"];
+    soundKey: EventRoutingDispatchRuleRecord["soundKey"];
   }): Promise<EventRoutingPlaybackPublishResult | null> {
     const projection = buildSafeEventRoutingPlaybackProjection({
       history: input.history,
       destination: input.destination,
-      notificationPriority: input.notificationPriority
+      notificationPriority: input.notificationPriority,
+      soundKey: input.soundKey
     });
 
     if (!projection.ok) {

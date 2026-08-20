@@ -1,5 +1,6 @@
 import {
   getEventRegistryEntry,
+  resolveEventRoutingSound,
   type EventKind,
   type EventRoutingDestination,
   type EventRoutingNotificationPriority,
@@ -36,7 +37,8 @@ export type EventRoutingPlaybackBlockReason =
   | "event_routing_playback_inert_destination"
   | "event_routing_playback_unsafe_history"
   | "event_routing_playback_internal_only"
-  | "event_routing_playback_overlay_ineligible";
+  | "event_routing_playback_overlay_ineligible"
+  | "event_routing_playback_unknown_sound";
 
 export type EventRoutingPlaybackProjectionResult =
   | {
@@ -169,6 +171,7 @@ const productionActionLabel = (history: EventRoutingPlaybackHistory): string | n
 const buildDisplay = (input: {
   history: EventRoutingPlaybackHistory;
   priority: EventRoutingNotificationPriority;
+  soundKey: string | null;
 }): OverlayNotificationDisplay => {
   const entry = getEventRegistryEntry(input.history.eventKind);
   const actorName = cleanText(
@@ -176,6 +179,8 @@ const buildDisplay = (input: {
     input.history.sourcePlatform === "test/system" ? "Test Event" : entry.label,
     80
   );
+
+  const sound = resolveEventRoutingSound(input.soundKey);
 
   return {
     id: input.history.id,
@@ -191,7 +196,13 @@ const buildDisplay = (input: {
     createdAt: input.history.createdAt,
     kind: kindMap[input.history.eventKind],
     platform: platformMap[input.history.sourcePlatform],
-    priority: priorityMap[input.priority]
+    priority: priorityMap[input.priority],
+    ...(sound ? {
+      sound: {
+        url: sound.url,
+        volume: sound.volume
+      }
+    } : {})
   };
 };
 
@@ -199,6 +210,7 @@ export const buildSafeEventRoutingPlaybackProjection = (input: {
   history: EventRoutingPlaybackHistory;
   destination: EventRoutingDestination;
   notificationPriority: EventRoutingNotificationPriority;
+  soundKey?: string | null;
 }): EventRoutingPlaybackProjectionResult => {
   if (input.destination !== "top_notification" && input.destination !== "center_notification") {
     return {
@@ -232,9 +244,17 @@ export const buildSafeEventRoutingPlaybackProjection = (input: {
     };
   }
 
+  if (input.soundKey && !resolveEventRoutingSound(input.soundKey)) {
+    return {
+      ok: false,
+      reason: "event_routing_playback_unknown_sound"
+    };
+  }
+
   const display = buildDisplay({
     history: input.history,
-    priority: input.notificationPriority
+    priority: input.notificationPriority,
+    soundKey: input.soundKey ?? null
   });
 
   if (input.destination === "top_notification") {
@@ -264,6 +284,7 @@ export const buildSafeEventRoutingPlaybackProjection = (input: {
             title: display.actorName,
             message: display.actionLabel,
             imageUrl: display.avatarUrl,
+            ...(display.sound ? { sound: display.sound } : {}),
             timing: {
               onscreenMs: 4_000,
               fadeOutMs: 700,
@@ -280,6 +301,7 @@ export const buildProductionEventRoutingPlaybackProjection = (input: {
   history: EventRoutingPlaybackHistory;
   destination: EventRoutingDestination;
   notificationPriority: EventRoutingNotificationPriority;
+  soundKey?: string | null;
 }): EventRoutingPlaybackProjectionResult => {
   if (input.destination !== "top_notification" && input.destination !== "center_notification") {
     return {
@@ -313,9 +335,17 @@ export const buildProductionEventRoutingPlaybackProjection = (input: {
     };
   }
 
+  if (input.soundKey && !resolveEventRoutingSound(input.soundKey)) {
+    return {
+      ok: false,
+      reason: "event_routing_playback_unknown_sound"
+    };
+  }
+
   const display = buildDisplay({
     history: input.history,
-    priority: input.notificationPriority
+    priority: input.notificationPriority,
+    soundKey: input.soundKey ?? null
   });
 
   if (input.destination === "top_notification") {
@@ -345,6 +375,7 @@ export const buildProductionEventRoutingPlaybackProjection = (input: {
             title: display.actorName,
             message: display.actionLabel,
             imageUrl: display.avatarUrl,
+            ...(display.sound ? { sound: display.sound } : {}),
             timing: {
               onscreenMs: 4_000,
               fadeOutMs: 700,

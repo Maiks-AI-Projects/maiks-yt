@@ -150,7 +150,8 @@ export class EventRoutingProductionService {
     const projection = buildProductionEventRoutingPlaybackProjection({
       history,
       destination: rule.destination,
-      notificationPriority: rule.notificationPriority
+      notificationPriority: rule.notificationPriority,
+      soundKey: rule.soundKey
     });
     if (!projection.ok) {
       return { eventKind, playbackEmitted: false, status: "blocked_safety" };

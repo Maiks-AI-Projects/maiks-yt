@@ -138,7 +138,7 @@ describe("EventRoutingProductionService", () => {
 
   it("routes an enabled Twitch follow rule to the overlay publisher", async () => {
     const repository = new Repository();
-    repository.savedRule = rule();
+    repository.savedRule = rule({ soundKey: "follow-creaky-door" });
     const publish = vi.fn().mockReturnValue({ emitted: true });
     const service = new EventRoutingProductionService(repository, publish);
 
@@ -156,10 +156,34 @@ describe("EventRoutingProductionService", () => {
         payload: expect.objectContaining({
           actorName: "Viewer One",
           actionLabel: "followed the stream",
-          platform: "twitch"
+          platform: "twitch",
+          sound: {
+            url: "/event-sounds/02-standard-alerts/follow-creaky-door.wav",
+            volume: 0.28
+          }
         })
       })
     }));
+  });
+
+  it("fails closed when a saved production rule contains an unknown sound ref", async () => {
+    const repository = new Repository();
+    repository.savedRule = rule({ soundKey: "../not-allowed.wav" });
+    const publish = vi.fn();
+    const service = new EventRoutingProductionService(repository, publish);
+
+    const result = await service.route(followEvent());
+
+    expect(result).toEqual({
+      eventKind: "twitch.follow",
+      playbackEmitted: false,
+      status: "blocked_safety"
+    });
+    expect(repository.histories[0]).toMatchObject({
+      destination: null,
+      routingOutcome: "blocked_safety"
+    });
+    expect(publish).not.toHaveBeenCalled();
   });
 
   it("queues approval-required real events without playback", async () => {
