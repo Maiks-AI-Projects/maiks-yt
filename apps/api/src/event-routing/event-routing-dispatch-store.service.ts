@@ -84,10 +84,6 @@ const mapHistory = (
 ): EventRoutingHistoryRecord => ({
   ...input,
   id,
-  isTest: true,
-  isSimulated: true,
-  isRealMoney: false,
-  testResettable: true,
   createdAt: createdAt.toISOString()
 });
 
@@ -179,7 +175,7 @@ export const createEventRoutingDispatchRepository = (
             occurred_at,
             created_at
           )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, true, true, false, true, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         id,
@@ -196,6 +192,10 @@ export const createEventRoutingDispatchRepository = (
         input.streamSessionId,
         input.streamScheduleEntryId,
         input.sessionId,
+        input.isTest,
+        input.isSimulated,
+        input.isRealMoney,
+        input.testResettable,
         JSON.stringify(input.redactedPayload),
         input.occurredAt,
         createdAt

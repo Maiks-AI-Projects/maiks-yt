@@ -261,6 +261,10 @@ export class EventRoutingDispatchService {
       streamSessionId: input.streamSessionId,
       streamScheduleEntryId: input.streamScheduleEntryId,
       sessionId: input.sessionId,
+      isTest: true,
+      isSimulated: true,
+      isRealMoney: false,
+      testResettable: true,
       redactedPayload: input.redactedPayload,
       occurredAt: routing.occurredAt
     };

@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-20 production provider alert execution
+
+- Added a separate real-provider Event Routing executor after durable, deduplicated provider intake writes.
+- It uses only explicit saved rules, writes truthful production history flags, preserves cooldown/approval behavior, and fails closed for unknown/internal events and stream-state-dependent rules.
+- Top and center notification rules now publish through the existing OBS bridge transport; missing or disabled rules continue to log without public playback.
+- The local OBS `alerts-effects` source now supplies a default synthesized cue when a reviewed sound URL is absent. Sound catalogs and per-rule sound assets remain later work.
+
 Updated: 2026-08-18
 
 ## Objective

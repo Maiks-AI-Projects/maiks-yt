@@ -44,16 +44,16 @@ export type EventRoutingHistoryInsert = {
   streamSessionId: string | null;
   streamScheduleEntryId: string | null;
   sessionId: string | null;
+  isTest: boolean;
+  isSimulated: boolean;
+  isRealMoney: boolean;
+  testResettable: boolean;
   redactedPayload: Record<string, unknown>;
   occurredAt: Date;
 };
 
 export type EventRoutingHistoryRecord = EventRoutingHistoryInsert & {
   id: string;
-  isTest: true;
-  isSimulated: true;
-  isRealMoney: false;
-  testResettable: true;
   createdAt: string;
 };
 

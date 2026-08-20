@@ -173,6 +173,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 
 - [x] Define protocol v1 for a single authenticated Maiks.yt OBS bridge and coordinate-free widget snapshots.
   - 2026-08-20 added typed `chat`, `stream-goal`, `sponsor`, and `alerts-effects` descriptors; global theme version; server-session-aware revisioned widget state; exclusive effect delivery and acknowledgements; and heartbeat/error messages. Widget snapshots intentionally contain no scene coordinates or camera/game reservations.
+  - 2026-08-20 production routing follow-up executes newly inserted, known real provider events through explicitly saved Event Routing rules. Real rows are recorded with truthful non-test flags; disabled/missing rules remain ignored, internal events remain non-public, live/offline/once-per-stream rules fail closed until authoritative stream identity exists, cooldowns and approval queues remain enforced, and only top/center destinations publish to OBS.
 - [x] Add the authenticated Maiks.yt OBS bridge transport while preserving the master overlay fallback.
   - 2026-08-20 added `/obs-bridge/live` using the existing `overlay:connect` access token through a Bearer header, one active bridge installation, state updates from overlay/chat runtimes, deduplicated effect delivery, send-failure fallback, and token-gated `/obs-bridge/status`. A bridge becomes the sole transient owner only while its local Alerts & Effects Browser Source explicitly reports ready; otherwise the master overlay remains the owner.
 - [x] Complete and locally run the OBS loopback broker against protocol v1.
@@ -180,6 +181,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Apply the first game-specific theme to the currently real Maiks.yt widget surfaces.
   - 2026-08-20 companion commit `4c0d113` adds the compact Project Zomboid radio-transcript chat plus top and center alert presentation. The OBS-owned camera frame is handled in the OBS scene task. Sponsor and stream-goal widgets remain uninstalled and deferred until those products exist.
 - [ ] Smoke the OBS bridge with real Browser Sources, state changes, one alert/audio delivery, disconnect fallback, and OBS restart recovery.
+  - 2026-08-20 the exclusive `alerts-effects` Browser Source gained quiet top-alert and stronger center-alert fallback tones when no reviewed sound URL is configured. Local top/center delivery completed with one active effects consumer and an empty queue after a bridge restart; audible confirmation still requires Michael's ears/OBS monitoring path.
 - [ ] Keep the current master overlay available until the widget path has succeeded through multiple streams.
 - [x] Build basic OBS browser-source overlay page.
 - [x] Support URL parameters for scene/layout/theme/mode.

@@ -34,7 +34,11 @@ import {
   getDomainUserForAuthUser,
 } from "./account/index.js";
 import { ChatCommandRuntime, type ChatCommandRuntimeMessage } from "./chat-commands/index.js";
-import type { EventRoutingPlaybackPublisher } from "./event-routing/index.js";
+import {
+  createEventRoutingDispatchRepository,
+  EventRoutingProductionService,
+  type EventRoutingPlaybackPublisher
+} from "./event-routing/index.js";
 import { registerMusicRoutes } from "./music/index.js";
 import {
   createNotificationAdminRepository,
@@ -159,8 +163,24 @@ const appendStreamerChatMessage = (message: StreamerChatMessage): StreamerChatMe
   return streamerChatRuntime.appendMessage(message);
 };
 
+const productionEventRoutingService = new EventRoutingProductionService(
+  createEventRoutingDispatchRepository(getDatabasePool()),
+  publishEventRoutingPlayback
+);
+
 const providerEventIntakeLogService = new ProviderEventIntakeLogService({
-  repository: createProviderEventIntakeLogRepository(getDatabasePool())
+  repository: createProviderEventIntakeLogRepository(getDatabasePool()),
+  onRecordedProviderEvent: async (event) => {
+    try {
+      await productionEventRoutingService.route(event);
+    } catch (error) {
+      server.log.warn({
+        err: error,
+        provider: event.provider,
+        providerEventName: event.providerEventName
+      }, "Production provider event routing failed after durable intake.");
+    }
+  }
 });
 
 const writeProviderChatIntakeLog = (
@@ -392,7 +412,9 @@ function createProviderReconnectSuppressedNotifier(
   };
 }
 
-const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) => {
+function publishEventRoutingPlayback(
+  projection: Parameters<EventRoutingPlaybackPublisher>[0]
+): ReturnType<EventRoutingPlaybackPublisher> {
   if (projection.destination === "top_notification" && !overlayRuntime.isTopBarEnabled()) {
     return {
       emitted: false,
@@ -415,7 +437,7 @@ const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) 
     emitted: true,
     activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
-};
+}
 
 registerApplicationRoutes({
   discordChatIntakeRuntime,

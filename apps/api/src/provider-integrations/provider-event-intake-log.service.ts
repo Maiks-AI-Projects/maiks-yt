@@ -11,10 +11,12 @@ import type {
 export class ProviderEventIntakeLogService {
   private readonly now: () => Date;
   private readonly repository: ProviderEventIntakeLogRepository;
+  private readonly onRecordedProviderEvent: ProviderEventIntakeLogServiceOptions["onRecordedProviderEvent"] | undefined;
 
   public constructor(options: ProviderEventIntakeLogServiceOptions) {
     this.now = options.now ?? (() => new Date());
     this.repository = options.repository;
+    this.onRecordedProviderEvent = options.onRecordedProviderEvent;
   }
 
   public async recordChatMessage(message: ProviderChatMessageForIntake): Promise<ProviderEventIntakeLogResult> {
@@ -78,6 +80,13 @@ export class ProviderEventIntakeLogService {
 
     try {
       const result = await this.repository.write(normalized.value);
+      if (result.inserted) {
+        try {
+          void Promise.resolve(this.onRecordedProviderEvent?.(normalized.value)).catch(() => undefined);
+        } catch {
+          // Intake is already durable; routing failures must not trigger provider retries.
+        }
+      }
       return {
         inserted: result.inserted,
         ok: true

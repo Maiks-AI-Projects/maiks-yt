@@ -118,6 +118,54 @@ const safeAvatarUrl = (value: unknown): string => {
   }
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+
+const numberLabel = (value: unknown): string | null =>
+  typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.floor(value)).toLocaleString("en-US")
+    : null;
+
+const productionActionLabel = (history: EventRoutingPlaybackHistory): string | null => {
+  const event = asRecord(history.redactedPayload.event);
+  if (!event) {
+    return null;
+  }
+
+  switch (history.eventKind) {
+    case "twitch.follow":
+      return "followed the stream";
+    case "twitch.sub":
+      return event.is_gift === true ? "gifted a subscription" : "subscribed";
+    case "twitch.bits": {
+      const bits = numberLabel(event.bits);
+      return bits ? `cheered ${bits} bits` : "cheered with bits";
+    }
+    case "twitch.raid": {
+      const viewers = numberLabel(event.viewers);
+      return viewers ? `raided with ${viewers} viewers` : "raided the stream";
+    }
+    case "twitch.redeem":
+      return "redeemed channel points";
+    case "youtube.subscriber":
+      return "subscribed on YouTube";
+    case "youtube.member":
+      return "became a YouTube member";
+    case "youtube.super-chat":
+      return "sent a Super Chat";
+    case "youtube.super-sticker":
+      return "sent a Super Sticker";
+    case "discord.join":
+      return "joined the Discord community";
+    case "discord.boost":
+      return "boosted the Discord community";
+    default:
+      return null;
+  }
+};
+
 const buildDisplay = (input: {
   history: EventRoutingPlaybackHistory;
   priority: EventRoutingNotificationPriority;
@@ -133,7 +181,9 @@ const buildDisplay = (input: {
     id: input.history.id,
     actorName,
     actionLabel: cleanText(
-      input.history.redactedPayload.displayText ?? input.history.redactedPayload.action,
+      input.history.redactedPayload.displayText
+        ?? input.history.redactedPayload.action
+        ?? productionActionLabel(input.history),
       entry.label,
       140
     ),
@@ -210,6 +260,87 @@ export const buildSafeEventRoutingPlaybackProjection = (input: {
           ...display,
           route: "center",
           afterCenter: "none",
+          center: {
+            title: display.actorName,
+            message: display.actionLabel,
+            imageUrl: display.avatarUrl,
+            timing: {
+              onscreenMs: 4_000,
+              fadeOutMs: 700,
+              restMs: 1_500
+            }
+          }
+        }
+      }
+    }
+  };
+};
+
+export const buildProductionEventRoutingPlaybackProjection = (input: {
+  history: EventRoutingPlaybackHistory;
+  destination: EventRoutingDestination;
+  notificationPriority: EventRoutingNotificationPriority;
+}): EventRoutingPlaybackProjectionResult => {
+  if (input.destination !== "top_notification" && input.destination !== "center_notification") {
+    return {
+      ok: false,
+      reason: "event_routing_playback_inert_destination"
+    };
+  }
+
+  if (input.history.isTest
+    || input.history.isSimulated
+    || input.history.testResettable
+    || input.history.eventKind === "simulated.support-money") {
+    return {
+      ok: false,
+      reason: "event_routing_playback_unsafe_history"
+    };
+  }
+
+  const entry = getEventRegistryEntry(input.history.eventKind);
+  if (entry.safety.internalOnly) {
+    return {
+      ok: false,
+      reason: "event_routing_playback_internal_only"
+    };
+  }
+
+  if (!entry.safety.overlayEligible) {
+    return {
+      ok: false,
+      reason: "event_routing_playback_overlay_ineligible"
+    };
+  }
+
+  const display = buildDisplay({
+    history: input.history,
+    priority: input.notificationPriority
+  });
+
+  if (input.destination === "top_notification") {
+    return {
+      ok: true,
+      projection: {
+        destination: input.destination,
+        overlayEvent: {
+          type: "overlay.top-bar-notification.queued",
+          payload: display
+        }
+      }
+    };
+  }
+
+  return {
+    ok: true,
+    projection: {
+      destination: input.destination,
+      overlayEvent: {
+        type: "overlay.routed-notification.queued",
+        payload: {
+          ...display,
+          route: "center",
+          afterCenter: "top",
           center: {
             title: display.actorName,
             message: display.actionLabel,
