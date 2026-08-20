@@ -1,4 +1,6 @@
 export * from "./provider-status.rules.js";
+export * from "./provider-chat-bot-delivery.service.js";
+export * from "./provider-chat-bot-delivery.types.js";
 export * from "./provider-chat-moderation.rules.js";
 export * from "./provider-chat-moderation.types.js";
 export * from "./discord-chat-intake.rules.js";

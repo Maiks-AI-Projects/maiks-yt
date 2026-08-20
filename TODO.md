@@ -353,8 +353,10 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
   - 2026-07-10 added a read-only provider action readiness matrix to `/admin/connections`: Discord/Twitch/YouTube warning sends are listed as fail-closed, while provider-side delete, timeout, and ban remain gated with visible reasons.
   - 2026-07-10 added fail-closed Twitch and Discord provider-side chat moderation actions for provider-sourced streamer chat rows. `/streamer-chat/moderation/provider-action` can send origin-provider delete, 10-minute timeout, and ban actions when the signed-in moderator has `chat:provider-moderate`, provider credentials are configured, and the message has the required provider context. Attempts write redacted provider-action audit entries and return safe unavailable/missing-context/provider-rejected reasons. Twitch timeout/ban require new chat rows with a numeric Twitch user id; older rows without it fail closed. YouTube provider delete/timeout/ban remain gated for the later YouTube write phase.
 - [ ] Add typed moderation commands for ban, mute, warning, and rank/status changes.
-- [ ] Add basic stream bot command parser.
-- [ ] Add commands for website links.
+- [x] Add basic stream bot command parser.
+  - 2026-08-20 added a provider-neutral typed parser/runtime for Twitch, YouTube, and Discord intake with aliases, bot/self-loop prevention, exact outbound-reply deduplication, and conservative in-memory global plus per-user/per-command cooldowns.
+- [x] Add commands for website links.
+  - First-stream built-ins are `!commands`/`!help`, `!website`, `!schedule`, `!projects`/`!project`, `!games`, `!links`, `!discord`, `!context`, `!health`, and `!rules`. Command inputs and echoed bot replies are consumed before streamer-chat/OBS append. Twitch replies require a writable user chat token; Discord and YouTube fail closed without their provider context and scopes.
 - [ ] Add periodic messages.
 - [ ] Add manual chat hide/show.
 - [ ] Add emergency chat shutdown behavior.
