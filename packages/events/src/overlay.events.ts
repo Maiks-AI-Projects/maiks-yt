@@ -35,6 +35,7 @@ export type OverlayFakeChatMessage = {
   id: string;
   authorName: string;
   authorKind: OverlayFakeChatMessageAuthorKind;
+  avatarUrl?: string;
   message: string;
   source: "fake-local";
   createdAt: string;

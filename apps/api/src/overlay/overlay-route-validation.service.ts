@@ -48,7 +48,22 @@ export const overlayFakeChatTestRequestSchema = z.object({
   accessToken: z.string().min(24),
   authorName: z.string().trim().min(1).max(40).default("Test chatter"),
   authorKind: z.enum(["human", "bot", "system"]).default("human"),
+  avatarUrl: z.url().max(2_048).refine((value) => value.startsWith("https://"), {
+    message: "avatar_url_must_use_https"
+  }).optional(),
   message: z.string().trim().min(1).max(280)
+});
+export const overlayLiveAudienceTestRequestSchema = z.object({
+  accessToken: z.string().min(24),
+  actorName: z.string().trim().min(1).max(40),
+  actionLabel: z.string().trim().min(1).max(120),
+  avatarUrl: z.url().max(2_048).refine((value) => value.startsWith("https://"), {
+    message: "avatar_url_must_use_https"
+  }).optional(),
+  kind: z.enum(["follow", "subscription", "bits", "gifted-sub", "community-highlight"]),
+  message: z.string().trim().min(1).max(280),
+  platform: z.literal("twitch"),
+  priority: z.enum(["normal", "important"]).default("normal")
 });
 export const overlaySponsorVisibilityRequestSchema = z.object({
   accessToken: z.string().min(24),
