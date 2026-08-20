@@ -9,6 +9,7 @@ import type { MusicAdminLoadState } from "./admin-music-data.service";
 const musicAdminItems = [
   { href: "/admin/music", label: "Overview" },
   { href: "/admin/music/catalog", label: "Catalog" },
+  { href: "/admin/music/import", label: "Import" },
   { href: "/admin/music/playlists", label: "Playlists" },
   { href: "/admin/music/review", label: "Review" },
   { href: "/admin/music/history", label: "History" }

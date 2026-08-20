@@ -15,6 +15,7 @@ import { MusicAdminHeader, MusicAdminStatus } from "./admin-music-shared";
 
 const taskLinks = [
   { href: "/admin/music/catalog", label: "Catalog", text: "Provider policy plus track, source, and license authoring." },
+  { href: "/admin/music/import", label: "Import", text: "YouTube Audio Library manifest, audio upload, dry-run, and apply." },
   { href: "/admin/music/playlists", label: "Playlists", text: "Playlist records and membership counts." },
   { href: "/admin/music/review", label: "Review", text: "Queue decisions plus active blacklist blocks." },
   { href: "/admin/music/history", label: "History", text: "Recent playback outcomes and source snapshots." }
