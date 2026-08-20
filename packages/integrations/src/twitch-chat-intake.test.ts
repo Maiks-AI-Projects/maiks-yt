@@ -6,6 +6,7 @@ import { TwitchChatReadOnlyIntakeService } from "./twitch-chat-intake.service.js
 type Listener = unknown;
 type MessageHandler = (channel: string, user: string, text: string, msg: {
   date: Date;
+  emoteOffsets: Map<string, string[]>;
   id: string;
   userInfo: {
     displayName: string;
@@ -48,6 +49,7 @@ class FakeChatClient {
   public emitMessage(): void {
     this.messageHandler?.("MaiksMC", "viewer_login", "  Hello\u0000  Twitch   chat!  ", {
       date: new Date("2026-06-29T14:00:00.000Z"),
+      emoteOffsets: new Map(),
       id: "twitch-message-1",
       userInfo: {
         displayName: "  Viewer Name  "
@@ -101,6 +103,31 @@ describe("projectTwitchChatMessage", () => {
     })).toEqual({
       ok: false,
       reason: "empty_message"
+    });
+  });
+
+  it("projects native Twitch emotes with authoritative CDN URLs", () => {
+    const result = projectTwitchChatMessage({
+      channelName: "maiksmc",
+      emoteOffsets: new Map([["25", ["6-10"]]]),
+      text: "Hello Kappa!",
+      userName: "viewer_login"
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      message: {
+        parts: [
+          { type: "text", text: "Hello " },
+          {
+            type: "emote",
+            id: "25",
+            name: "Kappa",
+            imageUrl: "https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0"
+          },
+          { type: "text", text: "!" }
+        ]
+      }
     });
   });
 

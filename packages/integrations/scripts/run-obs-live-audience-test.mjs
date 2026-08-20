@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import { ChatClient } from "@twurple/chat";
+import { buildEmoteImageUrl, ChatClient, parseChatMessage } from "@twurple/chat";
 
 const defaultControlTokenFile = join(homedir(), ".config", "maiks-yt", "codex-control-token");
 const defaultTwitchConfigFile = join(homedir(), ".config", "twitch-cli", ".twitch-cli.env");
@@ -143,6 +143,27 @@ const createAvatarResolver = ({ accessToken, clientId }) => {
   };
 };
 
+const projectEmoteParts = (text, emoteOffsets) => {
+  if (!(emoteOffsets instanceof Map) || emoteOffsets.size === 0) return undefined;
+  const parts = parseChatMessage(text, emoteOffsets).flatMap((part) => {
+    if (part.type === "emote") {
+      return [{
+        type: "emote",
+        id: part.id,
+        name: part.name,
+        imageUrl: buildEmoteImageUrl(part.id, {
+          animationSettings: "default",
+          backgroundType: "dark",
+          size: "2.0"
+        })
+      }];
+    }
+    if (part.type === "text") return [{ type: "text", text: part.text }];
+    return [{ type: "text", text: part.name }];
+  });
+  return parts.some((part) => part.type === "emote") ? parts : undefined;
+};
+
 const main = async () => {
   const options = readOptions(process.argv.slice(2));
   if (options.dryRun) {
@@ -186,6 +207,7 @@ const main = async () => {
           userName
         });
         const event = eventFixtures[randomInt(eventFixtures.length)];
+        const parts = projectEmoteParts(text, message.emoteOffsets);
         await postJson(`${options.apiBaseUrl}/overlay/live-audience/test`, {
           accessToken: controlToken,
           actorName,
@@ -193,6 +215,7 @@ const main = async () => {
           ...(avatarUrl ? { avatarUrl } : {}),
           kind: event.kind,
           message: text,
+          ...(parts ? { parts } : {}),
           platform: "twitch",
           priority: event.priority
         });

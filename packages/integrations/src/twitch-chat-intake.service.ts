@@ -188,6 +188,7 @@ export class TwitchChatReadOnlyIntakeService {
         channelName: channel,
         createdAt: msg.date,
         displayName: msg.userInfo.displayName,
+        emoteOffsets: msg.emoteOffsets,
         messageId: msg.id,
         text,
         userId: (msg.userInfo as { userId?: string | null }).userId ?? null,

@@ -31,12 +31,25 @@ export type OverlayNotificationDisplay = {
 
 export type OverlayFakeChatMessageAuthorKind = "human" | "bot" | "system";
 
+export type OverlayChatMessagePart =
+  | {
+    type: "text";
+    text: string;
+  }
+  | {
+    type: "emote";
+    id: string;
+    name: string;
+    imageUrl: string;
+  };
+
 export type OverlayFakeChatMessage = {
   id: string;
   authorName: string;
   authorKind: OverlayFakeChatMessageAuthorKind;
   avatarUrl?: string;
   message: string;
+  parts?: OverlayChatMessagePart[];
   source: "fake-local";
   createdAt: string;
 };

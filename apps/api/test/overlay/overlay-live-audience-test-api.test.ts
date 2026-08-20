@@ -48,6 +48,15 @@ describe("POST /overlay/live-audience/test", () => {
         avatarUrl: "https://static-cdn.jtvnw.net/example.png",
         kind: "follow",
         message: "Real public Twitch chat text.",
+        parts: [
+          { type: "text", text: "Real public Twitch chat " },
+          {
+            type: "emote",
+            id: "25",
+            name: "Kappa",
+            imageUrl: "https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0"
+          }
+        ],
         platform: "twitch",
         priority: "normal"
       }
@@ -62,7 +71,10 @@ describe("POST /overlay/live-audience/test", () => {
       payload: {
         authorName: "CyneViewer",
         avatarUrl: "https://static-cdn.jtvnw.net/example.png",
-        message: "Real public Twitch chat text."
+        message: "Real public Twitch chat text.",
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: "emote", id: "25", name: "Kappa" })
+        ])
       }
     });
     expect(broadcastMessage.mock.calls[1]?.[0]).toMatchObject({

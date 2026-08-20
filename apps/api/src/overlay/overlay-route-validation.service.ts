@@ -62,6 +62,17 @@ export const overlayLiveAudienceTestRequestSchema = z.object({
   }).optional(),
   kind: z.enum(["follow", "subscription", "bits", "gifted-sub", "community-highlight"]),
   message: z.string().trim().min(1).max(280),
+  parts: z.array(z.discriminatedUnion("type", [
+    z.object({ type: z.literal("text"), text: z.string().max(500) }),
+    z.object({
+      type: z.literal("emote"),
+      id: z.string().trim().min(1).max(80),
+      name: z.string().trim().min(1).max(80),
+      imageUrl: z.url().max(2_048).refine((value) => value.startsWith("https://"), {
+        message: "emote_url_must_use_https"
+      })
+    })
+  ])).max(80).optional(),
   platform: z.literal("twitch"),
   priority: z.enum(["normal", "important"]).default("normal")
 });

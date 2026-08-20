@@ -17,12 +17,14 @@ const createFakeChatMessageEvent = ({
   authorKind,
   authorName,
   avatarUrl,
-  message
+  message,
+  parts
 }: {
   authorKind: OverlayFakeChatMessageReceivedEvent["payload"]["authorKind"];
   authorName: string;
   avatarUrl?: string;
   message: string;
+  parts?: OverlayFakeChatMessageReceivedEvent["payload"]["parts"];
 }): OverlayFakeChatMessageReceivedEvent => ({
   type: "overlay.fake-chat.message.received",
   payload: {
@@ -32,6 +34,7 @@ const createFakeChatMessageEvent = ({
     ...(avatarUrl ? { avatarUrl } : {}),
     createdAt: new Date().toISOString(),
     message,
+    ...(parts ? { parts } : {}),
     source: "fake-local"
   }
 });
@@ -148,7 +151,8 @@ export const registerOverlayTestRoutes = (
       authorKind: "human",
       authorName: parsedRequest.data.actorName,
       ...(parsedRequest.data.avatarUrl ? { avatarUrl: parsedRequest.data.avatarUrl } : {}),
-      message: parsedRequest.data.message
+      message: parsedRequest.data.message,
+      ...(parsedRequest.data.parts ? { parts: parsedRequest.data.parts } : {})
     });
     const streamerChatMessage = recordFakeLocalStreamerChatMessage(chatEvent);
 

@@ -5,6 +5,7 @@ export type TwitchChatProjectedMessage = {
   channelName: string;
   createdAt: string;
   message: string;
+  parts?: TwitchChatMessagePart[];
   providerMessageId: string;
   userId: string | null;
   userName: string;
@@ -12,10 +13,23 @@ export type TwitchChatProjectedMessage = {
   visibleOnOverlayByDefault: false;
 };
 
+export type TwitchChatMessagePart =
+  | {
+    type: "text";
+    text: string;
+  }
+  | {
+    type: "emote";
+    id: string;
+    name: string;
+    imageUrl: string;
+  };
+
 export type TwitchChatProjectionInput = {
   channelName: string;
   createdAt?: Date;
   displayName?: string | null;
+  emoteOffsets?: ReadonlyMap<string, readonly string[]>;
   messageId?: string | null;
   text: string;
   userId?: string | null;
