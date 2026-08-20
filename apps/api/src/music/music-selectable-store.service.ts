@@ -267,6 +267,7 @@ export const readHistorySnapshotTrack = async (
 
 export const createMusicSelectableRepository = (pool: DatabasePool): Pick<MusicRepository,
   | "listPublicCatalog"
+  | "listPlaybackCatalog"
   | "getSelectableTrack"
   | "getAdminPreviewTrack"
 > => ({
@@ -292,6 +293,31 @@ export const createMusicSelectableRepository = (pool: DatabasePool): Pick<MusicR
         LIMIT ?
       `,
       [input.context, input.context, query, query, input.limit]
+    );
+
+    return mapRows<SelectableRow, MusicSelectableTrack>(rows, mapSelectable);
+  },
+
+  async listPlaybackCatalog(input) {
+    const [rows] = await pool.execute(
+      `
+        SELECT ${selectSelectableFields}
+        ${selectableFromClause}
+        WHERE sources.availability_status = 'available'
+          AND policies.provider_status = 'allowed'
+          AND policies.public_playback_enabled = TRUE
+          AND tracks.rights_state = 'eligible'
+          AND sources.rights_state = 'eligible'
+          AND policies.rights_state = 'eligible'
+          AND licenses.rights_state = 'eligible'
+          AND tracks.review_state IN ('unreviewed', 'approved')
+          AND ((? = 'live' AND tracks.live_safe = TRUE AND licenses.live_safe = TRUE)
+            OR (? = 'vod' AND tracks.vod_safe = TRUE AND licenses.vod_safe = TRUE))
+        HAVING hasActiveBlacklist = 0
+        ORDER BY tracks.title, tracks.artist, sources.created_at DESC
+        LIMIT ?
+      `,
+      [input.context, input.context, input.limit]
     );
 
     return mapRows<SelectableRow, MusicSelectableTrack>(rows, mapSelectable);

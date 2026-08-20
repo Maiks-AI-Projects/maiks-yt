@@ -467,7 +467,8 @@ registerApplicationRoutes({
 
 registerMusicRoutes(server, {
   getAuthSession,
-  getDatabasePool
+  getDatabasePool,
+  validateUrlAccessTokenForRequest
 });
 
 server.get("/health", async () => ({

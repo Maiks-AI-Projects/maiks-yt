@@ -13,6 +13,10 @@ export type MusicRepository = {
     context: MusicSafetyContext;
     limit: number;
   }): Promise<readonly MusicSelectableTrack[]>;
+  listPlaybackCatalog(input: {
+    context: MusicSafetyContext;
+    limit: number;
+  }): Promise<readonly MusicSelectableTrack[]>;
   getSelectableTrack(input: {
     trackId: string;
     sourceId: string | null;

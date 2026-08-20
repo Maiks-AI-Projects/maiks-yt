@@ -6,6 +6,7 @@ import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
 import { captureDevAuthTokenFromUrl, createApiHeaders, withDevAuthToken } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
+import { MusicControlPanel } from "./music/MusicControlPanel.js";
 import { OperationsPanel } from "./operations/OperationsPanel.js";
 import { SurfaceStatus } from "./overlay/SurfaceStatus.js";
 import { RealtimeProbe } from "./realtime/RealtimeProbe.js";
@@ -249,6 +250,7 @@ const App = (): React.ReactNode => {
         </button>
       </div>
       <SurfaceStatus apiBaseUrl={apiBaseUrl} panelMode={panelMode} />
+      <MusicControlPanel />
       <SceneDesigner apiBaseUrl={apiBaseUrl} />
       {advancedModeEnabled ? (
         <OperationsPanel apiBaseUrl={apiBaseUrl} displayName={authState.displayName} panelMode={panelMode} />

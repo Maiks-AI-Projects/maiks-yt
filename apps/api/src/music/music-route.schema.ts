@@ -194,6 +194,28 @@ export const historyPayloadSchema = z.object({
   publicVisible: z.boolean().optional()
 }).strict();
 
+export const musicPlaybackControlPayloadSchema = z.object({
+  action: z.enum(["play", "pause", "skip"])
+}).strict();
+
+export const musicPlaybackPlayerQuerySchema = z.object({
+  accessToken: z.string().trim().min(1),
+  clientId: z.string().trim().min(8).max(191),
+  positionSeconds: z.coerce.number().min(0).max(24 * 60 * 60).nullable().optional()
+}).strict();
+
+export const musicPlaybackPlayerEventPayloadSchema = z.object({
+  accessToken: z.string().trim().min(1),
+  clientId: z.string().trim().min(8).max(191),
+  playbackId: z.string().trim().min(1).max(64),
+  event: z.enum(["started", "ended", "failed"]),
+  positionSeconds: z.number().min(0).max(24 * 60 * 60).nullable().optional()
+}).strict();
+
+export const musicPlaybackAudioQuerySchema = z.object({
+  accessToken: z.string().trim().min(1)
+}).strict();
+
 export const limitQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional().default(50)
 }).strict();
