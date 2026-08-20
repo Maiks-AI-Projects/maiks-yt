@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-21 production chat attention fallback
+
+- Added local chat attention controls to the shared standalone streamer-chat viewer used by both Chat and Moderation.
+- New human messages can produce a short cue, private sender-plus-message speech, and optional browser notifications; unread state is visible in the window title and controls.
+- Initial history/reconnect snapshots, duplicate messages, bot messages, and empty messages do not trigger attention. The critical alert path remains provider-independent while richer AI summarization stays separate.
+
 ## 2026-08-20 production provider alert execution
 
 - Added a separate real-provider Event Routing executor after durable, deduplicated provider intake writes.

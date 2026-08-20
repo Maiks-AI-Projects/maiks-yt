@@ -366,6 +366,8 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 
 ## 12. AI Stream Assistant
 
+- [x] Add a provider-independent private chat attention/readout fallback.
+  - 2026-08-21 the standalone Chat and Moderation chat views gained local new-human-message cues, sender-plus-message speech, optional desktop notifications, unread title/count state, replay-latest, and a test control. Initial history, reconnect snapshots, duplicate events, empty messages, and bot output remain silent. This path does not depend on an AI provider and does not send speech or messages to stream outputs.
 - [ ] Define public speech, private-message audio, and control-panel text modes.
 - [ ] Add paid-message readout behavior.
 - [ ] Add selected chat readout heard by streamer and stream.
