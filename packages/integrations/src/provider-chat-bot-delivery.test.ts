@@ -79,6 +79,75 @@ describe("ProviderChatBotDeliveryService", () => {
     });
   });
 
+  it("refreshes an expiring Twitch token before delivery", async () => {
+    const connect = vi.fn(async () => undefined);
+    const quit = vi.fn(async () => undefined);
+    const say = vi.fn(async () => undefined);
+    const createTwitchClient = vi.fn(() => ({ connect, quit, say }));
+    const refreshTwitchToken = vi.fn(async () => ({
+      accessToken: "refreshed-access-token",
+      expiresIn: 3600,
+      obtainmentTimestamp: Date.now(),
+      refreshToken: "rotated-refresh-token",
+      scope: ["chat:read", "chat:edit"]
+    }));
+    const service = new ProviderChatBotDeliveryService({
+      createTwitchClient,
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "expired-access-token",
+        TWITCH_CHAT_BOT_REFRESH_TOKEN: "refresh-token",
+        TWITCH_CHAT_BOT_TOKEN_EXPIRES_AT: new Date(Date.now() - 60_000).toISOString(),
+        TWITCH_CLIENT_ID: "twitch-client-id",
+        TWITCH_CLIENT_SECRET: "twitch-client-secret"
+      },
+      refreshTwitchToken
+    });
+
+    await expect(service.send({
+      channelName: "maiksmc",
+      message: "Commands: https://maiks.yt/commands",
+      provider: "twitch"
+    })).resolves.toMatchObject({ ok: true });
+
+    expect(refreshTwitchToken).toHaveBeenCalledWith(
+      "twitch-client-id",
+      "twitch-client-secret",
+      "refresh-token"
+    );
+    expect(createTwitchClient).toHaveBeenCalledWith(expect.objectContaining({
+      accessToken: "refreshed-access-token"
+    }));
+  });
+
+  it("fails safely when an expired Twitch token cannot be refreshed", async () => {
+    const createTwitchClient = vi.fn();
+    const service = new ProviderChatBotDeliveryService({
+      createTwitchClient,
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "expired-access-token",
+        TWITCH_CHAT_BOT_REFRESH_TOKEN: "secret-refresh-token",
+        TWITCH_CHAT_BOT_TOKEN_EXPIRES_AT: "1",
+        TWITCH_CLIENT_ID: "twitch-client-id",
+        TWITCH_CLIENT_SECRET: "secret-client-secret"
+      },
+      refreshTwitchToken: vi.fn(async () => {
+        throw new Error("provider response containing secrets");
+      })
+    });
+
+    await expect(service.send({
+      channelName: "maiksmc",
+      message: "Maiks.yt: https://maiks.yt/",
+      provider: "twitch"
+    })).resolves.toMatchObject({
+      ok: false,
+      providerAction: false,
+      providerMessageSent: false,
+      reason: "provider_chat_bot_unavailable"
+    });
+    expect(createTwitchClient).not.toHaveBeenCalled();
+  });
+
   it("posts Discord bot replies without allowing mentions", async () => {
     const fetchFn = vi.fn(async () => ({
       json: async () => ({ id: "discord-message-1" }),

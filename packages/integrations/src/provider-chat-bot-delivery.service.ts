@@ -1,4 +1,4 @@
-import { StaticAuthProvider } from "@twurple/auth";
+import { refreshUserToken, StaticAuthProvider, type AccessToken } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
 import { google } from "googleapis";
 
@@ -23,6 +23,12 @@ type TwitchClientFactory = (input: {
   clientId: string;
 }) => TwitchChatClientLike;
 
+type TwitchTokenRefresh = (
+  clientId: string,
+  clientSecret: string,
+  refreshToken: string
+) => Promise<AccessToken>;
+
 type FetchLike = (url: string, init: {
   body: string;
   headers: Record<string, string>;
@@ -37,6 +43,21 @@ const discordApiBaseUrl = "https://discord.com/api/v10";
 const maxProviderChatMessageLength = 500;
 
 const normalizeEnv = (value: string | undefined): string => value?.trim() ?? "";
+
+const parseExpiration = (value: string | undefined): number | null => {
+  const normalized = normalizeEnv(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  const numeric = Number(normalized);
+  const parsed = Number.isFinite(numeric)
+    ? (numeric < 10_000_000_000 ? numeric * 1_000 : numeric)
+    : Date.parse(normalized);
+
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 const stripControlCharacters = (value: string): string =>
   value.replace(/[\u0000-\u001F\u007F]/g, " ");
@@ -147,9 +168,14 @@ const defaultInsertYouTubeMessage: ProviderChatBotYouTubeInsert = async ({ conte
 export class ProviderChatBotDeliveryService {
   private readonly discordBotToken: string;
   private readonly fetchFn: FetchLike;
-  private readonly twitchAccessToken: string;
+  private twitchAccessToken: string;
+  private readonly twitchClientSecret: string;
   private readonly twitchClientId: string;
   private readonly twitchClientFactory: TwitchClientFactory;
+  private twitchRefreshInFlight: Promise<string | null> | null = null;
+  private twitchRefreshToken: string;
+  private readonly twitchTokenRefresh: TwitchTokenRefresh;
+  private twitchTokenExpiresAt: number | null;
   private readonly youtubeContextResolver: ProviderChatBotYouTubeContextResolver | null;
   private readonly youtubeInsertMessage: ProviderChatBotYouTubeInsert;
 
@@ -157,6 +183,7 @@ export class ProviderChatBotDeliveryService {
     createTwitchClient?: TwitchClientFactory;
     env?: Record<string, string | undefined>;
     fetchFn?: FetchLike;
+    refreshTwitchToken?: TwitchTokenRefresh;
     youtubeContextResolver?: ProviderChatBotYouTubeContextResolver;
     youtubeInsertMessage?: ProviderChatBotYouTubeInsert;
   } = {}) {
@@ -169,7 +196,11 @@ export class ProviderChatBotDeliveryService {
       ?? env.TWITCH_ACCESS_TOKEN
     );
     this.twitchClientId = normalizeEnv(env.TWITCH_CLIENT_ID);
+    this.twitchClientSecret = normalizeEnv(env.TWITCH_CLIENT_SECRET);
     this.twitchClientFactory = options.createTwitchClient ?? defaultCreateTwitchClient;
+    this.twitchRefreshToken = normalizeEnv(env.TWITCH_CHAT_BOT_REFRESH_TOKEN);
+    this.twitchTokenExpiresAt = parseExpiration(env.TWITCH_CHAT_BOT_TOKEN_EXPIRES_AT);
+    this.twitchTokenRefresh = options.refreshTwitchToken ?? refreshUserToken;
     this.youtubeContextResolver = options.youtubeContextResolver ?? null;
     this.youtubeInsertMessage = options.youtubeInsertMessage ?? defaultInsertYouTubeMessage;
   }
@@ -201,8 +232,14 @@ export class ProviderChatBotDeliveryService {
       return createFailure("provider_chat_bot_context_missing", false, message);
     }
 
+    const accessToken = await this.resolveTwitchAccessToken();
+
+    if (!accessToken) {
+      return createFailure("provider_chat_bot_unavailable", false, message);
+    }
+
     const client = this.twitchClientFactory({
-      accessToken: this.twitchAccessToken,
+      accessToken,
       channelName,
       clientId: this.twitchClientId
     });
@@ -220,6 +257,43 @@ export class ProviderChatBotDeliveryService {
       } catch {
         // Delivery status should not be changed by cleanup noise.
       }
+    }
+  }
+
+  private async resolveTwitchAccessToken(): Promise<string | null> {
+    if (!this.twitchTokenExpiresAt || this.twitchTokenExpiresAt > Date.now() + 60_000) {
+      return this.twitchAccessToken;
+    }
+
+    if (!this.twitchClientId || !this.twitchClientSecret || !this.twitchRefreshToken) {
+      return null;
+    }
+
+    if (!this.twitchRefreshInFlight) {
+      this.twitchRefreshInFlight = this.refreshTwitchAccessToken().finally(() => {
+        this.twitchRefreshInFlight = null;
+      });
+    }
+
+    return this.twitchRefreshInFlight;
+  }
+
+  private async refreshTwitchAccessToken(): Promise<string | null> {
+    try {
+      const refreshed = await this.twitchTokenRefresh(
+        this.twitchClientId,
+        this.twitchClientSecret,
+        this.twitchRefreshToken
+      );
+      this.twitchAccessToken = refreshed.accessToken;
+      this.twitchRefreshToken = refreshed.refreshToken ?? this.twitchRefreshToken;
+      this.twitchTokenExpiresAt = refreshed.expiresIn
+        ? refreshed.obtainmentTimestamp + refreshed.expiresIn * 1_000
+        : null;
+
+      return this.twitchAccessToken;
+    } catch {
+      return null;
     }
   }
 
