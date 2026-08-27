@@ -2,6 +2,13 @@
 
 This repository is a TypeScript monorepo for the Maiks.yt website, stream overlays, control tools, and community platform.
 
+## Production Line
+
+- The `production` branch and this production worktree are the sole forward-development line.
+- Treat dev branches, older worktrees, and the damaged Windows-era copy as evidence or item-level recovery sources only. Do not merge or synchronize them wholesale and do not spend work keeping them current.
+- Rebuild wanted behavior in production patterns when direct reuse would carry dev-only assumptions.
+- Do not push, deploy, or change live services merely because checks pass. Require a clear real-user verification path and explicit coordinator authority for the live change.
+
 ## Read Order
 
 Read only what the task needs:
@@ -27,6 +34,14 @@ Do not load the full `ideas/` folder or the full project history.
 - Use `apply_patch` for manual edits.
 - Run the narrowest relevant tests and typechecks.
 - Report files changed, checks run, and unresolved risks.
+
+## Visual Acceptance
+
+- `/home/michael/Documents/UI Skill` and its example catalogs are obsolete and are not design authority.
+- Before implementing a new or materially redesigned Maiks.yt surface, generate a representative image, iterate until Michael explicitly approves it, and preserve that approved image as the acceptance reference.
+- Implement the production surface against the approved image while preserving real behavior, accessibility, the established production style, and relevant responsive or OBS states.
+- Verify the rendered desktop view and every relevant responsive, installed-PWA, or OBS state against the approved reference before claiming visual completion.
+- Small functional fixes do not require an image-first cycle unless they materially change the visual result.
 
 ## Worker Rules
 
@@ -61,7 +76,7 @@ The coordinator/reviewer:
 - checks architecture and cross-module behavior
 - runs integration tests and browser verification where relevant
 - updates `TODO.md` and `reports/current-work.md`
-- commits, pushes, mirrors `main` to `dev`, and verifies the dev server
+- commits coherent reviewed slices to `production`; pushes or deploys only when authorized and verifies the actual target environment
 
 ## Standard Checks
 
@@ -85,4 +100,4 @@ Use `pnpm check:review` before merging reviewed work. Use `pnpm check:full` befo
 
 Use `pnpm test:readiness` for a pre-testing local gate that runs review checks plus the dev smoke dry-run. Add `-- --visual` when screenshot coverage is needed before or after a testing session.
 
-Use `./scripts/push-dev.ps1 -Message "..."` only from the reviewer/coordinator after review succeeds.
+Use deployment scripts only from the reviewer/coordinator after review succeeds and the target environment is proven.
