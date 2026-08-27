@@ -19,8 +19,8 @@ const UpdatesPage = async (): Promise<React.ReactNode> => {
         <p className={styles.eyebrow}>Posts, recaps, and announcements</p>
         <h1>Context that does not disappear down a timeline.</h1>
         <p>
-          Longer notes about streams, projects, and changes around Maiks.yt. Early example
-          records are labelled clearly while this part of the site is being built.
+          Longer notes about streams, projects, and changes around Maiks.yt, kept together
+          in one public archive.
         </p>
       </header>
 

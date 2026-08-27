@@ -64,7 +64,7 @@ export const publicRoadmap: readonly RoadmapItem[] = [
   profilesPagePlan,
   {
     title: "Posts, recaps, and announcements",
-    description: "A backend-backed public archive and RSS feed now support posts, recaps, and announcements. The first records are labelled examples; manual publishing and selected social syndication remain in progress.",
+    description: "A backend-backed public archive and RSS feed now support real published posts, recaps, and announcements. Example records stay outside production; manual publishing and selected social syndication remain in progress.",
     status: "partial",
     href: "/updates"
   },

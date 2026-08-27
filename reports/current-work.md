@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-27 production update-example boundary
+
+- Production public update responses now omit records explicitly marked `isExample` from the list and return `update_not_found` for direct example slugs. The RSS route also filters example rows defensively, with focused coverage proving a stale upstream example cannot enter feed XML.
+- Development and test environments retain the labelled example records for building the update presentation. Real published public records are unchanged, and an archive containing no real records shows the existing honest empty state.
+- Removed stale production Updates and Progress copy that claimed example records were visible. This is a narrow content-integrity correction rather than a material redesign, so no image-first cycle is needed. The API suite passes with 518 tests and the Web suite passes with 42 tests; API/Web typechecks, architecture rules, and whitespace checks pass. No schema, data mutation, migration, admin workflow, deployment, or server state changed, and GUI verification remains prohibited.
+
 ## 2026-08-27 production dev-route registration boundary
 
 - Production no longer registers `/dev/testing/owner-token`, `/dev/event-routing/dispatch`, or `/dev/notifications`. Their token mint, simulated dispatch, and monitor-notification workflows remain available outside production with their existing secrets and safety checks.

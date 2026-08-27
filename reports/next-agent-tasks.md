@@ -9,8 +9,8 @@
 ## Production-Facing Residue
 
 - Deploy and verify the Connections/copy cleanup with the other reviewed Web hygiene slices. Confirm Connections lists only real production sources and its Event catalogue still includes Website plus Twitch/YouTube/Discord entries.
-- Replace or unpublish the example update records through an approved content workflow; until then keep their example provenance visible.
-- The Admin Overview summaries and proven-dead CSS are removed in reviewed production patches. Continue with example-record replacement/unpublishing and the next evidence-backed operator-surface audit.
+- Production public Updates now omit records explicitly marked as examples from list, detail, and RSS output while non-production keeps labelled fixtures. Future authored records still need a real owner publishing workflow; do not make seed content look real by hiding its provenance.
+- The Admin Overview summaries and proven-dead CSS are removed in reviewed production patches. Continue with the real Updates publishing workflow and the next evidence-backed operator-surface audit.
 
 ## Production Origin Fallbacks
 
@@ -54,6 +54,7 @@
 - Production API registration now omits `/overlay/chat/test`, `/overlay/live-audience/test`, `/overlay/top-bar/test`, `/overlay/notification/test`, `/overlay/redeem/test`, and `/fake-local-chat/moderation/commands`. Keep those harness routes non-production-only; do not use production credentials or overlays as a simulator.
 - Production also omits the standalone realtime spike routes `/events/test`, `/realtime/spike/sse`, and `/realtime/spike/ws`. Keep `scripts/realtime-spike-test.mjs` and the route harness available only for non-production transport experiments; they are not part of production realtime delivery.
 - The remaining `/dev/testing/owner-token`, `/dev/event-routing/dispatch`, and `/dev/notifications` routes are now absent from the production route table rather than returning distinctive handler-level 404 responses. Keep their non-production workflows available; preserve real notification reads, subscriptions, and status updates in production.
+- Public Updates now omit rows explicitly marked `isExample` in production, including direct slug reads and the shared RSS data path. Development retains labelled fixtures. The next Updates work is a real owner publishing/admin workflow or real authored records, not disguising seed content.
 - After production reachability returns, deploy the reviewed cleanup and verify the retired routes return the normal not-found experience. Confirm `/links` does not publish any surviving Layout Lab database row.
 - Continue the broader hygiene audit separately. Static profile demonstrations and remaining implementation-detail copy still need deliberate product decisions; do not remove them casually.
 
