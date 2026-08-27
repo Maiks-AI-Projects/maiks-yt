@@ -10,7 +10,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Current result: NOT READY for a live stream.
 - Healthy: production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen.
-- Gaps: provider and tunnel runtime telemetry is still insufficient, Twitch bot replies and `!commands` are blocked by a `401` bot token validation, YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and URL-token query parameters still need log redaction.
+- Gaps: provider and tunnel runtime telemetry is still insufficient, Twitch bot replies and `!commands` are blocked by a `401` bot token validation, YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and the locally verified request-log redaction still needs deployment and live proof.
 
 ## Evidence Base
 
@@ -145,6 +145,6 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Installed PWA behavior is still unverified in a real installed session.
 - OBS widget Browser Sources and fallback are not yet proven in a live rehearsal.
 - Local Agent and VLC are not yet proven on the streaming PC.
-- URL access tokens can currently appear in private request logs until query redaction is implemented; rotate the verification token after that correction.
+- URL access tokens can still appear in the currently deployed private request logs until the locally verified redaction is deployed; rotate the verification token after live proof.
 - Backup/restore evidence is incomplete.
 - Provider writes, moderation effects, public AI, and privacy deletion remain gated.

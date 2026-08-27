@@ -28,6 +28,10 @@ import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { createApiAuthRuntime } from "./api-auth-runtime.service.js";
+import {
+  apiRequestLoggerOptions,
+  registerSanitizedNotFoundHandler
+} from "./api-request-logging.service.js";
 import { registerApplicationRoutes } from "./api-route-registration.service.js";
 import { createRequireUrlAccessTokenForRequest } from "./url-access-token-request-access.service.js";
 import { auth, getTrustedOrigins } from "./auth/better-auth.service.js";
@@ -71,7 +75,8 @@ const config = createRuntimeConfig({
   publicBaseUrl: process.env.API_PUBLIC_BASE_URL ?? "http://localhost:3001"
 });
 
-const server = Fastify({ logger: true });
+const server = Fastify({ logger: apiRequestLoggerOptions });
+registerSanitizedNotFoundHandler(server);
 let databasePool: DatabasePool | undefined;
 const getDatabasePool = (): DatabasePool => {
   databasePool ??= createDatabasePool();

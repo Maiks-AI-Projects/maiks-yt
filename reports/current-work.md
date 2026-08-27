@@ -1,12 +1,19 @@
 # Current Work
 
+## 2026-08-27 production request-log redaction
+
+- Added one API request-log policy that preserves operational request metadata while reducing every logged request target to a path. Query strings, fragments, absolute-form authority/userinfo, malformed absolute targets, and authority-form targets are excluded from logs.
+- Replaced Fastify's default missing-route response path because its built-in 404 message repeated the raw request target outside the request serializer. The replacement preserves the standard response shape with a sanitized path.
+- The real request object remains unchanged, so route query parsing and authentication behavior are unaffected. Focused tests prove matched and missing routes receive their original query values while logs and 404 responses do not contain query names or values.
+- `pnpm check:full` passes with 21 tasks and 453 API tests. Deployment and live log proof are still pending; the previously exposed verification token must be rotated after redaction is live.
+
 ## 2026-08-27 production Control session enforcement deployment
 
 - Deployed revision `f12c98d` to the production API and Control services only. Web and Overlay remained on their prior reviewed images, and rollback images were retained as `maiks-yt-production:rollback-a802073-web` and `maiks-yt-production:rollback-a802073-shared`.
 - `pnpm check:full` passed before deployment. After replacement, all four production containers were healthy with zero restarts; `api.maiks.yt/health`, `control.maiks.yt/control`, and `overlay.maiks.yt` returned `200` through Cloudflare with a browser user agent.
 - A real valid Control URL token without a signed-in session now returns `401 not_authenticated` from `/streamer-chat/messages`, proving the previous token-only API bypass is closed on the live origin.
 - A positive signed-in owner/PWA check remains unverified because browser control stalled while claiming the existing Control tab. Installed-window access and recovery are still a manual production gate.
-- Verification also confirmed that request logs currently include complete query strings. URL access tokens can therefore appear in private API or tunnel logs; query-parameter redaction and rotation of the verification token are the next security follow-up.
+- Verification also confirmed that the currently deployed API logs complete query strings. A locally verified correction is ready for deployment; rotation of the verification token remains the next security follow-up after live log proof.
 
 ## 2026-08-27 production readiness audit reconciliation
 
