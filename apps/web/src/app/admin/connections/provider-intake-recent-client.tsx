@@ -55,8 +55,7 @@ const providerLabels: Record<Provider, string> = {
   youtube: "YouTube"
 };
 
-const nonProviderSourceLabels: Record<Extract<ConnectionsSource, "website" | "test/system">, string> = {
-  "test/system": "Test/System",
+const nonProviderSourceLabels: Record<Extract<ConnectionsSource, "website">, string> = {
   website: "Website"
 };
 
@@ -298,7 +297,6 @@ const ProviderIntakeRecentClient = ({
               <option value="youtube">YouTube</option>
               <option value="discord">Discord</option>
               <option value="website">Website</option>
-              <option value="test/system">Test/System</option>
             </select>
             <select aria-label="Filter processing status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
               <option value="any">All statuses</option>
@@ -335,7 +333,7 @@ const ProviderIntakeRecentClient = ({
 
           {!hasProviderHistory ? (
             <div className="connections-empty-state">
-              <strong>{nonProviderSourceLabels[source as "website" | "test/system"]} event types are registered in the catalogue.</strong>
+              <strong>{nonProviderSourceLabels[source as "website"]} event types are registered in the catalogue.</strong>
               <span>The current provider-intake API does not expose observed history for this source yet.</span>
             </div>
           ) : null}

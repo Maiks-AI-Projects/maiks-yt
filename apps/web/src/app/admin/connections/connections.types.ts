@@ -3,8 +3,7 @@ export const connectionsSources = [
   "twitch",
   "youtube",
   "discord",
-  "website",
-  "test/system"
+  "website"
 ] as const;
 
 export type ConnectionsSource = typeof connectionsSources[number];

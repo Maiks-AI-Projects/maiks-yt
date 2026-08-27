@@ -86,7 +86,7 @@ const AccountabilityPage = async (): Promise<React.ReactNode> => {
         {projectResult.status === "error" ? (
           <div className={styles.emptyState} aria-live="polite">
             <strong>Project outcomes are temporarily unavailable.</strong>
-            <p>The project service could not be reached. No placeholder outcomes are shown.</p>
+            <p>Please try again shortly.</p>
           </div>
         ) : completedProjects.length === 0 ? (
           <div className={styles.emptyState}>

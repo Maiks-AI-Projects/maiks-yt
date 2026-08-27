@@ -8,7 +8,7 @@ import {
 } from "@maiks-yt/domain/events";
 import { useMemo, useState } from "react";
 import type { IconType } from "react-icons";
-import { FiCode, FiGlobe, FiLayers } from "react-icons/fi";
+import { FiGlobe, FiLayers } from "react-icons/fi";
 import { SiDiscord, SiTwitch, SiYoutube } from "react-icons/si";
 
 import type { ConnectionsSource } from "./connections.types";
@@ -37,13 +37,11 @@ const sourceOptions: SourceOption[] = [
   { icon: SiTwitch, label: "Twitch", value: "twitch" },
   { icon: SiYoutube, label: "YouTube", value: "youtube" },
   { icon: SiDiscord, label: "Discord", value: "discord" },
-  { icon: FiGlobe, label: "Website", value: "website" },
-  { icon: FiCode, label: "Test/System", value: "test/system" }
+  { icon: FiGlobe, label: "Website", value: "website" }
 ];
 
 const sourceLabels: Record<Exclude<ConnectionsSource, "any">, string> = {
   discord: "Discord",
-  "test/system": "Test/System",
   twitch: "Twitch",
   website: "Website",
   youtube: "YouTube"
@@ -100,19 +98,7 @@ const buildCatalogueRows = (): CatalogueRow[] => {
       trigger: entry.kind
     } satisfies CatalogueRow));
 
-  const testRows = eventRegistry
-    .filter((entry) => (entry.sourcePlatforms as readonly string[]).includes("test/system"))
-    .map((entry) => ({
-      eventName: entry.kind,
-      key: `test/system:${entry.kind}`,
-      label: entry.label,
-      mechanism: "simulation",
-      safety: registrySafety(entry),
-      source: "test/system",
-      trigger: entry.kind
-    } satisfies CatalogueRow));
-
-  return [...providerRows, ...websiteRows, ...testRows];
+  return [...providerRows, ...websiteRows];
 };
 
 const SourceFilters = ({

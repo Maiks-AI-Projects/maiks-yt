@@ -40,7 +40,7 @@ const GamesPage = async (): Promise<React.ReactNode> => {
         <section className={styles.stateBand} aria-live="polite">
           <p className={styles.eyebrow}>Temporarily unavailable</p>
           <h2>The game library could not be loaded.</h2>
-          <p>The live service did not respond. No placeholder games are being shown.</p>
+          <p>Please try again shortly.</p>
         </section>
       ) : (
         <>

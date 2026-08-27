@@ -38,7 +38,7 @@ const SchedulePage = async (): Promise<React.ReactNode> => {
         <section className={styles.stateBand} aria-live="polite">
           <p className={styles.eyebrow}>Temporarily unavailable</p>
           <h2>The schedule could not be loaded.</h2>
-          <p>The schedule service did not respond. No placeholder events are being shown.</p>
+          <p>Please try again shortly.</p>
         </section>
       ) : result.streams.length === 0 ? (
         <section className={styles.stateBand}>

@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 production-facing residue cleanup
+
+- Removed the inert `Test/System` source and generated simulation catalogue rows from the production Connections workspace. Real Twitch, YouTube, Discord, Website, and aggregate views remain; no provider intake, event registry, API, or stored history behavior changed.
+- Corrected Event Routing copy to acknowledge that normalized provider events already execute saved rules, while keeping provider-specific state gaps and the complete live rehearsal explicit. Public failure states now give concise recovery guidance instead of explaining placeholder policy or dev-service behavior.
+- Kept published example updates visibly labelled. Hiding their provenance would make seed content look real; replacing or unpublishing those records remains separate content work.
+- Web verification passes with 9 files and 41 tests, typecheck, production build, architecture rules, and whitespace checks. This patch is not deployed and does not change schemas, migrations, providers, routing execution, auth, money, or live server state.
+
 ## 2026-08-27 production-origin fallback hygiene
 
 - Corrected default runtime origins across the public Web app, account/admin clients, Control, Overlay, YouTube owner consent/channel discovery/live-chat control, Twitch EventSub, and YouTube PubSub. Explicit environment variables remain authoritative; only a missing value changes behavior, and it now fails toward `maiks.yt`, `api.maiks.yt`, `control.maiks.yt`, or `overlay.maiks.yt` instead of the retired dev line.

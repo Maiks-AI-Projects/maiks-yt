@@ -29,7 +29,7 @@ const ProjectsPage = async (): Promise<React.ReactNode> => {
         <section className={styles.stateBand} aria-live="polite">
           <p className={styles.eyebrow}>Temporarily unavailable</p>
           <h2>Projects could not be loaded.</h2>
-          <p>The projects service did not respond. No placeholder projects are being shown.</p>
+          <p>Please try again shortly.</p>
         </section>
       ) : result.projects.length === 0 ? (
         <section className={styles.stateBand}>

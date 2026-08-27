@@ -38,7 +38,7 @@ const LinksPage = async (): Promise<React.ReactNode> => {
         {result.status === "error" ? (
           <section className={styles.loadState} aria-live="polite">
             <strong>The live link list is temporarily unavailable.</strong>
-            <span>No placeholder destinations are being shown. Please try again shortly.</span>
+            <span>Please try again shortly.</span>
           </section>
         ) : result.links.length === 0 ? (
           <section className={styles.loadState}>

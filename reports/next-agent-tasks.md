@@ -1,5 +1,11 @@
 # Next Agent Tasks
 
+## Production-Facing Residue
+
+- Deploy and verify the Connections/copy cleanup with the other reviewed Web hygiene slices. Confirm Connections lists only real production sources and its Event catalogue still includes Website plus Twitch/YouTube/Discord entries.
+- Replace or unpublish the example update records through an approved content workflow; until then keep their example provenance visible.
+- Next bounded cleanup: remove development-harness summaries from Admin Overview and then delete only proven-dead testing/Live Helper/dev-console CSS. Preserve the still-used `live-helper-boundary-list` selectors and real notification self-test behavior.
+
 ## Production Origin Fallbacks
 
 - Review and deploy the production-origin fallback patch only with a deliberate Web/API/Control/Overlay verification window. Confirm configured environment values still win and that a build with an omitted optional public-origin variable never contacts `*-dev.maiks.yt`.
