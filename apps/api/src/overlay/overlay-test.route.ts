@@ -6,6 +6,7 @@ import type { FastifyInstance } from "fastify";
 import type { DemoRedeemKey } from "./index.js";
 import {
   overlayFakeChatTestRequestSchema,
+  overlayLiveAudienceTestRequestSchema,
   overlayNotificationTestRequestSchema,
   overlayRedeemTestRequestSchema,
   overlayTopBarTestRequestSchema,
@@ -15,19 +16,25 @@ import {
 const createFakeChatMessageEvent = ({
   authorKind,
   authorName,
-  message
+  avatarUrl,
+  message,
+  parts
 }: {
   authorKind: OverlayFakeChatMessageReceivedEvent["payload"]["authorKind"];
   authorName: string;
+  avatarUrl?: string;
   message: string;
+  parts?: OverlayFakeChatMessageReceivedEvent["payload"]["parts"];
 }): OverlayFakeChatMessageReceivedEvent => ({
   type: "overlay.fake-chat.message.received",
   payload: {
     id: randomUUID(),
     authorKind,
     authorName,
+    ...(avatarUrl ? { avatarUrl } : {}),
     createdAt: new Date().toISOString(),
     message,
+    ...(parts ? { parts } : {}),
     source: "fake-local"
   }
 });
@@ -68,7 +75,12 @@ export const registerOverlayTestRoutes = (
       };
     }
 
-    const event = createFakeChatMessageEvent(parsedRequest.data);
+    const event = createFakeChatMessageEvent({
+      authorKind: parsedRequest.data.authorKind,
+      authorName: parsedRequest.data.authorName,
+      ...(parsedRequest.data.avatarUrl ? { avatarUrl: parsedRequest.data.avatarUrl } : {}),
+      message: parsedRequest.data.message
+    });
     const mutedAuthor = fakeLocalModerationRuntime.isAuthorMuted(event.payload.authorName);
 
     if (mutedAuthor) {
@@ -106,6 +118,76 @@ export const registerOverlayTestRoutes = (
       chatVisible: overlayRuntime.getChatVisible(),
       streamerChatMessage,
       event,
+      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
+    };
+  });
+
+  server.post("/overlay/live-audience/test", async (request, reply) => {
+    const parsedRequest = overlayLiveAudienceTestRequestSchema.safeParse(request.body);
+
+    if (!parsedRequest.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "invalid_request"
+      };
+    }
+
+    const tokenValidation = await validateUrlAccessToken({
+      token: parsedRequest.data.accessToken,
+      surface: "control-panel",
+      scope: "control:open"
+    });
+
+    if (!tokenValidation.valid) {
+      reply.code(403);
+      return {
+        ok: false,
+        reason: tokenValidation.reason ?? "control_panel_access_denied"
+      };
+    }
+
+    const chatEvent = createFakeChatMessageEvent({
+      authorKind: "human",
+      authorName: parsedRequest.data.actorName,
+      ...(parsedRequest.data.avatarUrl ? { avatarUrl: parsedRequest.data.avatarUrl } : {}),
+      message: parsedRequest.data.message,
+      ...(parsedRequest.data.parts ? { parts: parsedRequest.data.parts } : {})
+    });
+    const streamerChatMessage = recordFakeLocalStreamerChatMessage(chatEvent);
+
+    if (!streamerChatMessage) {
+      return {
+        ok: true,
+        queued: 0,
+        reason: "streamer_chat_actor_banned",
+        streamerChatMessage: null,
+        activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
+      };
+    }
+
+    const topBarEvent = {
+      type: "overlay.top-bar-notification.queued" as const,
+      payload: {
+        id: randomUUID(),
+        actorName: parsedRequest.data.actorName,
+        actionLabel: parsedRequest.data.actionLabel,
+        avatarUrl: parsedRequest.data.avatarUrl ?? "",
+        createdAt: new Date().toISOString(),
+        kind: parsedRequest.data.kind,
+        platform: parsedRequest.data.platform,
+        priority: parsedRequest.data.priority
+      }
+    };
+
+    overlayRuntime.broadcastMessage(chatEvent);
+    overlayRuntime.broadcastMessage(topBarEvent);
+
+    return {
+      ok: true,
+      queued: 2,
+      streamerChatMessage,
+      topBarEvent,
       activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };
   });

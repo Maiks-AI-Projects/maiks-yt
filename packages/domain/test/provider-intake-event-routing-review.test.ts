@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   reviewProviderIntakeForInternalEventRouting,
+  resolveProviderIntakeEventKind,
   type ProviderIntakeEventRoutingReviewInput
 } from "../src/events/index.js";
 
@@ -100,5 +101,14 @@ describe("reviewProviderIntakeForInternalEventRouting", () => {
       ok: false,
       reason: "provider_intake_review_no_event_kind_mapping"
     });
+  });
+
+  it("does not turn a subscription-end notification into a subscription alert", () => {
+    expect(resolveProviderIntakeEventKind(baseInput({
+      category: "money",
+      internalTrigger: "provider.twitch.eventsub.channel-subscription-end",
+      moneyShaped: true,
+      providerEventName: "channel.subscription.end"
+    }))).toBeNull();
   });
 });

@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
 
-import { projectTwitchChatMessage, resolveTwitchChatChannelName } from "./twitch-chat-intake.rules.js";
+import { projectTwitchChatMessage, resolveTwitchChatChannelName, resolveTwitchChatChannelNames } from "./twitch-chat-intake.rules.js";
 import { TwitchChatReadOnlyIntakeService } from "./twitch-chat-intake.service.js";
 
 type Listener = unknown;
 type MessageHandler = (channel: string, user: string, text: string, msg: {
   date: Date;
+  emoteOffsets: Map<string, string[]>;
   id: string;
   userInfo: {
     displayName: string;
@@ -48,6 +49,7 @@ class FakeChatClient {
   public emitMessage(): void {
     this.messageHandler?.("MaiksMC", "viewer_login", "  Hello\u0000  Twitch   chat!  ", {
       date: new Date("2026-06-29T14:00:00.000Z"),
+      emoteOffsets: new Map(),
       id: "twitch-message-1",
       userInfo: {
         displayName: "  Viewer Name  "
@@ -104,9 +106,40 @@ describe("projectTwitchChatMessage", () => {
     });
   });
 
+  it("projects native Twitch emotes with authoritative CDN URLs", () => {
+    const result = projectTwitchChatMessage({
+      channelName: "maiksmc",
+      emoteOffsets: new Map([["25", ["6-10"]]]),
+      text: "Hello Kappa!",
+      userName: "viewer_login"
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      message: {
+        parts: [
+          { type: "text", text: "Hello " },
+          {
+            type: "emote",
+            id: "25",
+            name: "Kappa",
+            imageUrl: "https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0"
+          },
+          { type: "text", text: "!" }
+        ]
+      }
+    });
+  });
+
   it("uses the known Maiks Twitch channel by default", () => {
     expect(resolveTwitchChatChannelName({})).toBe("maiksmc");
     expect(resolveTwitchChatChannelName({ TWITCH_CHAT_CHANNEL: "#CustomChannel" })).toBe("customchannel");
+  });
+
+  it("normalizes and deduplicates a configured Twitch channel set", () => {
+    expect(resolveTwitchChatChannelNames({
+      TWITCH_CHAT_CHANNELS: "#MaiksMC, MaiksPlays, maiksmc"
+    })).toEqual(["maiksmc", "maiksplays"]);
   });
 });
 
@@ -120,10 +153,12 @@ describe("TwitchChatReadOnlyIntakeService", () => {
 
     expect(service.getStatus()).toMatchObject({
       channelName: "maiksmc",
+      channelNames: ["maiksmc"],
       state: "stopped"
     });
     expect(service.start()).toMatchObject({
       channelName: "maiksmc",
+      channelNames: ["maiksmc"],
       state: "connected"
     });
     expect(fakeClient.connect).toHaveBeenCalledTimes(1);

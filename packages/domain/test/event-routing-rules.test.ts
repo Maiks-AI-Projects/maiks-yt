@@ -5,8 +5,10 @@ import {
   buildStreamVisibilityPreferenceValues,
   canManageEventRouting,
   eventRoutingDestinationCapabilities,
+  getRecommendedEventRoutingSoundRefs,
   getEventRoutingDestinationCapability,
   resolveSafeSimulatedEventRoutingDecision,
+  resolveEventRoutingSound,
   streamVisibilityPreferenceScopes,
   validateSafeSimulatedEventRoutingDispatch,
   validateEventRoutingRule,
@@ -152,6 +154,41 @@ describe("event routing rule validation", () => {
       "event_routing_unsupported_theme",
       "event_routing_unsupported_sound"
     ]));
+  });
+
+  it("allowlists event routing sound refs for top and center notifications only", () => {
+    expect(validateEventRoutingRule(validRule({
+      destination: "top_notification",
+      soundKey: "follow-creaky-door"
+    })).ok).toBe(true);
+    expect(validateEventRoutingRule(validRule({
+      destination: "center_notification",
+      soundKey: "raid-broken-radio"
+    })).ok).toBe(true);
+    expect(validateEventRoutingRule(validRule({
+      destination: "top_notification",
+      soundKey: "https://example.test/sound.wav"
+    })).issues).toContain("event_routing_unsupported_sound");
+    expect(validateEventRoutingRule(validRule({
+      destination: "internal_audit",
+      soundKey: "follow-creaky-door"
+    })).issues).toContain("event_routing_unsupported_sound");
+  });
+
+  it("recommends the first production Event Routing sound slice without forcing routing", () => {
+    expect(getRecommendedEventRoutingSoundRefs("twitch.follow")).toEqual(["follow-creaky-door"]);
+    expect(getRecommendedEventRoutingSoundRefs("twitch.sub")).toEqual(["sub-key-in-lock", "gift-sub-metal-door"]);
+    expect(getRecommendedEventRoutingSoundRefs("twitch.bits")).toEqual(["bits-loot-unlock"]);
+    expect(getRecommendedEventRoutingSoundRefs("twitch.raid")).toEqual(["raid-broken-radio"]);
+    expect(getRecommendedEventRoutingSoundRefs("twitch.redeem")).toEqual(["redeem-digital-interference"]);
+    expect(getRecommendedEventRoutingSoundRefs("chat")).toEqual(["chat-radio-ping"]);
+    expect(resolveEventRoutingSound("follow-creaky-door")).toEqual({
+      ref: "follow-creaky-door",
+      url: "/event-sounds/02-standard-alerts/follow-creaky-door.wav",
+      volume: 0.28
+    });
+    expect(resolveEventRoutingSound(null)).toBeNull();
+    expect(resolveEventRoutingSound("../secrets.wav")).toBeNull();
   });
 
   it("builds user stream visibility preference values with safe missing-row defaults", () => {

@@ -173,6 +173,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 
 - [x] Define protocol v1 for a single authenticated Maiks.yt OBS bridge and coordinate-free widget snapshots.
   - 2026-08-20 added typed `chat`, `stream-goal`, `sponsor`, and `alerts-effects` descriptors; global theme version; server-session-aware revisioned widget state; exclusive effect delivery and acknowledgements; and heartbeat/error messages. Widget snapshots intentionally contain no scene coordinates or camera/game reservations.
+  - 2026-08-20 production routing follow-up executes newly inserted, known real provider events through explicitly saved Event Routing rules. Real rows are recorded with truthful non-test flags; disabled/missing rules remain ignored, internal events remain non-public, live/offline/once-per-stream rules fail closed until authoritative stream identity exists, cooldowns and approval queues remain enforced, and only top/center destinations publish to OBS.
 - [x] Add the authenticated Maiks.yt OBS bridge transport while preserving the master overlay fallback.
   - 2026-08-20 added `/obs-bridge/live` using the existing `overlay:connect` access token through a Bearer header, one active bridge installation, state updates from overlay/chat runtimes, deduplicated effect delivery, send-failure fallback, and token-gated `/obs-bridge/status`. A bridge becomes the sole transient owner only while its local Alerts & Effects Browser Source explicitly reports ready; otherwise the master overlay remains the owner.
 - [x] Complete and locally run the OBS loopback broker against protocol v1.
@@ -180,6 +181,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Apply the first game-specific theme to the currently real Maiks.yt widget surfaces.
   - 2026-08-20 companion commit `4c0d113` adds the compact Project Zomboid radio-transcript chat plus top and center alert presentation. The OBS-owned camera frame is handled in the OBS scene task. Sponsor and stream-goal widgets remain uninstalled and deferred until those products exist.
 - [ ] Smoke the OBS bridge with real Browser Sources, state changes, one alert/audio delivery, disconnect fallback, and OBS restart recovery.
+  - 2026-08-20 the exclusive `alerts-effects` Browser Source gained quiet top-alert and stronger center-alert fallback tones when no reviewed sound URL is configured. Local top/center delivery completed with one active effects consumer and an empty queue after a bridge restart; audible confirmation still requires Michael's ears/OBS monitoring path.
 - [ ] Keep the current master overlay available until the widget path has succeeded through multiple streams.
 - [x] Build basic OBS browser-source overlay page.
 - [x] Support URL parameters for scene/layout/theme/mode.
@@ -353,8 +355,10 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
   - 2026-07-10 added a read-only provider action readiness matrix to `/admin/connections`: Discord/Twitch/YouTube warning sends are listed as fail-closed, while provider-side delete, timeout, and ban remain gated with visible reasons.
   - 2026-07-10 added fail-closed Twitch and Discord provider-side chat moderation actions for provider-sourced streamer chat rows. `/streamer-chat/moderation/provider-action` can send origin-provider delete, 10-minute timeout, and ban actions when the signed-in moderator has `chat:provider-moderate`, provider credentials are configured, and the message has the required provider context. Attempts write redacted provider-action audit entries and return safe unavailable/missing-context/provider-rejected reasons. Twitch timeout/ban require new chat rows with a numeric Twitch user id; older rows without it fail closed. YouTube provider delete/timeout/ban remain gated for the later YouTube write phase.
 - [ ] Add typed moderation commands for ban, mute, warning, and rank/status changes.
-- [ ] Add basic stream bot command parser.
-- [ ] Add commands for website links.
+- [x] Add basic stream bot command parser.
+  - 2026-08-20 added a provider-neutral typed parser/runtime for Twitch, YouTube, and Discord intake with aliases, bot/self-loop prevention, exact outbound-reply deduplication, and conservative in-memory global plus per-user/per-command cooldowns.
+- [x] Add commands for website links.
+  - First-stream built-ins are `!commands`/`!help`, `!website`, `!schedule`, `!projects`/`!project`, `!games`, `!links`, `!discord`, `!context`, `!health`, and `!rules`. Command inputs and echoed bot replies are consumed before streamer-chat/OBS append. Twitch replies require a writable user chat token; Discord and YouTube fail closed without their provider context and scopes.
 - [ ] Add periodic messages.
 - [ ] Add manual chat hide/show.
 - [ ] Add emergency chat shutdown behavior.
@@ -362,6 +366,10 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 
 ## 12. AI Stream Assistant
 
+- [x] Add a provider-independent private chat attention/readout fallback.
+  - 2026-08-21 the standalone Chat and Moderation chat views gained local new-human-message cues, sender-plus-message speech, optional desktop notifications, unread title/count state, replay-latest, and a test control. Initial history, reconnect snapshots, duplicate events, empty messages, and bot output remain silent. This path does not depend on an AI provider and does not send speech or messages to stream outputs.
+- [x] Add per-PWA custom output selection for routable attention audio.
+  - Chat and Moderation store separate device-local output choices and route Web Audio cues through Chromium's selected audio sink. Browser `speechSynthesis` has no sink API, so read-aloud continues to follow the full PWA/system/extension route until it is replaced by routable generated audio.
 - [ ] Define public speech, private-message audio, and control-panel text modes.
 - [ ] Add paid-message readout behavior.
 - [ ] Add selected chat readout heard by streamer and stream.
@@ -496,7 +504,9 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [x] Add a shared searchable track select and preview player with play/pause and seek controls to member, public-request, and admin surfaces.
 - [x] Add the first production YouTube Audio Library catalog ingestion slice.
   - Current scope uses local owner-run Playwright Studio export/download plus manifest import because YouTube Data API does not expose Audio Library. Only current Studio Attribution required / CC BY 4.0 rows from a fresh seven-day owner export with explicit per-track source/proof URL, current Studio `/music` URL, captured attribution/license/source dialog text, and parser-verified uploaded local audio are auto-eligible. The exporter emits partial unless it applies the Attribution required filter, positively reaches the end, exports at least one accepted track, and has no skipped candidates or 5,000-row cap; the bulk API rejects full manifests with zero accepted tracks or missing/incomplete exporter evidence before marking disappeared sources unavailable. Imports are idempotent by provider key + external id, append license snapshots without deleting history, and preserve blacklist/review state plus existing provider-policy owner overrides. Studio UI selectors are isolated in `scripts/youtube-audio-library-studio-selectors.mjs` and may need maintenance when YouTube changes Studio.
-- [ ] Add separate `/music/player` browser/audio source for OBS audio routing.
+- [x] Add separate `/music/player` browser/audio source as the first production playback consumer.
+- [ ] Replace OBS-owned browser audio with a local VLC playback connector while retaining `/music/player` as a migration fallback.
+  - Maiks.yt remains authoritative for selection, play/pause/skip commands, history, review outcomes, and now-playing state. The streaming-PC connector should control VLC through a loopback-only interface, report existing playback lifecycle events using `playbackId`, expose heartbeat/readiness, reconnect without replaying stale events, and let VLC target the dedicated music audio channel. Do not expose VLC control to the LAN, tunnel, or public API.
 - [ ] Add `/music/overlay` now-playing, attribution, safety, and vote display.
 - [ ] Add music controls to the existing stream control panel, not a separate music panel.
 - [ ] Add viewer voting only for eligible, non-blacklisted tracks.

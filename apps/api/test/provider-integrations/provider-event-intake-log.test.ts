@@ -4,7 +4,7 @@ import type {
   TwitchChatProjectedMessage,
   YouTubeLiveChatProjectedMessage
 } from "@maiks-yt/integrations";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ProviderEventIntakeLogService } from "../../src/provider-integrations/provider-event-intake-log.service.js";
 import type { ProviderEventIntakeLogRepository } from "../../src/provider-integrations/provider-event-intake-log.types.js";
@@ -71,8 +71,10 @@ describe("ProviderEventIntakeLogService", () => {
 
   it("records Twitch EventSub notifications as pre-routing EventSub events", async () => {
     const repository = new FakeProviderEventIntakeLogRepository();
+    const onRecordedProviderEvent = vi.fn();
     const service = new ProviderEventIntakeLogService({
       now: () => fixedNow,
+      onRecordedProviderEvent,
       repository
     });
 
@@ -112,6 +114,8 @@ describe("ProviderEventIntakeLogService", () => {
       providerEventName: "channel.follow",
       sourceEventId: "twitch-eventsub:eventsub-message-1"
     });
+    expect(onRecordedProviderEvent).toHaveBeenCalledOnce();
+    expect(onRecordedProviderEvent).toHaveBeenCalledWith(repository.writes[0]);
   });
 
   it("records Discord chat as a Gateway message create event", async () => {

@@ -1,4 +1,5 @@
 export * from "./actions/index.js";
+export * from "./chat-commands/index.js";
 export * from "./community/index.js";
 export * from "./events/index.js";
 export * from "./games/index.js";

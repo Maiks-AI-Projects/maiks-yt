@@ -1,6 +1,8 @@
 import type { DatabasePool } from "@maiks-yt/database";
 import type { FastifyRequest } from "fastify";
+import type { UrlAccessSurface } from "@maiks-yt/domain/security";
 
+import type { MusicPlaybackService } from "./music-playback.service.js";
 import type { MusicService } from "./music.service.js";
 import type { MusicAuthSession } from "./music.types.js";
 import type { MusicAudioUploadService } from "./music-audio-upload.service.js";
@@ -9,6 +11,11 @@ import type { MusicYouTubeAudioLibraryImportService } from "./music-youtube-audi
 export type MusicRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<MusicAuthSession>;
   getDatabasePool: () => DatabasePool;
+  validateUrlAccessTokenForRequest?: (input: {
+    scope: string;
+    surface: UrlAccessSurface;
+    token: string;
+  }) => Promise<{ valid: boolean; requiresLogin: boolean; reason?: string }>;
   createService?: () => Pick<MusicService,
     | "listPublicCatalog"
     | "createAnonymousRequest"
@@ -31,6 +38,7 @@ export type MusicRouteDependencies = {
     | "resolveReviewQueueItem"
     | "appendPlayHistory"
   >;
+  createPlaybackService?: () => MusicPlaybackService;
   createImportService?: () => Pick<MusicYouTubeAudioLibraryImportService, "dryRun" | "apply">;
   createAudioUploadService?: () => Pick<MusicAudioUploadService, "upload">;
 };

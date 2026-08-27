@@ -5,6 +5,7 @@ import { createApiHeaders } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
 import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
+import { useChatAttention } from "./useChatAttention.js";
 import type {
   FakeLocalModerationResponse,
   StreamerChatMessagesResponse,
@@ -87,6 +88,7 @@ export const StreamerChatViewer = ({
   const [status, setStatus] = useState<string>("Loading streamer chat.");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [openOptionsMessageId, setOpenOptionsMessageId] = useState<string | null>(null);
+  const chatAttention = useChatAttention(variant === "standalone");
   const visibleMessages = newestOnTop
     ? messages.slice(0, maxMessages)
     : messages.slice(0, maxMessages).reverse();
@@ -332,6 +334,7 @@ export const StreamerChatViewer = ({
         }
 
         if (!disposed) {
+          chatAttention.baselineMessages(result.messages);
           setMessages(result.messages);
           setStatus(`Streamer chat ready. ${result.messages.length} message(s) loaded.`);
         }
@@ -355,10 +358,12 @@ export const StreamerChatViewer = ({
         const liveMessage = JSON.parse(String(event.data)) as StreamerChatLiveMessage;
 
         if (liveMessage.type === "streamer-chat.snapshot") {
+          chatAttention.baselineMessages(liveMessage.payload.messages);
           setMessages(liveMessage.payload.messages);
           return;
         }
 
+        chatAttention.notifyMessage(liveMessage.payload);
         setMessages((currentMessages) => [
           liveMessage.payload,
           ...currentMessages.filter((message) => message.id !== liveMessage.payload.id)
@@ -380,7 +385,7 @@ export const StreamerChatViewer = ({
       disposed = true;
       webSocket?.close();
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, chatAttention.baselineMessages, chatAttention.notifyMessage]);
 
   return (
     <div className={`streamer-chat-viewer ${variant}`} aria-label="Streamer chat viewer">
@@ -389,6 +394,7 @@ export const StreamerChatViewer = ({
         <span>{status}</span>
         {actionStatus ? <span>{actionStatus}</span> : null}
       </div>
+      {variant === "standalone" ? chatAttention.controls : null}
       {visibleMessages.length === 0 ? (
         <p className="streamer-chat-empty">No streamer chat messages yet.</p>
       ) : (

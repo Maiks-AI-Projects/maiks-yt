@@ -3,11 +3,14 @@
 import { createApiHeaders } from "../dev-auth-token";
 import type {
   MusicAdminOverview,
+  MusicAudioUploadResult,
   MusicApiCatalogTrack,
   MusicApiResult,
   MusicRequestResult,
   MusicReviewAction,
-  MusicTopTrackPick
+  MusicTopTrackPick,
+  MusicYouTubeAudioLibraryImportResult,
+  MusicYouTubeAudioLibraryManifest
 } from "./music-api.types";
 
 export const musicApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
@@ -123,4 +126,30 @@ export const resolveMusicReviewQueueItem = async (
   await updateAdminMusicRecord(`/admin/music/review-queue/${encodeURIComponent(id)}/resolve`, {
     action,
     note
+  });
+
+export const uploadAdminMusicAudio = async (input: {
+  readonly contentType: string;
+  readonly dataBase64: string;
+  readonly filename: string;
+}): Promise<MusicApiResponse<MusicAudioUploadResult>> =>
+  await requestMusicJson("/admin/music/imports/audio", {
+    body: input,
+    method: "POST"
+  });
+
+export const dryRunYouTubeAudioLibraryImport = async (
+  manifest: MusicYouTubeAudioLibraryManifest
+): Promise<MusicApiResponse<MusicYouTubeAudioLibraryImportResult>> =>
+  await requestMusicJson("/admin/music/imports/youtube-audio-library/dry-run", {
+    body: { manifest },
+    method: "POST"
+  });
+
+export const applyYouTubeAudioLibraryImport = async (
+  manifest: MusicYouTubeAudioLibraryManifest
+): Promise<MusicApiResponse<MusicYouTubeAudioLibraryImportResult>> =>
+  await requestMusicJson("/admin/music/imports/youtube-audio-library/apply", {
+    body: { manifest },
+    method: "POST"
   });

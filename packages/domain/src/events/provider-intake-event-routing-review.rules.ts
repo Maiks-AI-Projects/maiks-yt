@@ -20,6 +20,10 @@ const mapTwitchEventKind = (input: ProviderIntakeEventRoutingReviewInput): Event
     return "twitch.follow";
   }
 
+  if (name === "channel.subscription.end") {
+    return null;
+  }
+
   if (triggerIncludesAny(trigger, ["channel-subscribe", "channel-subscription", "subscription-message"])) {
     return "twitch.sub";
   }
@@ -87,7 +91,9 @@ const mapDiscordEventKind = (input: ProviderIntakeEventRoutingReviewInput): Even
   return null;
 };
 
-const mapEventKind = (input: ProviderIntakeEventRoutingReviewInput): EventKind | null => {
+export const resolveProviderIntakeEventKind = (
+  input: ProviderIntakeEventRoutingReviewInput
+): EventKind | null => {
   const mappers = {
     discord: mapDiscordEventKind,
     twitch: mapTwitchEventKind,
@@ -121,7 +127,7 @@ export const reviewProviderIntakeForInternalEventRouting = (
     };
   }
 
-  const eventKind = mapEventKind(input);
+  const eventKind = resolveProviderIntakeEventKind(input);
 
   if (!eventKind) {
     return {

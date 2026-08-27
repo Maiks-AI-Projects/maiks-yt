@@ -18,6 +18,11 @@ export type OverlayNotificationPriority = "normal" | "important" | "urgent";
 
 export type OverlayNotificationPlatform = "site" | "youtube" | "twitch" | "discord" | "system";
 
+export type OverlayNotificationSound = {
+  url: string;
+  volume: number;
+};
+
 export type OverlayNotificationDisplay = {
   id: string;
   actorName: string;
@@ -27,15 +32,30 @@ export type OverlayNotificationDisplay = {
   kind: OverlayTopBarNotificationKind;
   platform: OverlayNotificationPlatform;
   priority: OverlayNotificationPriority;
+  sound?: OverlayNotificationSound;
 };
 
 export type OverlayFakeChatMessageAuthorKind = "human" | "bot" | "system";
+
+export type OverlayChatMessagePart =
+  | {
+    type: "text";
+    text: string;
+  }
+  | {
+    type: "emote";
+    id: string;
+    name: string;
+    imageUrl: string;
+  };
 
 export type OverlayFakeChatMessage = {
   id: string;
   authorName: string;
   authorKind: OverlayFakeChatMessageAuthorKind;
+  avatarUrl?: string;
   message: string;
+  parts?: OverlayChatMessagePart[];
   source: "fake-local";
   createdAt: string;
 };
@@ -77,6 +97,7 @@ export type OverlayRoutedNotificationQueuedEvent = {
       message: string;
       imageUrl?: string;
       audioUrl?: string;
+      sound?: OverlayNotificationSound;
       timing: OverlayCenterNotificationTiming;
     };
   };

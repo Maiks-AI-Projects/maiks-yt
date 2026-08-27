@@ -122,6 +122,10 @@ class FakeMusicRepository implements MusicRepository {
     return [...this.selectableTracks.values()].map((track) => structuredClone(track));
   }
 
+  public async listPlaybackCatalog(): Promise<readonly MusicSelectableTrack[]> {
+    return [...this.selectableTracks.values()].map((track) => structuredClone(track));
+  }
+
   public async getSelectableTrack(input: {
     trackId: string;
     sourceId: string | null;

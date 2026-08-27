@@ -6,6 +6,7 @@
   "exports": {
     ".": "./dist/index.js",
     "./actions": "./dist/actions/index.js",
+    "./chat-commands": "./dist/chat-commands/index.js",
     "./community": "./dist/community/index.js",
     "./events": "./dist/events/index.js",
     "./games": "./dist/games/index.js",

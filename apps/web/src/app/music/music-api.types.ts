@@ -1,3 +1,8 @@
+import type {
+  YouTubeAudioLibraryBulkManifest,
+  YouTubeAudioLibraryRejectedTrack
+} from "@maiks-yt/domain/music";
+
 export type MusicEligibilityState = "eligible" | "uncertain" | "ineligible";
 export type MusicReviewState = "unreviewed" | "review" | "approved" | "restricted" | "rejected" | "blacklisted";
 
@@ -245,3 +250,40 @@ export type MusicRequestResult = MusicApiResult<{
     readonly createdAt: string;
   };
 }>;
+
+export type MusicAudioUploadResult = MusicApiResult<{
+  readonly upload: {
+    readonly storageRef: string;
+    readonly filename: string;
+    readonly contentType: string;
+    readonly sizeBytes: number;
+    readonly sha256: string;
+  };
+}>;
+
+export type MusicYouTubeAudioLibraryImportSummary = {
+  readonly received: number;
+  readonly accepted: number;
+  readonly rejected: number;
+  readonly created: number;
+  readonly updated: number;
+  readonly unchanged: number;
+  readonly markedUnavailable: number;
+  readonly licenseSnapshotsAppended: number;
+};
+
+export type MusicYouTubeAudioLibraryImportItem = {
+  readonly externalId: string | null;
+  readonly title: string | null;
+  readonly action: "create" | "update" | "unchanged" | "mark_unavailable" | "skip";
+  readonly reason: string | null;
+};
+
+export type MusicYouTubeAudioLibraryImportResult = MusicApiResult<{
+  readonly mode: "dry-run" | "apply";
+  readonly summary: MusicYouTubeAudioLibraryImportSummary;
+  readonly items: readonly MusicYouTubeAudioLibraryImportItem[];
+  readonly rejectedTracks: readonly YouTubeAudioLibraryRejectedTrack[];
+}>;
+
+export type MusicYouTubeAudioLibraryManifest = YouTubeAudioLibraryBulkManifest;

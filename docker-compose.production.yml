@@ -35,10 +35,12 @@ services:
       API_PUBLIC_BASE_URL: https://api.maiks.yt
       AUTH_TRUSTED_ORIGINS: https://maiks.yt,https://www.maiks.yt,https://control.maiks.yt,https://overlay.maiks.yt
       BETTER_AUTH_URL: https://api.maiks.yt
+      MUSIC_AUDIO_STORAGE_DIR: /data/music-audio
       NODE_ENV: production
       PROFILE_IMAGE_STORAGE_DIR: /data/profile-images
       WEB_PUBLIC_BASE_URL: https://maiks.yt
     volumes:
+      - music-audio:/data/music-audio
       - profile-images:/data/profile-images
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:3001/health"]
@@ -74,5 +76,7 @@ networks:
     external: true
 
 volumes:
+  music-audio:
+    name: maiks-yt-production-music-audio
   profile-images:
     name: maiks-yt-production-profile-images

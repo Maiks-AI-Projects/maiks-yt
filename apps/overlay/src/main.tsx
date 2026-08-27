@@ -19,6 +19,7 @@ import {
   maxVisibleTopBarNotifications,
   overlayAccessStorageKey,
   parseUrlOptions,
+  playNotificationSoundOnce,
   readCachedSnapshot,
   topBarIntakeDelayMs,
   writeCachedSnapshot,
@@ -41,6 +42,7 @@ const App = (): React.ReactNode => {
   const pendingTopBarNotificationsRef = useRef<TopBarNotification[]>([]);
   const pendingCenterNotificationsRef = useRef<RoutedNotification[]>([]);
   const runtimeStateRef = useRef<OverlayRuntimeState>({ status: "loading" });
+  const playedNotificationSoundIdsRef = useRef<Set<string>>(new Set());
   const topBarProcessingRef = useRef(false);
   const centerProcessingRef = useRef(false);
   const urlOptions = useMemo(parseUrlOptions, []);
@@ -93,6 +95,7 @@ const App = (): React.ReactNode => {
       nextNotification,
       ...notifications
     ].slice(0, maxVisibleTopBarNotifications));
+    playNotificationSoundOnce(nextNotification, playedNotificationSoundIdsRef.current);
     window.setTimeout(() => {
       topBarProcessingRef.current = false;
       processTopBarQueue();
@@ -128,11 +131,7 @@ const App = (): React.ReactNode => {
       notification: nextNotification,
       phase: "onscreen"
     });
-
-    if (nextNotification.center.audioUrl) {
-      const audio = new Audio(nextNotification.center.audioUrl);
-      void audio.play().catch(() => undefined);
-    }
+    playNotificationSoundOnce(nextNotification, playedNotificationSoundIdsRef.current);
 
     window.setTimeout(() => {
       setCenterNotification({

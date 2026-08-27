@@ -209,7 +209,8 @@ describe("EventRoutingDispatchService", () => {
     repository.rules.set("website.signup:any", baseRule({
       destination: "top_notification",
       enabled: true,
-      approvalRequired: false
+      approvalRequired: false,
+      soundKey: "follow-creaky-door"
     }));
     const service = new EventRoutingDispatchService(repository);
 
@@ -235,7 +236,8 @@ describe("EventRoutingDispatchService", () => {
     repository.rules.set("website.signup:any", baseRule({
       destination: "top_notification",
       enabled: true,
-      approvalRequired: false
+      approvalRequired: false,
+      soundKey: "follow-creaky-door"
     }));
     const published: unknown[] = [];
     const service = new EventRoutingDispatchService(repository, (projection) => {
@@ -269,7 +271,11 @@ describe("EventRoutingDispatchService", () => {
           actorName: "Preview User",
           actionLabel: "Preview User joined Maiks.yt.",
           platform: "site",
-          kind: "website"
+          kind: "website",
+          sound: {
+            url: "/event-sounds/02-standard-alerts/follow-creaky-door.wav",
+            volume: 0.28
+          }
         }
       }
     });

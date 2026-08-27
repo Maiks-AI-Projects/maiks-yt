@@ -62,6 +62,7 @@ export type DiscordChatProjectedMessage = {
 
 export type TwitchChatIntakeStatus = {
   channelName: string | null;
+  channelNames: readonly string[];
   connectedAt: string | null;
   lastError: string | null;
   lastMessageAt: string | null;

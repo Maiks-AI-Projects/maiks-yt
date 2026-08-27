@@ -42,14 +42,25 @@ export const publicCreatorLinks: readonly PublicCreatorLink[] = [
   },
   {
     key: "twitch",
-    title: "Twitch",
-    description: "Live streams, chat, and stream alerts on the main MaiksMC Twitch channel.",
+    title: "MaiksMC on Twitch",
+    description: "Minecraft streams and chat on the MaiksMC Twitch channel.",
     purpose: "social",
     icon: "twitch",
     availability: "available",
     href: "https://www.twitch.tv/maiksmc",
     isPrimary: false,
     sortOrder: 30
+  },
+  {
+    key: "maiksplays-twitch",
+    title: "MaiksPlays on Twitch",
+    description: "Gaming streams beyond Minecraft on the MaiksPlays Twitch channel.",
+    purpose: "social",
+    icon: "twitch",
+    availability: "available",
+    href: "https://www.twitch.tv/maiksplays",
+    isPrimary: false,
+    sortOrder: 35
   },
   {
     key: "maiksmc-youtube",
@@ -61,6 +72,17 @@ export const publicCreatorLinks: readonly PublicCreatorLink[] = [
     href: "https://www.youtube.com/@maiksMC",
     isPrimary: false,
     sortOrder: 40
+  },
+  {
+    key: "maiksplays-youtube",
+    title: "MaiksPlays on YouTube",
+    description: "Gaming videos and upcoming live streams on the MaiksPlays YouTube channel.",
+    purpose: "social",
+    icon: "youtube",
+    availability: "available",
+    href: "https://www.youtube.com/@MaiksPlays",
+    isPrimary: false,
+    sortOrder: 45
   },
   {
     key: "wow-with-maiks",

@@ -4,6 +4,7 @@ import {
   isEventKind,
   isEventSourcePlatform
 } from "./event-registry.rules.js";
+import { isEventRoutingSoundRef } from "./event-sound-catalog.rules.js";
 import type { EventKind } from "./event-registry.types.js";
 import {
   eventRoutingDestinations,
@@ -222,6 +223,10 @@ export const validateEventRoutingRule = (
     }
 
     if (!capability.supportsSound && input.soundKey !== null) {
+      issues.push("event_routing_unsupported_sound");
+    }
+
+    if (capability.supportsSound && input.soundKey !== null && !isEventRoutingSoundRef(input.soundKey)) {
       issues.push("event_routing_unsupported_sound");
     }
   }

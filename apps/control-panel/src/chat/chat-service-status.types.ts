@@ -1,5 +1,6 @@
 export type TwitchChatIntakeStatus = {
   channelName: string | null;
+  channelNames: readonly string[];
   connectedAt: string | null;
   disconnectsInWindow: number;
   lastError: string | null;

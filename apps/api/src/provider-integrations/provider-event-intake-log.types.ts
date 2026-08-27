@@ -21,6 +21,7 @@ export type ProviderEventIntakeLogResult =
 export type ProviderEventIntakeLogServiceOptions = {
   now?: () => Date;
   repository: ProviderEventIntakeLogRepository;
+  onRecordedProviderEvent?: (event: NormalizedProviderEventIntake) => Promise<void> | void;
 };
 
 export type ProviderChatMessageForIntake =

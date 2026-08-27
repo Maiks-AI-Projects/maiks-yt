@@ -8,3 +8,4 @@ export * from "./event-routing-dispatch.service.js";
 export * from "./event-routing-dispatch-store.service.js";
 export * from "./event-routing-dispatch.types.js";
 export * from "./event-routing-playback.service.js";
+export * from "./event-routing-production.service.js";

@@ -39,14 +39,15 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
   const pathname = requestHeaders.get("x-maiks-pathname") ?? "";
   const isToolSurface = pathname.startsWith("/tools/");
   const isAdminSurface = pathname === "/admin" || pathname.startsWith("/admin/");
-  const isStandaloneSurface = isToolSurface || isAdminSurface;
+  const isMusicPlayerSurface = pathname === "/music/player";
+  const isStandaloneSurface = isToolSurface || isAdminSurface || isMusicPlayerSurface;
   const authenticatedContext = pathname === "/account" || pathname.startsWith("/account/")
     ? "account"
     : null;
 
   return (
     <html lang="en">
-      <body className={isToolSurface ? "tool-surface-body" : isAdminSurface ? "admin-surface-body" : shellStyles.siteBody}>
+      <body className={isToolSurface || isMusicPlayerSurface ? "tool-surface-body" : isAdminSurface ? "admin-surface-body" : shellStyles.siteBody}>
         {isStandaloneSurface ? null : (
           <>
             <a className={shellStyles.skipLink} href="#main-content">Skip to content</a>

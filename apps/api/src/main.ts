@@ -4,6 +4,7 @@ import {
   DiscordChatWarningDeliveryService,
   DiscordChatReadOnlyIntakeService,
   DiscordChatModerationService,
+  ProviderChatBotDeliveryService,
   TwitchChatWarningDeliveryService,
   TwitchChatReadOnlyIntakeService,
   TwitchChatModerationService,
@@ -32,7 +33,12 @@ import { auth, getTrustedOrigins } from "./auth/better-auth.service.js";
 import {
   getDomainUserForAuthUser,
 } from "./account/index.js";
-import type { EventRoutingPlaybackPublisher } from "./event-routing/index.js";
+import { ChatCommandRuntime, type ChatCommandRuntimeMessage } from "./chat-commands/index.js";
+import {
+  createEventRoutingDispatchRepository,
+  EventRoutingProductionService,
+  type EventRoutingPlaybackPublisher
+} from "./event-routing/index.js";
 import { registerMusicRoutes } from "./music/index.js";
 import {
   createNotificationAdminRepository,
@@ -157,8 +163,24 @@ const appendStreamerChatMessage = (message: StreamerChatMessage): StreamerChatMe
   return streamerChatRuntime.appendMessage(message);
 };
 
+const productionEventRoutingService = new EventRoutingProductionService(
+  createEventRoutingDispatchRepository(getDatabasePool()),
+  publishEventRoutingPlayback
+);
+
 const providerEventIntakeLogService = new ProviderEventIntakeLogService({
-  repository: createProviderEventIntakeLogRepository(getDatabasePool())
+  repository: createProviderEventIntakeLogRepository(getDatabasePool()),
+  onRecordedProviderEvent: async (event) => {
+    try {
+      await productionEventRoutingService.route(event);
+    } catch (error) {
+      server.log.warn({
+        err: error,
+        provider: event.provider,
+        providerEventName: event.providerEventName
+      }, "Production provider event routing failed after durable intake.");
+    }
+  }
 });
 
 const writeProviderChatIntakeLog = (
@@ -183,6 +205,29 @@ const writeProviderGatewayIntakeLog = (event: DiscordGatewayProjectedEvent): voi
   });
 };
 
+let chatCommandRuntime: ChatCommandRuntime;
+
+const processChatCommandForProviderMessage = (message: ChatCommandRuntimeMessage): boolean => {
+  const classification = chatCommandRuntime.classifyProviderMessage(message);
+
+  if (!classification.consume) {
+    return false;
+  }
+
+  void chatCommandRuntime.processProviderMessage(message).then((result) => {
+    if (result.handled && result.reason === "delivery_failed") {
+      server.log.warn({
+        provider: message.source,
+        reason: result.deliveryResult?.ok === false ? result.deliveryResult.reason : "unknown"
+      }, "Chat command delivery failed.");
+    }
+  }).catch((error: unknown) => {
+    server.log.warn({ err: error, provider: message.source }, "Chat command processing failed.");
+  });
+
+  return true;
+};
+
 const recordFakeLocalStreamerChatMessage = (
   event: OverlayFakeChatMessageReceivedEvent
 ): StreamerChatMessage | null => {
@@ -195,7 +240,11 @@ const recordFakeLocalStreamerChatMessage = (
   return appendStreamerChatMessage(message);
 };
 
-const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): StreamerChatMessage => {
+const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): StreamerChatMessage | null => {
+  if (processChatCommandForProviderMessage(message)) {
+    return null;
+  }
+
   writeProviderChatIntakeLog(message);
   return appendStreamerChatMessage({
     ...message,
@@ -205,7 +254,11 @@ const recordTwitchStreamerChatMessage = (message: TwitchChatProjectedMessage): S
   });
 };
 
-const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage): StreamerChatMessage => {
+const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage): StreamerChatMessage | null => {
+  if (processChatCommandForProviderMessage(message)) {
+    return null;
+  }
+
   writeProviderChatIntakeLog(message);
   return appendStreamerChatMessage({
     ...message,
@@ -216,7 +269,11 @@ const recordDiscordStreamerChatMessage = (message: DiscordChatProjectedMessage):
   });
 };
 
-const recordYouTubeStreamerChatMessage = (message: YouTubeLiveChatProjectedMessage): StreamerChatMessage => {
+const recordYouTubeStreamerChatMessage = (message: YouTubeLiveChatProjectedMessage): StreamerChatMessage | null => {
+  if (processChatCommandForProviderMessage(message)) {
+    return null;
+  }
+
   writeProviderChatIntakeLog(message);
   const activeLiveChatId = youtubeLiveChatIntakeRuntime.getStatus().activeLiveChatId;
 
@@ -240,6 +297,13 @@ const youtubeLiveChatContextRepository = createYouTubeLiveChatContextRepository(
 const youtubeLiveChatIntakeRuntime = new YouTubeLiveChatReadOnlyIntakeService({
   contextResolver: youtubeLiveChatContextRepository.resolveSelectedLiveChatContext,
   onMessage: recordYouTubeStreamerChatMessage
+});
+const providerChatBotDeliveryService = new ProviderChatBotDeliveryService({
+  youtubeContextResolver: youtubeLiveChatContextRepository.resolveSelectedLiveChatContext
+});
+chatCommandRuntime = new ChatCommandRuntime({
+  delivery: providerChatBotDeliveryService,
+  getActiveYouTubeLiveChatId: () => youtubeLiveChatIntakeRuntime.getStatus().activeLiveChatId
 });
 
 if (process.env.NODE_ENV !== "test" && process.env.TWITCH_CHAT_AUTO_START !== "false") {
@@ -348,7 +412,9 @@ function createProviderReconnectSuppressedNotifier(
   };
 }
 
-const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) => {
+function publishEventRoutingPlayback(
+  projection: Parameters<EventRoutingPlaybackPublisher>[0]
+): ReturnType<EventRoutingPlaybackPublisher> {
   if (projection.destination === "top_notification" && !overlayRuntime.isTopBarEnabled()) {
     return {
       emitted: false,
@@ -371,7 +437,7 @@ const publishEventRoutingPlayback: EventRoutingPlaybackPublisher = (projection) 
     emitted: true,
     activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
   };
-};
+}
 
 registerApplicationRoutes({
   discordChatIntakeRuntime,
@@ -401,7 +467,8 @@ registerApplicationRoutes({
 
 registerMusicRoutes(server, {
   getAuthSession,
-  getDatabasePool
+  getDatabasePool,
+  validateUrlAccessTokenForRequest
 });
 
 server.get("/health", async () => ({

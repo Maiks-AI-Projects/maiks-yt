@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseBuffer } from "music-metadata";
 
@@ -64,6 +64,54 @@ export const parseMusicAudioStorageRef = (storageRef: string): { sha256: string 
   const match = musicAudioStorageRefPattern.exec(storageRef.trim());
   const sha256 = match?.[1];
   return sha256 ? { sha256 } : null;
+};
+
+export const resolveStoredMusicAudioFile = async (input: {
+  storageRef: string;
+  sha256: string;
+}): Promise<
+  | {
+    ok: true;
+    contentType: string;
+    filePath: string;
+    sizeBytes: number;
+  }
+  | {
+    ok: false;
+  }
+> => {
+  const parsed = parseMusicAudioStorageRef(input.storageRef);
+
+  if (!parsed || parsed.sha256 !== input.sha256) {
+    return { ok: false };
+  }
+
+  try {
+    const paths = getAudioUploadPaths(parsed.sha256);
+    const [metadataText, fileStat] = await Promise.all([
+      readFile(paths.metadataPath, "utf8"),
+      stat(paths.filePath)
+    ]);
+    const metadata = parseStoredMetadata(metadataText);
+
+    if (!metadata
+      || metadata.sha256 !== input.sha256
+      || !allowedAudioContentTypes.has(metadata.contentType)
+      || !fileStat.isFile()
+      || fileStat.size <= 0
+      || fileStat.size !== metadata.sizeBytes) {
+      return { ok: false };
+    }
+
+    return {
+      ok: true,
+      contentType: metadata.contentType,
+      filePath: paths.filePath,
+      sizeBytes: fileStat.size
+    };
+  } catch {
+    return { ok: false };
+  }
 };
 
 const normalizeDetectedAudioMime = (containerValue: string | undefined): string | null => {

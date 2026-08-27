@@ -62,6 +62,14 @@ export type CenterNotificationRuntime = {
   phase: "onscreen" | "fading";
 };
 export type OverlayLiveStatus = "snapshot" | "live" | "reconnecting" | "offline";
+export type NotificationSoundAudio = Pick<HTMLAudioElement, "play" | "volume">;
+export type NotificationSoundAudioFactory = (url: string) => NotificationSoundAudio;
+export type SoundPlayableNotification = Pick<TopBarNotification, "id" | "sound"> & {
+  center?: Pick<NonNullable<RoutedNotification["center"]>, "audioUrl" | "sound">;
+};
+
+const playedNotificationSoundLimit = 200;
+const fallbackNotificationSoundVolume = 0.28;
 
 export const isMinimalFallbackLiveStatus = (liveStatus: OverlayLiveStatus): boolean =>
   liveStatus === "reconnecting" || liveStatus === "offline";
@@ -71,6 +79,64 @@ export const canRenderFakeChat = (snapshot: OverlayStateSnapshot): boolean =>
 
 export const isRenderableFakeChatMessage = (message: FakeChatMessage): boolean =>
   message.source === "fake-local" && message.authorKind === "human";
+
+const clampSoundVolume = (volume: number): number =>
+  Number.isFinite(volume) ? Math.max(0, Math.min(volume, 1)) : fallbackNotificationSoundVolume;
+
+export const getPlayableNotificationSound = (
+  notification: SoundPlayableNotification
+): { url: string; volume: number } | null => {
+  if (notification.sound) {
+    return notification.sound;
+  }
+
+  if (notification.center?.sound) {
+    return notification.center.sound;
+  }
+
+  if (notification.center?.audioUrl) {
+    return {
+      url: notification.center.audioUrl,
+      volume: fallbackNotificationSoundVolume
+    };
+  }
+
+  return null;
+};
+
+export const playNotificationSoundOnce = (
+  notification: SoundPlayableNotification,
+  playedIds: Set<string>,
+  createAudio: NotificationSoundAudioFactory = (url) => new Audio(url)
+): boolean => {
+  if (playedIds.has(notification.id)) {
+    return false;
+  }
+
+  const sound = getPlayableNotificationSound(notification);
+
+  if (!sound) {
+    return false;
+  }
+
+  playedIds.add(notification.id);
+
+  while (playedIds.size > playedNotificationSoundLimit) {
+    const oldestId = playedIds.values().next().value as string | undefined;
+
+    if (!oldestId) {
+      break;
+    }
+
+    playedIds.delete(oldestId);
+  }
+
+  const audio = createAudio(sound.url);
+  audio.volume = clampSoundVolume(sound.volume);
+  void audio.play().catch(() => undefined);
+
+  return true;
+};
 
 export const getOverlayCanvasScale = (): number => {
   if (typeof window === "undefined") {
