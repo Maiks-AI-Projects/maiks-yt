@@ -52,7 +52,7 @@ export type PublicGameLibraryListResult = {
 export type PublicGameSuggestionCreateResult =
   | {
     ok: true;
-    suggestion: GameSuggestionSource;
+    accepted: true;
   }
   | {
     ok: false;

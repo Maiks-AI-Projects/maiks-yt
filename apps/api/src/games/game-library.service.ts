@@ -282,9 +282,11 @@ export class GameLibraryService {
       };
     }
 
+    await this.repository.createSuggestion(suggestion);
+
     return {
       ok: true,
-      suggestion: await this.repository.createSuggestion(suggestion)
+      accepted: true
     };
   }
 

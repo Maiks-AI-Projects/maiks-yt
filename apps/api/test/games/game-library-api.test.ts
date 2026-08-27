@@ -323,14 +323,15 @@ describe("GameLibraryService", () => {
       reason: "Automation classic.",
       tags: ["automation"],
       suggestedByName: "Viewer"
-    })).resolves.toMatchObject({
+    })).resolves.toEqual({
       ok: true,
-      suggestion: {
-        title: "Factorio",
-        status: "pending",
-        isPublic: false
-      }
+      accepted: true
     });
+    expect([...repository.suggestions.values()]).toMatchObject([{
+      title: "Factorio",
+      status: "pending",
+      isPublic: false
+    }]);
 
     await expect(service.createSuggestion({
       title: "",
@@ -736,15 +737,15 @@ describe("game library routes", () => {
       }
     });
     expect(suggestionResponse.statusCode).toBe(200);
-    expect(suggestionResponse.json()).toMatchObject({
+    expect(suggestionResponse.json()).toEqual({
       ok: true,
-      suggestion: {
-        title: "Factorio",
-        status: "pending",
-        isPublic: false
-      }
+      accepted: true
     });
-    const suggestionId = suggestionResponse.json<{ suggestion: GameSuggestionSource }>().suggestion.id;
+    expect(suggestionResponse.json()).not.toHaveProperty("suggestion");
+    const [suggestionId] = repository.suggestions.keys();
+    if (!suggestionId) {
+      throw new Error("suggestion was not stored");
+    }
 
     const unauthenticatedReviewResponse = await publicServer.inject({
       method: "PATCH",
