@@ -7,6 +7,7 @@ import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
 
 import { registerPublicUpdateAdminRoutes } from "../../src/updates/public-update-admin.route.js";
+import { createPublicUpdateAdminRevision } from "../../src/updates/public-update-admin-revision.service.js";
 import { PublicUpdateAdminService } from "../../src/updates/public-update-admin.service.js";
 import { createPublicUpdateAdminRepository } from "../../src/updates/public-update-admin-store.service.js";
 import type {
@@ -42,6 +43,7 @@ class FakePublicUpdateRepository implements PublicUpdateAdminRepository, PublicU
     rolePermissionValues: [["*"]]
   };
   public updates: PublicUpdateSource[] = [];
+  public preserveUpdatedAtOnSave = false;
   public publishCalls = 0;
   public unpublishCalls = 0;
 
@@ -93,15 +95,21 @@ class FakePublicUpdateRepository implements PublicUpdateAdminRepository, PublicU
       ...existing,
       ...updateInput,
       id: existing.id,
-      updatedAt: "2026-08-27T13:00:00.000Z"
+      updatedAt: this.preserveUpdatedAtOnSave
+        ? existing.updatedAt
+        : "2026-08-27T13:00:00.000Z"
     };
     this.updates[index] = update;
     return structuredClone(update);
   }
 
-  public async publishUpdate(id: string): Promise<PublicUpdateSource | "not-found"> {
+  public async publishUpdate(
+    id: string,
+    _actorUserId: string,
+    expectedUpdate: PublicUpdateSource
+  ): Promise<PublicUpdateSource | "not-found" | "revision-conflict" | "state-conflict"> {
     this.publishCalls += 1;
-    return this.setPublicationState(id, true);
+    return this.setPublicationState(id, true, expectedUpdate);
   }
 
   public async unpublishUpdate(id: string): Promise<PublicUpdateSource | "not-found"> {
@@ -109,7 +117,17 @@ class FakePublicUpdateRepository implements PublicUpdateAdminRepository, PublicU
     return this.setPublicationState(id, false);
   }
 
-  private setPublicationState(id: string, published: boolean): PublicUpdateSource | "not-found" {
+  private setPublicationState(id: string, published: false): PublicUpdateSource | "not-found";
+  private setPublicationState(
+    id: string,
+    published: true,
+    expectedUpdate: PublicUpdateSource
+  ): PublicUpdateSource | "not-found" | "revision-conflict" | "state-conflict";
+  private setPublicationState(
+    id: string,
+    published: boolean,
+    expectedUpdate?: PublicUpdateSource
+  ): PublicUpdateSource | "not-found" | "revision-conflict" | "state-conflict" {
     const index = this.updates.findIndex((update) => update.id === id);
 
     if (index < 0) {
@@ -117,12 +135,28 @@ class FakePublicUpdateRepository implements PublicUpdateAdminRepository, PublicU
     }
 
     const existing = this.updates[index]!;
+
+    if (published) {
+      if (
+        !expectedUpdate
+        || createPublicUpdateAdminRevision(existing) !== createPublicUpdateAdminRevision(expectedUpdate)
+      ) {
+        return "revision-conflict";
+      }
+
+      if (existing.status !== "draft" || existing.visibility !== "hidden" || existing.publishedAt !== null) {
+        return existing.status === "published" && existing.visibility === "public" && existing.publishedAt !== null
+          ? structuredClone(existing)
+          : "state-conflict";
+      }
+    }
+
     const update: PublicUpdateSource = {
       ...existing,
       status: published ? "published" : "draft",
       visibility: published ? "public" : "hidden",
-      publishedAt: published ? existing.publishedAt ?? "2026-08-27T13:00:00.000Z" : null,
-      updatedAt: "2026-08-27T13:00:00.000Z"
+      publishedAt: published ? existing.publishedAt ?? "2026-08-27T14:00:00.000Z" : null,
+      updatedAt: published ? "2026-08-27T14:00:00.000Z" : "2026-08-27T15:00:00.000Z"
     };
     this.updates[index] = update;
     return structuredClone(update);
@@ -234,18 +268,36 @@ describe("public update admin API", () => {
       update: { title: "Launch note revised", isPinned: true }
     });
 
+    const revisedPreviewResponse = await server.inject({
+      method: "GET",
+      url: `/admin/updates/${created.id}/preview`
+    });
+    const revisedPreview = revisedPreviewResponse.json() as {
+      revision: string;
+      update: PublicUpdateSource;
+    };
+    expect(revisedPreview.revision).toMatch(/^[a-f0-9]{64}$/);
+    expect(revisedPreview.revision).not.toContain(revisedPreview.update.title);
     const publishResponse = await server.inject({
       method: "POST",
-      url: `/admin/updates/${created.id}/publish`
+      url: `/admin/updates/${created.id}/publish`,
+      payload: { expectedRevision: revisedPreview.revision }
     });
+    const publishedUpdate = publishResponse.json().update as PublicUpdateSource;
     const publicResponse = await server.inject({ method: "GET", url: "/updates/launch-note" });
     const repeatedPublishResponse = await server.inject({
       method: "POST",
-      url: `/admin/updates/${created.id}/publish`
+      url: `/admin/updates/${created.id}/publish`,
+      payload: { expectedRevision: revisedPreview.revision }
     });
     expect(publishResponse.statusCode).toBe(200);
     expect(publicResponse.statusCode).toBe(200);
     expect(repeatedPublishResponse.statusCode).toBe(200);
+    expect(repeatedPublishResponse.json()).toMatchObject({
+      ok: true,
+      update: { status: "published", visibility: "public" }
+    });
+    expect(repeatedPublishResponse.json().update).toEqual(publishedUpdate);
     expect(repository.publishCalls).toBe(1);
 
     const unpublishResponse = await server.inject({
@@ -261,6 +313,113 @@ describe("public update admin API", () => {
     expect(hiddenAgainResponse.statusCode).toBe(404);
     expect(repeatedUnpublishResponse.statusCode).toBe(200);
     expect(repository.unpublishCalls).toBe(1);
+
+    await server.close();
+  });
+
+  it("rejects a same-second content change after preview and publishes the current revision", async () => {
+    const repository = new FakePublicUpdateRepository();
+    repository.preserveUpdatedAtOnSave = true;
+    repository.updates.push(createSource("shared-draft", {
+      updatedAt: "2026-08-27T12:00:00.000Z"
+    }));
+    const { server } = createServer({ repository });
+
+    const stalePreviewResponse = await server.inject({
+      method: "GET",
+      url: "/admin/updates/shared-draft/preview"
+    });
+    const stalePreview = stalePreviewResponse.json() as {
+      revision: string;
+      update: PublicUpdateSource;
+    };
+
+    const editorSaveResponse = await server.inject({
+      method: "PATCH",
+      url: "/admin/updates/shared-draft",
+      payload: { title: "Editor B draft" }
+    });
+    const latestDraft = editorSaveResponse.json().update as PublicUpdateSource;
+    const stalePublishResponse = await server.inject({
+      method: "POST",
+      url: "/admin/updates/shared-draft/publish",
+      payload: { expectedRevision: stalePreview.revision }
+    });
+
+    expect(editorSaveResponse.statusCode).toBe(200);
+    expect(latestDraft.updatedAt).toBe(stalePreview.update.updatedAt);
+    expect(stalePublishResponse.statusCode).toBe(409);
+    expect(stalePublishResponse.json()).toEqual({
+      ok: false,
+      reason: "public_update_preview_stale"
+    });
+    expect(repository.updates[0]).toMatchObject({
+      title: "Editor B draft",
+      status: "draft",
+      visibility: "hidden"
+    });
+    expect(repository.publishCalls).toBe(0);
+
+    const currentPreviewResponse = await server.inject({
+      method: "GET",
+      url: "/admin/updates/shared-draft/preview"
+    });
+    const currentPreview = currentPreviewResponse.json() as {
+      revision: string;
+      update: PublicUpdateSource;
+    };
+    expect(currentPreview.revision).not.toBe(stalePreview.revision);
+    const currentPublishResponse = await server.inject({
+      method: "POST",
+      url: "/admin/updates/shared-draft/publish",
+      payload: { expectedRevision: currentPreview.revision }
+    });
+
+    expect(currentPublishResponse.statusCode).toBe(200);
+    expect(currentPublishResponse.json()).toMatchObject({
+      ok: true,
+      update: { title: "Editor B draft", status: "published", visibility: "public" }
+    });
+
+    await server.close();
+  });
+
+  it("rejects missing or invalid publish revisions without leaking internals", async () => {
+    const repository = new FakePublicUpdateRepository();
+    repository.updates.push(createSource("needs-preview"));
+    const { server } = createServer({ repository });
+
+    const missingResponse = await server.inject({
+      method: "POST",
+      url: "/admin/updates/needs-preview/publish"
+    });
+    const invalidResponse = await server.inject({
+      method: "POST",
+      url: "/admin/updates/needs-preview/publish",
+      payload: { expectedRevision: "not-a-revision" }
+    });
+    const uppercaseResponse = await server.inject({
+      method: "POST",
+      url: "/admin/updates/needs-preview/publish",
+      payload: { expectedRevision: "A".repeat(64) }
+    });
+
+    expect(missingResponse.statusCode).toBe(400);
+    expect(missingResponse.json()).toEqual({
+      ok: false,
+      reason: "public_update_invalid_input"
+    });
+    expect(invalidResponse.statusCode).toBe(400);
+    expect(invalidResponse.json()).toEqual({
+      ok: false,
+      reason: "public_update_invalid_input"
+    });
+    expect(uppercaseResponse.statusCode).toBe(400);
+    expect(uppercaseResponse.json()).toEqual({
+      ok: false,
+      reason: "public_update_invalid_input"
+    });
+    expect(repository.publishCalls).toBe(0);
 
     await server.close();
   });
@@ -287,7 +446,8 @@ describe("public update admin API", () => {
     });
     const publishResponse = await server.inject({
       method: "POST",
-      url: "/admin/updates/example/publish"
+      url: "/admin/updates/example/publish",
+      payload: { expectedRevision: "a".repeat(64) }
     });
     const unpublishResponse = await server.inject({
       method: "POST",
@@ -342,32 +502,63 @@ describe("public update admin API", () => {
     expect(actorQuery).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
   });
 
-  it("treats a concurrent repository publish as an idempotent success", async () => {
-    const publishedRow = {
+  it("atomically rejects a repository field mismatch even when updatedAt is unchanged", async () => {
+    const expectedUpdate = createSource("concurrent-update", {
+      title: "Previewed title",
+      summary: "Summary",
+      body: "Body"
+    });
+    const currentDraftRow = {
       id: "concurrent-update",
       slug: "concurrent-update",
-      title: "Concurrent update",
+      title: "Same-second changed title",
       summary: "Summary",
       body: "Body",
       kind: "post",
-      status: "published",
-      visibility: "public",
-      publishedAt: "2026-08-27T13:00:00.000Z",
+      status: "draft",
+      visibility: "hidden",
+      publishedAt: null,
       isPinned: 0,
       isExample: 0,
-      updatedAt: "2026-08-27T13:00:00.000Z"
+      updatedAt: "2026-08-27T12:00:00.000Z"
     };
     const execute = vi.fn()
       .mockResolvedValueOnce([{ affectedRows: 0 }, []])
-      .mockResolvedValueOnce([[publishedRow], []]);
+      .mockResolvedValueOnce([[currentDraftRow], []]);
     const repository = createPublicUpdateAdminRepository({ execute } as never);
 
-    await expect(repository.publishUpdate("concurrent-update", "domain-editor"))
-      .resolves.toMatchObject({
-        id: "concurrent-update",
-        status: "published",
-        visibility: "public"
-      });
+    await expect(repository.publishUpdate(
+      "concurrent-update",
+      "domain-editor",
+      expectedUpdate
+    )).resolves.toBe("revision-conflict");
     expect(execute).toHaveBeenCalledTimes(2);
+    const publishQuery = String(execute.mock.calls[0]?.[0]);
+    expect(publishQuery).toContain("BINARY slug = BINARY ?");
+    expect(publishQuery).toContain("BINARY title = BINARY ?");
+    expect(publishQuery).toContain("BINARY summary = BINARY ?");
+    expect(publishQuery).toContain("BINARY body = BINARY ?");
+    expect(publishQuery).toContain("BINARY kind = BINARY ?");
+    expect(publishQuery).toContain("is_pinned = ?");
+    expect(publishQuery).toContain("is_example = ?");
+    expect(publishQuery).toContain("BINARY status = BINARY ?");
+    expect(publishQuery).toContain("BINARY visibility = BINARY ?");
+    expect(publishQuery).toContain("published_at <=> ?");
+    expect(publishQuery).toContain("updated_at = ?");
+    expect(execute.mock.calls[0]?.[1]).toEqual([
+      "domain-editor",
+      "concurrent-update",
+      "concurrent-update",
+      "Previewed title",
+      "Summary",
+      "Body",
+      "post",
+      false,
+      false,
+      "draft",
+      "hidden",
+      null,
+      new Date("2026-08-27T12:00:00.000Z")
+    ]);
   });
 });

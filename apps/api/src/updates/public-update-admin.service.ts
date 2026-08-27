@@ -8,6 +8,11 @@ import type {
   PublicUpdateAdminUpdateInput
 } from "@maiks-yt/domain/updates";
 
+import {
+  createPublicUpdateAdminRevision,
+  type PublicUpdateAdminRevision
+} from "./public-update-admin-revision.service.js";
+
 import type {
   PublicUpdateAdminListResult,
   PublicUpdateAdminMutationResult,
@@ -166,6 +171,7 @@ export class PublicUpdateAdminService {
   public async publishUpdate(input: {
     authUserId: string;
     updateId: string;
+    expectedRevision: PublicUpdateAdminRevision;
   }): Promise<PublicUpdateAdminMutationResult> {
     const actor = await this.requireActor(input.authUserId);
 
@@ -179,16 +185,21 @@ export class PublicUpdateAdminService {
       return { ok: false, reason: "public_update_not_found" };
     }
 
-    if (existing.isExample) {
-      return { ok: false, reason: "public_update_example_immutable" };
-    }
-
     if (
-      existing.status === "published"
+      !existing.isExample
+      && existing.status === "published"
       && existing.visibility === "public"
       && existing.publishedAt !== null
     ) {
       return { ok: true, update: existing };
+    }
+
+    if (existing.isExample) {
+      return { ok: false, reason: "public_update_example_immutable" };
+    }
+
+    if (createPublicUpdateAdminRevision(existing) !== input.expectedRevision) {
+      return { ok: false, reason: "public_update_preview_stale" };
     }
 
     if (
@@ -212,10 +223,18 @@ export class PublicUpdateAdminService {
       return normalized;
     }
 
-    const result = await this.repository.publishUpdate(input.updateId, actor.domainUserId);
+    const result = await this.repository.publishUpdate(
+      input.updateId,
+      actor.domainUserId,
+      existing
+    );
 
     if (result === "not-found") {
       return { ok: false, reason: "public_update_not_found" };
+    }
+
+    if (result === "revision-conflict") {
+      return { ok: false, reason: "public_update_preview_stale" };
     }
 
     if (result === "state-conflict") {
@@ -273,7 +292,11 @@ export class PublicUpdateAdminService {
 
     const preview = buildPublicUpdateAdminPreview(update);
     return preview
-      ? { ok: true, update: preview }
+      ? {
+        ok: true,
+        revision: createPublicUpdateAdminRevision(update),
+        update: preview
+      }
       : { ok: false, reason: "public_update_invalid_input" };
   }
 

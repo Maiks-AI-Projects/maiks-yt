@@ -1,9 +1,11 @@
 # Current Work
 
-## 2026-08-27 production Updates editor image gate
+## 2026-08-27 production Updates editor
 
 - Generated and saved an image-first `/admin/updates` candidate at `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png`. It uses the established compact production admin shell and depicts the real draft, saved-preview, publish/unpublish, status-filter, and pinning workflow supported by the production Updates API.
-- The candidate is explicitly unapproved. No editor UI was implemented, and it must not become the acceptance reference until Michael approves it or requests a revision. No runtime code, API, schema, migration, deployment, or server state changed.
+- Michael approved the candidate on 2026-08-27 as the exact acceptance direction. `/admin/updates` now implements its compact two-pane inventory/editor, search and lifecycle filters, stacked editor, connected save-preview-publish workflow, conditional saved-public preview, pinning, dirty-state protection, and publish/unpublish controls in the existing owner-only Admin shell. Ordinary example records are omitted from the editor without deleting their provenance rows.
+- Preview now returns an opaque SHA-256 revision for the exact saved source snapshot. Publish validates that revision and atomically predicates every mutable content and lifecycle field, so another save cannot replace the reviewed content between preview and publish. Same-second edits fail with bounded stale-preview copy, while a repeated request after successful publication truthfully returns the current published row.
+- Independent GPT-5.5 review is clean after the visual-fidelity and concurrency corrections. `pnpm check:review` passes with 151 domain tests, 526 API tests, the production Web build including `/admin/updates`, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks. No GUI or browser verification was performed under Michael's desktop-control stop order. Live MariaDB predicate execution, signed-in owner workflow verification, deployment, and public release remain separate gates.
 
 ## 2026-08-27 production reachability reconciliation
 

@@ -4,6 +4,10 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { PublicUpdateAdminService } from "./public-update-admin.service.js";
+import {
+  isPublicUpdateAdminRevision,
+  type PublicUpdateAdminRevision
+} from "./public-update-admin-revision.service.js";
 import { createPublicUpdateAdminRepository } from "./public-update-admin-store.service.js";
 import type {
   PublicUpdateAdminMutationResult,
@@ -48,6 +52,10 @@ const updatePatchPayloadSchema = z.object(updatePayloadShape).partial().strict()
   "at_least_one_update_field_required"
 );
 
+const publishPayloadSchema = z.object({
+  expectedRevision: z.custom<PublicUpdateAdminRevision>(isPublicUpdateAdminRevision)
+}).strict();
+
 const sendMutationResult = (
   result: PublicUpdateAdminMutationResult,
   reply: FastifyReply
@@ -63,6 +71,7 @@ const sendMutationResult = (
       ? 400
       : result.reason === "public_update_slug_conflict"
         || result.reason === "public_update_example_immutable"
+        || result.reason === "public_update_preview_stale"
         || result.reason === "public_update_must_be_draft"
         ? 409
         : 404;
@@ -211,17 +220,21 @@ export const registerPublicUpdateAdminRoutes = (
     run: (service: Pick<PublicUpdateAdminService, "publishUpdate" | "unpublishUpdate">, input: {
       authUserId: string;
       updateId: string;
+      expectedRevision?: string;
     }) => Promise<PublicUpdateAdminMutationResult>
   ): void => {
     server.post<{ Params: { id: string } }>(`/admin/updates/:id/${action}`, async (request, reply) => {
       const session = await getSession(request, reply);
       const parsedParams = updateIdParamsSchema.safeParse(request.params);
+      const parsedBody = action === "publish"
+        ? publishPayloadSchema.safeParse(request.body)
+        : { success: true as const, data: {} };
 
       if (!session) {
         return unavailableResult(reply);
       }
 
-      if (!parsedParams.success) {
+      if (!parsedParams.success || !parsedBody.success) {
         reply.code(400);
         return { ok: false, reason: "public_update_invalid_input" };
       }
@@ -229,7 +242,8 @@ export const registerPublicUpdateAdminRoutes = (
       try {
         return sendMutationResult(await run(getService(), {
           authUserId: session.user.id,
-          updateId: parsedParams.data.id
+          updateId: parsedParams.data.id,
+          ...("expectedRevision" in parsedBody.data ? { expectedRevision: parsedBody.data.expectedRevision } : {})
         }), reply);
       } catch (error) {
         server.log.warn({ err: error, action }, "Public update admin state change failed.");
@@ -239,7 +253,13 @@ export const registerPublicUpdateAdminRoutes = (
     });
   };
 
-  registerUpdateAction("publish", async (service, input) => await service.publishUpdate(input));
+  registerUpdateAction("publish", async (service, input) => isPublicUpdateAdminRevision(input.expectedRevision)
+    ? await service.publishUpdate({
+      authUserId: input.authUserId,
+      updateId: input.updateId,
+      expectedRevision: input.expectedRevision
+    })
+    : { ok: false, reason: "public_update_invalid_input" });
   registerUpdateAction("unpublish", async (service, input) => await service.unpublishUpdate(input));
 
   server.get<{ Params: { id: string } }>("/admin/updates/:id/preview", async (request, reply) => {

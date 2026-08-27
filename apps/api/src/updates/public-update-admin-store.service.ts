@@ -12,9 +12,10 @@ import type {
   PublicUpdateAdminActor,
   PublicUpdateAdminRepository
 } from "./public-update-admin.types.js";
+import { createPublicUpdateAdminRevision } from "./public-update-admin-revision.service.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
-type SqlValue = string | boolean;
+type SqlValue = string | boolean | Date | null;
 
 type PublicUpdateAdminRow = {
   id: string;
@@ -238,14 +239,39 @@ export const createPublicUpdateAdminRepository = (
     return await assertReadUpdate(pool, id);
   },
 
-  async publishUpdate(id, actorUserId) {
+  async publishUpdate(id, actorUserId, expectedUpdate) {
     const [result] = await pool.execute(
       `
         UPDATE public_updates
         SET status = 'published', visibility = 'public', published_at = COALESCE(published_at, NOW()), updated_by_user_id = ?, updated_at = NOW()
-        WHERE id = ? AND is_example = false AND status = 'draft' AND visibility = 'hidden' AND published_at IS NULL
+        WHERE id = ?
+          AND BINARY slug = BINARY ?
+          AND BINARY title = BINARY ?
+          AND BINARY summary = BINARY ?
+          AND BINARY body = BINARY ?
+          AND BINARY kind = BINARY ?
+          AND is_pinned = ?
+          AND is_example = ?
+          AND BINARY status = BINARY ?
+          AND BINARY visibility = BINARY ?
+          AND published_at <=> ?
+          AND updated_at = ?
       `,
-      [actorUserId, id]
+      [
+        actorUserId,
+        id,
+        expectedUpdate.slug,
+        expectedUpdate.title,
+        expectedUpdate.summary,
+        expectedUpdate.body,
+        expectedUpdate.kind,
+        expectedUpdate.isPinned,
+        expectedUpdate.isExample,
+        expectedUpdate.status,
+        expectedUpdate.visibility,
+        expectedUpdate.publishedAt ? new Date(expectedUpdate.publishedAt) : null,
+        new Date(expectedUpdate.updatedAt)
+      ]
     );
 
     if (typeof result === "object" && result !== null && "affectedRows" in result && result.affectedRows === 0) {
@@ -255,12 +281,16 @@ export const createPublicUpdateAdminRepository = (
         return "not-found";
       }
 
-      return !current.isExample
+      if (!current.isExample
         && current.status === "published"
         && current.visibility === "public"
-        && current.publishedAt !== null
-        ? current
-        : "state-conflict";
+        && current.publishedAt !== null) {
+        return current;
+      }
+
+      return createPublicUpdateAdminRevision(current) === createPublicUpdateAdminRevision(expectedUpdate)
+        ? "state-conflict"
+        : "revision-conflict";
     }
 
     return await assertReadUpdate(pool, id);

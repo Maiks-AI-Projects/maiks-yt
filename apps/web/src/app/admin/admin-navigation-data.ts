@@ -9,6 +9,7 @@ import {
   FaKey,
   FaLink,
   FaMusic,
+  FaNewspaper,
   FaPlug,
   FaRoute,
   FaShieldHalved,
@@ -137,6 +138,12 @@ export const adminNavigationGroups: readonly AdminNavigationGroup[] = [
         label: "Games",
         description: "Curate the game library and stream planning links.",
         icon: FaGamepad
+      },
+      {
+        href: "/admin/updates",
+        label: "Updates",
+        description: "Draft, preview, publish, and unpublish public updates.",
+        icon: FaNewspaper
       },
       {
         href: "/admin/music",

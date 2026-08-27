@@ -5,6 +5,8 @@ import type {
   PublicUpdateSource
 } from "@maiks-yt/domain/updates";
 
+import type { PublicUpdateAdminRevision } from "./public-update-admin-revision.service.js";
+
 export type PublicUpdateAdminActor = {
   domainUserId: string;
   rolePermissionValues: readonly unknown[];
@@ -25,11 +27,12 @@ export type PublicUpdateAdminMutationResult =
       | "public_update_invalid_input"
       | "public_update_slug_conflict"
       | "public_update_example_immutable"
+      | "public_update_preview_stale"
       | "public_update_must_be_draft";
   };
 
 export type PublicUpdateAdminPreviewResult =
-  | { ok: true; update: PublicUpdateDetail }
+  | { ok: true; revision: PublicUpdateAdminRevision; update: PublicUpdateDetail }
   | {
     ok: false;
     reason:
@@ -49,6 +52,10 @@ export interface PublicUpdateAdminRepository {
   updateUpdate(id: string, input: PublicUpdateAdminUpdateInput & {
     actorUserId: string;
   }): Promise<PublicUpdateSource | "not-found" | "slug-conflict">;
-  publishUpdate(id: string, actorUserId: string): Promise<PublicUpdateSource | "not-found" | "state-conflict">;
+  publishUpdate(
+    id: string,
+    actorUserId: string,
+    expectedUpdate: PublicUpdateSource
+  ): Promise<PublicUpdateSource | "not-found" | "revision-conflict" | "state-conflict">;
   unpublishUpdate(id: string, actorUserId: string): Promise<PublicUpdateSource | "not-found">;
 }

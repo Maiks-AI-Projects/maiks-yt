@@ -2,9 +2,9 @@
 
 ## Status
 
-`admin-updates-candidate-v1.png` is an unapproved image-first candidate for `/admin/updates`.
+Michael approved `admin-updates-candidate-v1.png` on 2026-08-27 as the implementation direction for `/admin/updates`.
 
-Do not implement the material page design until Michael approves this image or requests a revised candidate. After approval, preserve the production admin shell and implement the real behavior against the existing production Updates API.
+Treat this image as the acceptance reference. Preserve the production admin shell and implement the real behavior against the existing production Updates API. Deployment and live signed-in verification remain separate gates.
 
 ## Required behavior represented
 
