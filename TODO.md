@@ -301,7 +301,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Omit fake overlay injection and fake/local moderation command routes from production API registration while retaining the development/test harness outside production. Preserve real overlay reads, live transport, scene controls, provider chat, and provider moderation.
   - [x] Omit the unauthenticated realtime spike event echo, SSE heartbeat, and WebSocket echo routes from production registration while retaining the transport experiment outside production.
   - [x] Remove the dev owner-token mint, simulated Event Routing dispatch, and dev notification-post routes from the production route table while preserving their non-production testing workflows and real owner notification routes.
-  - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API with clearly labelled backend example records.
+  - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API; keep labelled fixtures outside production and publish only real records on production.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.
 
