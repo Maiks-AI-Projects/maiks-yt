@@ -1,12 +1,19 @@
 # Current Work
 
+## 2026-08-27 production not-found status correction
+
+- Confirmed that the approved not-found UI was rendered with HTTP `200` because the root App Router `loading.tsx` started streaming before dynamic routes could call `notFound()`.
+- Removed only the generic root loading boundary and added blocking architecture rule `WEB001` so it cannot be reintroduced without addressing the HTTP contract. Page-specific behavior and the approved not-found design are unchanged.
+- `pnpm check:review` passed. Local production-server checks returned `404` for random, retired admin/dev, missing project, and missing update routes while Home remained `200`.
+- Deployed web-only revision `986a48b` with the previous web image retained as `maiks-yt-production:rollback-501613c-web`. Live checks now return the same expected statuses; web is healthy with zero restarts, and API, overlay, and control were not recreated.
+
 ## 2026-08-27 production deployment and tunnel recovery
 
 - Restored the dedicated `maiks.yt` Cloudflare tunnel after proving its stopped container was pinned to `192.168.187.2`, which Docker had reassigned to the healthy production web container after a restart. Removed only the stale tunnel IP pin, reconnected it dynamically at `192.168.187.7`, and left the unrelated `mmc.onl` tunnel unchanged.
 - Verified `maiks.yt`, `www.maiks.yt`, `api.maiks.yt/health`, `overlay.maiks.yt`, and `control.maiks.yt` all return `200` with four registered tunnel connections.
 - Ran `pnpm check:full`, pushed the reviewed `production` fast-forward, preserved the previous images under rollback tags, and deployed revision `501613c` as one shared image across web, API, overlay, and control.
 - All four containers are healthy with zero restarts and no error-class log lines since deployment. Public smoke covered Home, Progress, Schedule, Projects, Games, Updates, Links, Community Rules, Analytics Privacy, Accountability, Affiliates, Support, Channels, Sponsors, Interactions, and Music.
-- The retired dev test console, Gemini lab, Live Helper page, and old Admin Testing page now render the production 404 experience. Next currently streams those dynamic not-found responses with HTTP `200`; that status-code correctness issue remains separate from the removed page behavior.
+- The retired dev test console, Gemini lab, Live Helper page, and old Admin Testing page render the production 404 experience with a real HTTP `404` after web revision `986a48b`.
 - Unauthenticated Local Agent, Games, and Backup Health admin APIs return `401`. Chrome confirmed the owner Admin shell fails closed while signed out. Real owner-session, installed-PWA, provider, OBS, music-output, and streaming-PC Local Agent verification remain open.
 
 ## 2026-08-27 sanitized Backup Health failures
@@ -60,7 +67,7 @@
 - Removed the Layout Lab static fallback and dev seed. Public Creator Links now fail closed for old database rows targeting `/dev` or `/gemini-lab`, while similarly named public and external destinations remain valid.
 - Kept the sanitized owner/helper `/admin/live-helper` API because Admin Overview and the Moderation PWA still consume its compact operational summaries. It is no longer a standalone page or navigation destination.
 - Made the main Admin application owner-only. Moderators and helpers use the separate Moderation PWA instead of entering a partial admin shell.
-- Focused domain and web checks pass. The production Next build no longer registers the retired routes, and revision `501613c` is deployed. The routes render the production 404 experience; correcting the streamed HTTP `200` status remains separate.
+- Focused domain and web checks pass. The production Next build no longer registers the retired routes, and web revision `986a48b` returns the production 404 experience with a real HTTP `404`.
 - This cleanup did not need the image-first design cycle because it removes obsolete routes without adding or materially redesigning a surface.
 
 ## 2026-08-27 operational PWA production slice

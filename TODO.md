@@ -40,7 +40,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Decide whether to use separate hostnames or one local reverse proxy.
 - [x] Create a realtime transport abstraction before choosing WebSocket or SSE.
 - [x] Run an early `cloudflared` tunnel spike for WebSocket and SSE.
-- [ ] Return a real HTTP `404` status for unknown and retired dynamic routes; the current production not-found page is correct, but Next streams these responses with HTTP `200`.
+- [x] Return a real HTTP `404` status for unknown and retired dynamic routes; remove the root streaming boundary and keep `WEB001` in the architecture check so the status regression cannot quietly return.
 - [x] Investigate suspicious script injection on public Cloudflare dev routes.
   - Public `https://web-dev.maiks.yt/...` responses included an unexpected script referencing `bsc-testnet-rpc.publicnode.com` and `eval`.
   - The script was not found in the repo or app worktree and did not appear when fetching the Next app directly from inside the app container.
