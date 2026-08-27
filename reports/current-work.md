@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-28 production project-admin active grants
+
+- Project-admin actor resolution now excludes revoked and expired role grants while preserving owner wildcard and active delegated `project-admin:manage` access. Linked users with no active qualifying grant continue through the existing forbidden response rather than disappearing into an authentication error.
+- Focused coverage proves the active-grant SQL boundary and service-level denial. Independent GPT-5.5 security review is clean, and the API suite passes with 559 tests plus API typecheck and diff checks.
+- No schema, migration, response shape, project CRUD behavior, UI, deployment, live MariaDB predicate rehearsal, or server state changed.
+
 ## 2026-08-28 production website Event Routing bridge
 
 - Public schedule create, update, and cancel mutations now submit real `website.schedule-changed` or `website.schedule-cancelled` events after persistence. Private schedules and game-link-only edits remain silent, and routing failures are isolated from the successful schedule write.

@@ -1,3 +1,4 @@
+import type { DatabasePool } from "@maiks-yt/database";
 import type {
   ProjectReadModelSource
 } from "@maiks-yt/domain/projects";
@@ -6,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { registerProjectAdminRoutes } from "../../src/projects/project-admin.route.js";
 import { ProjectAdminService } from "../../src/projects/project-admin.service.js";
+import { createProjectAdminRepository } from "../../src/projects/project-admin-store.service.js";
 import type {
   ProjectAdminActor,
   ProjectAdminItemInput,
@@ -700,5 +702,49 @@ describe("Project admin route boundary", () => {
       expect(response.json()).toEqual(testCase.result);
       await server.close();
     }
+  });
+});
+
+describe("Project admin mysql authorization boundary", () => {
+  it("excludes revoked and expired role grants while preserving active delegated access", async () => {
+    let actorSql = "";
+    const repository = createProjectAdminRepository({
+      execute: async (sql: string) => {
+        actorSql = sql;
+        return [[{
+          domainUserId: "domain-project-admin",
+          rolePermissions: JSON.stringify(["project-admin:manage"])
+        }]];
+      }
+    } as unknown as DatabasePool);
+
+    const actor = await repository.resolveActor("auth-project-admin");
+
+    expect(actor).toEqual({
+      domainUserId: "domain-project-admin",
+      rolePermissionValues: [JSON.stringify(["project-admin:manage"])]
+    });
+    expect(actorSql).toContain("user_roles.revoked_at IS NULL");
+    expect(actorSql).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
+  it("denies linked users when no active project-admin grant remains", async () => {
+    const repository = createProjectAdminRepository({
+      execute: async () => [[{
+        domainUserId: "domain-project-admin",
+        rolePermissions: null
+      }]]
+    } as unknown as DatabasePool);
+    const service = new ProjectAdminService({
+      ...repository,
+      listProjects: async () => {
+        throw new Error("inactive grant must not list projects");
+      }
+    });
+
+    await expect(service.listProjects({ authUserId: "auth-project-admin" })).resolves.toEqual({
+      ok: false,
+      reason: "project_admin_forbidden"
+    });
   });
 });
