@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 
+import { apiFetch } from "../dev-auth-token.js";
 import type { OverlayStatusResponse } from "../overlay/SurfaceStatus.types.js";
 
 type ChatWindowHeaderProps = {
@@ -21,7 +22,7 @@ export const ChatWindowHeader = ({ apiBaseUrl }: ChatWindowHeaderProps): ReactNo
     try {
       const url = new URL("/overlay/status", apiBaseUrl);
       url.searchParams.set("accessToken", token);
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       const result = await response.json() as OverlayStatusResponse;
 
       if (response.ok && result.ok) {
@@ -50,12 +51,11 @@ export const ChatWindowHeader = ({ apiBaseUrl }: ChatWindowHeaderProps): ReactNo
     setStatus(enabled ? "Turning emergency clean mode on." : "Restoring overlay.");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
+      const response = await apiFetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
         body: JSON.stringify({
           accessToken: token,
           enabled
         }),
-        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },

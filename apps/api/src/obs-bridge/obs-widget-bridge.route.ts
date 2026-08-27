@@ -4,6 +4,7 @@ import { obsWidgetBridgeProtocolVersion } from "@maiks-yt/events";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
+import type { RequireUrlAccessTokenForRequest } from "../url-access-token-request-access.service.js";
 import type { ObsWidgetBridgeRuntime, ObsWidgetBridgeSocket } from "./obs-widget-bridge-runtime.service.js";
 
 const bridgeQuerySchema = z.object({
@@ -45,7 +46,7 @@ type ValidateUrlAccessToken = (input: {
   scope: string;
   surface: "control-panel" | "overlay";
   token: string;
-}) => Promise<{ valid: boolean; reason?: string }>;
+}) => Promise<{ valid: boolean; requiresLogin: boolean; reason?: string }>;
 
 const readBearerToken = (authorizationHeader: string | undefined): string | null => {
   if (!authorizationHeader?.startsWith("Bearer ")) {
@@ -60,6 +61,7 @@ const readBearerToken = (authorizationHeader: string | undefined): string | null
 export const registerObsWidgetBridgeRoute = (
   server: FastifyInstance,
   dependencies: {
+    requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest;
     runtime: ObsWidgetBridgeRuntime;
     validateUrlAccessToken: ValidateUrlAccessToken;
   }
@@ -75,17 +77,19 @@ export const registerObsWidgetBridgeRoute = (
       };
     }
 
-    const tokenValidation = await dependencies.validateUrlAccessToken({
+    const tokenValidation = await dependencies.requireUrlAccessTokenForRequest(request, {
+      deniedReason: "control_panel_access_denied",
       token: parsedRequest.data.accessToken,
       surface: "control-panel",
-      scope: "control:open"
+      scope: "control:open",
+      userUnlinkedReason: "control_panel_user_unlinked"
     });
 
-    if (!tokenValidation.valid) {
-      reply.code(403);
+    if (!tokenValidation.ok) {
+      reply.code(tokenValidation.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: tokenValidation.reason
       };
     }
 

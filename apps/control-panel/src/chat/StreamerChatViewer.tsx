@@ -1,7 +1,7 @@
 import type { StreamerChatLiveMessage, StreamerChatMessage } from "@maiks-yt/events";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { createApiHeaders } from "../dev-auth-token.js";
+import { apiFetch } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
 import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
@@ -165,17 +165,16 @@ export const StreamerChatViewer = ({
     );
 
     try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/moderation/${action}`, {
+      const response = await apiFetch(`${apiBaseUrl}/streamer-chat/moderation/${action}`, {
         body: JSON.stringify({
           accessToken: token,
           durationSeconds: action === "allow" && allowScope === "timed" ? 4 * 60 * 60 : null,
           scope: action === "allow" ? allowScope ?? "always" : undefined,
           targetMessageId: message.id
         }),
-        credentials: "include",
-        headers: createApiHeaders({
+        headers: {
           "Content-Type": "application/json"
-        }),
+        },
         method: "POST"
       });
       const result = await response.json() as StreamerChatModerationResponse;
@@ -231,7 +230,7 @@ export const StreamerChatViewer = ({
     setActionStatus("Sending local moderation command.");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/fake-local-chat/moderation/commands`, {
+      const response = await apiFetch(`${apiBaseUrl}/fake-local-chat/moderation/commands`, {
         body: JSON.stringify({
           action,
           targetMessageId: action === "hide_message" ? message.id : null,
@@ -239,10 +238,9 @@ export const StreamerChatViewer = ({
           durationSeconds: action === "temporary_mute_author" ? defaultTemporaryMuteDurationSeconds : null,
           note
         }),
-        credentials: "include",
-        headers: createApiHeaders({
+        headers: {
           "Content-Type": "application/json"
-        }),
+        },
         method: "POST"
       });
       const result = await response.json() as FakeLocalModerationResponse;
@@ -299,17 +297,16 @@ export const StreamerChatViewer = ({
     );
 
     try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/moderation/provider-action`, {
+      const response = await apiFetch(`${apiBaseUrl}/streamer-chat/moderation/provider-action`, {
         body: JSON.stringify({
           accessToken: token,
           action,
           durationSeconds: action === "timeout_author" ? defaultTemporaryMuteDurationSeconds : null,
           targetMessageId: message.id
         }),
-        credentials: "include",
-        headers: createApiHeaders({
+        headers: {
           "Content-Type": "application/json"
-        }),
+        },
         method: "POST"
       });
       const result = await response.json() as StreamerChatProviderModerationResponse;
@@ -365,7 +362,7 @@ export const StreamerChatViewer = ({
       try {
         const url = new URL("/streamer-chat/messages", apiBaseUrl);
         url.searchParams.set("accessToken", token);
-        const response = await fetch(url);
+        const response = await apiFetch(url);
 
         if (!response.ok) {
           throw new Error(`Streamer chat failed with ${response.status}.`);

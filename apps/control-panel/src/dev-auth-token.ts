@@ -46,3 +46,10 @@ export const createApiHeaders = (headers: HeadersInit = {}): HeadersInit => {
 
   return nextHeaders;
 };
+
+export const apiFetch = async (input: string | URL, init: RequestInit = {}): Promise<Response> =>
+  await fetch(input, {
+    ...init,
+    credentials: "include",
+    headers: createApiHeaders(init.headers)
+  });

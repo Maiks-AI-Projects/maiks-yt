@@ -1,6 +1,6 @@
 import { validateUrlAccessGate } from "@maiks-yt/ui";
 
-import { createApiHeaders } from "../dev-auth-token.js";
+import { apiFetch } from "../dev-auth-token.js";
 
 export type ControlPanelAuthState =
   | { status: "checking" }
@@ -55,10 +55,7 @@ export const validateControlPanelAccess = async (apiBaseUrl: string): Promise<Co
   }
 
   try {
-    const sessionResponse = await fetch(`${apiBaseUrl}/account/session`, {
-      credentials: "include",
-      headers: createApiHeaders()
-    });
+    const sessionResponse = await apiFetch(`${apiBaseUrl}/account/session`);
 
     if (!sessionResponse.ok) {
       return {

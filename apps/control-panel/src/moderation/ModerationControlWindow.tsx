@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { chatSourceLabels } from "../chat/chat-source-labels.service.js";
 import { formatChatTime } from "../chat/chat-time.service.js";
 import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
-import { createApiHeaders } from "../dev-auth-token.js";
+import { apiFetch } from "../dev-auth-token.js";
 import { OperationNavIcon, type OperationNavIconName } from "../operations/OperationNavIcon.js";
 import type { OverlayStatusResponse } from "../overlay/SurfaceStatus.types.js";
 import { ModerationAuditWindow } from "./ModerationAuditWindow.js";
@@ -113,10 +113,7 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
         access.actions.canViewRules ? (async (): Promise<StreamerChatModerationRule[]> => {
           const url = new URL("/streamer-chat/moderation/rules", apiBaseUrl);
           url.searchParams.set("accessToken", token);
-          const response = await fetch(url, {
-            credentials: "include",
-            headers: createApiHeaders()
-          });
+          const response = await apiFetch(url);
           const result = await response.json() as StreamerChatModerationRulesResponse;
 
           if (!response.ok || !result.ok) {
@@ -131,10 +128,7 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
         access.actions.canViewAudit ? (async (): Promise<StreamerChatModerationAuditEntry[]> => {
           const url = new URL("/streamer-chat/moderation/audit", apiBaseUrl);
           url.searchParams.set("accessToken", token);
-          const response = await fetch(url, {
-            credentials: "include",
-            headers: createApiHeaders()
-          });
+          const response = await apiFetch(url);
           const result = await response.json() as StreamerChatModerationAuditResponse;
 
           if (!response.ok || !result.ok) {
@@ -172,10 +166,7 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
     try {
       const url = new URL("/streamer-chat/moderation/access", apiBaseUrl);
       url.searchParams.set("accessToken", token);
-      const response = await fetch(url, {
-        credentials: "include",
-        headers: createApiHeaders()
-      });
+      const response = await apiFetch(url);
       const result = await response.json() as StreamerChatModerationAccessResponse;
 
       if (!response.ok) {
@@ -226,7 +217,7 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
     try {
       const url = new URL("/overlay/status", apiBaseUrl);
       url.searchParams.set("accessToken", token);
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       const result = await response.json() as OverlayStatusResponse;
 
       if (response.ok && result.ok) {
@@ -268,15 +259,14 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
     setStatus(enabled ? "Turning emergency clean mode on." : "Restoring overlay.");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
+      const response = await apiFetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
         body: JSON.stringify({
           accessToken: token,
           enabled
         }),
-        credentials: "include",
-        headers: createApiHeaders({
+        headers: {
           "Content-Type": "application/json"
-        }),
+        },
         method: "POST"
       });
 

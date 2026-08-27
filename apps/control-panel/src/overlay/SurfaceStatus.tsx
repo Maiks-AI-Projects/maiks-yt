@@ -1,5 +1,6 @@
 import type { OverlayActiveGoalState, OverlayPresentationState } from "@maiks-yt/events";
 import { useEffect, useState } from "react";
+import { apiFetch } from "../dev-auth-token.js";
 import {
   GoalWidgetSettings,
   NotificationSettings,
@@ -69,7 +70,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       return;
     }
 
-    const response = await fetch(`${apiBaseUrl}/overlay/top-bar/enabled`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/top-bar/enabled`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -102,9 +103,8 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       return;
     }
 
-    const response = await fetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
       method: "POST",
-      credentials: "include",
       headers: {
         "Content-Type": "application/json"
       },
@@ -136,7 +136,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       return;
     }
 
-    const response = await fetch(`${apiBaseUrl}/overlay/chat/visibility`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/chat/visibility`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -169,7 +169,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       return;
     }
 
-    const response = await fetch(`${apiBaseUrl}/overlay/chat/order`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/chat/order`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -209,7 +209,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       return;
     }
 
-    const response = await fetch(`${apiBaseUrl}/overlay/sponsor/visibility`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/sponsor/visibility`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -248,7 +248,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       fadeOutMs: patch.fadeOutMs ?? centerTiming.fadeOutMs,
       restMs: patch.restMs ?? centerTiming.restMs
     };
-    const response = await fetch(`${apiBaseUrl}/overlay/center/settings`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/center/settings`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -295,7 +295,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       ...overlayPresence.presentationState,
       ...patch
     };
-    const response = await fetch(`${apiBaseUrl}/overlay/presentation-state`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/presentation-state`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -340,7 +340,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       return;
     }
 
-    const response = await fetch(`${apiBaseUrl}/overlay/goal`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/goal`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

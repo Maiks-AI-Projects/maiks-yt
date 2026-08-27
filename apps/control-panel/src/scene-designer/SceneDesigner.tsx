@@ -1,6 +1,7 @@
 import type { OverlaySceneDefinition, OverlaySceneSlotDefinition, OverlaySceneSlotId } from "@maiks-yt/events";
 import { getDefaultThemeScene } from "@maiks-yt/themes";
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { apiFetch } from "../dev-auth-token.js";
 import type { OverlayScenesResponse } from "../overlay/overlay-api.types.js";
 import {
   cloneScene,
@@ -42,7 +43,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
 
     const url = new URL("/overlay/scenes", apiBaseUrl);
     url.searchParams.set("accessToken", token);
-    const response = await fetch(url);
+    const response = await apiFetch(url);
 
     if (!response.ok) {
       setStatus(`Scene load failed with ${response.status}.`);
@@ -337,7 +338,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
       return;
     }
 
-    const response = await fetch(`${apiBaseUrl}/overlay/scenes/save`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/scenes/save`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -383,7 +384,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
       label: `${selectedScene.label} Copy`,
       sceneKey: createSceneCopyKey(selectedScene.sceneKey, scenes)
     };
-    const response = await fetch(`${apiBaseUrl}/overlay/scenes/save`, {
+    const response = await apiFetch(`${apiBaseUrl}/overlay/scenes/save`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

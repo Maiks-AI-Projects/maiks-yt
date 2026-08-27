@@ -29,10 +29,8 @@ import { z } from "zod";
 
 import { createApiAuthRuntime } from "./api-auth-runtime.service.js";
 import { registerApplicationRoutes } from "./api-route-registration.service.js";
+import { createRequireUrlAccessTokenForRequest } from "./url-access-token-request-access.service.js";
 import { auth, getTrustedOrigins } from "./auth/better-auth.service.js";
-import {
-  getDomainUserForAuthUser,
-} from "./account/index.js";
 import { ChatCommandRuntime, type ChatCommandRuntimeMessage } from "./chat-commands/index.js";
 import {
   createEventRoutingDispatchRepository,
@@ -339,6 +337,11 @@ const {
   getAuthSession,
   validateUrlAccessTokenForRequest
 } = createApiAuthRuntime({ getDatabasePool });
+const requireUrlAccessTokenForRequest = createRequireUrlAccessTokenForRequest({
+  getAuthSession,
+  getDatabasePool,
+  validateUrlAccessToken: validateUrlAccessTokenForRequest
+});
 streamerChatModerationStore = new StreamerChatModerationStoreService(getDatabasePool);
 const discordChatWarningDeliveryService = new DiscordChatWarningDeliveryService();
 const discordChatModerationService = new DiscordChatModerationService();
@@ -349,33 +352,7 @@ const youtubeChatWarningDeliveryService = new YouTubeChatWarningDeliveryService(
 });
 const streamerChatModerationAccessService = new StreamerChatModerationAccessService({
   getDatabasePool,
-  validateUrlAccessToken: validateUrlAccessTokenForRequest,
-  resolveDomainUserIdForRequest: async (request) => {
-    const session = await getAuthSession(request);
-
-    if (!session) {
-      return {
-        ok: false,
-        statusCode: 401,
-        reason: "not_authenticated"
-      };
-    }
-
-    const { user } = await getDomainUserForAuthUser(getDatabasePool(), session.user, false);
-
-    if (!user) {
-      return {
-        ok: false,
-        statusCode: 403,
-        reason: "streamer_chat_moderation_user_unlinked"
-      };
-    }
-
-    return {
-      ok: true,
-      userId: user.id
-    };
-  }
+  requireUrlAccessTokenForRequest
 });
 
 const requireStreamerChatModerationPermission = async (
@@ -476,6 +453,7 @@ registerApplicationRoutes({
   twitchChatIntakeRuntime,
   twitchChatWarningDeliveryService,
   twitchChatModerationService,
+  requireUrlAccessTokenForRequest,
   validateUrlAccessTokenForRequest,
   youtubeChatWarningDeliveryService,
   youtubeLiveChatIntakeRuntime

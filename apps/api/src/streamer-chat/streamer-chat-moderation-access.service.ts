@@ -1,32 +1,10 @@
 import type { DatabasePool } from "@maiks-yt/database";
-import type { UrlAccessSurface } from "@maiks-yt/domain/security";
 import type { FastifyRequest } from "fastify";
+
+import type { RequireUrlAccessTokenForRequest } from "../url-access-token-request-access.service.js";
 
 const streamerChatModerationActions = ["hide", "ban", "warn", "allow", "provider_action", "retract_rule", "view_rules", "view_audit", "emergency_clear"] as const;
 export type StreamerChatModerationAction = typeof streamerChatModerationActions[number];
-
-type UrlAccessTokenValidation = {
-  valid: boolean;
-  requiresLogin: boolean;
-  reason?: string;
-};
-
-type ValidateUrlAccessToken = (input: {
-  scope: string;
-  surface: UrlAccessSurface;
-  token: string;
-}) => Promise<UrlAccessTokenValidation>;
-
-type DomainUserResolution =
-  | {
-    ok: true;
-    userId: string;
-  }
-  | {
-    ok: false;
-    reason: string;
-    statusCode: 401 | 403;
-  };
 
 type StreamerChatModerationAccess =
   | {
@@ -112,32 +90,35 @@ export const canViewStreamerChatModerationWindow = (permissions: readonly string
 export class StreamerChatModerationAccessService {
   public constructor(private readonly dependencies: {
     getDatabasePool: () => DatabasePool;
-    resolveDomainUserIdForRequest: (request: FastifyRequest) => Promise<DomainUserResolution>;
-    validateUrlAccessToken: ValidateUrlAccessToken;
+    requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest;
   }) {}
 
   public async resolvePermissions(
     request: FastifyRequest,
     accessToken: string
   ): Promise<StreamerChatModerationAccess> {
-    const tokenValidation = await this.dependencies.validateUrlAccessToken({
+    const tokenValidation = await this.dependencies.requireUrlAccessTokenForRequest(request, {
+      deniedReason: "control_panel_access_denied",
       token: accessToken,
       surface: "control-panel",
-      scope: "control:open"
+      scope: "control:open",
+      userUnlinkedReason: "streamer_chat_moderation_user_unlinked"
     });
 
-    if (!tokenValidation.valid) {
+    if (!tokenValidation.ok) {
       return {
         ok: false,
-        statusCode: 403,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        statusCode: tokenValidation.statusCode,
+        reason: tokenValidation.reason
       };
     }
 
-    const domainUser = await this.dependencies.resolveDomainUserIdForRequest(request);
-
-    if (!domainUser.ok) {
-      return domainUser;
+    if (!tokenValidation.user) {
+      return {
+        ok: false,
+        statusCode: 401,
+        reason: "not_authenticated"
+      };
     }
 
     const [roleRows] = await this.dependencies.getDatabasePool().execute(
@@ -150,7 +131,7 @@ export class StreamerChatModerationAccessService {
           AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
         ORDER BY roles.key
       `,
-      [domainUser.userId]
+      [tokenValidation.user.id]
     );
     const permissions = normalizeStreamerChatModerationPermissions(
       Array.isArray(roleRows)

@@ -1,6 +1,8 @@
 import { createNotificationScenario, createReplaySessionFromPreset, type EventStormPreset } from "@maiks-yt/testing";
 import { useState, type ReactNode } from "react";
 
+import { apiFetch } from "../dev-auth-token.js";
+
 type ReplayDispatchResult = {
   failed: number;
   queued: number;
@@ -67,7 +69,7 @@ export const SimulatorPanel = ({ apiBaseUrl }: SimulatorPanelProps): ReactNode =
         return "skipped";
     }
 
-    const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+    const response = await apiFetch(`${apiBaseUrl}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

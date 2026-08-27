@@ -12,11 +12,13 @@ import { OverlayRuntime } from "../../src/overlay/index.js";
 describe("OBS widget bridge API", () => {
   let server: ReturnType<typeof Fastify>;
   let overlayTokenValidationDelayMs: number;
+  let controlStatusAuthenticated: boolean;
   const validToken = "a".repeat(32);
 
   beforeEach(async () => {
     server = Fastify();
     overlayTokenValidationDelayMs = 0;
+    controlStatusAuthenticated = true;
     const overlayRuntime = new OverlayRuntime();
     const runtime = new ObsWidgetBridgeRuntime({
       createOverlaySnapshot: () => overlayRuntime.createSnapshotFromRequestedState({
@@ -30,6 +32,35 @@ describe("OBS widget bridge API", () => {
 
     await server.register(fastifyWebsocket);
     registerObsWidgetBridgeRoute(server, {
+      requireUrlAccessTokenForRequest: async (_request, { token, surface, scope, deniedReason }) => {
+        if (token === validToken && surface === "control-panel" && scope === "control:open") {
+          if (!controlStatusAuthenticated) {
+            return {
+              ok: false,
+              statusCode: 401,
+              reason: "not_authenticated"
+            };
+          }
+
+          return {
+            ok: true,
+            requiresLogin: true,
+            session: { user: { id: "auth-owner" }, session: { userId: "auth-owner" } },
+            user: {
+              id: "owner-user",
+              displayName: "Owner",
+              profileVisibility: "private",
+              avatarUrl: null
+            }
+          };
+        }
+
+        return {
+          ok: false,
+          statusCode: 403,
+          reason: deniedReason
+        };
+      },
       runtime,
       validateUrlAccessToken: async ({ token, surface, scope }) => {
         if (surface === "overlay" && overlayTokenValidationDelayMs > 0) {
@@ -77,6 +108,21 @@ describe("OBS widget bridge API", () => {
       connected: false,
       effectDelivery: "master-overlay",
       pendingEffects: 0
+    });
+  });
+
+  it("rejects status reads when a valid control token has no authenticated session", async () => {
+    controlStatusAuthenticated = false;
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/obs-bridge/status?accessToken=${validToken}`
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
     });
   });
 

@@ -1,5 +1,6 @@
 import type { OverlaySceneDefinition } from "@maiks-yt/events";
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { apiFetch } from "../dev-auth-token.js";
 import type { OverlayScenesResponse } from "./overlay-api.types.js";
 import type { OverlayPresenceState, OverlayStatusResponse } from "./SurfaceStatus.types.js";
 
@@ -29,7 +30,7 @@ export const useOverlayPresence = (apiBaseUrl: string): UseOverlayPresenceResult
       try {
         const url = new URL("/overlay/status", apiBaseUrl);
         url.searchParams.set("accessToken", token);
-        const response = await fetch(url);
+        const response = await apiFetch(url);
 
         if (!response.ok) {
           throw new Error(`Overlay status failed with ${response.status}`);
@@ -76,7 +77,7 @@ export const useOverlayPresence = (apiBaseUrl: string): UseOverlayPresenceResult
       try {
         const url = new URL("/overlay/scenes", apiBaseUrl);
         url.searchParams.set("accessToken", token);
-        const response = await fetch(url);
+        const response = await apiFetch(url);
 
         if (!response.ok) {
           throw new Error(`Overlay scenes failed with ${response.status}`);

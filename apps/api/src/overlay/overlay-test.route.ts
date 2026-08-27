@@ -47,8 +47,30 @@ export const registerOverlayTestRoutes = (
     fakeLocalModerationRuntime,
     overlayRuntime,
     recordFakeLocalStreamerChatMessage,
-    validateUrlAccessToken
+    requireUrlAccessTokenForRequest
   } = dependencies;
+
+  const requireControlPanelAccess = (
+    request: Parameters<typeof requireUrlAccessTokenForRequest>[0],
+    accessToken: string
+  ) =>
+    requireUrlAccessTokenForRequest(request, {
+      deniedReason: "control_panel_access_denied",
+      token: accessToken,
+      surface: "control-panel",
+      scope: "control:open",
+      userUnlinkedReason: "control_panel_user_unlinked"
+    });
+  const applyControlPanelAccessFailure = (
+    reply: { code: (statusCode: number) => void },
+    failure: { statusCode: 401 | 403; reason: string }
+  ): { ok: false; reason: string } => {
+    reply.code(failure.statusCode);
+    return {
+      ok: false,
+      reason: failure.reason
+    };
+  };
 
   server.post("/overlay/chat/test", async (request, reply) => {
     const parsedRequest = overlayFakeChatTestRequestSchema.safeParse(request.body);
@@ -61,18 +83,10 @@ export const registerOverlayTestRoutes = (
       };
     }
 
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
+    const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
+    if (!tokenValidation.ok) {
+      return applyControlPanelAccessFailure(reply, tokenValidation);
     }
 
     const event = createFakeChatMessageEvent({
@@ -133,18 +147,10 @@ export const registerOverlayTestRoutes = (
       };
     }
 
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
+    const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
+    if (!tokenValidation.ok) {
+      return applyControlPanelAccessFailure(reply, tokenValidation);
     }
 
     const chatEvent = createFakeChatMessageEvent({
@@ -203,18 +209,10 @@ export const registerOverlayTestRoutes = (
       };
     }
 
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
+    const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
+    if (!tokenValidation.ok) {
+      return applyControlPanelAccessFailure(reply, tokenValidation);
     }
 
     for (let index = 0; index < parsedRequest.data.count; index += 1) {
@@ -241,18 +239,10 @@ export const registerOverlayTestRoutes = (
       };
     }
 
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
+    const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
+    if (!tokenValidation.ok) {
+      return applyControlPanelAccessFailure(reply, tokenValidation);
     }
 
     if (parsedRequest.data.route === "center" && !overlayRuntime.isCenterEnabled()) {
@@ -292,18 +282,10 @@ export const registerOverlayTestRoutes = (
       };
     }
 
-    const tokenValidation = await validateUrlAccessToken({
-      token: parsedRequest.data.accessToken,
-      surface: "control-panel",
-      scope: "control:open"
-    });
+    const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.valid) {
-      reply.code(403);
-      return {
-        ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
-      };
+    if (!tokenValidation.ok) {
+      return applyControlPanelAccessFailure(reply, tokenValidation);
     }
 
     if (!overlayRuntime.isCenterEnabled()) {

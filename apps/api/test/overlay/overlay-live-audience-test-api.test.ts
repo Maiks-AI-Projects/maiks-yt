@@ -1,6 +1,10 @@
 import Fastify from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  OverlayRuntime,
+  registerOverlayRoutes
+} from "../../src/overlay/index.js";
 import { registerOverlayTestRoutes } from "../../src/overlay/overlay-test.route.js";
 
 const servers: ReturnType<typeof Fastify>[] = [];
@@ -26,6 +30,19 @@ const createServer = ({ tokenValid = true }: { tokenValid?: boolean } = {}) => {
     },
     recordFakeLocalStreamerChatMessage,
     requireStreamerChatModerationPermission: async () => ({ ok: true }),
+    requireUrlAccessTokenForRequest: async () => tokenValid
+      ? {
+        ok: true,
+        requiresLogin: true,
+        session: { user: { id: "auth-owner" }, session: { userId: "auth-owner" } },
+        user: {
+          id: "owner-user",
+          displayName: "Owner",
+          profileVisibility: "private",
+          avatarUrl: null
+        }
+      }
+      : { ok: false, statusCode: 403, reason: "invalid_token" },
     validateUrlAccessToken: async () => tokenValid
       ? { valid: true, requiresLogin: true }
       : { valid: false, requiresLogin: true, reason: "invalid_token" }
@@ -108,5 +125,138 @@ describe("POST /overlay/live-audience/test", () => {
     expect(response.statusCode).toBe(403);
     expect(response.json()).toEqual({ ok: false, reason: "invalid_token" });
     expect(broadcastMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /overlay/state", () => {
+  it("keeps overlay tokens token-only for OBS overlay reads", async () => {
+    const server = Fastify();
+    const requireUrlAccessTokenForRequest = vi.fn(async () => {
+      throw new Error("control token helper should not guard overlay:connect reads");
+    });
+    const validateUrlAccessToken = vi.fn(async () => ({
+      valid: true,
+      requiresLogin: false
+    }));
+
+    registerOverlayRoutes(server, {
+      fakeLocalModerationRuntime: {
+        isAuthorMuted: () => null
+      },
+      overlayRuntime: new OverlayRuntime(),
+      recordFakeLocalStreamerChatMessage: () => null,
+      requireStreamerChatModerationPermission: async () => ({ ok: true }),
+      requireUrlAccessTokenForRequest,
+      validateUrlAccessToken
+    });
+    servers.push(server);
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/overlay/state?accessToken=${"a".repeat(24)}`
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      snapshot: {
+        scene: "default",
+        layout: "standard"
+      }
+    });
+    expect(validateUrlAccessToken).toHaveBeenCalledWith({
+      token: "a".repeat(24),
+      surface: "overlay",
+      scope: "overlay:connect"
+    });
+    expect(requireUrlAccessTokenForRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /overlay/status", () => {
+  it("uses the request-aware control gate before returning overlay control status", async () => {
+    const server = Fastify();
+    const requireUrlAccessTokenForRequest = vi.fn(async () => ({
+      ok: false as const,
+      statusCode: 401 as const,
+      reason: "not_authenticated"
+    }));
+
+    registerOverlayRoutes(server, {
+      fakeLocalModerationRuntime: {
+        isAuthorMuted: () => null
+      },
+      overlayRuntime: new OverlayRuntime(),
+      recordFakeLocalStreamerChatMessage: () => null,
+      requireStreamerChatModerationPermission: async () => ({ ok: true }),
+      requireUrlAccessTokenForRequest,
+      validateUrlAccessToken: async () => ({ valid: false, requiresLogin: false })
+    });
+    servers.push(server);
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/overlay/status?accessToken=${"a".repeat(24)}`
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+    expect(requireUrlAccessTokenForRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        token: "a".repeat(24),
+        surface: "control-panel",
+        scope: "control:open"
+      })
+    );
+  });
+});
+
+describe("GET /overlay/scenes", () => {
+  it("rejects a valid control token when no authenticated session is present", async () => {
+    const server = Fastify();
+    const requireUrlAccessTokenForRequest = vi.fn(async () => ({
+      ok: false as const,
+      statusCode: 401 as const,
+      reason: "not_authenticated"
+    }));
+    const validateUrlAccessToken = vi.fn(async () => {
+      throw new Error("overlay token helper should not guard control scene reads");
+    });
+
+    registerOverlayRoutes(server, {
+      fakeLocalModerationRuntime: {
+        isAuthorMuted: () => null
+      },
+      overlayRuntime: new OverlayRuntime(),
+      recordFakeLocalStreamerChatMessage: () => null,
+      requireStreamerChatModerationPermission: async () => ({ ok: true }),
+      requireUrlAccessTokenForRequest,
+      validateUrlAccessToken
+    });
+    servers.push(server);
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/overlay/scenes?accessToken=${"a".repeat(24)}`
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+    expect(requireUrlAccessTokenForRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        token: "a".repeat(24),
+        surface: "control-panel",
+        scope: "control:open"
+      })
+    );
+    expect(validateUrlAccessToken).not.toHaveBeenCalled();
   });
 });

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import type { OverlayRuntime } from "./index.js";
 import type { StreamerChatModerationAction } from "../streamer-chat/index.js";
+import type { RequireUrlAccessTokenForRequest } from "../url-access-token-request-access.service.js";
 
 export const overlaySceneKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/);
 export const overlayThemeKeySchema = z.enum(["default", "satisfactory"]);
@@ -164,5 +165,6 @@ export type OverlayRouteDependencies = {
   overlayRuntime: OverlayRuntime;
   recordFakeLocalStreamerChatMessage: (event: import("@maiks-yt/events").OverlayFakeChatMessageReceivedEvent) => import("@maiks-yt/events").StreamerChatMessage | null;
   requireStreamerChatModerationPermission: RequireStreamerChatModerationPermission;
+  requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest;
   validateUrlAccessToken: ValidateUrlAccessToken;
 };

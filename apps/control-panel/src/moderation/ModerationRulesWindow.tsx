@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { chatSourceLabels } from "../chat/chat-source-labels.service.js";
 import { formatChatTime } from "../chat/chat-time.service.js";
-import { createApiHeaders } from "../dev-auth-token.js";
+import { apiFetch } from "../dev-auth-token.js";
 import { moderationRuleKindLabels, type StreamerChatModerationRule, type StreamerChatModerationRuleRetractResponse, type StreamerChatModerationRulesResponse } from "./moderation-control.types.js";
 
 export const ModerationRulesWindow = ({
@@ -27,10 +27,7 @@ export const ModerationRulesWindow = ({
     try {
       const url = new URL("/streamer-chat/moderation/rules", apiBaseUrl);
       url.searchParams.set("accessToken", token);
-      const response = await fetch(url, {
-        credentials: "include",
-        headers: createApiHeaders()
-      });
+      const response = await apiFetch(url);
       const result = await response.json() as StreamerChatModerationRulesResponse;
 
       if (!response.ok) {
@@ -57,15 +54,14 @@ export const ModerationRulesWindow = ({
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/moderation/rules/retract`, {
+      const response = await apiFetch(`${apiBaseUrl}/streamer-chat/moderation/rules/retract`, {
         body: JSON.stringify({
           accessToken: token,
           ruleId: rule.id
         }),
-        credentials: "include",
-        headers: createApiHeaders({
+        headers: {
           "Content-Type": "application/json"
-        }),
+        },
         method: "POST"
       });
       const result = await response.json() as StreamerChatModerationRuleRetractResponse;

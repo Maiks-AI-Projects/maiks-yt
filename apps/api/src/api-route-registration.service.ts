@@ -72,6 +72,7 @@ import type {
 } from "@maiks-yt/integrations";
 import type { OverlayRuntime } from "./overlay/index.js";
 import type { UrlAccessSurface } from "@maiks-yt/domain/security";
+import type { RequireUrlAccessTokenForRequest } from "./url-access-token-request-access.service.js";
 
 type ValidateUrlAccessTokenForRequest = (input: {
   scope: string;
@@ -100,6 +101,7 @@ type RegisterApplicationRoutesInput = {
   providerEventIntakeLogService: ProviderEventIntakeLogService;
   recordFakeLocalStreamerChatMessage: (event: OverlayFakeChatMessageReceivedEvent) => StreamerChatMessage | null;
   requireStreamerChatModerationPermission: RequireStreamerChatModerationPermission;
+  requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest;
   server: FastifyInstance;
   streamerChatModerationAccessService: StreamerChatModerationAccessService;
   streamerChatModerationRuntime: InMemoryStreamerChatModerationRuntime;
@@ -128,6 +130,7 @@ export const registerApplicationRoutes = ({
   providerEventIntakeLogService,
   recordFakeLocalStreamerChatMessage,
   requireStreamerChatModerationPermission,
+  requireUrlAccessTokenForRequest,
   server,
   streamerChatModerationAccessService,
   streamerChatModerationRuntime,
@@ -300,10 +303,10 @@ export const registerApplicationRoutes = ({
   });
   registerStreamerChatControlRoutes(server, {
     discordChatIntakeRuntime,
+    requireUrlAccessTokenForRequest,
     streamerChatRuntime,
     twitchChatIntakeRuntime,
     youtubeLiveChatIntakeRuntime,
-    validateUrlAccessToken: validateUrlAccessTokenForRequest
   });
   registerStreamerChatModerationRoutes(server, {
     accessService: streamerChatModerationAccessService,
@@ -321,9 +324,11 @@ export const registerApplicationRoutes = ({
     overlayRuntime,
     recordFakeLocalStreamerChatMessage,
     requireStreamerChatModerationPermission,
+    requireUrlAccessTokenForRequest,
     validateUrlAccessToken: validateUrlAccessTokenForRequest
   });
   registerObsWidgetBridgeRoute(server, {
+    requireUrlAccessTokenForRequest,
     runtime: obsWidgetBridgeRuntime,
     validateUrlAccessToken: validateUrlAccessTokenForRequest
   });

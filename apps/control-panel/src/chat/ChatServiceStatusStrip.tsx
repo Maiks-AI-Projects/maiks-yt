@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { formatChatTime } from "./chat-time.service.js";
-import { withDevAuthToken } from "../dev-auth-token.js";
+import { apiFetch, withDevAuthToken } from "../dev-auth-token.js";
 import { createWebUrl } from "../runtime-config.service.js";
 import {
   discordIntakeStateLabels,
@@ -52,7 +52,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
     try {
       const url = new URL("/streamer-chat/twitch-status", apiBaseUrl);
       url.searchParams.set("accessToken", token);
-      const response = await fetch(url);
+      const response = await apiFetch(url);
 
       if (!response.ok) {
         throw new Error(`Twitch intake status failed with ${response.status}.`);
@@ -86,7 +86,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
     try {
       const url = new URL("/streamer-chat/discord-status", apiBaseUrl);
       url.searchParams.set("accessToken", token);
-      const response = await fetch(url);
+      const response = await apiFetch(url);
 
       if (!response.ok) {
         throw new Error(`Discord intake status failed with ${response.status}.`);
@@ -120,7 +120,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
     try {
       const url = new URL("/streamer-chat/youtube-status", apiBaseUrl);
       url.searchParams.set("accessToken", token);
-      const response = await fetch(url);
+      const response = await apiFetch(url);
 
       if (!response.ok) {
         throw new Error(`YouTube live-chat status failed with ${response.status}.`);
@@ -183,7 +183,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
     setMessage("Trying to reconnect Twitch chat.");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/twitch-reconnect`, {
+      const response = await apiFetch(`${apiBaseUrl}/streamer-chat/twitch-reconnect`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -233,7 +233,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
     setDiscordMessage("Trying to reconnect Discord chat.");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/discord-reconnect`, {
+      const response = await apiFetch(`${apiBaseUrl}/streamer-chat/discord-reconnect`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -283,7 +283,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
     setYouTubeMessage("Starting YouTube live-chat polling.");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/streamer-chat/youtube-reconnect`, {
+      const response = await apiFetch(`${apiBaseUrl}/streamer-chat/youtube-reconnect`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

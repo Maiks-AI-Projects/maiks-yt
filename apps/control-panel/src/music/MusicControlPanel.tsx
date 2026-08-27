@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { createApiHeaders } from "../dev-auth-token.js";
+import { apiFetch } from "../dev-auth-token.js";
 import { apiBaseUrl, createWebUrl } from "../runtime-config.service.js";
 
 type MusicPlaybackStatus = "idle" | "loading" | "playing" | "paused" | "blocked" | "error";
@@ -43,11 +43,9 @@ const requestPlayback = async <TResult,>(
   path: string,
   init: RequestInit = {}
 ): Promise<TResult> => {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
+  const response = await apiFetch(`${apiBaseUrl}${path}`, {
     cache: "no-store",
-    credentials: "include",
     ...init,
-    headers: createApiHeaders(init.headers)
   });
 
   return await response.json() as TResult;

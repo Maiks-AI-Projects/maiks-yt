@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { createApiHeaders } from "../dev-auth-token.js";
+import { apiFetch } from "../dev-auth-token.js";
 
 type ActionItemDecision = "approve" | "reject" | "defer";
 type ActionItemStatus = "approved" | "completed" | "deferred" | "open" | "rejected";
@@ -76,10 +76,7 @@ export const ControlActionsPanel = ({ apiBaseUrl }: ControlActionsPanelProps): R
 
   const loadActions = useCallback(async (): Promise<void> => {
     try {
-      const response = await fetch(`${apiBaseUrl}/actions?live=true`, {
-        credentials: "include",
-        headers: createApiHeaders()
-      });
+      const response = await apiFetch(`${apiBaseUrl}/actions?live=true`);
       const result = await response.json() as ControlActionsResponse;
 
       if (!response.ok) {
@@ -111,15 +108,14 @@ export const ControlActionsPanel = ({ apiBaseUrl }: ControlActionsPanelProps): R
     setStatus(`Saving ${decision} decision.`);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/actions/${encodeURIComponent(item.id)}/decision`, {
+      const response = await apiFetch(`${apiBaseUrl}/actions/${encodeURIComponent(item.id)}/decision`, {
         body: JSON.stringify({
           decision,
           expectedStatus: item.status
         }),
-        credentials: "include",
-        headers: createApiHeaders({
+        headers: {
           "Content-Type": "application/json"
-        }),
+        },
         method: "POST"
       });
       const result = await response.json() as ControlActionDecisionResponse;
