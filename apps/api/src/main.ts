@@ -42,7 +42,9 @@ import {
 import {
   loadLocalAgentServerConfig,
   LocalAgentRuntimeService,
-  registerLocalAgentRoutes
+  readBearerCredential,
+  registerLocalAgentRoutes,
+  validateLocalAgentCredential
 } from "./local-agent/index.js";
 import { registerMusicRoutes } from "./music/index.js";
 import {
@@ -109,8 +111,9 @@ await server.register(fastifyCors, {
 await server.register(fastifyWebsocket);
 
 const localAgentRuntime = new LocalAgentRuntimeService();
+const localAgentServerConfig = loadLocalAgentServerConfig();
 registerLocalAgentRoutes(server, {
-  config: loadLocalAgentServerConfig(),
+  config: localAgentServerConfig,
   runtime: localAgentRuntime
 });
 
@@ -479,6 +482,13 @@ registerApplicationRoutes({
 registerMusicRoutes(server, {
   getAuthSession,
   getDatabasePool,
+  localAgentRuntime,
+  publicApiBaseUrl: config.publicBaseUrl,
+  validateLocalAgentAuthorizationForRequest: (authorization) =>
+    validateLocalAgentCredential(
+      localAgentServerConfig.token,
+      readBearerCredential(authorization)
+    ),
   validateUrlAccessTokenForRequest
 });
 

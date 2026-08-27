@@ -9,6 +9,7 @@ import { ModuleCommandError, type AgentModule } from "./agent-module.types.js";
 export class ModuleHost {
   readonly #modules: Map<string, AgentModule>;
   readonly #startedModules: AgentModule[] = [];
+  readonly #statusListeners = new Set<() => void>();
 
   constructor(modules: readonly AgentModule[]) {
     this.#modules = new Map();
@@ -23,7 +24,7 @@ export class ModuleHost {
   async start(signal: AbortSignal): Promise<void> {
     try {
       for (const module of this.#modules.values()) {
-        await module.start({ signal });
+        await module.start({ signal, reportStatus: () => this.#reportStatus() });
         this.#startedModules.push(module);
       }
     } catch (error) {
@@ -54,6 +55,11 @@ export class ModuleHost {
     return [...this.#modules.values()].map((module) => module.getStatus());
   }
 
+  subscribeToStatusChanges(listener: () => void): () => void {
+    this.#statusListeners.add(listener);
+    return () => this.#statusListeners.delete(listener);
+  }
+
   async execute(command: CommandEnvelope, signal: AbortSignal): Promise<JsonValue> {
     const module = this.#modules.get(command.capability);
     if (!module) {
@@ -63,5 +69,11 @@ export class ModuleHost {
       );
     }
     return module.execute(command, { signal });
+  }
+
+  #reportStatus(): void {
+    for (const listener of this.#statusListeners) {
+      listener();
+    }
   }
 }

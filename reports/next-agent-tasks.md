@@ -3,9 +3,9 @@
 ## Production Local Agent Follow-Up
 
 - `apps/local-agent` now provides the tested single outbound service foundation. Keep local streaming-PC integrations as focused modules in this service instead of creating unrelated background apps.
-- The authenticated outbound-agent WebSocket now exists and requires a dedicated environment token plus configured agent/device identity. Next credential work is owner-visible sanitized last-seen/capability status and managed rotation/revocation without exposing the token.
-- The VLC module now executes against `stream_music`. Next music slice: map existing Maiks.yt play/pause/resume/stop/seek/volume/skip state to agent commands, add authenticated media retrieval without placing bearer credentials in URLs or process arguments, and retain `/music/player` as fallback.
-- Do not install or start the user service until the server endpoint exists and the credential plus live proof plan are reviewed. Live proof must cover reconnect, restart-safe dedupe, Private-only cue/TTS, Music-only VLC output, fallback, and clean shutdown.
+- The authenticated outbound-agent WebSocket and production music projection now exist. The agent downloads bounded audio using its dedicated bearer only against the configured API origin, controls VLC on `stream_music`, reports lifecycle state, and releases to `/music/player` on disconnect or play failure.
+- Next credential work is owner-visible sanitized last-seen/capability status and managed rotation/revocation without exposing the token.
+- Do not install or start the user service while the production host is unreachable. Once reachability returns, configure the dedicated credential/device identity deliberately and run a real proof covering reconnect, restart-safe dedupe, automatic next track, Private-only cue/TTS, Music-only VLC output, browser fallback, temporary-file cleanup, and clean shutdown.
 
 ## OBS Companion Follow-Up
 

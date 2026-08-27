@@ -29,11 +29,20 @@ type CommandRecord = {
   command: CommandEnvelope;
 };
 
+export type LocalAgentRuntimeStatus = ReturnType<LocalAgentRuntimeService["getStatus"]>;
+export type LocalAgentStatusListener = (status: LocalAgentRuntimeStatus) => void;
+export type LocalAgentAcknowledgementListener = (
+  acknowledgement: CommandAcknowledgement,
+  command: CommandEnvelope
+) => void;
+
 const maxCommandRecords = 256;
 
 export class LocalAgentRuntimeService {
   #active: ActiveConnection | null = null;
   readonly #commands = new Map<string, CommandRecord>();
+  readonly #statusListeners = new Set<LocalAgentStatusListener>();
+  readonly #acknowledgementListeners = new Set<LocalAgentAcknowledgementListener>();
 
   register(input: {
     capabilities: readonly CapabilityRegistration[];
@@ -54,6 +63,7 @@ export class LocalAgentRuntimeService {
       connectionId,
       lastSeenAt: now
     };
+    this.#notifyStatus();
 
     return { connectionId, serverTime: now };
   }
@@ -68,6 +78,7 @@ export class LocalAgentRuntimeService {
 
     this.#active!.lastSeenAt = new Date().toISOString();
     this.#active!.status = input.status;
+    this.#notifyStatus();
     return true;
   }
 
@@ -86,6 +97,9 @@ export class LocalAgentRuntimeService {
 
     record.acknowledgement = structuredClone(input.acknowledgement);
     this.#active!.lastSeenAt = new Date().toISOString();
+    for (const listener of this.#acknowledgementListeners) {
+      listener(structuredClone(input.acknowledgement), structuredClone(record.command));
+    }
     return true;
   }
 
@@ -131,7 +145,18 @@ export class LocalAgentRuntimeService {
   close(connectionId: string): void {
     if (this.#active?.connectionId === connectionId) {
       this.#active = null;
+      this.#notifyStatus();
     }
+  }
+
+  subscribeToStatus(listener: LocalAgentStatusListener): () => void {
+    this.#statusListeners.add(listener);
+    return () => this.#statusListeners.delete(listener);
+  }
+
+  subscribeToAcknowledgements(listener: LocalAgentAcknowledgementListener): () => void {
+    this.#acknowledgementListeners.add(listener);
+    return () => this.#acknowledgementListeners.delete(listener);
   }
 
   getStatus(): {
@@ -176,6 +201,13 @@ export class LocalAgentRuntimeService {
         return;
       }
       this.#commands.delete(oldestKey);
+    }
+  }
+
+  #notifyStatus(): void {
+    const status = this.getStatus();
+    for (const listener of this.#statusListeners) {
+      listener(status);
     }
   }
 }

@@ -24,6 +24,7 @@ export type VlcMusicSnapshot = {
 export type VlcMusicPlayRequest = {
   playbackId: string;
   sourceUrl: string;
+  startPaused: boolean;
   startAtSeconds: number;
   volumePercent: number;
 };
@@ -37,6 +38,7 @@ export interface VlcMusicBackend {
   seek(playbackId: string, positionSeconds: number): Promise<VlcMusicSnapshot>;
   setVolume(volumePercent: number): Promise<VlcMusicSnapshot>;
   getSnapshot(): VlcMusicSnapshot;
+  subscribe(listener: (snapshot: VlcMusicSnapshot) => void): () => void;
   shutdown(): Promise<void>;
 }
 

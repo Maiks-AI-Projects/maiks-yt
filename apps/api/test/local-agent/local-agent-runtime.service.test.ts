@@ -62,4 +62,68 @@ describe("LocalAgentRuntimeService", () => {
       }
     })).toBe(false);
   });
+
+  it("publishes bounded status and acknowledgement changes to consumers", () => {
+    const runtime = new LocalAgentRuntimeService();
+    const statusListener = vi.fn();
+    const acknowledgementListener = vi.fn();
+    runtime.subscribeToStatus(statusListener);
+    runtime.subscribeToAcknowledgements(acknowledgementListener);
+    runtime.register({
+      capabilities: [{
+        id: "vlc-music",
+        version: 1,
+        actions: ["status.get"],
+        availability: "available"
+      }],
+      identity,
+      socket: { close: vi.fn(), send: vi.fn() },
+      status
+    });
+    const issued = runtime.issueCommand({
+      capability: "vlc-music",
+      action: "status.get",
+      payload: {}
+    });
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) {
+      return;
+    }
+
+    runtime.heartbeat({
+      identity,
+      status: {
+        ...status,
+        modules: [{
+          capabilityId: "vlc-music",
+          availability: "available",
+          state: { playbackId: "playback-1", status: "ended" }
+        }]
+      }
+    });
+    runtime.acknowledge({
+      identity,
+      acknowledgement: {
+        eventId: issued.command.eventId,
+        commandId: issued.command.commandId,
+        status: "succeeded",
+        acknowledgedAt: new Date().toISOString(),
+        replayed: false,
+        result: { playbackId: "playback-1", status: "playing" }
+      }
+    });
+
+    expect(statusListener).toHaveBeenLastCalledWith(expect.objectContaining({
+      connected: true,
+      status: expect.objectContaining({
+        modules: [expect.objectContaining({
+          state: { playbackId: "playback-1", status: "ended" }
+        })]
+      })
+    }));
+    expect(acknowledgementListener).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "succeeded" }),
+      expect.objectContaining({ action: "status.get" })
+    );
+  });
 });

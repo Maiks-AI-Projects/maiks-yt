@@ -25,7 +25,8 @@ const identitySchema = z.object({
 const moduleStatusSchema = z.object({
   capabilityId: identifierSchema,
   availability: z.enum(["available", "degraded", "unavailable"]),
-  detail: z.string().trim().min(1).max(240).optional()
+  detail: z.string().trim().min(1).max(240).optional(),
+  state: z.json().optional()
 }).strict();
 const agentStatusSchema = z.object({
   startedAt: timestampSchema,

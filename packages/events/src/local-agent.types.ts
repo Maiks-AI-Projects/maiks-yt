@@ -34,6 +34,7 @@ export type ModuleStatus = {
   capabilityId: string;
   availability: CapabilityAvailability;
   detail?: string | undefined;
+  state?: JsonValue | undefined;
 };
 
 export type AgentStatus = {

@@ -8,6 +8,7 @@ import {
   type VlcMusicPlayRequest,
   type VlcMusicSnapshot
 } from "./vlc-music.types.js";
+import type { ResolvedVlcMediaSource, VlcMediaSourceResolver } from "./vlc-media-source.service.js";
 
 const stopTimeoutMs = 2_000;
 
@@ -30,7 +31,12 @@ const findExecutable = async (name: string): Promise<string | null> => {
 export class VlcProcessBackend implements VlcMusicBackend {
   #child: ChildProcessWithoutNullStreams | null = null;
   #expectedStop = false;
+  #positionBaseSeconds = 0;
+  #positionStartedAtMs: number | null = null;
   #vlcPath: string | null = null;
+  readonly #listeners = new Set<(snapshot: VlcMusicSnapshot) => void>();
+  readonly #mediaSourceResolver: VlcMediaSourceResolver;
+  #resolvedMedia: ResolvedVlcMediaSource | null = null;
   #snapshot: VlcMusicSnapshot = {
     available: false,
     playbackId: null,
@@ -38,6 +44,10 @@ export class VlcProcessBackend implements VlcMusicBackend {
     status: "idle",
     volumePercent: 70
   };
+
+  constructor(mediaSourceResolver: VlcMediaSourceResolver) {
+    this.#mediaSourceResolver = mediaSourceResolver;
+  }
 
   async inspect(): Promise<{ available: boolean; detail?: string }> {
     this.#vlcPath = await findExecutable("cvlc") ?? await findExecutable("vlc");
@@ -60,6 +70,8 @@ export class VlcProcessBackend implements VlcMusicBackend {
     }
 
     await this.stop(null);
+    const resolvedMedia = await this.#mediaSourceResolver.resolve(request.sourceUrl, signal);
+    this.#resolvedMedia = resolvedMedia;
     this.#expectedStop = false;
     this.#snapshot = {
       ...this.#snapshot,
@@ -68,6 +80,8 @@ export class VlcProcessBackend implements VlcMusicBackend {
       status: "loading",
       volumePercent: request.volumePercent
     };
+    this.#positionBaseSeconds = request.startAtSeconds;
+    this.#positionStartedAtMs = request.startPaused ? null : Date.now();
     const child = spawn(this.#vlcPath, [
       "--intf", "rc",
       "--rc-fake-tty",
@@ -89,41 +103,55 @@ export class VlcProcessBackend implements VlcMusicBackend {
     child.stderr.resume();
     child.once("error", () => {
       if (this.#child === child) {
+        this.#capturePosition(false);
         this.#child = null;
         this.#snapshot.status = "error";
+        void this.#releaseMedia();
+        this.#publish();
       }
     });
     child.once("exit", (code) => {
       if (this.#child !== child) {
         return;
       }
+      this.#capturePosition(false);
       this.#child = null;
       this.#snapshot.status = this.#expectedStop
         ? "stopped"
         : code === 0
           ? "ended"
           : "error";
+      void this.#releaseMedia();
+      this.#publish();
     });
-    this.#send(`add ${JSON.stringify(request.sourceUrl)}`);
+    this.#send(`add ${JSON.stringify(resolvedMedia.input)}`);
     this.#send(`volume ${Math.round(request.volumePercent * 2.56)}`);
     if (request.startAtSeconds > 0) {
       this.#send(`seek ${request.startAtSeconds}`);
     }
-    this.#snapshot.status = "playing";
+    if (request.startPaused) {
+      this.#send("pause");
+    }
+    this.#snapshot.status = request.startPaused ? "paused" : "playing";
+    this.#publish();
     return this.getSnapshot();
   }
 
   async pause(playbackId: string): Promise<VlcMusicSnapshot> {
     this.#requirePlayback(playbackId);
+    this.#capturePosition(false);
     this.#send("pause");
     this.#snapshot.status = "paused";
+    this.#publish();
     return this.getSnapshot();
   }
 
   async resume(playbackId: string): Promise<VlcMusicSnapshot> {
     this.#requirePlayback(playbackId);
     this.#send("play");
+    this.#positionStartedAtMs = Date.now();
     this.#snapshot.status = "playing";
+    this.#publish();
     return this.getSnapshot();
   }
 
@@ -134,10 +162,13 @@ export class VlcProcessBackend implements VlcMusicBackend {
     const child = this.#child;
     if (!child) {
       this.#snapshot.status = this.#snapshot.playbackId ? "stopped" : "idle";
+      await this.#releaseMedia();
+      this.#publish();
       return this.getSnapshot();
     }
 
     this.#expectedStop = true;
+    this.#capturePosition(false);
     this.#send("stop");
     this.#send("quit");
     await new Promise<void>((resolve) => {
@@ -158,13 +189,18 @@ export class VlcProcessBackend implements VlcMusicBackend {
       }, stopTimeoutMs).unref();
     });
     this.#snapshot.status = "stopped";
+    await this.#releaseMedia();
+    this.#publish();
     return this.getSnapshot();
   }
 
   async seek(playbackId: string, positionSeconds: number): Promise<VlcMusicSnapshot> {
     this.#requirePlayback(playbackId);
     this.#send(`seek ${positionSeconds}`);
+    this.#positionBaseSeconds = positionSeconds;
+    this.#positionStartedAtMs = this.#snapshot.status === "playing" ? Date.now() : null;
     this.#snapshot.positionSeconds = positionSeconds;
+    this.#publish();
     return this.getSnapshot();
   }
 
@@ -173,15 +209,24 @@ export class VlcProcessBackend implements VlcMusicBackend {
     if (this.#child) {
       this.#send(`volume ${Math.round(volumePercent * 2.56)}`);
     }
+    this.#publish();
     return this.getSnapshot();
   }
 
   getSnapshot(): VlcMusicSnapshot {
-    return structuredClone(this.#snapshot);
+    const snapshot = structuredClone(this.#snapshot);
+    snapshot.positionSeconds = this.#currentPositionSeconds();
+    return snapshot;
+  }
+
+  subscribe(listener: (snapshot: VlcMusicSnapshot) => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
 
   async shutdown(): Promise<void> {
     await this.stop(null);
+    await this.#releaseMedia();
   }
 
   #requirePlayback(playbackId: string): void {
@@ -195,5 +240,34 @@ export class VlcProcessBackend implements VlcMusicBackend {
       throw new Error("VLC command channel is unavailable");
     }
     this.#child.stdin.write(`${command}\n`);
+  }
+
+  #publish(): void {
+    const snapshot = this.getSnapshot();
+    for (const listener of this.#listeners) {
+      listener(snapshot);
+    }
+  }
+
+  #capturePosition(keepRunning: boolean): void {
+    this.#positionBaseSeconds = this.#currentPositionSeconds() ?? this.#positionBaseSeconds;
+    this.#snapshot.positionSeconds = this.#positionBaseSeconds;
+    this.#positionStartedAtMs = keepRunning ? Date.now() : null;
+  }
+
+  #currentPositionSeconds(): number | null {
+    if (this.#snapshot.playbackId === null) {
+      return null;
+    }
+    if (this.#positionStartedAtMs === null) {
+      return this.#positionBaseSeconds;
+    }
+    return this.#positionBaseSeconds + Math.max(0, (Date.now() - this.#positionStartedAtMs) / 1_000);
+  }
+
+  async #releaseMedia(): Promise<void> {
+    const media = this.#resolvedMedia;
+    this.#resolvedMedia = null;
+    await media?.release().catch(() => undefined);
   }
 }

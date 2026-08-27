@@ -213,7 +213,7 @@ export const musicPlaybackPlayerEventPayloadSchema = z.object({
 }).strict();
 
 export const musicPlaybackAudioQuerySchema = z.object({
-  accessToken: z.string().trim().min(1)
+  accessToken: z.string().trim().min(1).optional()
 }).strict();
 
 export const limitQuerySchema = z.object({

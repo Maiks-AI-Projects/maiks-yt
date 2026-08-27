@@ -507,10 +507,11 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [x] Add separate `/music/player` browser/audio source as the first production playback consumer.
 - [x] Add the production local-agent foundation for one outbound streaming-PC service.
   - The service has durable device identity and acknowledgement replay, reconnect/heartbeat behavior, strict credential-file handling, private PipeWire cue/TTS execution, executable VLC control on `stream_music`, and a typed countdown extension point. It is not connected to production yet and is not installed or started.
-- [ ] Add a dedicated revocable local-agent device credential and authenticated server connection.
-  - The first authenticated WebSocket requires a dedicated environment token plus configured agent and durable device identity. It does not reuse owner sessions, dev-auth tokens, provider credentials, or broad overlay tokens. Managed rotation/revocation and sanitized owner-visible device identity, capabilities, last-seen time, and failure state remain.
-- [ ] Replace OBS-owned browser audio with a local VLC playback connector while retaining `/music/player` as a migration fallback.
-  - Maiks.yt remains authoritative for selection, play/pause/skip commands, history, review outcomes, and now-playing state. The streaming-PC connector should control VLC through a loopback-only interface, report existing playback lifecycle events using `playbackId`, expose heartbeat/readiness, reconnect without replaying stale events, and let VLC target the dedicated music audio channel. Do not expose VLC control to the LAN, tunnel, or public API.
+- [x] Add a dedicated local-agent device credential and authenticated server connection.
+  - The authenticated WebSocket requires a dedicated environment token plus configured agent and durable device identity. It does not reuse owner sessions, dev-auth tokens, provider credentials, or broad overlay tokens.
+- [ ] Add managed local-agent credential rotation/revocation and sanitized owner-visible device status.
+- [x] Connect authoritative Maiks.yt playback to local VLC while retaining `/music/player` as a fallback.
+  - Maiks.yt remains authoritative for selection, play/pause/skip, history, review outcomes, and now-playing state. The local connector claims playback only while its VLC capability is available, downloads audio with the dedicated bearer without placing it in URLs or VLC arguments, reports started/ended/error lifecycle state, advances to the next track, targets `stream_music`, and releases the browser fallback lease on disconnect or command failure. Deployment, service installation, audio-channel proof, reconnect rehearsal, and full browser fallback proof remain open.
 - [ ] Add `/music/overlay` now-playing, attribution, safety, and vote display.
 - [ ] Add music controls to the existing stream control panel, not a separate music panel.
 - [ ] Add viewer voting only for eligible, non-blacklisted tracks.

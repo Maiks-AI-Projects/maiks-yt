@@ -7,6 +7,7 @@ import type {
 
 export type ModuleContext = {
   signal: AbortSignal;
+  reportStatus: () => void;
 };
 
 export type ModuleExecutionContext = {

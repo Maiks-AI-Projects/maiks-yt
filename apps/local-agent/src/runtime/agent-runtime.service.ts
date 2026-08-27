@@ -25,9 +25,13 @@ export class AgentRuntime {
   readonly #options: AgentRuntimeOptions;
   readonly #startedAt = new Date().toISOString();
   readonly #inFlight = new Map<string, string>();
+  #activeSession: OutboundSession | null = null;
+  #registered = false;
+  #statusSend: Promise<void> = Promise.resolve();
 
   constructor(options: AgentRuntimeOptions) {
     this.#options = options;
+    this.#options.moduleHost.subscribeToStatusChanges(() => this.#queueStatusUpdate());
   }
 
   async run(signal: AbortSignal): Promise<void> {
@@ -60,6 +64,8 @@ export class AgentRuntime {
   }
 
   async #runSession(session: OutboundSession, signal: AbortSignal): Promise<void> {
+    this.#activeSession = session;
+    this.#registered = false;
     const removeListener = session.onMessage((value) => {
       void this.#handleServerMessage(value, session, signal).catch((error: unknown) => {
         console.error("Failed to handle local-agent server message", error);
@@ -72,8 +78,13 @@ export class AgentRuntime {
         capabilities: this.#options.moduleHost.getCapabilities(),
         status: this.#status()
       });
+      this.#registered = true;
       await this.#heartbeatUntilClosed(session, signal);
     } finally {
+      if (this.#activeSession === session) {
+        this.#activeSession = null;
+        this.#registered = false;
+      }
       removeListener();
       await session.close().catch(() => undefined);
     }
@@ -216,6 +227,24 @@ export class AgentRuntime {
       identity: this.#options.identity,
       acknowledgement
     });
+  }
+
+  #queueStatusUpdate(): void {
+    this.#statusSend = this.#statusSend
+      .then(async () => {
+        const session = this.#activeSession;
+        if (!session || !this.#registered) {
+          return;
+        }
+        await session.send({
+          type: "heartbeat",
+          identity: this.#options.identity,
+          status: this.#status()
+        });
+      })
+      .catch((error: unknown) => {
+        console.error("Failed to publish local-agent module status", error);
+      });
   }
 
   #status() {

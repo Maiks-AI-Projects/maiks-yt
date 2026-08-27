@@ -282,6 +282,16 @@ export class MusicPlaybackService {
     return this.current?.playbackId === playbackId ? this.current.track : null;
   }
 
+  public getInternalState(): MusicPlaybackSnapshot {
+    return this.snapshot({ clientId: null, audioUrl: null });
+  }
+
+  public releasePlayerLease(clientId: string): void {
+    if (this.playerLease?.clientId === clientId) {
+      this.playerLease = null;
+    }
+  }
+
   private async startNext(authUserId: string, excludedTrackIds: ReadonlySet<string> = new Set()): Promise<void> {
     const selected = await this.selectNextTrack(excludedTrackIds);
 

@@ -4,6 +4,10 @@ import { ModuleHost } from "./modules/module-host.service.js";
 import { PipeWirePrivateAudioBackend } from "./modules/private-audio/pipewire-private-audio.service.js";
 import { PrivateAudioModule } from "./modules/private-audio/private-audio.service.js";
 import { VlcMusicModule } from "./modules/vlc-music/vlc-music.service.js";
+import {
+  AuthenticatedVlcMediaSourceResolver,
+  localAgentApiOrigin
+} from "./modules/vlc-music/vlc-media-source.service.js";
 import { VlcProcessBackend } from "./modules/vlc-music/vlc-process.service.js";
 import { LOCAL_AGENT_PROTOCOL_VERSION, type CommandEnvelope } from "./protocol/agent-protocol.types.js";
 import { AgentRuntime } from "./runtime/agent-runtime.service.js";
@@ -63,7 +67,10 @@ async function main(): Promise<void> {
 
   const moduleHost = new ModuleHost([
     new PrivateAudioModule(new PipeWirePrivateAudioBackend()),
-    new VlcMusicModule(new VlcProcessBackend())
+    new VlcMusicModule(new VlcProcessBackend(new AuthenticatedVlcMediaSourceResolver({
+      authorizationOrigin: localAgentApiOrigin(config.url),
+      bearerCredential: credential
+    })))
   ]);
   const runtime = new AgentRuntime({
     connector: new WebSocketOutboundConnector(config.url, credential, config.agentId),

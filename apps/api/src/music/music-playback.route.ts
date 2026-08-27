@@ -14,6 +14,7 @@ import {
 import type { MusicRouteDependencies } from "./music-route.types.js";
 import { resolveStoredMusicAudioFile } from "./music-audio-upload.service.js";
 import { MusicPlaybackService } from "./music-playback.service.js";
+import { MusicLocalAgentPlaybackCoordinator } from "./music-local-agent-playback.service.js";
 import { safeHttpUrlOrNull } from "./music-service-catalog.service.js";
 import type { MusicSelectableTrack } from "./music.types.js";
 
@@ -46,23 +47,54 @@ const validateOverlayToken = async (
   return true;
 };
 
+const validateMusicAudioAccess = async (
+  request: FastifyRequest,
+  accessToken: string | undefined,
+  reply: FastifyReply,
+  dependencies: MusicRouteDependencies
+): Promise<boolean> => {
+  if (dependencies.validateLocalAgentAuthorizationForRequest?.(request.headers.authorization)) {
+    return true;
+  }
+  if (!accessToken) {
+    reply.code(403);
+    return false;
+  }
+  return validateOverlayToken(accessToken, reply, dependencies);
+};
+
 export const registerMusicPlaybackRoutes = (
   server: FastifyInstance,
   dependencies: MusicRouteDependencies
 ): void => {
   let playbackService: MusicPlaybackService | null = null;
+  let localAgentCoordinator: MusicLocalAgentPlaybackCoordinator | null = null;
   const getPlaybackService = (): MusicPlaybackService => {
-    if (dependencies.createPlaybackService) {
-      return dependencies.createPlaybackService();
-    }
-
     if (!playbackService) {
-      const repository = createMusicRepository(dependencies.getDatabasePool());
-      playbackService = new MusicPlaybackService(repository, createMusicService(dependencies));
+      playbackService = dependencies.createPlaybackService?.()
+        ?? new MusicPlaybackService(
+          createMusicRepository(dependencies.getDatabasePool()),
+          createMusicService(dependencies)
+        );
     }
 
     return playbackService;
   };
+  const getLocalAgentCoordinator = (): MusicLocalAgentPlaybackCoordinator | null => {
+    if (!dependencies.localAgentRuntime || !dependencies.publicApiBaseUrl) {
+      return null;
+    }
+    localAgentCoordinator ??= new MusicLocalAgentPlaybackCoordinator({
+      playback: getPlaybackService(),
+      publicApiBaseUrl: dependencies.publicApiBaseUrl,
+      runtime: dependencies.localAgentRuntime,
+      reportError: (error) => server.log.warn({ err: error }, "Local-agent music coordination failed.")
+    });
+    return localAgentCoordinator;
+  };
+  server.addHook("onClose", async () => {
+    localAgentCoordinator?.dispose();
+  });
   const getSession = async (request: FastifyRequest, reply: FastifyReply) =>
     await getMusicSession(request, reply, dependencies, server);
 
@@ -101,13 +133,21 @@ export const registerMusicPlaybackRoutes = (
     }
 
     try {
-      const result = await getPlaybackService().control({
+      const playback = getPlaybackService();
+      const before = playback.getInternalState();
+      const result = await playback.control({
         action: parsedBody.data.action,
         authUserId: session.user.id
       });
 
       if (!result.ok) {
         reply.code(403);
+      } else {
+        getLocalAgentCoordinator()?.handleControl({
+          action: parsedBody.data.action,
+          before,
+          after: result
+        });
       }
 
       return result;
@@ -194,7 +234,7 @@ export const registerMusicPlaybackRoutes = (
     }
 
     try {
-      if (!await validateOverlayToken(parsedQuery.data.accessToken, reply, dependencies)) {
+      if (!await validateMusicAudioAccess(request, parsedQuery.data.accessToken, reply, dependencies)) {
         return { ok: false, reason: reply.statusCode === 503 ? "music_playback_token_unavailable" : "music_playback_access_denied" };
       }
 

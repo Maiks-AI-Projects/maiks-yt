@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 production music-to-VLC integration
+
+- Connected the existing authoritative music playback service to the generic production local agent. Play, pause, resume, skip/stop, lifecycle, and automatic next-track behavior now project to the advertised `vlc-music` capability without changing the Control PWA surface.
+- The local player claims the existing playback lease only when the agent and VLC capability are available. Disconnects and failed play commands release that lease so `/music/player` remains the migration and failure fallback.
+- Added immediate bounded module-state reporting. VLC started, paused, ended, and error state returns through the authenticated agent connection; Maiks.yt continues to own history and next-track selection.
+- Added authenticated media retrieval for the agent without credential-bearing URLs. The device bearer is sent only to the configured Maiks.yt API origin, downloaded audio is bounded to 75 MiB and stored in a mode-0600 temporary directory, and VLC receives only the temporary local path through stdin.
+- No UI, schema, migration, production environment, service, audio routing, deployment, or live server state changed. Focused API/local-agent tests and typechecks pass; the full production review gate is the final local gate for this slice.
+- Remaining gates are managed credential rotation/status, service installation/configuration, real VLC and PipeWire `stream_music` proof, reconnect and automatic-next rehearsal, browser fallback proof, deployment, and live verification. Production is still unreachable from this workstation.
+
 ## 2026-08-27 production local-agent foundation
 
 - Added `@maiks-yt/local-agent` as the production foundation for one outbound streaming-PC service instead of separate unmanaged helpers.
@@ -10,7 +19,7 @@
 - The server path stays closed unless `MAIKS_LOCAL_AGENT_TOKEN`, `MAIKS_LOCAL_AGENT_ID`, and `MAIKS_LOCAL_AGENT_DEVICE_ID` are configured. It does not accept owner sessions, dev-auth tokens, provider credentials, or overlay tokens. `--print-device-id` provides the durable local identity before server configuration without requiring a remote URL or credential.
 - Added conservative user-systemd installation helpers. They do not enable or start the service, provision credentials, or alter live audio routing.
 - Focused tests, build, typecheck, architecture validation, and whitespace checks pass. Coordinator review also fixed post-connect WebSocket errors so they are reported rather than becoming unhandled process errors.
-- Owner-visible device status, managed credential rotation, Maiks.yt music-command mapping, authenticated media retrieval, countdown execution, service installation, and live audio proof remain separate gates. Browser/PWA private audio and `/music/player` remain the active fallbacks.
+- Owner-visible device status, managed credential rotation, countdown execution, service installation, and live audio proof remain separate gates. Music-command mapping and authenticated media retrieval are implemented locally; `/music/player` remains the active deployed fallback until the local service is configured and proven.
 
 ## 2026-08-27 OBS companion recovery
 

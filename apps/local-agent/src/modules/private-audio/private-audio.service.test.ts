@@ -26,7 +26,7 @@ describe("PrivateAudioModule", () => {
     };
     const module = new PrivateAudioModule(backend);
     const signal = new AbortController().signal;
-    await module.start({ signal });
+    await module.start({ signal, reportStatus: vi.fn() });
 
     expect(module.getCapability()).toMatchObject({
       actions: ["cue.play"],

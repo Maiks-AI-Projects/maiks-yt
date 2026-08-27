@@ -9,7 +9,8 @@ import {
 import {
   VLC_MUSIC_CAPABILITY,
   type VlcMusicAgentModule,
-  type VlcMusicBackend
+  type VlcMusicBackend,
+  type VlcMusicSnapshot
 } from "./vlc-music.types.js";
 
 const playbackIdSchema = z.string().trim().min(1).max(128).regex(/^[a-zA-Z0-9._:-]+$/);
@@ -23,6 +24,7 @@ const sourceUrlSchema = z.url().max(2_048).refine((value) => {
 const playSchema = z.object({
   playbackId: playbackIdSchema,
   sourceUrl: sourceUrlSchema,
+  startPaused: z.boolean().default(false),
   startAtSeconds: z.number().min(0).max(24 * 60 * 60).default(0),
   volumePercent: z.number().min(0).max(100).default(70)
 }).strict();
@@ -41,18 +43,33 @@ export class VlcMusicModule implements VlcMusicAgentModule {
   #available = false;
   #detail = "Module has not started";
   #queue: Promise<unknown> = Promise.resolve();
+  #removeBackendListener: (() => void) | null = null;
+  #snapshot: VlcMusicSnapshot = {
+    available: false,
+    playbackId: null,
+    positionSeconds: null,
+    status: "idle" as const,
+    volumePercent: 70
+  };
 
   constructor(backend: VlcMusicBackend) {
     this.#backend = backend;
   }
 
-  async start(_context: ModuleContext): Promise<void> {
+  async start(context: ModuleContext): Promise<void> {
     const availability = await this.#backend.inspect();
     this.#available = availability.available;
     this.#detail = availability.detail ?? (availability.available ? "VLC ready" : "VLC unavailable");
+    this.#snapshot = this.#backend.getSnapshot();
+    this.#removeBackendListener = this.#backend.subscribe((snapshot) => {
+      this.#snapshot = snapshot;
+      context.reportStatus();
+    });
   }
 
   async stop(): Promise<void> {
+    this.#removeBackendListener?.();
+    this.#removeBackendListener = null;
     await this.#queue.catch(() => undefined);
     await this.#backend.shutdown();
   }
@@ -73,7 +90,15 @@ export class VlcMusicModule implements VlcMusicAgentModule {
     return {
       capabilityId: this.capabilityId,
       availability: this.#available ? "available" : "unavailable",
-      detail: this.#detail
+      detail: this.#detail,
+      state: {
+        available: this.#snapshot.available,
+        ...(this.#snapshot.detail ? { detail: this.#snapshot.detail } : {}),
+        playbackId: this.#snapshot.playbackId,
+        positionSeconds: this.#snapshot.positionSeconds,
+        status: this.#snapshot.status,
+        volumePercent: this.#snapshot.volumePercent
+      }
     };
   }
 
@@ -125,4 +150,5 @@ export class VlcMusicModule implements VlcMusicAgentModule {
 
     throw new ModuleCommandError("ACTION_NOT_REGISTERED", `VLC action ${command.action} is not registered`);
   }
+
 }
