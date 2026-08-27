@@ -140,6 +140,7 @@ export type EventRoutingAdminUpdateResult =
     reason:
       | "event_routing_admin_user_unlinked"
       | "event_routing_admin_forbidden"
+      | "event_routing_admin_production_catalogue_forbidden"
       | "event_routing_admin_invalid_input";
     issues?: readonly EventRoutingRuleValidationIssue[];
   };
@@ -177,7 +178,10 @@ export type EventRoutingAdminDeleteResult =
   }
   | {
     ok: false;
-    reason: "event_routing_admin_user_unlinked" | "event_routing_admin_forbidden";
+    reason:
+      | "event_routing_admin_user_unlinked"
+      | "event_routing_admin_forbidden"
+      | "event_routing_admin_production_catalogue_forbidden";
   };
 
 export type EventRoutingAdminCooldownSummary = {

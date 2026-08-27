@@ -129,6 +129,7 @@ const issueLabels: Record<EventRoutingRuleValidationResult["issues"][number], st
   event_routing_invalid_source: "Choose a valid source.",
   event_routing_invalid_destination: "Choose a valid destination.",
   event_routing_invalid_priority: "Choose a valid priority.",
+  event_routing_production_catalogue_forbidden: "Production cannot save simulation or test-source rules.",
   event_routing_source_cannot_emit_event: "This source cannot emit this event kind.",
   event_routing_live_offline_conflict: "A rule cannot be both live-only and offline-only.",
   event_routing_negative_per_user_cooldown: "Per-user cooldown cannot be negative.",
@@ -207,6 +208,7 @@ const getContextDetails = (context: ApprovalContext): string => [
 const getFailureMessage = (response: Response, reason?: string, issues?: readonly string[]): string => {
   if (response.status === 401 || reason === "not_authenticated") return "Sign in before managing event routing rules.";
   if (response.status === 403 || reason === "event_routing_admin_forbidden") return "Your account does not have event routing admin permission.";
+  if (reason === "event_routing_admin_production_catalogue_forbidden") return "Production cannot save simulation or test-source event routing rules.";
   if (reason === "event_routing_admin_invalid_input") return issues?.length ? `Invalid routing rule: ${issues.join(", ")}.` : "The routing rule has invalid or missing fields.";
   return `Event routing admin request failed with ${response.status}.`;
 };

@@ -3,8 +3,11 @@ import {
   canManageEventRouting,
   eventRoutingDestinationCapabilities,
   eventKinds,
+  getProductionEventRoutingRuleDescription,
   getEventRoutingDestinationCapability,
   getEventRegistryEntry,
+  isProductionEventRoutingRuleInput,
+  listProductionEventRoutingRuleEventKinds,
   validateEventRoutingRule,
   type EventRoutingRuleInput
 } from "@maiks-yt/domain/events";
@@ -61,7 +64,8 @@ export const normalizeEventRoutingAdminPermissions = (
 };
 
 const toRuleListItem = (
-  rule: EventRoutingRuleInput & Partial<Pick<EventRoutingAdminRuleRecord, "id" | "createdAt" | "updatedAt">>
+  rule: EventRoutingRuleInput & Partial<Pick<EventRoutingAdminRuleRecord, "id" | "createdAt" | "updatedAt">>,
+  options: { productionCatalogue: boolean }
 ): EventRoutingAdminRuleListItem => {
   const entry = getEventRegistryEntry(rule.eventKind);
 
@@ -69,7 +73,9 @@ const toRuleListItem = (
     ...rule,
     id: rule.id ?? null,
     label: entry.label,
-    description: entry.description,
+    description: options.productionCatalogue
+      ? getProductionEventRoutingRuleDescription(rule.eventKind)
+      : entry.description,
     safety: entry.safety,
     validation: validateEventRoutingRule(rule),
     destinationCapability: getEventRoutingDestinationCapability(rule.destination),
@@ -92,7 +98,8 @@ const isProductionApproval = (
 
 export class EventRoutingAdminService {
   public constructor(
-    private readonly repository: EventRoutingAdminRepository
+    private readonly repository: EventRoutingAdminRepository,
+    private readonly options: { productionCatalogue: boolean } = { productionCatalogue: false }
   ) {}
 
   public async listRules(input: { authUserId: string }): Promise<EventRoutingAdminListResult> {
@@ -103,19 +110,25 @@ export class EventRoutingAdminService {
     }
 
     const persistedRules = await this.repository.listRules();
+    const visiblePersistedRules = this.options.productionCatalogue
+      ? persistedRules.filter(isProductionEventRoutingRuleInput)
+      : persistedRules;
     const rulesByKey = new Map<string, EventRoutingAdminRuleRecord>(
-      persistedRules.map((rule) => [ruleKey(rule), rule])
+      visiblePersistedRules.map((rule) => [ruleKey(rule), rule])
     );
-    const listItems = eventKinds.map((eventKind) =>
+    const catalogueEventKinds = this.options.productionCatalogue
+      ? listProductionEventRoutingRuleEventKinds()
+      : eventKinds;
+    const listItems = catalogueEventKinds.map((eventKind) =>
       toRuleListItem(rulesByKey.get(ruleKey({
         eventKind,
         sourcePlatform: "any"
-      })) ?? buildDefaultEventRoutingRule(eventKind))
+      })) ?? buildDefaultEventRoutingRule(eventKind), this.options)
     );
 
-    const providerSpecificRules = persistedRules
+    const providerSpecificRules = visiblePersistedRules
       .filter((rule) => rule.sourcePlatform !== "any")
-      .map(toRuleListItem);
+      .map((rule) => toRuleListItem(rule, this.options));
 
     return {
       ok: true,
@@ -132,6 +145,14 @@ export class EventRoutingAdminService {
 
     if (!actor.ok) {
       return actor;
+    }
+
+    if (this.options.productionCatalogue && !isProductionEventRoutingRuleInput(input.rule)) {
+      return {
+        ok: false,
+        reason: "event_routing_admin_production_catalogue_forbidden",
+        issues: ["event_routing_production_catalogue_forbidden"]
+      };
     }
 
     const validation = validateEventRoutingRule(input.rule);
@@ -151,7 +172,7 @@ export class EventRoutingAdminService {
 
     return {
       ok: true,
-      rule: toRuleListItem(record)
+      rule: toRuleListItem(record, this.options)
     };
   }
 
@@ -236,6 +257,13 @@ export class EventRoutingAdminService {
       return actor;
     }
 
+    if (this.options.productionCatalogue && !isProductionEventRoutingRuleInput(input)) {
+      return {
+        ok: false,
+        reason: "event_routing_admin_production_catalogue_forbidden"
+      };
+    }
+
     const removed = await this.repository.deleteRule(input.eventKind, input.sourcePlatform);
     const fallback = input.sourcePlatform === "any"
       ? buildDefaultEventRoutingRule(input.eventKind)
@@ -245,7 +273,7 @@ export class EventRoutingAdminService {
     return {
       ok: true,
       removed,
-      fallback: toRuleListItem(fallback)
+      fallback: toRuleListItem(fallback, this.options)
     };
   }
 

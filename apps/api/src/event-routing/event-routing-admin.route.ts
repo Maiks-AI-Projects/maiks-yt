@@ -28,6 +28,7 @@ type EventRoutingAdminAuthSession = {
 type EventRoutingAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<EventRoutingAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
+  getNodeEnv?: () => string | undefined;
   createService?: () => Pick<EventRoutingAdminService,
     | "listRules"
     | "updateRule"
@@ -158,7 +159,9 @@ export const registerEventRoutingAdminRoutes = (
     | "getCooldownSummary"
     | "listOperationalHistory"> =>
     dependencies.createService?.()
-    ?? new EventRoutingAdminService(createEventRoutingAdminRepository(dependencies.getDatabasePool()));
+    ?? new EventRoutingAdminService(createEventRoutingAdminRepository(dependencies.getDatabasePool()), {
+      productionCatalogue: (dependencies.getNodeEnv?.() ?? process.env.NODE_ENV) === "production"
+    });
 
   const getSession = async (
     request: FastifyRequest,
@@ -431,7 +434,7 @@ export const registerEventRoutingAdminRoutes = (
       });
 
       if (!result.ok) {
-        reply.code(403);
+        reply.code(result.reason === "event_routing_admin_production_catalogue_forbidden" ? 400 : 403);
       }
 
       return result;

@@ -370,6 +370,70 @@ describe("EventRoutingAdminService", () => {
       });
   });
 
+  it("keeps the simulation catalogue available outside production", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    const service = new EventRoutingAdminService(repository);
+
+    const result = await service.listRules({ authUserId: "auth-user" });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.rules.find((rule) => rule.eventKind === "simulated.support-money" && rule.sourcePlatform === "any"))
+      .toMatchObject({
+        label: "Simulated Support Money",
+        description: expect.stringContaining("dev-only routing tests")
+      });
+  });
+
+  it("omits simulation and test-only catalogue entries in production while retaining real kinds", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.rules.set("simulated.support-money:any", toRecord(baseRule({
+      eventKind: "simulated.support-money",
+      sourcePlatform: "any"
+    }), { id: "simulated-any-rule" }));
+    repository.rules.set("website.signup:test/system", toRecord(baseRule({
+      sourcePlatform: "test/system"
+    }), { id: "test-source-rule" }));
+    repository.rules.set("twitch.follow:any", toRecord(baseRule({
+      eventKind: "twitch.follow",
+      sourcePlatform: "any",
+      destination: "control_panel"
+    }), { id: "real-unavailable-consumer-rule" }));
+    const service = new EventRoutingAdminService(repository, { productionCatalogue: true });
+
+    const result = await service.listRules({ authUserId: "auth-user" });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.rules.find((rule) => rule.eventKind === "simulated.support-money")).toBeUndefined();
+    expect(result.rules.find((rule) => rule.sourcePlatform === "test/system")).toBeUndefined();
+    expect(result.rules.find((rule) => rule.eventKind === "chat")?.description).toBe(
+      "A live chat message from a chat-capable provider."
+    );
+    expect(JSON.stringify(result.rules)).not.toContain("dev-only routing tests");
+    expect(JSON.stringify(result.rules)).not.toContain("test source");
+    expect(result.rules.find((rule) => rule.eventKind === "twitch.follow" && rule.sourcePlatform === "any"))
+      .toMatchObject({
+        destination: "control_panel",
+        persisted: true,
+        destinationCapability: {
+          runtimeConsumer: "unavailable"
+        }
+      });
+    expect(result.rules.find((rule) => rule.eventKind === "website.free-tts-request"))
+      .toMatchObject({
+        description: "A future free website TTS request."
+      });
+  });
+
   it("updates valid owner rules and keeps explicit enabled input", async () => {
     const repository = new FakeEventRoutingAdminRepository();
     const service = new EventRoutingAdminService(repository);
@@ -398,6 +462,47 @@ describe("EventRoutingAdminService", () => {
       actorUserId: "domain-user",
       enabled: true
     });
+  });
+
+  it("rejects production simulation and test-source rule writes without persistence", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.rules.set("simulated.support-money:website", toRecord(baseRule({
+      eventKind: "simulated.support-money",
+      sourcePlatform: "website"
+    }), { id: "simulated-rule" }));
+    const service = new EventRoutingAdminService(repository, { productionCatalogue: true });
+
+    await expect(service.updateRule({
+      authUserId: "auth-user",
+      rule: baseRule({
+        eventKind: "simulated.support-money",
+        sourcePlatform: "website"
+      })
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_production_catalogue_forbidden",
+      issues: ["event_routing_production_catalogue_forbidden"]
+    });
+    await expect(service.updateRule({
+      authUserId: "auth-user",
+      rule: baseRule({
+        sourcePlatform: "test/system"
+      })
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_production_catalogue_forbidden",
+      issues: ["event_routing_production_catalogue_forbidden"]
+    });
+    await expect(service.deleteRule({
+      authUserId: "auth-user",
+      eventKind: "simulated.support-money",
+      sourcePlatform: "website"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_production_catalogue_forbidden"
+    });
+    expect(repository.lastUpsert).toBeNull();
+    expect(repository.rules.has("simulated.support-money:website")).toBe(true);
   });
 
   it("preserves active delegated event-routing:manage access for bounded rule updates", async () => {
@@ -863,6 +968,101 @@ describe("event routing admin route boundary", () => {
     });
   });
 
+  it("applies the production catalogue boundary through the registered admin routes", async () => {
+    const calls: Array<{ sql: string; parameters: unknown[] }> = [];
+    const server = Fastify();
+    registerEventRoutingAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => ({
+        execute: async (sql: string, parameters: unknown[] = []) => {
+          calls.push({ sql, parameters });
+
+          if (sql.includes("FROM auth_user_links")) {
+            return [[{
+              domainUserId: "domain-user",
+              rolePermissions: JSON.stringify(["*"])
+            }]];
+          }
+
+          if (sql.includes("FROM event_routing_rules")) {
+            return [[
+              toRecord(baseRule({
+                eventKind: "simulated.support-money",
+                sourcePlatform: "any"
+              }), { id: "simulated-rule" }),
+              toRecord(baseRule({
+                sourcePlatform: "test/system"
+              }), { id: "test-source-rule" }),
+              toRecord(baseRule({
+                eventKind: "twitch.follow",
+                sourcePlatform: "any",
+                destination: "internal_audit",
+                enabled: true
+              }), { id: "real-rule" })
+            ]];
+          }
+
+          throw new Error(`unexpected SQL: ${sql}`);
+        }
+      } as unknown as DatabasePool),
+      getNodeEnv: () => "production"
+    });
+
+    const listResponse = await server.inject({
+      method: "GET",
+      url: "/admin/event-routing/rules"
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toMatchObject({
+      ok: true,
+      rules: expect.arrayContaining([
+        expect.objectContaining({
+          eventKind: "twitch.follow",
+          sourcePlatform: "any",
+          persisted: true
+        })
+      ])
+    });
+    expect(listResponse.body).not.toContain("simulated.support-money");
+    expect(listResponse.body).not.toContain("test/system");
+    expect(listResponse.body).not.toContain("test source");
+    expect(listResponse.body).not.toContain("dev-only routing tests");
+
+    const updateResponse = await server.inject({
+      method: "PUT",
+      url: "/admin/event-routing/rules",
+      payload: baseRule({
+        eventKind: "simulated.support-money",
+        sourcePlatform: "website"
+      })
+    });
+
+    expect(updateResponse.statusCode).toBe(400);
+    expect(updateResponse.json()).toEqual({
+      ok: false,
+      reason: "event_routing_admin_production_catalogue_forbidden",
+      issues: ["event_routing_production_catalogue_forbidden"]
+    });
+    const deleteResponse = await server.inject({
+      method: "DELETE",
+      url: "/admin/event-routing/rules/website.signup/test%2Fsystem"
+    });
+
+    expect(deleteResponse.statusCode).toBe(400);
+    expect(deleteResponse.json()).toEqual({
+      ok: false,
+      reason: "event_routing_admin_production_catalogue_forbidden"
+    });
+    expect(calls.some((call) => call.sql.includes("INSERT INTO event_routing_rules"))).toBe(false);
+    expect(calls.some((call) => call.sql.includes("DELETE FROM event_routing_rules"))).toBe(false);
+    await server.close();
+  });
+
   it("returns validation issues without persisting invalid updates", async () => {
     const repository = new FakeEventRoutingAdminRepository();
     const server = Fastify();
@@ -894,6 +1094,40 @@ describe("event routing admin route boundary", () => {
       issues: ["event_routing_live_offline_conflict"]
     });
     expect(repository.lastUpsert).toBeNull();
+  });
+
+  it("returns a stable safe failure for production simulation rule updates before persistence", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    const server = Fastify();
+    registerEventRoutingAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new EventRoutingAdminService(repository, { productionCatalogue: true })
+    });
+
+    const response = await server.inject({
+      method: "PUT",
+      url: "/admin/event-routing/rules",
+      payload: baseRule({
+        eventKind: "simulated.support-money",
+        sourcePlatform: "website"
+      })
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "event_routing_admin_production_catalogue_forbidden",
+      issues: ["event_routing_production_catalogue_forbidden"]
+    });
+    expect(repository.lastUpsert).toBeNull();
+    expect(repository.rules.size).toBe(0);
   });
 
   it("reviews pending approval queue items through the admin route", async () => {

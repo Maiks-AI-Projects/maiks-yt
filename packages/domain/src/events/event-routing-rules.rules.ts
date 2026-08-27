@@ -5,7 +5,7 @@ import {
   isEventSourcePlatform
 } from "./event-registry.rules.js";
 import { isEventRoutingSoundRef } from "./event-sound-catalog.rules.js";
-import type { EventKind } from "./event-registry.types.js";
+import { eventKinds, type EventKind } from "./event-registry.types.js";
 import {
   eventRoutingDestinations,
   eventRoutingNotificationPriorities,
@@ -95,6 +95,11 @@ const eventRoutingDestinationCapabilityByDestination = new Map(
   eventRoutingDestinationCapabilities.map((capability) => [capability.destination, capability])
 );
 
+const productionDescriptionOverrides = new Map<EventKind, string>([
+  ["chat", "A live chat message from a chat-capable provider."],
+  ["website.free-tts-request", "A future free website TTS request."]
+]);
+
 const streamVisibleDestinations = new Set<EventRoutingDestination>([
   "top_notification",
   "center_notification",
@@ -163,6 +168,25 @@ export const buildDefaultEventRoutingRule = (
     description: entry.description
   };
 };
+
+export const isProductionEventRoutingRuleEventKind = (eventKind: EventKind): boolean =>
+  !getEventRegistryEntry(eventKind).safety.simulatedOnly;
+
+export const isProductionEventRoutingRuleSourcePlatform = (
+  sourcePlatform: EventRoutingRuleSourcePlatform
+): boolean => sourcePlatform !== "test/system";
+
+export const isProductionEventRoutingRuleInput = (
+  input: Pick<EventRoutingRuleInput, "eventKind" | "sourcePlatform">
+): boolean =>
+  isProductionEventRoutingRuleEventKind(input.eventKind)
+  && isProductionEventRoutingRuleSourcePlatform(input.sourcePlatform);
+
+export const listProductionEventRoutingRuleEventKinds = (): EventKind[] =>
+  eventKinds.filter(isProductionEventRoutingRuleEventKind);
+
+export const getProductionEventRoutingRuleDescription = (eventKind: EventKind): string =>
+  productionDescriptionOverrides.get(eventKind) ?? getEventRegistryEntry(eventKind).description;
 
 export const validateEventRoutingRule = (
   input: EventRoutingRuleInput

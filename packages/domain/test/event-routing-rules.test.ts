@@ -5,8 +5,11 @@ import {
   buildStreamVisibilityPreferenceValues,
   canManageEventRouting,
   eventRoutingDestinationCapabilities,
+  getProductionEventRoutingRuleDescription,
   getRecommendedEventRoutingSoundRefs,
   getEventRoutingDestinationCapability,
+  isProductionEventRoutingRuleInput,
+  listProductionEventRoutingRuleEventKinds,
   resolveSafeSimulatedEventRoutingDecision,
   resolveEventRoutingSound,
   streamVisibilityPreferenceScopes,
@@ -58,6 +61,26 @@ describe("event routing rule validation", () => {
     expect(canManageEventRouting(["event-routing:manage"])).toBe(true);
     expect(canManageEventRouting(["*"])).toBe(true);
     expect(canManageEventRouting(["creator-links:manage"])).toBe(false);
+  });
+
+  it("defines the production rule catalogue without simulation/test-only entries or descriptions", () => {
+    expect(listProductionEventRoutingRuleEventKinds()).toContain("twitch.follow");
+    expect(listProductionEventRoutingRuleEventKinds()).toContain("website.schedule-changed");
+    expect(listProductionEventRoutingRuleEventKinds()).not.toContain("simulated.support-money");
+    expect(isProductionEventRoutingRuleInput({
+      eventKind: "simulated.support-money",
+      sourcePlatform: "website"
+    })).toBe(false);
+    expect(isProductionEventRoutingRuleInput({
+      eventKind: "website.signup",
+      sourcePlatform: "test/system"
+    })).toBe(false);
+    expect(isProductionEventRoutingRuleInput({
+      eventKind: "website.signup",
+      sourcePlatform: "website"
+    })).toBe(true);
+    expect(getProductionEventRoutingRuleDescription("chat")).not.toContain("test");
+    expect(getProductionEventRoutingRuleDescription("website.free-tts-request")).not.toContain("dev-console");
   });
 
   it("rejects impossible provider and event combinations", () => {

@@ -63,6 +63,7 @@ export type EventRoutingRuleValidationIssue =
   | "event_routing_invalid_source"
   | "event_routing_invalid_destination"
   | "event_routing_invalid_priority"
+  | "event_routing_production_catalogue_forbidden"
   | "event_routing_source_cannot_emit_event"
   | "event_routing_live_offline_conflict"
   | "event_routing_negative_per_user_cooldown"
