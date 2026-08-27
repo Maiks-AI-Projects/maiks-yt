@@ -7,6 +7,7 @@ import {
   ProviderChatBotDeliveryService,
   TwitchChatWarningDeliveryService,
   TwitchChatReadOnlyIntakeService,
+  TwitchLiveStateService,
   TwitchChatModerationService,
   YouTubeChatWarningDeliveryService,
   YouTubeLiveChatReadOnlyIntakeService,
@@ -39,7 +40,8 @@ import { ChatCommandRuntime, type ChatCommandRuntimeMessage } from "./chat-comma
 import {
   createEventRoutingDispatchRepository,
   EventRoutingProductionService,
-  type EventRoutingPlaybackPublisher
+  type EventRoutingPlaybackPublisher,
+  type EventRoutingStreamStateResolver
 } from "./event-routing/index.js";
 import {
   loadLocalAgentServerConfig,
@@ -180,14 +182,48 @@ const appendStreamerChatMessage = (message: StreamerChatMessage): StreamerChatMe
   return streamerChatRuntime.appendMessage(message);
 };
 
+const twitchLiveStateService = new TwitchLiveStateService();
+const productionStreamStateResolver: EventRoutingStreamStateResolver = {
+  async resolve(input) {
+    if (input.provider !== "twitch") {
+      return { state: "unknown" };
+    }
+
+    const result = await twitchLiveStateService.resolveProviderChannel({
+      now: input.receivedAt,
+      providerChannelId: input.providerChannelId
+    });
+
+    return result.ok ? { state: result.state } : { state: "unknown" };
+  }
+};
+
 const productionEventRoutingService = new EventRoutingProductionService(
   createEventRoutingDispatchRepository(getDatabasePool()),
-  publishEventRoutingPlayback
+  publishEventRoutingPlayback,
+  { streamStateResolver: productionStreamStateResolver }
 );
 
 const providerEventIntakeLogService = new ProviderEventIntakeLogService({
   repository: createProviderEventIntakeLogRepository(getDatabasePool()),
   onRecordedProviderEvent: async (event) => {
+    if (event.provider === "twitch" && event.mechanism === "twitch-eventsub") {
+      try {
+        twitchLiveStateService.recordEventSubObservation({
+          broadcasterLogin: resolveTwitchBroadcasterLoginFromRedactedPayload(event.redactedPayload),
+          broadcasterUserId: event.providerChannelId,
+          observedAt: event.occurredAt,
+          providerEventName: event.providerEventName,
+          receivedAt: event.receivedAt
+        });
+      } catch {
+        server.log.warn({
+          provider: event.provider,
+          providerEventName: event.providerEventName
+        }, "Twitch live-state observation update failed after durable intake.");
+      }
+    }
+
     try {
       await productionEventRoutingService.route(event);
     } catch (error) {
@@ -199,6 +235,23 @@ const providerEventIntakeLogService = new ProviderEventIntakeLogService({
     }
   }
 });
+
+const resolveTwitchBroadcasterLoginFromRedactedPayload = (payload: Record<string, unknown>): string | null => {
+  const event = payload.event;
+  if (!event || typeof event !== "object" || Array.isArray(event)) {
+    return null;
+  }
+
+  const login = (event as {
+    broadcaster_user_login?: unknown;
+    broadcaster_user_name?: unknown;
+  }).broadcaster_user_login ?? (event as {
+    broadcaster_user_login?: unknown;
+    broadcaster_user_name?: unknown;
+  }).broadcaster_user_name;
+
+  return typeof login === "string" && login.trim() ? login : null;
+};
 
 const writeProviderChatIntakeLog = (
   message: TwitchChatProjectedMessage | DiscordChatProjectedMessage | YouTubeLiveChatProjectedMessage

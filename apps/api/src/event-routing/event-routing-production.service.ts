@@ -16,6 +16,7 @@ import type {
   EventRoutingPlaybackPublisher
 } from "./event-routing-dispatch.types.js";
 import { buildProductionEventRoutingPlaybackProjection } from "./event-routing-playback.service.js";
+import type { EventRoutingStreamStateResolver } from "./event-routing-stream-state.types.js";
 
 export type ProductionEventRoutingResult = {
   status: "ignored" | "stored_internal" | "routed" | "queued_for_approval" | "blocked_safety" | "blocked_cooldown";
@@ -30,10 +31,15 @@ const actorCooldownKey = (actorExternalId: string): string =>
   `actor:${createHash("sha256").update(actorExternalId).digest("hex")}`;
 
 export class EventRoutingProductionService {
+  private readonly streamStateResolver: EventRoutingStreamStateResolver | null;
+
   public constructor(
     private readonly repository: EventRoutingDispatchRepository,
-    private readonly publishPlayback: EventRoutingPlaybackPublisher
-  ) {}
+    private readonly publishPlayback: EventRoutingPlaybackPublisher,
+    options: { streamStateResolver?: EventRoutingStreamStateResolver } = {}
+  ) {
+    this.streamStateResolver = options.streamStateResolver ?? null;
+  }
 
   public async route(input: NormalizedProviderEventIntake): Promise<ProductionEventRoutingResult> {
     const eventKind = resolveProviderIntakeEventKind({
@@ -69,11 +75,19 @@ export class EventRoutingProductionService {
     const destinationCapability = getEventRoutingDestinationCapability(rule.destination);
     const entry = getEventRegistryEntry(eventKind);
     if (!validation.ok
-      || rule.liveOnly
-      || rule.offlineOnly
       || rule.oncePerStream
       || entry.safety.internalOnly
       || (destinationCapability.runtimeConsumer === "unavailable")) {
+      await this.writeHistory(input, eventKind, rule, {
+        destination: null,
+        occurredAt,
+        routingOutcome: "blocked_safety"
+      });
+      return { eventKind, playbackEmitted: false, status: "blocked_safety" };
+    }
+
+    const streamState = await this.resolveStreamStateRequirement(input, rule);
+    if (!streamState.ok) {
       await this.writeHistory(input, eventKind, rule, {
         destination: null,
         occurredAt,
@@ -235,5 +249,44 @@ export class EventRoutingProductionService {
     }
 
     return { ok: true, values };
+  }
+
+  private async resolveStreamStateRequirement(
+    input: NormalizedProviderEventIntake,
+    rule: EventRoutingDispatchRuleRecord
+  ): Promise<{ ok: true } | { ok: false }> {
+    if (!rule.liveOnly && !rule.offlineOnly) {
+      return { ok: true };
+    }
+
+    if (!this.streamStateResolver) {
+      return { ok: false };
+    }
+
+    try {
+      const resolution = await this.streamStateResolver.resolve({
+        occurredAt: input.occurredAt,
+        provider: input.provider,
+        providerChannelId: input.providerChannelId,
+        providerChannelIdentityId: input.providerChannelIdentityId,
+        receivedAt: input.receivedAt
+      });
+
+      if (resolution.state === "unknown") {
+        return { ok: false };
+      }
+
+      if (rule.liveOnly && resolution.state !== "live") {
+        return { ok: false };
+      }
+
+      if (rule.offlineOnly && resolution.state !== "offline") {
+        return { ok: false };
+      }
+
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
   }
 }

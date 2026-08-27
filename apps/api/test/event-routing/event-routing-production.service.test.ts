@@ -17,12 +17,17 @@ import type {
   EventRoutingHistoryInsert,
   EventRoutingHistoryRecord
 } from "../../src/event-routing/event-routing-dispatch.types.js";
+import type { EventRoutingStreamStateResolver } from "../../src/event-routing/event-routing-stream-state.types.js";
 
-const followEvent = () => {
+const followEvent = (overrides: {
+  providerChannelId?: string | null;
+  providerChannelIdentityId?: string | null;
+} = {}) => {
   const result = normalizeProviderEventIntake({
     provider: "twitch",
     mechanism: "twitch-eventsub",
     providerEventName: "channel.follow",
+    ...overrides,
     sourceEventId: "twitch-eventsub:event-1",
     actorExternalId: "viewer-1",
     actorDisplayName: "Viewer One",
@@ -215,6 +220,113 @@ describe("EventRoutingProductionService", () => {
 
     expect(result.status).toBe("blocked_cooldown");
     expect(repository.histories[0]?.routingOutcome).toBe("blocked_cooldown");
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("routes live-only rules only when the originating Twitch channel is known live", async () => {
+    const repository = new Repository();
+    repository.savedRule = rule({ liveOnly: true });
+    const publish = vi.fn().mockReturnValue({ emitted: true });
+    const streamStateResolver: EventRoutingStreamStateResolver = {
+      resolve: vi.fn(async () => ({ state: "live" }))
+    };
+    const service = new EventRoutingProductionService(repository, publish, { streamStateResolver });
+
+    const result = await service.route(followEvent({ providerChannelId: "617410645" }));
+
+    expect(result).toEqual({
+      eventKind: "twitch.follow",
+      playbackEmitted: true,
+      status: "routed"
+    });
+    expect(streamStateResolver.resolve).toHaveBeenCalledWith({
+      occurredAt: new Date("2026-08-20T18:00:00.000Z"),
+      provider: "twitch",
+      providerChannelId: "617410645",
+      providerChannelIdentityId: null,
+      receivedAt: new Date("2026-08-20T18:00:01.000Z")
+    });
+  });
+
+  it("blocks live-only rules when the originating Twitch channel is offline", async () => {
+    const repository = new Repository();
+    repository.savedRule = rule({ liveOnly: true });
+    const publish = vi.fn();
+    const service = new EventRoutingProductionService(repository, publish, {
+      streamStateResolver: {
+        resolve: async () => ({ state: "offline" })
+      }
+    });
+
+    const result = await service.route(followEvent({ providerChannelId: "617410645" }));
+
+    expect(result).toEqual({
+      eventKind: "twitch.follow",
+      playbackEmitted: false,
+      status: "blocked_safety"
+    });
+    expect(repository.histories[0]).toMatchObject({
+      destination: null,
+      routingOutcome: "blocked_safety"
+    });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("routes offline-only rules when the originating Twitch channel is known offline", async () => {
+    const repository = new Repository();
+    repository.savedRule = rule({ offlineOnly: true });
+    const publish = vi.fn().mockReturnValue({ emitted: true });
+    const service = new EventRoutingProductionService(repository, publish, {
+      streamStateResolver: {
+        resolve: async () => ({ state: "offline" })
+      }
+    });
+
+    const result = await service.route(followEvent({ providerChannelId: "maiksmc" }));
+
+    expect(result.status).toBe("routed");
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks stream-state rules when state is unknown or no resolver is available", async () => {
+    const unknownRepository = new Repository();
+    unknownRepository.savedRule = rule({ liveOnly: true });
+    const unknownPublish = vi.fn();
+    const unknownService = new EventRoutingProductionService(unknownRepository, unknownPublish, {
+      streamStateResolver: {
+        resolve: async () => ({ state: "unknown" })
+      }
+    });
+    const missingResolverRepository = new Repository();
+    missingResolverRepository.savedRule = rule({ offlineOnly: true });
+    const missingResolverPublish = vi.fn();
+    const missingResolverService = new EventRoutingProductionService(missingResolverRepository, missingResolverPublish);
+
+    expect(await unknownService.route(followEvent({ providerChannelId: "617410645" }))).toMatchObject({
+      status: "blocked_safety"
+    });
+    expect(await missingResolverService.route(followEvent({ providerChannelId: "617410645" }))).toMatchObject({
+      status: "blocked_safety"
+    });
+    expect(unknownRepository.histories[0]?.routingOutcome).toBe("blocked_safety");
+    expect(missingResolverRepository.histories[0]?.routingOutcome).toBe("blocked_safety");
+    expect(unknownPublish).not.toHaveBeenCalled();
+    expect(missingResolverPublish).not.toHaveBeenCalled();
+  });
+
+  it("keeps once-per-stream blocked even when live state is known", async () => {
+    const repository = new Repository();
+    repository.savedRule = rule({ oncePerStream: true });
+    const publish = vi.fn();
+    const streamStateResolver: EventRoutingStreamStateResolver = {
+      resolve: vi.fn(async () => ({ state: "live" }))
+    };
+    const service = new EventRoutingProductionService(repository, publish, { streamStateResolver });
+
+    const result = await service.route(followEvent({ providerChannelId: "617410645" }));
+
+    expect(result.status).toBe("blocked_safety");
+    expect(streamStateResolver.resolve).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
   });
 });

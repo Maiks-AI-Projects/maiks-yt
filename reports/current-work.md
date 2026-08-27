@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 Twitch live/offline Event Routing state
+
+- Added a runtime-only Twitch stream-state resolver for production Event Routing. `liveOnly` and `offlineOnly` rules now require an exact known state for the originating Twitch broadcaster; unsupported providers, missing identity/configuration, API failure, invalid responses, and state mismatch fail closed as `blocked_safety`.
+- Empty Helix stream data is the only known-offline response. EventSub `stream.online`/`stream.offline` observations update a short provider-channel-scoped cache only after durable intake, older observations are ignored, and a delayed Helix result cannot overwrite a newer EventSub observation.
+- App-token, canonical identity, and broadcaster-state lookups are cached and coalesced. App tokens honor validated `expires_in` with a conservative skew and 24-hour cap, concurrent cold bursts share work, and per-broadcaster flights remain isolated.
+- `oncePerStream` remains blocked because no authoritative stream-session identity exists. The Event Routing admin `When` control remains gated until real Twitch/EventSub/Helix rehearsal proves broadcaster mapping and transition behavior.
+- Independent senior review found the final implementation correct after two race/reliability corrections. Focused coverage now includes malformed/multiple/mismatched responses, token expiry bounds, same- and cross-broadcaster concurrency, late Helix ordering, cache expiry, and fail-closed routing; integrations report 240 tests and API reports 468 tests.
+- No UI, schema, migration, provider write, secret, environment, deployment, or live call changed. Real EventSub target alignment and online/offline rehearsal remain open.
+
 ## 2026-08-27 production token launch URLs
 
 - Corrected URL-token administration so production create/rotate responses generate `https://overlay.maiks.yt/` or `https://control.maiks.yt/`, while an actual dev API origin continues to generate the `-dev` hosts even when Node runs in production mode.
