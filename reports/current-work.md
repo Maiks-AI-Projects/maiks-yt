@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-27 production Control session enforcement deployment
+
+- Deployed revision `f12c98d` to the production API and Control services only. Web and Overlay remained on their prior reviewed images, and rollback images were retained as `maiks-yt-production:rollback-a802073-web` and `maiks-yt-production:rollback-a802073-shared`.
+- `pnpm check:full` passed before deployment. After replacement, all four production containers were healthy with zero restarts; `api.maiks.yt/health`, `control.maiks.yt/control`, and `overlay.maiks.yt` returned `200` through Cloudflare with a browser user agent.
+- A real valid Control URL token without a signed-in session now returns `401 not_authenticated` from `/streamer-chat/messages`, proving the previous token-only API bypass is closed on the live origin.
+- A positive signed-in owner/PWA check remains unverified because browser control stalled while claiming the existing Control tab. Installed-window access and recovery are still a manual production gate.
+- Verification also confirmed that request logs currently include complete query strings. URL access tokens can therefore appear in private API or tunnel logs; query-parameter redaction and rotation of the verification token are the next security follow-up.
+
 ## 2026-08-27 production readiness audit reconciliation
 
 - Current live-stream readiness is NOT READY.
@@ -8,7 +16,7 @@
 - YouTube has no active production credential or selected channel, and auto-start is off.
 - Discord bot, app, and guild read checks pass, but auto-start is off and the webhook public key is absent.
 - PWA routes and manifests are deployed, but installed-window and owner-session proof is still missing; the dedicated recovery page still awaits visual approval.
-- Direct Chat and Control HTTP and WebSocket paths now enforce each URL token's `requiresLogin` session contract through one shared request-aware gate. All Control PWA API requests include credentials, while `overlay:connect` Browser Sources remain token-only. The reviewed patch is not yet deployed or live-session verified.
+- Direct Chat and Control HTTP and WebSocket paths now enforce each URL token's `requiresLogin` session contract through one shared request-aware gate. All Control PWA API requests include credentials, while `overlay:connect` Browser Sources remain token-only. The correction is deployed and the live bare-token rejection is verified; the signed-in owner/PWA path remains unverified.
 - OBS was closed during the audit; the companion connected remotely but had zero widget clients and could not reach OBS, with no output running. Project Zomboid assets exist, while Sandustry remains a stale duplicate and is not approved.
 - Local Agent and VLC real playback remain unverified.
 - Next prerequisites: restore bot credential and channel targets; activate YouTube and Discord only if needed; launch OBS with MaiksPlays and Project Zomboid; establish widget clients; verify master-overlay fallback; prove installed PWA access and session recovery; verify chat attention, commands, moderation, alerts, and music without output; then run one explicitly authorized rehearsal.

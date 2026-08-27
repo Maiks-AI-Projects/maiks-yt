@@ -10,7 +10,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Current result: NOT READY for a live stream.
 - Healthy: production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen.
-- Gaps: provider and tunnel runtime telemetry is still insufficient, Twitch bot replies and `!commands` are blocked by a `401` bot token validation, YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and owner-session proof is still missing, the reviewed Chat and Control auth correction is not yet deployed or live-verified, OBS/widget fallback is unproven, and local playback remains unverified.
+- Gaps: provider and tunnel runtime telemetry is still insufficient, Twitch bot replies and `!commands` are blocked by a `401` bot token validation, YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and URL-token query parameters still need log redaction.
 
 ## Evidence Base
 
@@ -18,6 +18,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Production revision `501613c` is deployed across web, API, overlay, and control.
 - Web-only revision `986a48b` is deployed for the not-found status correction.
+- Revision `f12c98d` is deployed to API and Control for Control-token session enforcement; Web and Overlay were not recreated.
 - The dedicated `maiks.yt` Cloudflare tunnel was recovered and is now connected dynamically.
 - Live public checks returned the expected `200` and `404` responses, including correct `404` status for retired or missing routes.
 - Previous web rollback evidence is retained as `maiks-yt-production:rollback-501613c-web`.
@@ -30,6 +31,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Chrome confirmed the owner admin shell fails closed while signed out.
 - The production host and tunnel are reachable after recovery.
 - Production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen during the audit.
+- A real valid Control URL token without a signed-in session returns `401 not_authenticated` on the live origin.
 
 ### Unverified
 
@@ -50,6 +52,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Required: fresh production OAuth apps/redirects and separate production secrets.
 - Required: owner/mod/helper permissions remain explicit capabilities, not labels.
 - Required: privileged pages still check role/session state after any URL-token gate.
+- Required: request logs redact URL-token query parameters before storage or operator display.
 - Required: session expiry, sign-out, and recovery are tested on the live origin.
 
 ### Secrets and Provider Apps
@@ -109,7 +112,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Required: rollback reference is recorded before any live change.
 - Required: rollback includes image/commit reference, database stance, and tunnel/DNS recovery steps where relevant.
-- Current reference: deployed production revision `501613c`; web rollback image retained as `maiks-yt-production:rollback-501613c-web`; web-only correction `986a48b` remains the current live not-found fix.
+- Current reference: deployed production revision `501613c`; web-only correction `986a48b` remains the current live not-found fix; API/Control auth correction `f12c98d` is live. Current deployment rollback images are retained as `maiks-yt-production:rollback-a802073-web` and `maiks-yt-production:rollback-a802073-shared`.
 
 ### Real Verification
 
@@ -142,5 +145,6 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Installed PWA behavior is still unverified in a real installed session.
 - OBS widget Browser Sources and fallback are not yet proven in a live rehearsal.
 - Local Agent and VLC are not yet proven on the streaming PC.
+- URL access tokens can currently appear in private request logs until query redaction is implemented; rotate the verification token after that correction.
 - Backup/restore evidence is incomplete.
 - Provider writes, moderation effects, public AI, and privacy deletion remain gated.
