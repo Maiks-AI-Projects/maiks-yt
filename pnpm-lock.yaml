@@ -124,6 +124,9 @@ importers:
 
   apps/local-agent:
     dependencies:
+      '@maiks-yt/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       ws:
         specifier: 8.21.3
         version: 8.21.3

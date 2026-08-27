@@ -1,4 +1,5 @@
 export * from "./in-memory-transport.js";
+export * from "./local-agent.types.js";
 export * from "./obs-widget-bridge.types.js";
 export * from "./overlay.events.js";
 export * from "./overlay.state.js";

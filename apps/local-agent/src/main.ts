@@ -1,4 +1,4 @@
-import { loadLocalAgentConfig } from "./config/local-agent.config.js";
+import { loadLocalAgentConfig, resolveLocalAgentStateFile } from "./config/local-agent.config.js";
 import { readDeviceCredential } from "./identity/device-credential.service.js";
 import { ModuleHost } from "./modules/module-host.service.js";
 import { PipeWirePrivateAudioBackend } from "./modules/private-audio/pipewire-private-audio.service.js";
@@ -34,6 +34,11 @@ async function runProofCommand(kind: "cue" | "tts", text?: string): Promise<void
 
 async function main(): Promise<void> {
   const [argument, ...rest] = process.argv.slice(2);
+  if (argument === "--print-device-id") {
+    const stateStore = await FileAgentStateStore.open(resolveLocalAgentStateFile());
+    console.info(stateStore.getDeviceId());
+    return;
+  }
   if (argument === "--self-test-cue") {
     await runProofCommand("cue");
     return;

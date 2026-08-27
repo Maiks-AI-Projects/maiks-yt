@@ -36,6 +36,7 @@ The systemd unit uses `LoadCredential=` to expose the token through `$CREDENTIAL
 pnpm --filter @maiks-yt/local-agent build
 pnpm --filter @maiks-yt/local-agent test
 pnpm --filter @maiks-yt/local-agent typecheck
+node apps/local-agent/dist/main.js --print-device-id
 node apps/local-agent/dist/main.js --self-test-cue
 node apps/local-agent/dist/main.js --self-test-tts "Private audio test"
 ```

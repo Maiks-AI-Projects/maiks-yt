@@ -27,6 +27,10 @@ function defaultStateFile(): string {
   return path.join(stateHome, "maiks-yt", "local-agent", "state.json");
 }
 
+export function resolveLocalAgentStateFile(value = process.env.MAIKS_LOCAL_AGENT_STATE_FILE): string {
+  return path.resolve(value ?? defaultStateFile());
+}
+
 function defaultCredentialFile(): string {
   const credentialsDirectory = process.env.CREDENTIALS_DIRECTORY;
   if (credentialsDirectory) {
@@ -60,7 +64,7 @@ export function loadLocalAgentConfig(): LocalAgentConfig {
     heartbeatIntervalMs: parseInteger(process.env.MAIKS_LOCAL_AGENT_HEARTBEAT_MS, 15_000, 1_000),
     reconnectBaseMs,
     reconnectMaxMs,
-    stateFile: path.resolve(process.env.MAIKS_LOCAL_AGENT_STATE_FILE ?? defaultStateFile()),
+    stateFile: resolveLocalAgentStateFile(),
     url: parseOutboundUrl(process.env.MAIKS_LOCAL_AGENT_URL)
   };
 }

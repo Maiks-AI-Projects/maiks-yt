@@ -508,7 +508,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [x] Add the production local-agent foundation for one outbound streaming-PC service.
   - The service has durable device identity and acknowledgement replay, reconnect/heartbeat behavior, strict credential-file handling, private PipeWire cue/TTS execution, and typed VLC/countdown extension points. It is not connected to production yet and is not installed or started.
 - [ ] Add a dedicated revocable local-agent device credential and authenticated server connection.
-  - Do not reuse owner sessions, dev-auth tokens, provider credentials, or broad overlay tokens. Expose only sanitized owner-visible device identity, capabilities, last-seen time, and failure state.
+  - The first authenticated WebSocket requires a dedicated environment token plus configured agent and durable device identity. It does not reuse owner sessions, dev-auth tokens, provider credentials, or broad overlay tokens. Managed rotation/revocation and sanitized owner-visible device identity, capabilities, last-seen time, and failure state remain.
 - [ ] Replace OBS-owned browser audio with a local VLC playback connector while retaining `/music/player` as a migration fallback.
   - Maiks.yt remains authoritative for selection, play/pause/skip commands, history, review outcomes, and now-playing state. The streaming-PC connector should control VLC through a loopback-only interface, report existing playback lifecycle events using `playbackId`, expose heartbeat/readiness, reconnect without replaying stale events, and let VLC target the dedicated music audio channel. Do not expose VLC control to the LAN, tunnel, or public API.
 - [ ] Add `/music/overlay` now-playing, attribution, safety, and vote display.

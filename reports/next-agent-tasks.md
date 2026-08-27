@@ -3,7 +3,7 @@
 ## Production Local Agent Follow-Up
 
 - `apps/local-agent` now provides the tested single outbound service foundation. Keep local streaming-PC integrations as focused modules in this service instead of creating unrelated background apps.
-- Next safe server slice: define a dedicated revocable device credential and authenticated outbound-agent WebSocket endpoint with an owner-visible sanitized last-seen/capability status. Do not reuse owner sessions, dev-auth tokens, provider tokens, or broad overlay tokens.
+- The authenticated outbound-agent WebSocket now exists and requires a dedicated environment token plus configured agent/device identity. Next credential work is owner-visible sanitized last-seen/capability status and managed rotation/revocation without exposing the token.
 - Next music slice: implement the VLC module against the dedicated `stream_music` output, then map existing Maiks.yt play/pause/resume/stop/seek/volume/skip state to agent commands while retaining `/music/player` as fallback.
 - Do not install or start the user service until the server endpoint exists and the credential plus live proof plan are reviewed. Live proof must cover reconnect, restart-safe dedupe, Private-only cue/TTS, Music-only VLC output, fallback, and clean shutdown.
 

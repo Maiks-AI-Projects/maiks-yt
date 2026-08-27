@@ -39,6 +39,11 @@ import {
   EventRoutingProductionService,
   type EventRoutingPlaybackPublisher
 } from "./event-routing/index.js";
+import {
+  loadLocalAgentServerConfig,
+  LocalAgentRuntimeService,
+  registerLocalAgentRoutes
+} from "./local-agent/index.js";
 import { registerMusicRoutes } from "./music/index.js";
 import {
   createNotificationAdminRepository,
@@ -102,6 +107,12 @@ await server.register(fastifyCors, {
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 });
 await server.register(fastifyWebsocket);
+
+const localAgentRuntime = new LocalAgentRuntimeService();
+registerLocalAgentRoutes(server, {
+  config: loadLocalAgentServerConfig(),
+  runtime: localAgentRuntime
+});
 
 const urlAccessTokenRequestSchema = z.object({
   token: z.string().min(24),
