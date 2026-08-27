@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-27 OBS companion recovery
+
+- Reconciled and committed the previously uncommitted, approved Project Zomboid Browser Source work in `/home/michael/Documents/Codex/maiks-yt-obs-bridge` as companion commit `f150376`.
+- The companion now durably contains compact and large chat shells, compact and large camera frames, BRB, top and center alert artwork, typed OBS source definitions, capability-protected local pages, inline emote support, chat and alert motion, and a stable mode-0600 local capability so saved OBS URLs survive restarts.
+- Sponsor and stream-goal sources remain protocol-capable but are not installed because those products do not exist yet. OBS still owns transforms, ordering, visibility, and scene membership.
+- `pnpm check` passed with 18 tests and `pnpm build` passed. A separate demo broker rendered compact chat, large chat, both camera frames, and BRB at their intended viewports. The first compact-chat capture raced initial WebSocket state; the retry rendered correctly.
+- No running service was restarted and no OBS scene, output, source, transform, or live service was changed. The existing user service remains active but currently reports OBS integration unavailable, so real OBS integration and effect fallback are still unverified.
+
 ## 2026-08-27 production route hygiene
 
 - Removed the user-facing `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, and retired `/admin/live-helper` pages from the production web build.

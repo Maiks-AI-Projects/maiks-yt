@@ -1,5 +1,11 @@
 # Next Agent Tasks
 
+## OBS Companion Follow-Up
+
+- Companion commit `f150376` preserves the approved Project Zomboid Browser Source implementation and artwork. Do not recreate it from dev or the damaged Windows-era repository.
+- When OBS and the production API are reachable, update/restart the local companion deliberately, verify it reconnects without invalidating saved capability URLs, and confirm the compact/large chat, camera, BRB, top alerts, center alerts, audio ownership, acknowledgements, dedupe, and master-overlay fallback in a full rehearsal.
+- Do not install sponsor or stream-goal Browser Sources until those real products exist. Do not let the companion take over OBS transforms, ordering, visibility, or scene membership.
+
 ## Production Route Hygiene Follow-Up
 
 - The production tree no longer exposes `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, or `/admin/live-helper` as web pages.
