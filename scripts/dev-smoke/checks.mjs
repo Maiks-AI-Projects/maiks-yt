@@ -790,7 +790,7 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
         return "token admin API returned an unexpected payload.";
       }
 
-      return body.includes("rawToken") || body.includes("devUrl")
+      return body.includes("rawToken") || body.includes("launchUrl") || body.includes("devUrl")
         ? "token admin API list leaked a create-only token field."
         : null;
     }

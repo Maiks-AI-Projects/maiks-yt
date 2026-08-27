@@ -14,7 +14,7 @@ type UrlAccessTokenAdminListItem = {
   surface: UrlAccessSurface;
   scopes: readonly string[];
   requiresLogin: boolean;
-  devBaseUrl: string | null;
+  baseUrl: string | null;
   expiresAt: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;
@@ -24,7 +24,7 @@ type UrlAccessTokenAdminListItem = {
 
 type UrlAccessTokenAdminCreatedToken = UrlAccessTokenAdminListItem & {
   rawToken: string;
-  devUrl: string;
+  launchUrl: string;
 };
 
 type AdminTokensResponse =
@@ -203,7 +203,7 @@ const TokenAdminClient = (): React.ReactNode => {
     () => tokens.find((token) => token.id === selectedTokenId) ?? null,
     [tokens, selectedTokenId]
   );
-  const createdTokenLaunchUrl = createdToken ? withDevAuthToken(createdToken.devUrl) : null;
+  const createdTokenLaunchUrl = createdToken ? withDevAuthToken(createdToken.launchUrl) : null;
 
   const replaceToken = useCallback((token: UrlAccessTokenAdminListItem): void => {
     setTokens((current) => {
@@ -534,8 +534,8 @@ const TokenAdminClient = (): React.ReactNode => {
                         </div>
                       </div>
                       <div className={styles.copyControls}>
-                        <input value={createdTokenLaunchUrl ?? createdToken.devUrl} readOnly aria-label="Launch URL" />
-                        <button type="button" onClick={() => void copyValue(createdTokenLaunchUrl ?? createdToken.devUrl, "launch URL")}>
+                        <input value={createdTokenLaunchUrl ?? createdToken.launchUrl} readOnly aria-label="Launch URL" />
+                        <button type="button" onClick={() => void copyValue(createdTokenLaunchUrl ?? createdToken.launchUrl, "launch URL")}>
                           <FiCopy aria-hidden="true" />
                           <span>Copy launch URL</span>
                         </button>
@@ -558,7 +558,7 @@ const TokenAdminClient = (): React.ReactNode => {
                       <div><dt>Surface</dt><dd>{getSurfaceLabel(selectedToken)}</dd></div>
                       <div><dt>Scope</dt><dd><code>{formatScopes(selectedToken.scopes)}</code></dd></div>
                       <div><dt>Login after token</dt><dd>{selectedToken.requiresLogin ? "Required" : "Not required"}</dd></div>
-                      <div><dt>Base URL</dt><dd>{selectedToken.devBaseUrl ?? "Unavailable for this token shape"}</dd></div>
+                      <div><dt>Base URL</dt><dd>{selectedToken.baseUrl ?? "Unavailable for this token shape"}</dd></div>
                     </dl>
                   </section>
 

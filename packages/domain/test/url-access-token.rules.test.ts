@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildUrlAccessTokenDevUrl,
+  buildUrlAccessTokenLaunchUrl,
   canManageUrlAccessTokens,
   canUseUrlAccessToken,
+  getUrlAccessTokenAdminBaseUrl,
   getUrlAccessTokenAdminTargetDefinition,
   getUrlAccessTokenAdminTargetForRecord,
   normalizeUrlAccessTokenLabel,
+  resolveUrlAccessTokenAdminLaunchEnvironment,
   type UrlAccessTokenRecord
 } from "../src/security/index.js";
 
@@ -80,13 +82,19 @@ describe("url access token admin helpers", () => {
       surface: "overlay",
       scope: "overlay:connect",
       requiresLogin: false,
-      devBaseUrl: "https://overlay-dev.maiks.yt/"
+      baseUrls: {
+        development: "https://overlay-dev.maiks.yt/",
+        production: "https://overlay.maiks.yt/"
+      }
     });
     expect(getUrlAccessTokenAdminTargetDefinition("control-panel")).toMatchObject({
       surface: "control-panel",
       scope: "control:open",
       requiresLogin: true,
-      devBaseUrl: "https://control-dev.maiks.yt/"
+      baseUrls: {
+        development: "https://control-dev.maiks.yt/",
+        production: "https://control.maiks.yt/"
+      }
     });
   });
 
@@ -101,11 +109,40 @@ describe("url access token admin helpers", () => {
     })).toBeNull();
   });
 
-  it("builds dev URLs with the raw token in the accessToken query field", () => {
-    expect(buildUrlAccessTokenDevUrl({
+  it("builds launch URLs with the raw token in the accessToken query field", () => {
+    expect(getUrlAccessTokenAdminBaseUrl({
+      environment: "production",
+      target: "overlay"
+    })).toBe("https://overlay.maiks.yt/");
+    expect(getUrlAccessTokenAdminBaseUrl({
+      environment: "development",
+      target: "overlay"
+    })).toBe("https://overlay-dev.maiks.yt/");
+    expect(buildUrlAccessTokenLaunchUrl({
+      environment: "production",
+      target: "control-panel",
+      token: "raw-token"
+    })).toBe("https://control.maiks.yt/?accessToken=raw-token");
+    expect(buildUrlAccessTokenLaunchUrl({
+      environment: "development",
       target: "control-panel",
       token: "raw-token"
     })).toBe("https://control-dev.maiks.yt/?accessToken=raw-token");
+  });
+
+  it("derives the launch environment from the configured public API host before NODE_ENV", () => {
+    expect(resolveUrlAccessTokenAdminLaunchEnvironment({
+      nodeEnvironment: "production",
+      publicApiBaseUrl: "https://api-dev.maiks.yt"
+    })).toBe("development");
+    expect(resolveUrlAccessTokenAdminLaunchEnvironment({
+      nodeEnvironment: "production",
+      publicApiBaseUrl: "https://api.maiks.yt"
+    })).toBe("production");
+    expect(resolveUrlAccessTokenAdminLaunchEnvironment({
+      nodeEnvironment: "production",
+      publicApiBaseUrl: "http://localhost:3001"
+    })).toBe("production");
   });
 
   it("normalizes labels and allows only token managers", () => {

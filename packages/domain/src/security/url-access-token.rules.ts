@@ -1,6 +1,8 @@
 import type {
   UrlAccessTokenAdminTarget,
   UrlAccessTokenAdminTargetDefinition,
+  UrlAccessTokenAdminLaunchEnvironment,
+  UrlAccessTokenAdminLaunchEnvironmentInput,
   UrlAccessTokenRecord,
   UrlAccessTokenUse
 } from "./url-access-token.types.js";
@@ -12,7 +14,10 @@ export const urlAccessTokenAdminTargets = [
     surface: "overlay",
     scope: "overlay:connect",
     requiresLogin: false,
-    devBaseUrl: "https://overlay-dev.maiks.yt/"
+    baseUrls: {
+      development: "https://overlay-dev.maiks.yt/",
+      production: "https://overlay.maiks.yt/"
+    }
   },
   {
     target: "control-panel",
@@ -20,7 +25,10 @@ export const urlAccessTokenAdminTargets = [
     surface: "control-panel",
     scope: "control:open",
     requiresLogin: true,
-    devBaseUrl: "https://control-dev.maiks.yt/"
+    baseUrls: {
+      development: "https://control-dev.maiks.yt/",
+      production: "https://control.maiks.yt/"
+    }
   }
 ] as const satisfies readonly UrlAccessTokenAdminTargetDefinition[];
 
@@ -42,14 +50,53 @@ export function getUrlAccessTokenAdminTargetForRecord(
   return null;
 }
 
-export function buildUrlAccessTokenDevUrl(input: {
+export function resolveUrlAccessTokenAdminLaunchEnvironment(
+  input: UrlAccessTokenAdminLaunchEnvironmentInput
+): UrlAccessTokenAdminLaunchEnvironment {
+  const publicApiHostname = getHostname(input.publicApiBaseUrl);
+
+  if (publicApiHostname === "api-dev.maiks.yt") {
+    return "development";
+  }
+
+  if (publicApiHostname === "api.maiks.yt") {
+    return "production";
+  }
+
+  return input.nodeEnvironment === "production" ? "production" : "development";
+}
+
+export function getUrlAccessTokenAdminBaseUrl(input: {
+  target: UrlAccessTokenAdminTarget;
+  environment: UrlAccessTokenAdminLaunchEnvironment;
+}): string {
+  return getUrlAccessTokenAdminTargetDefinition(input.target).baseUrls[input.environment];
+}
+
+export function buildUrlAccessTokenLaunchUrl(input: {
+  environment: UrlAccessTokenAdminLaunchEnvironment;
   target: UrlAccessTokenAdminTarget;
   token: string;
 }): string {
-  const url = new URL(getUrlAccessTokenAdminTargetDefinition(input.target).devBaseUrl);
+  const url = new URL(getUrlAccessTokenAdminBaseUrl({
+    target: input.target,
+    environment: input.environment
+  }));
   url.searchParams.set("accessToken", input.token);
 
   return url.toString();
+}
+
+function getHostname(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return null;
+  }
 }
 
 export function normalizeUrlAccessTokenLabel(label: string): string {

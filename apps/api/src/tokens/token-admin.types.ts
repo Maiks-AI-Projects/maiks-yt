@@ -1,5 +1,6 @@
 import type {
   UrlAccessSurface,
+  UrlAccessTokenAdminLaunchEnvironment,
   UrlAccessTokenAdminTarget,
   UrlAccessTokenScope
 } from "@maiks-yt/domain/security";
@@ -16,7 +17,7 @@ export type UrlAccessTokenAdminListItem = {
   surface: UrlAccessSurface;
   scopes: readonly string[];
   requiresLogin: boolean;
-  devBaseUrl: string | null;
+  baseUrl: string | null;
   expiresAt: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;
@@ -26,7 +27,11 @@ export type UrlAccessTokenAdminListItem = {
 
 export type UrlAccessTokenAdminCreatedToken = UrlAccessTokenAdminListItem & {
   rawToken: string;
-  devUrl: string;
+  launchUrl: string;
+};
+
+export type UrlAccessTokenAdminRuntimeOptions = {
+  launchEnvironment: UrlAccessTokenAdminLaunchEnvironment;
 };
 
 export type UrlAccessTokenAdminCreateInput = {

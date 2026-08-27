@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 production token launch URLs
+
+- Corrected URL-token administration so production create/rotate responses generate `https://overlay.maiks.yt/` or `https://control.maiks.yt/`, while an actual dev API origin continues to generate the `-dev` hosts even when Node runs in production mode.
+- Renamed the API/UI fields from `devUrl`/`devBaseUrl` to environment-neutral `launchUrl`/`baseUrl`. Raw token material remains create/rotate-only, list responses omit hashes and raw values, and storage remains hash-only.
+- Extended the dev smoke leak check to recognize the new `launchUrl` field while retaining the legacy `devUrl` check. Independent senior review is clean and the combined production review gate passes.
+- No token was created, rotated, printed, or used. No auth boundary, token lifetime, schema, migration, environment, deployment, or live service changed; owner-authenticated production verification and rotation of the previously exposed verification token remain open.
+
 ## 2026-08-27 provider operations hardening
 
 - Added truthful sanitized runtime telemetry to the routed `/admin/provider-integrations` workspace. Configured-but-stopped Twitch, YouTube, and Discord runtimes remain available and report their actual state, safe account summary, timestamps, reconnect policy, bounded reconnect details, and sanitized errors.

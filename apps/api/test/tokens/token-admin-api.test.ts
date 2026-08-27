@@ -1,4 +1,7 @@
-import type { UrlAccessTokenAdminTarget } from "@maiks-yt/domain/security";
+import type {
+  UrlAccessTokenAdminLaunchEnvironment,
+  UrlAccessTokenAdminTarget
+} from "@maiks-yt/domain/security";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -18,7 +21,7 @@ const createToken = (overrides: Partial<UrlAccessTokenAdminListItem> = {}): UrlA
   surface: "overlay",
   scopes: ["overlay:connect"],
   requiresLogin: false,
-  devBaseUrl: "https://overlay-dev.maiks.yt/",
+  baseUrl: "https://overlay-dev.maiks.yt/",
   expiresAt: null,
   revokedAt: null,
   lastUsedAt: null,
@@ -26,6 +29,17 @@ const createToken = (overrides: Partial<UrlAccessTokenAdminListItem> = {}): UrlA
   updatedAt: "2026-06-20T10:00:00.000Z",
   ...overrides
 });
+
+const getBaseUrl = (
+  target: UrlAccessTokenAdminTarget,
+  environment: UrlAccessTokenAdminLaunchEnvironment
+): string => {
+  if (target === "overlay") {
+    return environment === "production" ? "https://overlay.maiks.yt/" : "https://overlay-dev.maiks.yt/";
+  }
+
+  return environment === "production" ? "https://control.maiks.yt/" : "https://control-dev.maiks.yt/";
+};
 
 class FakeUrlAccessTokenAdminRepository implements UrlAccessTokenAdminRepository {
   public actor: UrlAccessTokenAdminActor | null = {
@@ -36,8 +50,10 @@ class FakeUrlAccessTokenAdminRepository implements UrlAccessTokenAdminRepository
   public lastInsert: UrlAccessTokenAdminInsertInput | null = null;
   public lastRotatedHash: string | null = null;
 
-  public constructor() {
-    this.tokens.set("token-1", createToken());
+  public constructor(private readonly launchEnvironment: UrlAccessTokenAdminLaunchEnvironment = "development") {
+    this.tokens.set("token-1", createToken({
+      baseUrl: getBaseUrl("overlay", this.launchEnvironment)
+    }));
     this.tokens.set("control-token", createToken({
       id: "control-token",
       label: "Control tablet",
@@ -45,7 +61,7 @@ class FakeUrlAccessTokenAdminRepository implements UrlAccessTokenAdminRepository
       surface: "control-panel",
       scopes: ["control:open"],
       requiresLogin: true,
-      devBaseUrl: "https://control-dev.maiks.yt/"
+      baseUrl: getBaseUrl("control-panel", this.launchEnvironment)
     }));
   }
 
@@ -73,7 +89,7 @@ class FakeUrlAccessTokenAdminRepository implements UrlAccessTokenAdminRepository
       surface: input.surface,
       scopes: [...input.scopes],
       requiresLogin: input.requiresLogin,
-      devBaseUrl: target === "overlay" ? "https://overlay-dev.maiks.yt/" : "https://control-dev.maiks.yt/"
+      baseUrl: getBaseUrl(target, this.launchEnvironment)
     });
     this.tokens.set(token.id, token);
 
@@ -142,8 +158,10 @@ describe("UrlAccessTokenAdminService", () => {
   });
 
   it("creates overlay and control-panel tokens with strict surfaces and scopes", async () => {
-    const repository = new FakeUrlAccessTokenAdminRepository();
-    const service = new UrlAccessTokenAdminService(repository);
+    const repository = new FakeUrlAccessTokenAdminRepository("production");
+    const service = new UrlAccessTokenAdminService(repository, {
+      launchEnvironment: "production"
+    });
 
     const overlayResult = await service.createToken({
       authUserId: "auth-user",
@@ -158,7 +176,8 @@ describe("UrlAccessTokenAdminService", () => {
         surface: "overlay",
         scopes: ["overlay:connect"],
         requiresLogin: false,
-        devUrl: expect.stringMatching(/^https:\/\/overlay-dev\.maiks\.yt\/\?accessToken=/)
+        baseUrl: "https://overlay.maiks.yt/",
+        launchUrl: expect.stringMatching(/^https:\/\/overlay\.maiks\.yt\/\?accessToken=/)
       }
     });
     expect(repository.lastInsert).toMatchObject({
@@ -169,10 +188,17 @@ describe("UrlAccessTokenAdminService", () => {
     });
     expect(repository.lastInsert?.tokenHash).toHaveLength(64);
 
-    await service.createToken({
+    const controlResult = await service.createToken({
       authUserId: "auth-user",
       target: "control-panel",
       label: "Control tablet"
+    });
+    expect(controlResult).toMatchObject({
+      ok: true,
+      token: {
+        baseUrl: "https://control.maiks.yt/",
+        launchUrl: expect.stringMatching(/^https:\/\/control\.maiks\.yt\/\?accessToken=/)
+      }
     });
     expect(repository.lastInsert).toMatchObject({
       surface: "control-panel",
@@ -181,9 +207,48 @@ describe("UrlAccessTokenAdminService", () => {
     });
   });
 
+  it("keeps dev launch URLs when the public API host is dev under a production Node process", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    const previousApiPublicBaseUrl = process.env.API_PUBLIC_BASE_URL;
+    process.env.NODE_ENV = "production";
+    process.env.API_PUBLIC_BASE_URL = "https://api-dev.maiks.yt";
+
+    try {
+      const repository = new FakeUrlAccessTokenAdminRepository("development");
+      const service = new UrlAccessTokenAdminService(repository);
+      const result = await service.createToken({
+        authUserId: "auth-user",
+        target: "overlay",
+        label: "OBS"
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        token: {
+          baseUrl: "https://overlay-dev.maiks.yt/",
+          launchUrl: expect.stringMatching(/^https:\/\/overlay-dev\.maiks\.yt\/\?accessToken=/)
+        }
+      });
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+
+      if (previousApiPublicBaseUrl === undefined) {
+        delete process.env.API_PUBLIC_BASE_URL;
+      } else {
+        process.env.API_PUBLIC_BASE_URL = previousApiPublicBaseUrl;
+      }
+    }
+  });
+
   it("rotates with a one-time raw URL and revokes lost tokens", async () => {
-    const repository = new FakeUrlAccessTokenAdminRepository();
-    const service = new UrlAccessTokenAdminService(repository);
+    const repository = new FakeUrlAccessTokenAdminRepository("development");
+    const service = new UrlAccessTokenAdminService(repository, {
+      launchEnvironment: "development"
+    });
 
     const rotateResult = await service.rotateToken({
       authUserId: "auth-user",
@@ -195,7 +260,8 @@ describe("UrlAccessTokenAdminService", () => {
       token: {
         id: "control-token",
         rawToken: expect.any(String),
-        devUrl: expect.stringMatching(/^https:\/\/control-dev\.maiks\.yt\/\?accessToken=/)
+        baseUrl: "https://control-dev.maiks.yt/",
+        launchUrl: expect.stringMatching(/^https:\/\/control-dev\.maiks\.yt\/\?accessToken=/)
       }
     });
     expect(repository.lastRotatedHash).toHaveLength(64);
@@ -259,9 +325,10 @@ describe("URL access token admin route boundary", () => {
   });
 
   it("returns a raw token only from create and rotate responses", async () => {
-    const repository = new FakeUrlAccessTokenAdminRepository();
+    const repository = new FakeUrlAccessTokenAdminRepository("production");
     const server = Fastify();
     registerUrlAccessTokenAdminRoutes(server, {
+      launchEnvironment: "production",
       getAuthSession: async () => ({
         user: {
           id: "auth-user"
@@ -270,7 +337,9 @@ describe("URL access token admin route boundary", () => {
       getDatabasePool: () => {
         throw new Error("pool should not be used");
       },
-      createService: () => new UrlAccessTokenAdminService(repository)
+      createService: () => new UrlAccessTokenAdminService(repository, {
+        launchEnvironment: "production"
+      })
     });
 
     const listResponse = await server.inject({
@@ -280,6 +349,7 @@ describe("URL access token admin route boundary", () => {
     expect(listResponse.statusCode).toBe(200);
     expect(listResponse.json()).not.toHaveProperty("rawToken");
     expect(JSON.stringify(listResponse.json())).not.toContain("rawToken");
+    expect(JSON.stringify(listResponse.json())).not.toContain("tokenHash");
 
     const createResponse = await server.inject({
       method: "POST",
@@ -295,9 +365,11 @@ describe("URL access token admin route boundary", () => {
       ok: true,
       token: {
         rawToken: expect.any(String),
-        devUrl: expect.stringMatching(/^https:\/\/overlay-dev\.maiks\.yt\/\?accessToken=/)
+        baseUrl: "https://overlay.maiks.yt/",
+        launchUrl: expect.stringMatching(/^https:\/\/overlay\.maiks\.yt\/\?accessToken=/)
       }
     });
+    expect(createResponse.json().token).not.toHaveProperty("devUrl");
 
     const rotateResponse = await server.inject({
       method: "POST",

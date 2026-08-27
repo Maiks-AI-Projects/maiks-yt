@@ -4,6 +4,13 @@ export type UrlAccessTokenScope = "overlay:connect" | "control:open";
 
 export type UrlAccessTokenAdminTarget = "overlay" | "control-panel";
 
+export type UrlAccessTokenAdminLaunchEnvironment = "development" | "production";
+
+export type UrlAccessTokenAdminLaunchEnvironmentInput = {
+  nodeEnvironment?: string | undefined;
+  publicApiBaseUrl?: string | null | undefined;
+};
+
 export type UrlAccessTokenRecord = {
   id: string;
   surface: UrlAccessSurface;
@@ -25,5 +32,5 @@ export type UrlAccessTokenAdminTargetDefinition = {
   surface: UrlAccessSurface;
   scope: UrlAccessTokenScope;
   requiresLogin: boolean;
-  devBaseUrl: string;
+  baseUrls: Readonly<Record<UrlAccessTokenAdminLaunchEnvironment, string>>;
 };

@@ -1,4 +1,8 @@
 import type { DatabasePool } from "@maiks-yt/database";
+import {
+  resolveUrlAccessTokenAdminLaunchEnvironment,
+  type UrlAccessTokenAdminLaunchEnvironment
+} from "@maiks-yt/domain/security";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
@@ -18,6 +22,7 @@ type UrlAccessTokenAdminAuthSession = {
 type UrlAccessTokenAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<UrlAccessTokenAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
+  launchEnvironment?: UrlAccessTokenAdminLaunchEnvironment;
   createService?: () => Pick<UrlAccessTokenAdminService,
     | "listTokens"
     | "createToken"
@@ -60,6 +65,11 @@ export const registerUrlAccessTokenAdminRoutes = (
   server: FastifyInstance,
   dependencies: UrlAccessTokenAdminRouteDependencies
 ): void => {
+  const launchEnvironment = dependencies.launchEnvironment
+    ?? resolveUrlAccessTokenAdminLaunchEnvironment({
+      nodeEnvironment: process.env.NODE_ENV,
+      publicApiBaseUrl: process.env.API_PUBLIC_BASE_URL
+    });
   const getService = (): Pick<UrlAccessTokenAdminService,
     | "listTokens"
     | "createToken"
@@ -67,7 +77,10 @@ export const registerUrlAccessTokenAdminRoutes = (
     | "revokeToken"
   > =>
     dependencies.createService?.()
-    ?? new UrlAccessTokenAdminService(createUrlAccessTokenAdminRepository(dependencies.getDatabasePool()));
+    ?? new UrlAccessTokenAdminService(
+      createUrlAccessTokenAdminRepository(dependencies.getDatabasePool(), { launchEnvironment }),
+      { launchEnvironment }
+    );
 
   const getSession = async (
     request: FastifyRequest,

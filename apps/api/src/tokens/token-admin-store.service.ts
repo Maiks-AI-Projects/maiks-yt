@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
 import {
-  getUrlAccessTokenAdminTargetDefinition,
+  getUrlAccessTokenAdminBaseUrl,
   getUrlAccessTokenAdminTargetForRecord,
   type UrlAccessSurface
 } from "@maiks-yt/domain/security";
@@ -11,7 +11,8 @@ import type {
   UrlAccessTokenAdminActor,
   UrlAccessTokenAdminInsertInput,
   UrlAccessTokenAdminListItem,
-  UrlAccessTokenAdminRepository
+  UrlAccessTokenAdminRepository,
+  UrlAccessTokenAdminRuntimeOptions
 } from "./token-admin.types.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
@@ -52,7 +53,9 @@ const toIsoString = (value: Date | string): string =>
 const toNullableIsoString = (value?: Date | string | null): string | null =>
   value ? toIsoString(value) : null;
 
-const mapToken = (row: UrlAccessTokenAdminRow): UrlAccessTokenAdminListItem => {
+const createTokenMapper = (
+  options: UrlAccessTokenAdminRuntimeOptions
+): ((row: UrlAccessTokenAdminRow) => UrlAccessTokenAdminListItem) => (row) => {
   const scopes = parseJsonArray(row.scopes).filter((scope): scope is string => typeof scope === "string");
   const target = getUrlAccessTokenAdminTargetForRecord({
     surface: row.surface,
@@ -66,7 +69,10 @@ const mapToken = (row: UrlAccessTokenAdminRow): UrlAccessTokenAdminListItem => {
     surface: row.surface,
     scopes,
     requiresLogin: Boolean(row.requiresLogin),
-    devBaseUrl: target ? getUrlAccessTokenAdminTargetDefinition(target).devBaseUrl : null,
+    baseUrl: target ? getUrlAccessTokenAdminBaseUrl({
+      target,
+      environment: options.launchEnvironment
+    }) : null,
     expiresAt: toNullableIsoString(row.expiresAt),
     revokedAt: toNullableIsoString(row.revokedAt),
     lastUsedAt: toNullableIsoString(row.lastUsedAt),
@@ -90,7 +96,8 @@ const selectTokenFields = `
 
 const readToken = async (
   executor: QueryExecutor,
-  id: string
+  id: string,
+  options: UrlAccessTokenAdminRuntimeOptions
 ): Promise<UrlAccessTokenAdminListItem | null> => {
   const [rows] = await executor.execute(
     `
@@ -103,7 +110,7 @@ const readToken = async (
   );
 
   return Array.isArray(rows) && rows.length > 0
-    ? mapToken(rows[0] as UrlAccessTokenAdminRow)
+    ? createTokenMapper(options)(rows[0] as UrlAccessTokenAdminRow)
     : null;
 };
 
@@ -148,106 +155,111 @@ const resolveActor = async (
 };
 
 export const createUrlAccessTokenAdminRepository = (
-  pool: DatabasePool
-): UrlAccessTokenAdminRepository => ({
-  async resolveActor(authUserId) {
-    return await resolveActor(pool, authUserId);
-  },
+  pool: DatabasePool,
+  options: UrlAccessTokenAdminRuntimeOptions
+): UrlAccessTokenAdminRepository => {
+  const mapToken = createTokenMapper(options);
 
-  async listTokens() {
-    const [rows] = await pool.execute(
-      `
+  return {
+    async resolveActor(authUserId) {
+      return await resolveActor(pool, authUserId);
+    },
+
+    async listTokens() {
+      const [rows] = await pool.execute(
+        `
         SELECT ${selectTokenFields}
         FROM url_access_tokens
         ORDER BY revoked_at IS NULL DESC, surface, label, created_at DESC
       `
-    );
+      );
 
-    return Array.isArray(rows)
-      ? (rows as UrlAccessTokenAdminRow[]).map(mapToken)
-      : [];
-  },
+      return Array.isArray(rows)
+        ? (rows as UrlAccessTokenAdminRow[]).map(mapToken)
+        : [];
+    },
 
-  async getToken(id) {
-    return await readToken(pool, id);
-  },
+    async getToken(id) {
+      return await readToken(pool, id, options);
+    },
 
-  async createToken(input: UrlAccessTokenAdminInsertInput) {
-    const id = randomUUID();
-    await pool.execute(
-      `
+    async createToken(input: UrlAccessTokenAdminInsertInput) {
+      const id = randomUUID();
+      await pool.execute(
+        `
         INSERT INTO url_access_tokens
           (id, label, token_hash, surface, scopes, requires_login)
         VALUES (?, ?, ?, ?, ?, ?)
       `,
-      [
-        id,
-        input.label,
-        input.tokenHash,
-        input.surface,
-        JSON.stringify(input.scopes),
-        input.requiresLogin
-      ]
-    );
+        [
+          id,
+          input.label,
+          input.tokenHash,
+          input.surface,
+          JSON.stringify(input.scopes),
+          input.requiresLogin
+        ]
+      );
 
-    const token = await readToken(pool, id);
+      const token = await readToken(pool, id, options);
 
-    if (!token) {
-      throw new Error("url_token_admin_mutation_reread_failed");
-    }
+      if (!token) {
+        throw new Error("url_token_admin_mutation_reread_failed");
+      }
 
-    return token;
-  },
+      return token;
+    },
 
-  async rotateToken(id, tokenHash) {
-    const [result] = await pool.execute(
-      `
+    async rotateToken(id, tokenHash) {
+      const [result] = await pool.execute(
+        `
         UPDATE url_access_tokens
         SET token_hash = ?, revoked_at = NULL, last_used_at = NULL, updated_at = NOW()
         WHERE id = ?
       `,
-      [tokenHash, id]
-    );
+        [tokenHash, id]
+      );
 
-    if (typeof result === "object"
-      && result !== null
-      && "affectedRows" in result
-      && result.affectedRows === 0) {
-      return "not-found";
-    }
+      if (typeof result === "object"
+        && result !== null
+        && "affectedRows" in result
+        && result.affectedRows === 0) {
+        return "not-found";
+      }
 
-    const token = await readToken(pool, id);
+      const token = await readToken(pool, id, options);
 
-    if (!token) {
-      throw new Error("url_token_admin_mutation_reread_failed");
-    }
+      if (!token) {
+        throw new Error("url_token_admin_mutation_reread_failed");
+      }
 
-    return token;
-  },
+      return token;
+    },
 
-  async revokeToken(id) {
-    const [result] = await pool.execute(
-      `
+    async revokeToken(id) {
+      const [result] = await pool.execute(
+        `
         UPDATE url_access_tokens
         SET revoked_at = COALESCE(revoked_at, NOW()), updated_at = NOW()
         WHERE id = ?
       `,
-      [id]
-    );
+        [id]
+      );
 
-    if (typeof result === "object"
-      && result !== null
-      && "affectedRows" in result
-      && result.affectedRows === 0) {
-      return "not-found";
+      if (typeof result === "object"
+        && result !== null
+        && "affectedRows" in result
+        && result.affectedRows === 0) {
+        return "not-found";
+      }
+
+      const token = await readToken(pool, id, options);
+
+      if (!token) {
+        throw new Error("url_token_admin_mutation_reread_failed");
+      }
+
+      return token;
     }
-
-    const token = await readToken(pool, id);
-
-    if (!token) {
-      throw new Error("url_token_admin_mutation_reread_failed");
-    }
-
-    return token;
-  }
-});
+  };
+};

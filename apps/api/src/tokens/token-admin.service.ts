@@ -1,11 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import {
-  buildUrlAccessTokenDevUrl,
+  buildUrlAccessTokenLaunchUrl,
   canManageUrlAccessTokens,
   getUrlAccessTokenAdminTargetDefinition,
   isValidUrlAccessTokenLabel,
-  normalizeUrlAccessTokenLabel
+  normalizeUrlAccessTokenLabel,
+  resolveUrlAccessTokenAdminLaunchEnvironment
 } from "@maiks-yt/domain/security";
 import type { UrlAccessTokenAdminTarget } from "@maiks-yt/domain/security";
 
@@ -14,6 +15,7 @@ import type {
   UrlAccessTokenAdminListResult,
   UrlAccessTokenAdminMutationResult,
   UrlAccessTokenAdminRepository,
+  UrlAccessTokenAdminRuntimeOptions,
   UrlAccessTokenAdminRevokeResult
 } from "./token-admin.types.js";
 
@@ -56,8 +58,9 @@ export const normalizeUrlAccessTokenAdminPermissions = (
 };
 
 const withRawToken = (
-  token: Omit<UrlAccessTokenAdminCreatedToken, "rawToken" | "devUrl">,
-  rawToken: string
+  token: Omit<UrlAccessTokenAdminCreatedToken, "rawToken" | "launchUrl">,
+  rawToken: string,
+  options: UrlAccessTokenAdminRuntimeOptions
 ): UrlAccessTokenAdminCreatedToken => {
   if (!token.target) {
     throw new Error("url_token_admin_missing_supported_target");
@@ -66,7 +69,8 @@ const withRawToken = (
   return {
     ...token,
     rawToken,
-    devUrl: buildUrlAccessTokenDevUrl({
+    launchUrl: buildUrlAccessTokenLaunchUrl({
+      environment: options.launchEnvironment,
       target: token.target,
       token: rawToken
     })
@@ -74,7 +78,20 @@ const withRawToken = (
 };
 
 export class UrlAccessTokenAdminService {
-  public constructor(private readonly repository: UrlAccessTokenAdminRepository) {}
+  private readonly options: UrlAccessTokenAdminRuntimeOptions;
+
+  public constructor(
+    private readonly repository: UrlAccessTokenAdminRepository,
+    options?: Partial<UrlAccessTokenAdminRuntimeOptions>
+  ) {
+    this.options = {
+      launchEnvironment: options?.launchEnvironment
+        ?? resolveUrlAccessTokenAdminLaunchEnvironment({
+          nodeEnvironment: process.env.NODE_ENV,
+          publicApiBaseUrl: process.env.API_PUBLIC_BASE_URL
+        })
+    };
+  }
 
   public async listTokens(input: { authUserId: string }): Promise<UrlAccessTokenAdminListResult> {
     const actor = await this.requireActor(input.authUserId);
@@ -121,7 +138,7 @@ export class UrlAccessTokenAdminService {
 
     return {
       ok: true,
-      token: withRawToken(token, rawToken)
+      token: withRawToken(token, rawToken, this.options)
     };
   }
 
@@ -163,7 +180,7 @@ export class UrlAccessTokenAdminService {
 
     return {
       ok: true,
-      token: withRawToken(rotatedToken, rawToken)
+      token: withRawToken(rotatedToken, rawToken, this.options)
     };
   }
 
