@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-27 production local-agent owner status
+
+- Added owner-only `GET /admin/local-agent/status` as a read-only operational projection over the existing Local Agent runtime.
+- The response distinguishes not configured, disconnected, connected, and degraded states using connection freshness and advertised module availability. It reports service/protocol version, last-seen timestamps, module actions, and bounded VLC playback status, position, and volume.
+- The projection deliberately excludes the dedicated credential, device and agent identifiers, expected identities, playback IDs, pending command counts, command and acknowledgement bodies, raw module details, and filesystem paths.
+- Focused service/route tests cover unauthenticated, non-owner, unlinked, connected, stale/degraded, disconnected, and missing-configuration states plus explicit redaction assertions. No UI, schema, migration, environment, service, deployment, or live state changed.
+- Managed credential rotation/revocation and any owner UI remain separate work. A materially new owner surface requires the image-first approval cycle; deployment and real connection verification remain blocked by production reachability.
+
 ## 2026-08-27 production music-to-VLC integration
 
 - Connected the existing authoritative music playback service to the generic production local agent. Play, pause, resume, skip/stop, lifecycle, and automatic next-track behavior now project to the advertised `vlc-music` capability without changing the Control PWA surface.

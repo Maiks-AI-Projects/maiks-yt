@@ -509,7 +509,9 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
   - The service has durable device identity and acknowledgement replay, reconnect/heartbeat behavior, strict credential-file handling, private PipeWire cue/TTS execution, executable VLC control on `stream_music`, and a typed countdown extension point. It is not connected to production yet and is not installed or started.
 - [x] Add a dedicated local-agent device credential and authenticated server connection.
   - The authenticated WebSocket requires a dedicated environment token plus configured agent and durable device identity. It does not reuse owner sessions, dev-auth tokens, provider credentials, or broad overlay tokens.
-- [ ] Add managed local-agent credential rotation/revocation and sanitized owner-visible device status.
+- [x] Add sanitized owner-visible local-agent device status.
+  - Owner-only `GET /admin/local-agent/status` reports configuration readiness, connection freshness, service version, advertised module actions/availability, and bounded VLC playback state. It omits credentials, device and agent identifiers, command/acknowledgement data, raw module details, paths, and playback IDs.
+- [ ] Add managed local-agent credential rotation/revocation.
 - [x] Connect authoritative Maiks.yt playback to local VLC while retaining `/music/player` as a fallback.
   - Maiks.yt remains authoritative for selection, play/pause/skip, history, review outcomes, and now-playing state. The local connector claims playback only while its VLC capability is available, downloads audio with the dedicated bearer without placing it in URLs or VLC arguments, reports started/ended/error lifecycle state, advances to the next track, targets `stream_music`, and releases the browser fallback lease on disconnect or command failure. Deployment, service installation, audio-channel proof, reconnect rehearsal, and full browser fallback proof remain open.
 - [ ] Add `/music/overlay` now-playing, attribution, safety, and vote display.

@@ -21,6 +21,11 @@ import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index
 import { registerGameLibraryRoutes } from "./games/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
 import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
+import {
+  registerLocalAgentAdminStatusRoutes,
+  type LocalAgentRuntimeService,
+  type LocalAgentServerConfig
+} from "./local-agent/index.js";
 import { registerModeratorAdminRoutes } from "./moderators/index.js";
 import { registerMoneyAdminRoutes } from "./money/index.js";
 import { registerNotificationAdminRoutes } from "./notifications/index.js";
@@ -87,6 +92,8 @@ type RegisterApplicationRoutesInput = {
   fakeLocalModerationRuntime: InMemoryFakeLocalModerationRuntime;
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
   getDatabasePool: () => DatabasePool;
+  localAgentRuntime: LocalAgentRuntimeService;
+  localAgentServerConfig: LocalAgentServerConfig;
   obsWidgetBridgeRuntime: ObsWidgetBridgeRuntime;
   overlayRuntime: OverlayRuntime;
   publishEventRoutingPlayback: EventRoutingPlaybackPublisher;
@@ -113,6 +120,8 @@ export const registerApplicationRoutes = ({
   fakeLocalModerationRuntime,
   getAuthSession,
   getDatabasePool,
+  localAgentRuntime,
+  localAgentServerConfig,
   obsWidgetBridgeRuntime,
   overlayRuntime,
   publishEventRoutingPlayback,
@@ -221,6 +230,12 @@ export const registerApplicationRoutes = ({
   registerBackupKeyDataExportRoutes(server, {
     getAuthSession,
     getDatabasePool
+  });
+  registerLocalAgentAdminStatusRoutes(server, {
+    config: localAgentServerConfig,
+    getAuthSession,
+    getDatabasePool,
+    runtime: localAgentRuntime
   });
   registerDevOwnerTokenRoutes(server, {
     getDatabasePool

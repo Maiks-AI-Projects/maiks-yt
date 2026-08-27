@@ -460,6 +460,8 @@ registerApplicationRoutes({
   fakeLocalModerationRuntime,
   getAuthSession,
   getDatabasePool,
+  localAgentRuntime,
+  localAgentServerConfig,
   obsWidgetBridgeRuntime,
   overlayRuntime,
   publishEventRoutingPlayback,
