@@ -1,4 +1,5 @@
 import {
+  buildGameLibraryAdminEntry,
   buildPublicGameLibraryEntry,
   canManageGameLibrary,
   createGameSlugFromTitle,
@@ -10,6 +11,7 @@ import {
   normalizePublicGameSuggestionInput,
   type GameLibraryAdminInput,
   type GameLibraryAdminUpdateInput,
+  type GameLibrarySource,
   type GameSuggestionReviewInput,
   type PublicGameSuggestionInput
 } from "@maiks-yt/domain/games";
@@ -108,7 +110,10 @@ const mergeDefinedUpdate = (
 };
 
 export class GameLibraryService {
-  public constructor(private readonly repository: GameLibraryRepository) {}
+  public constructor(
+    private readonly repository: GameLibraryRepository,
+    private readonly now: () => Date = () => new Date()
+  ) {}
 
   public async listGames(input: { authUserId: string }): Promise<GameLibraryAdminListResult> {
     const actor = await this.requireActor(input.authUserId);
@@ -117,9 +122,20 @@ export class GameLibraryService {
       return actor;
     }
 
+    const now = this.now();
+    const games = await this.repository.listGames();
+    const scheduleAssociationsByGameId = await this.repository.listGameScheduleAssociations(
+      games.map((game) => game.id),
+      now
+    );
+
     return {
       ok: true,
-      games: await this.repository.listGames(),
+      games: games.map((game) => buildGameLibraryAdminEntry(
+        game,
+        scheduleAssociationsByGameId.get(game.id) ?? [],
+        now
+      )),
       suggestions: await this.repository.listSuggestions()
     };
   }
@@ -146,10 +162,10 @@ export class GameLibraryService {
     try {
       return {
         ok: true,
-        game: await this.repository.createGame({
+        game: await this.createAdminEntry(await this.repository.createGame({
           ...game,
           actorUserId: actor.domainUserId
-        })
+        }))
       };
     } catch (error) {
       if (error instanceof Error && error.message === "game_library_slug_conflict") {
@@ -243,7 +259,7 @@ export class GameLibraryService {
 
     return {
       ok: true,
-      game: result
+      game: await this.createAdminEntry(result)
     };
   }
 
@@ -344,5 +360,16 @@ export class GameLibraryService {
 
   private canManage(actor: GameLibraryAdminActor): boolean {
     return canManageGameLibrary(normalizeGameLibraryPermissions(actor.rolePermissionValues));
+  }
+
+  private async createAdminEntry(game: GameLibrarySource) {
+    const now = this.now();
+    const scheduleAssociationsByGameId = await this.repository.listGameScheduleAssociations([game.id], now);
+
+    return buildGameLibraryAdminEntry(
+      game,
+      scheduleAssociationsByGameId.get(game.id) ?? [],
+      now
+    );
   }
 }

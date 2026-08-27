@@ -37,6 +37,23 @@ export type GameLibrarySource = {
   updatedAt: string;
 };
 
+export type GameScheduleAssociationSummary = {
+  scheduleEntryId: string;
+  title: string;
+  startsAt: string;
+  endsAt: string | null;
+  channelKey: string;
+  visibility: "draft" | "public" | "private";
+  status: "planned" | "live";
+  relationship: "planned" | "current";
+  publicNote: string | null;
+  sortOrder: number;
+};
+
+export type GameLibraryAdminEntry = Omit<GameLibrarySource, "createdByUserId" | "updatedByUserId"> & {
+  scheduleAssociations: readonly GameScheduleAssociationSummary[];
+};
+
 export type GameLibraryAdminInput = {
   title: string;
   slug?: string | null | undefined;

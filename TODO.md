@@ -321,7 +321,8 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
   - [ ] Add a deliberate artwork and Steam-activity cache with provider persistence, refresh timestamps, honest stale/error states, and an owner-only refresh operation. `artworkUrl` and `popularityScore` are currently always `null`.
   - [ ] Add immutable suggestion review/correction history before exposing an admin action that changes an already-reviewed decision.
   - [ ] Design private gifted-game metadata for giver, received date, and redemption state. The current shortcut only creates a private record with `ownershipStatus: gifted`; never store plaintext product keys without a separately reviewed secure-secret design.
-  - [ ] Add an owner-only reverse read model for upcoming/planned schedule links in Games while keeping all schedule mutations in Schedule.
+  - [x] Add an owner-only reverse read model for upcoming/planned schedule links in Games while keeping all schedule mutations in Schedule.
+  - 2026-08-27 production follow-up adds a compact read-only Schedule summary to `/admin/games`. It includes upcoming planned and current live links, excludes stale/cancelled/completed rows, exposes no raw creator/updater ids, and keeps every schedule mutation in Schedule.
   - Current data-contract notes: suggestion `isPublic` is forced false during review; `suggestedByUserId` is not bound by the public submission route; no dead clickable Games admin controls were found in the 2026-08-18 audit. Audit timestamps and creator/updater ids stay out of the normal editor; if later needed for debugging, expose them only in collapsed owner diagnostics with resolved names rather than raw ids.
 - [ ] Prepare Twitch/YouTube scheduling sync.
 - [ ] Prepare Discord/social cancellation announcements.

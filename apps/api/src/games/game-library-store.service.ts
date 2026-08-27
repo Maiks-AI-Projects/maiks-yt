@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { DatabasePool } from "@maiks-yt/database";
 import type {
   GameInterestStatus,
+  GameScheduleAssociationSummary,
   GameLibrarySource,
   GameOwnershipStatus,
   GameSuggestionSource,
@@ -56,6 +57,20 @@ type GameSuggestionRow = {
   isPublic?: boolean | number;
   createdAt: Date | string;
   updatedAt: Date | string;
+};
+
+type GameScheduleAssociationRow = {
+  gameId: string;
+  scheduleEntryId: string;
+  title: string;
+  startsAt: Date | string;
+  endsAt?: Date | string | null;
+  channelKey: string;
+  visibility: GameScheduleAssociationSummary["visibility"];
+  status: GameScheduleAssociationSummary["status"];
+  relationship: GameScheduleAssociationSummary["relationship"];
+  publicNote?: string | null;
+  sortOrder: number;
 };
 
 const toIsoString = (value: Date | string): string =>
@@ -119,6 +134,19 @@ const mapSuggestion = (row: GameSuggestionRow): GameSuggestionSource => ({
   isPublic: row.isPublic === true || row.isPublic === 1,
   createdAt: toIsoString(row.createdAt),
   updatedAt: toIsoString(row.updatedAt)
+});
+
+const mapScheduleAssociation = (row: GameScheduleAssociationRow): GameScheduleAssociationSummary => ({
+  scheduleEntryId: row.scheduleEntryId,
+  title: row.title,
+  startsAt: toIsoString(row.startsAt),
+  endsAt: row.endsAt ? toIsoString(row.endsAt) : null,
+  channelKey: row.channelKey,
+  visibility: row.visibility,
+  status: row.status,
+  relationship: row.relationship,
+  publicNote: row.publicNote ?? null,
+  sortOrder: row.sortOrder
 });
 
 const selectGameFields = `
@@ -349,6 +377,57 @@ export const createGameLibraryRepository = (
     );
 
     return Array.isArray(rows) ? (rows as GameLibraryRow[]).map(mapGame) : [];
+  },
+
+  async listGameScheduleAssociations(gameIds, now) {
+    const uniqueGameIds = [...new Set(gameIds)].filter((id) => id.length > 0);
+    const associationsByGameId = new Map<string, GameScheduleAssociationSummary[]>();
+
+    if (uniqueGameIds.length === 0) {
+      return associationsByGameId;
+    }
+
+    const placeholders = uniqueGameIds.map(() => "?").join(", ");
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          game_schedule_links.game_id AS gameId,
+          stream_schedule_entries.id AS scheduleEntryId,
+          stream_schedule_entries.title,
+          stream_schedule_entries.starts_at AS startsAt,
+          stream_schedule_entries.ends_at AS endsAt,
+          stream_schedule_entries.channel_key AS channelKey,
+          stream_schedule_entries.visibility,
+          stream_schedule_entries.status,
+          game_schedule_links.relationship,
+          game_schedule_links.public_note AS publicNote,
+          game_schedule_links.sort_order AS sortOrder
+        FROM game_schedule_links
+        INNER JOIN stream_schedule_entries
+          ON stream_schedule_entries.id = game_schedule_links.schedule_entry_id
+        WHERE game_schedule_links.game_id IN (${placeholders})
+          AND game_schedule_links.relationship IN ('planned', 'current')
+          AND stream_schedule_entries.status IN ('planned', 'live')
+          AND (
+            stream_schedule_entries.status = 'live'
+            OR stream_schedule_entries.starts_at >= ?
+          )
+        ORDER BY stream_schedule_entries.starts_at, game_schedule_links.sort_order, stream_schedule_entries.title
+      `,
+      [...uniqueGameIds, now]
+    );
+
+    if (!Array.isArray(rows)) {
+      return associationsByGameId;
+    }
+
+    for (const row of rows as GameScheduleAssociationRow[]) {
+      const currentAssociations = associationsByGameId.get(row.gameId) ?? [];
+      currentAssociations.push(mapScheduleAssociation(row));
+      associationsByGameId.set(row.gameId, currentAssociations);
+    }
+
+    return associationsByGameId;
   },
 
   async listSuggestions() {

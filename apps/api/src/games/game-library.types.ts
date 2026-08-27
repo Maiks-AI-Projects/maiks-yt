@@ -1,6 +1,8 @@
 import type {
   GameLibraryAdminInput,
+  GameLibraryAdminEntry,
   GameLibraryAdminUpdateInput,
+  GameScheduleAssociationSummary,
   GameSuggestionReviewInput,
   GameSuggestionSource,
   GameLibrarySource,
@@ -19,7 +21,7 @@ export type GameLibraryUpdateInput = GameLibraryAdminUpdateInput;
 export type GameLibraryAdminListResult =
   | {
     ok: true;
-    games: readonly GameLibrarySource[];
+    games: readonly GameLibraryAdminEntry[];
     suggestions: readonly GameSuggestionSource[];
   }
   | {
@@ -30,7 +32,7 @@ export type GameLibraryAdminListResult =
 export type GameLibraryAdminMutationResult =
   | {
     ok: true;
-    game: GameLibrarySource;
+    game: GameLibraryAdminEntry;
   }
   | {
     ok: false;
@@ -74,6 +76,10 @@ export type GameSuggestionReviewResult =
 export interface GameLibraryRepository {
   resolveActor(authUserId: string): Promise<GameLibraryAdminActor | null>;
   listGames(): Promise<readonly GameLibrarySource[]>;
+  listGameScheduleAssociations(
+    gameIds: readonly string[],
+    now: Date
+  ): Promise<ReadonlyMap<string, readonly GameScheduleAssociationSummary[]>>;
   listSuggestions(): Promise<readonly GameSuggestionSource[]>;
   getGame(id: string): Promise<GameLibrarySource | null>;
   createGame(input: GameLibraryCreateInput & {

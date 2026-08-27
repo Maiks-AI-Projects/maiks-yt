@@ -1,5 +1,7 @@
 import type {
+  GameLibraryAdminEntry,
   GameLibrarySource,
+  GameScheduleAssociationSummary,
   GameSuggestionReviewInput,
   GameSuggestionSource,
   PublicGameSuggestionInput
@@ -9,6 +11,7 @@ import { describe, expect, it } from "vitest";
 
 import { registerGameLibraryRoutes } from "../../src/games/game-library.route.js";
 import { GameLibraryService } from "../../src/games/game-library.service.js";
+import { createGameLibraryRepository } from "../../src/games/game-library-store.service.js";
 import type {
   GameLibraryAdminActor,
   GameLibraryCreateInput,
@@ -63,6 +66,23 @@ const createSuggestion = (
   ...overrides
 });
 
+const createScheduleAssociation = (
+  scheduleEntryId: string,
+  overrides: Partial<GameScheduleAssociationSummary> = {}
+): GameScheduleAssociationSummary => ({
+  scheduleEntryId,
+  title: `Stream ${scheduleEntryId}`,
+  startsAt: "2026-08-27T20:00:00.000Z",
+  endsAt: null,
+  channelKey: "main",
+  visibility: "private",
+  status: "planned",
+  relationship: "planned",
+  publicNote: null,
+  sortOrder: 0,
+  ...overrides
+});
+
 class FakeGameLibraryRepository implements GameLibraryRepository {
   public actor: GameLibraryAdminActor | null = {
     domainUserId: "domain-user",
@@ -70,6 +90,7 @@ class FakeGameLibraryRepository implements GameLibraryRepository {
   };
   public readonly games = new Map<string, GameLibrarySource>();
   public readonly suggestions = new Map<string, GameSuggestionSource>();
+  public readonly scheduleAssociations = new Map<string, readonly GameScheduleAssociationSummary[]>();
 
   public async resolveActor(): Promise<GameLibraryAdminActor | null> {
     return this.actor ? structuredClone(this.actor) : null;
@@ -77,6 +98,21 @@ class FakeGameLibraryRepository implements GameLibraryRepository {
 
   public async listGames(): Promise<readonly GameLibrarySource[]> {
     return [...this.games.values()].map((game) => structuredClone(game));
+  }
+
+  public async listGameScheduleAssociations(
+    gameIds: readonly string[]
+  ): Promise<ReadonlyMap<string, readonly GameScheduleAssociationSummary[]>> {
+    const associationsByGameId = new Map<string, readonly GameScheduleAssociationSummary[]>();
+
+    for (const gameId of gameIds) {
+      associationsByGameId.set(
+        gameId,
+        (this.scheduleAssociations.get(gameId) ?? []).map((association) => structuredClone(association))
+      );
+    }
+
+    return associationsByGameId;
   }
 
   public async listSuggestions(): Promise<readonly GameSuggestionSource[]> {
@@ -231,6 +267,52 @@ describe("GameLibraryService", () => {
     });
   });
 
+  it("adds only relevant planned or live schedule summaries to admin games", async () => {
+    const repository = new FakeGameLibraryRepository();
+    repository.games.set("game-1", createGame("game-1"));
+    repository.scheduleAssociations.set("game-1", [
+      createScheduleAssociation("past-planned", {
+        startsAt: "2026-08-26T20:00:00.000Z"
+      }),
+      createScheduleAssociation("future-later", {
+        title: "Future later",
+        startsAt: "2026-08-29T20:00:00.000Z",
+        sortOrder: 1
+      }),
+      createScheduleAssociation("future-first", {
+        title: "Future first",
+        startsAt: "2026-08-28T20:00:00.000Z",
+        relationship: "current"
+      }),
+      createScheduleAssociation("live-now", {
+        title: "Live now",
+        startsAt: "2026-08-27T10:00:00.000Z",
+        status: "live",
+        relationship: "current"
+      }),
+      createScheduleAssociation("ending-future", {
+        title: "Ending future",
+        startsAt: "2026-08-26T20:00:00.000Z",
+        endsAt: "2026-08-27T13:00:00.000Z"
+      })
+    ]);
+    const service = new GameLibraryService(repository, () => new Date("2026-08-27T12:00:00.000Z"));
+
+    const result = await service.listGames({ authUserId: "auth-user" });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.games[0]?.scheduleAssociations.map((association) => association.scheduleEntryId)).toEqual([
+      "live-now",
+      "future-first",
+      "future-later"
+    ]);
+    expect(result.games[0]).not.toHaveProperty("createdByUserId");
+    expect(result.games[0]).not.toHaveProperty("updatedByUserId");
+  });
+
   it("accepts public game suggestions as private pending records", async () => {
     const repository = new FakeGameLibraryRepository();
     const service = new GameLibraryService(repository);
@@ -380,6 +462,60 @@ describe("GameLibraryService", () => {
   });
 });
 
+describe("game library store boundaries", () => {
+  it("reads schedule summaries from existing link and schedule tables without audit identities", async () => {
+    const calls: Array<{ sql: string; parameters: unknown[] }> = [];
+    const repository = createGameLibraryRepository({
+      execute: async (sql: string, parameters: unknown[] = []) => {
+        calls.push({ sql, parameters });
+
+        return [[{
+          gameId: "game-1",
+          scheduleEntryId: "stream-1",
+          title: "Upcoming stream",
+          startsAt: new Date("2026-08-28T20:00:00.000Z"),
+          endsAt: null,
+          channelKey: "main",
+          visibility: "private",
+          status: "planned",
+          relationship: "planned",
+          publicNote: null,
+          sortOrder: 0
+        }], []];
+      }
+    } as never);
+
+    await expect(repository.listGameScheduleAssociations(
+      ["game-1", "game-1", "game-2"],
+      new Date("2026-08-27T12:00:00.000Z")
+    )).resolves.toEqual(new Map([
+      ["game-1", [
+        {
+          scheduleEntryId: "stream-1",
+          title: "Upcoming stream",
+          startsAt: "2026-08-28T20:00:00.000Z",
+          endsAt: null,
+          channelKey: "main",
+          visibility: "private",
+          status: "planned",
+          relationship: "planned",
+          publicNote: null,
+          sortOrder: 0
+        }
+      ]]
+    ]));
+    expect(calls[0]?.sql).toContain("FROM game_schedule_links");
+    expect(calls[0]?.sql).toContain("INNER JOIN stream_schedule_entries");
+    expect(calls[0]?.sql).toContain("game_schedule_links.relationship IN ('planned', 'current')");
+    expect(calls[0]?.sql).toContain("stream_schedule_entries.status IN ('planned', 'live')");
+    expect(calls[0]?.sql).toContain("stream_schedule_entries.starts_at >= ?");
+    expect(calls[0]?.sql).toContain("ORDER BY stream_schedule_entries.starts_at, game_schedule_links.sort_order, stream_schedule_entries.title");
+    expect(calls[0]?.sql).not.toContain("created_by_user_id");
+    expect(calls[0]?.sql).not.toContain("updated_by_user_id");
+    expect(calls[0]?.parameters).toEqual(["game-1", "game-2", new Date("2026-08-27T12:00:00.000Z")]);
+  });
+});
+
 describe("game library routes", () => {
   it("requires authentication for admin routes and exposes public games without auth", async () => {
     const repository = new FakeGameLibraryRepository();
@@ -417,6 +553,52 @@ describe("game library routes", () => {
     await server.close();
   });
 
+  it("returns sanitized admin game schedule summaries without raw creator updater ids", async () => {
+    const repository = new FakeGameLibraryRepository();
+    repository.games.set("game-1", createGame("game-1"));
+    repository.scheduleAssociations.set("game-1", [
+      createScheduleAssociation("stream-1", {
+        title: "Zomboid test stream",
+        startsAt: "2026-08-28T20:00:00.000Z",
+        publicNote: "Main plan."
+      })
+    ]);
+    const service = new GameLibraryService(repository, () => new Date("2026-08-27T12:00:00.000Z"));
+    const server = Fastify();
+
+    registerGameLibraryRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("not used");
+      },
+      createService: () => service
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/games"
+    });
+
+    expect(response.statusCode).toBe(200);
+    const payload = response.json<{ ok: true; games: readonly GameLibraryAdminEntry[] }>();
+    expect(payload.games[0]).toMatchObject({
+      id: "game-1",
+      scheduleAssociations: [
+        {
+          scheduleEntryId: "stream-1",
+          title: "Zomboid test stream",
+          startsAt: "2026-08-28T20:00:00.000Z",
+          status: "planned",
+          relationship: "planned",
+          publicNote: "Main plan."
+        }
+      ]
+    });
+    expect(payload.games[0]).not.toHaveProperty("createdByUserId");
+    expect(payload.games[0]).not.toHaveProperty("updatedByUserId");
+    await server.close();
+  });
+
   it("maps create and update responses", async () => {
     const repository = new FakeGameLibraryRepository();
     const service = new GameLibraryService(repository);
@@ -441,7 +623,7 @@ describe("game library routes", () => {
       }
     });
     expect(createResponse.statusCode).toBe(200);
-    const gameId = createResponse.json<{ game: GameLibrarySource }>().game.id;
+    const gameId = createResponse.json<{ game: GameLibraryAdminEntry }>().game.id;
 
     const updateResponse = await server.inject({
       method: "PATCH",

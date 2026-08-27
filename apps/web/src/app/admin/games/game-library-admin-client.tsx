@@ -21,7 +21,7 @@ import {
 } from "@maiks-yt/domain/games";
 import type {
   GameInterestStatus,
-  GameLibrarySource,
+  GameLibraryAdminEntry,
   GameOwnershipStatus,
   GameSuggestionSource,
   GameSuggestionStatus,
@@ -35,7 +35,7 @@ import styles from "./game-library-admin.module.css";
 type AdminGamesResponse =
   | {
     ok: true;
-    games: readonly GameLibrarySource[];
+    games: readonly GameLibraryAdminEntry[];
     suggestions: readonly GameSuggestionSource[];
   }
   | {
@@ -46,7 +46,7 @@ type AdminGamesResponse =
 type AdminGameMutationResponse =
   | {
     ok: true;
-    game: GameLibrarySource;
+    game: GameLibraryAdminEntry;
   }
   | {
     ok: false;
@@ -117,7 +117,7 @@ const reviewedSuggestionStatuses = gameSuggestionStatuses.filter(
   (status): status is ReviewedSuggestionStatus => status !== "pending"
 );
 
-const toGameForm = (game: GameLibrarySource): GameFormState => ({
+const toGameForm = (game: GameLibraryAdminEntry): GameFormState => ({
   title: game.title,
   slug: game.slug,
   platformLabel: game.platformLabel ?? "",
@@ -199,7 +199,7 @@ const getLocalFormIssue = (form: GameFormState): string | null => {
   return null;
 };
 
-const sortGames = (games: readonly GameLibrarySource[]): readonly GameLibrarySource[] =>
+const sortGames = (games: readonly GameLibraryAdminEntry[]): readonly GameLibraryAdminEntry[] =>
   games
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder || left.title.localeCompare(right.title));
@@ -262,7 +262,20 @@ const formatStatus = (value: string): string =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
-const GameArtwork = ({ game, large = false }: { game: GameLibrarySource; large?: boolean }): React.ReactNode => {
+const formatScheduleSummaryTime = (value: string): string => {
+  const date = new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+};
+
+const GameArtwork = ({ game, large = false }: { game: GameLibraryAdminEntry; large?: boolean }): React.ReactNode => {
   const [failed, setFailed] = useState(false);
   const initial = game.title.trim().charAt(0).toUpperCase() || "G";
 
@@ -284,7 +297,7 @@ const GameArtwork = ({ game, large = false }: { game: GameLibrarySource; large?:
 };
 
 const GameLibraryAdminClient = (): React.ReactNode => {
-  const [games, setGames] = useState<readonly GameLibrarySource[]>([]);
+  const [games, setGames] = useState<readonly GameLibraryAdminEntry[]>([]);
   const [suggestions, setSuggestions] = useState<readonly GameSuggestionSource[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [gameForm, setGameForm] = useState<GameFormState>(defaultGameForm);
@@ -315,7 +328,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     }
   };
 
-  const replaceGame = useCallback((game: GameLibrarySource): void => {
+  const replaceGame = useCallback((game: GameLibraryAdminEntry): void => {
     setGames((current) => {
       const exists = current.some((candidate) => candidate.id === game.id);
       const next = exists
@@ -373,7 +386,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
       method: "POST" | "PATCH";
       body: Record<string, unknown>;
     }
-  ): Promise<GameLibrarySource | null> => {
+  ): Promise<GameLibraryAdminEntry | null> => {
     setBusyAction(label);
     setMessage(`${label}...`);
 
@@ -580,6 +593,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     ?? pendingSuggestions[0]
     ?? reviewedSuggestions[0]
     ?? null;
+  const selectedScheduleAssociations = selectedGame?.scheduleAssociations ?? [];
 
   return (
     <div className={styles.page}>
@@ -708,6 +722,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                   <span>Platform</span>
                   <span>Ownership</span>
                   <span>Interest</span>
+                  <span>Schedule</span>
                   <span>Visibility</span>
                   <span />
                 </div>
@@ -735,6 +750,12 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                       </span>
                       <span className={`${styles.pill} ${styles.ownershipPill}`}>{formatStatus(game.ownershipStatus)}</span>
                       <span className={`${styles.pill} ${styles.interestPill}`}>{formatStatus(game.interestStatus)}</span>
+                      <span className={styles.scheduleSummaryCell}>
+                        <FiCalendar aria-hidden="true" />
+                        {game.scheduleAssociations.length > 0
+                          ? `${game.scheduleAssociations.length} ${game.scheduleAssociations.length === 1 ? "link" : "links"}`
+                          : "No plan"}
+                      </span>
                       <span className={styles.visibilityCell}>
                         {game.visibility === "public" ? <FiEye aria-hidden="true" /> : <FiEyeOff aria-hidden="true" />}
                         {formatStatus(game.visibility)}
@@ -847,6 +868,33 @@ const GameLibraryAdminClient = (): React.ReactNode => {
                     Category / theme
                     <input value={gameForm.categoryLabel} onChange={(event) => setGameForm((current) => ({ ...current, categoryLabel: event.target.value }))} maxLength={120} />
                   </label>
+                </section>
+
+                <section className={styles.formSection}>
+                  <div className={styles.sectionHeadingRow}>
+                    <h3>Schedule</h3>
+                    <a href="/admin/schedule">Open Schedule <FiExternalLink aria-hidden="true" /></a>
+                  </div>
+                  {selectedGame ? (
+                    selectedScheduleAssociations.length > 0 ? (
+                      <ol className={styles.scheduleSummaryList}>
+                        {selectedScheduleAssociations.map((association) => (
+                          <li key={association.scheduleEntryId}>
+                            <span className={`${styles.pill} ${styles.schedulePill}`}>{formatStatus(association.status)}</span>
+                            <div>
+                              <strong>{association.title}</strong>
+                              <span>{formatScheduleSummaryTime(association.startsAt)} · {formatStatus(association.relationship)} · {formatStatus(association.visibility)}</span>
+                              {association.publicNote ? <small>{association.publicNote}</small> : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className={styles.mutedLine}>No upcoming or live schedule links for this game.</p>
+                    )
+                  ) : (
+                    <p className={styles.mutedLine}>Save the game before linking it from Schedule.</p>
+                  )}
                 </section>
 
                 <section className={styles.formSection}>

@@ -4,9 +4,11 @@ import {
   gameOwnershipStatuses,
   gameSuggestionStatuses,
   gameVisibilities,
+  type GameLibraryAdminEntry,
   type GameLibraryAdminInput,
   type GameLibraryCapability,
   type GameLibrarySource,
+  type GameScheduleAssociationSummary,
   type GameSuggestionReviewInput,
   type GameSlugValidationResult,
   type PublicGameSuggestionInput,
@@ -192,5 +194,64 @@ export const buildPublicGameLibraryEntry = (entry: GameLibrarySource): PublicGam
     contentWarnings: entry.contentWarnings,
     categoryLabel: entry.categoryLabel,
     updatedAt: entry.updatedAt
+  };
+};
+
+export const isRelevantGameScheduleAssociation = (
+  association: GameScheduleAssociationSummary,
+  now: Date
+): boolean => {
+  if (association.relationship !== "planned" && association.relationship !== "current") {
+    return false;
+  }
+
+  if (association.status !== "planned" && association.status !== "live") {
+    return false;
+  }
+
+  if (association.status === "live") {
+    return true;
+  }
+
+  const startsAtTime = Date.parse(association.startsAt);
+
+  return !Number.isNaN(startsAtTime) && startsAtTime >= now.getTime();
+};
+
+export const compareGameScheduleAssociations = (
+  left: GameScheduleAssociationSummary,
+  right: GameScheduleAssociationSummary
+): number =>
+  Date.parse(left.startsAt) - Date.parse(right.startsAt)
+  || left.sortOrder - right.sortOrder
+  || left.title.localeCompare(right.title);
+
+export const buildGameLibraryAdminEntry = (
+  entry: GameLibrarySource,
+  scheduleAssociations: readonly GameScheduleAssociationSummary[],
+  now: Date
+): GameLibraryAdminEntry => {
+  return {
+    id: entry.id,
+    slug: entry.slug,
+    title: entry.title,
+    platformLabel: entry.platformLabel,
+    storeProvider: entry.storeProvider,
+    storeUrl: entry.storeUrl,
+    artworkUrl: entry.artworkUrl,
+    popularityScore: entry.popularityScore,
+    ownershipStatus: entry.ownershipStatus,
+    interestStatus: entry.interestStatus,
+    streamFitNote: entry.streamFitNote,
+    contentWarnings: entry.contentWarnings,
+    categoryLabel: entry.categoryLabel,
+    visibility: entry.visibility,
+    sortOrder: entry.sortOrder,
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+    scheduleAssociations: scheduleAssociations
+      .filter((association) => isRelevantGameScheduleAssociation(association, now))
+      .slice()
+      .sort(compareGameScheduleAssociations)
   };
 };
