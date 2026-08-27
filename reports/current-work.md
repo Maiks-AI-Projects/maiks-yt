@@ -5,7 +5,10 @@
 - Added one API request-log policy that preserves operational request metadata while reducing every logged request target to a path. Query strings, fragments, absolute-form authority/userinfo, malformed absolute targets, and authority-form targets are excluded from logs.
 - Replaced Fastify's default missing-route response path because its built-in 404 message repeated the raw request target outside the request serializer. The replacement preserves the standard response shape with a sanitized path.
 - The real request object remains unchanged, so route query parsing and authentication behavior are unaffected. Focused tests prove matched and missing routes receive their original query values while logs and 404 responses do not contain query names or values.
-- `pnpm check:full` passes with 21 tasks and 453 API tests. Deployment and live log proof are still pending; the previously exposed verification token must be rotated after redaction is live.
+- Independent senior review found no remaining blocker after raw-socket probes across matched, missing, absolute-form, network-path, malformed, authority-form, fragment, and asterisk request targets. `pnpm check:full` passes with 21 tasks and 453 API tests.
+- Deployed revision `4bb517d` to the production API only. The previous API image is retained as `maiks-yt-production:rollback-f12c98d-api`; Web, Control, Overlay, tunnels, databases, and secrets were not changed.
+- Live Cloudflare requests to matched and missing routes returned `200` and sanitized `404`. Their synthetic query key and values were absent from API logs, while the expected path-only entries were present. All four containers are healthy with zero restarts and the three preserved service image IDs are unchanged.
+- The verification token exposed before this correction still requires owner-authenticated rotation. Signed-in installed-PWA access and sub-minute recovery also remain open.
 
 ## 2026-08-27 production Control session enforcement deployment
 
@@ -13,7 +16,7 @@
 - `pnpm check:full` passed before deployment. After replacement, all four production containers were healthy with zero restarts; `api.maiks.yt/health`, `control.maiks.yt/control`, and `overlay.maiks.yt` returned `200` through Cloudflare with a browser user agent.
 - A real valid Control URL token without a signed-in session now returns `401 not_authenticated` from `/streamer-chat/messages`, proving the previous token-only API bypass is closed on the live origin.
 - A positive signed-in owner/PWA check remains unverified because browser control stalled while claiming the existing Control tab. Installed-window access and recovery are still a manual production gate.
-- Verification also confirmed that the currently deployed API logs complete query strings. A locally verified correction is ready for deployment; rotation of the verification token remains the next security follow-up after live log proof.
+- Verification also confirmed that the previous API revision logged complete query strings. Revision `4bb517d` now redacts request-target details on the live API; rotation of the previously exposed verification token remains the next security follow-up.
 
 ## 2026-08-27 production readiness audit reconciliation
 

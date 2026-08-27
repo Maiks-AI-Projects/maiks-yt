@@ -10,7 +10,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Current result: NOT READY for a live stream.
 - Healthy: production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen.
-- Gaps: provider and tunnel runtime telemetry is still insufficient, Twitch bot replies and `!commands` are blocked by a `401` bot token validation, YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and the locally verified request-log redaction still needs deployment and live proof.
+- Gaps: provider and tunnel runtime telemetry is still insufficient, Twitch bot replies and `!commands` are blocked by a `401` bot token validation, YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and the verification token exposed before request-log redaction still needs rotation.
 
 ## Evidence Base
 
@@ -19,6 +19,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Production revision `501613c` is deployed across web, API, overlay, and control.
 - Web-only revision `986a48b` is deployed for the not-found status correction.
 - Revision `f12c98d` is deployed to API and Control for Control-token session enforcement; Web and Overlay were not recreated.
+- Revision `4bb517d` is deployed to the API only for path-only request logging; Web, Control, and Overlay were not recreated.
 - The dedicated `maiks.yt` Cloudflare tunnel was recovered and is now connected dynamically.
 - Live public checks returned the expected `200` and `404` responses, including correct `404` status for retired or missing routes.
 - Previous web rollback evidence is retained as `maiks-yt-production:rollback-501613c-web`.
@@ -32,6 +33,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - The production host and tunnel are reachable after recovery.
 - Production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen during the audit.
 - A real valid Control URL token without a signed-in session returns `401 not_authenticated` on the live origin.
+- Matched and missing live API requests with synthetic query markers log only their paths; the marker key and values are absent.
 
 ### Unverified
 
@@ -145,6 +147,6 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Installed PWA behavior is still unverified in a real installed session.
 - OBS widget Browser Sources and fallback are not yet proven in a live rehearsal.
 - Local Agent and VLC are not yet proven on the streaming PC.
-- URL access tokens can still appear in the currently deployed private request logs until the locally verified redaction is deployed; rotate the verification token after live proof.
+- The verification token used before request-log redaction was deployed still requires owner-authenticated rotation.
 - Backup/restore evidence is incomplete.
 - Provider writes, moderation effects, public AI, and privacy deletion remain gated.
