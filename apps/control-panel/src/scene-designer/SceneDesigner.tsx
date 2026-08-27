@@ -107,7 +107,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
     const defaultSlot = getDefaultThemeScene(selectedScene.sceneKey).slots[selectedSlotId];
 
     updateSceneSlot(selectedScene.sceneKey, selectedSlotId, structuredClone(defaultSlot));
-    setStatus(`${formatSlotLabel(selectedSlotId)} reset. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(selectedSlotId)} reset. Save the compatibility layout to keep it.`);
   };
 
   const updateSelectedSlotAspectLock = (locked: boolean): void => {
@@ -120,7 +120,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
         ? selectedSlot.width / Math.max(1, selectedSlot.height)
         : undefined
     });
-    setStatus(`${formatSlotLabel(selectedSlotId)} aspect ratio ${locked ? "locked" : "unlocked"}. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(selectedSlotId)} aspect ratio ${locked ? "locked" : "unlocked"}. Save the compatibility layout to keep it.`);
   };
 
   const startSlotDrag = (
@@ -184,7 +184,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
     }
 
     setDragState(null);
-    setStatus(`${formatSlotLabel(dragState.slotId)} moved. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(dragState.slotId)} moved. Save the compatibility layout to keep it.`);
   };
 
   const startSlotResize = (
@@ -263,7 +263,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
 
     event.stopPropagation();
     setResizeState(null);
-    setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save the compatibility layout to keep it.`);
   };
 
   useEffect(() => {
@@ -305,7 +305,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
       }
 
       setResizeState(null);
-      setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save scene to keep it.`);
+      setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save the compatibility layout to keep it.`);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -329,6 +329,11 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
 
     if (!token) {
       setStatus("Control token missing.");
+      return;
+    }
+
+    if (!window.confirm("Save this compatibility layout? The existing endpoint can update connected master-overlay Browser Sources immediately.")) {
+      setStatus("Compatibility layout save canceled.");
       return;
     }
 
@@ -357,7 +362,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
 
     setScenes((currentScenes) => currentScenes.map((scene) =>
       scene.sceneKey === result.scene.sceneKey ? cloneScene(result.scene) : scene));
-    setStatus(`Saved ${result.scene.label}. ${result.activeOverlayConnections} overlay connection(s) updated.`);
+    setStatus(`Saved ${result.scene.label}. ${result.activeOverlayConnections} connected master overlay(s) received the compatibility update.`);
   };
 
   const duplicateSelectedScene = async (): Promise<void> => {
@@ -412,45 +417,77 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
   return (
     <section className="scene-designer">
       <div className="section-heading">
-        <h2>Scene Designer</h2>
-        <span>{status}</span>
+        <h2>Compatibility overlay editor</h2>
+        <span>{status} Saving can update connected master-overlay Browser Sources immediately.</span>
       </div>
-      <SceneDesignerToolbar
-        duplicateSelectedScene={duplicateSelectedScene}
-        loadScenes={loadScenes}
-        saveSelectedScene={saveSelectedScene}
-        scenes={scenes}
-        selectedSceneKey={selectedScene?.sceneKey ?? selectedSceneKey}
-        selectedSlotId={selectedSlotId}
-        setSelectedSceneKey={setSelectedSceneKey}
-        setSelectedSlotId={setSelectedSlotId}
-      />
       {selectedScene ? (
-        <div className="scene-designer-grid">
-          <SceneCanvasPreview
-            finishSlotDrag={finishSlotDrag}
-            finishSlotResize={finishSlotResize}
-            moveSlotDrag={moveSlotDrag}
-            moveSlotResize={moveSlotResize}
-            selectedScene={selectedScene}
-            selectedSlotId={selectedSlotId}
-            setSelectedSlotId={setSelectedSlotId}
-            startSlotDrag={startSlotDrag}
-            startSlotResize={startSlotResize}
-            warningSlotIds={warningSlotIds}
-          />
-          {selectedSlot ? (
-            <SlotEditorPanel
-              blockedLayoutIssues={blockedLayoutIssues}
-              layoutWarnings={layoutWarnings}
-              resetSelectedSlot={resetSelectedSlot}
-              selectedScene={selectedScene}
-              selectedSlot={selectedSlot}
-              softLayoutWarnings={softLayoutWarnings}
-              updateSelectedSlot={updateSelectedSlot}
-              updateSelectedSlotAspectLock={updateSelectedSlotAspectLock}
+        <div className="scene-editor-shell">
+          <aside className="scene-layout-list" aria-label="Saved overlay layouts">
+            <div className="scene-layout-list-heading">
+              <strong>Saved layouts</strong>
+              <span>{scenes.length} saved</span>
+            </div>
+            <div className="scene-layout-buttons">
+              {scenes.map((scene) => (
+                <button
+                  type="button"
+                  className={scene.sceneKey === selectedScene.sceneKey ? "selected" : ""}
+                  key={scene.sceneKey}
+                  onClick={() => setSelectedSceneKey(scene.sceneKey)}
+                >
+                  <span>{scene.label}</span>
+                  <small>{scene.sceneKey === selectedScene.sceneKey ? "Editing" : "Saved layout"}</small>
+                </button>
+              ))}
+            </div>
+            <button type="button" className="status-action duplicate-layout-action" onClick={() => void duplicateSelectedScene()}>
+              Duplicate selected
+            </button>
+            <p>The existing save endpoint maintains the master-overlay compatibility path. Private preview, explicit live apply, snapshot, and rollback controls stay disabled until their backend endpoints exist.</p>
+          </aside>
+          <div className="scene-editor-main">
+            <SceneDesignerToolbar
+              loadScenes={loadScenes}
+              saveSelectedScene={saveSelectedScene}
+              scenes={scenes}
+              selectedSceneKey={selectedScene?.sceneKey ?? selectedSceneKey}
+              selectedSlotId={selectedSlotId}
+              setSelectedSceneKey={setSelectedSceneKey}
+              setSelectedSlotId={setSelectedSlotId}
             />
-          ) : null}
+            <div className="scene-designer-grid">
+              <SceneCanvasPreview
+                finishSlotDrag={finishSlotDrag}
+                finishSlotResize={finishSlotResize}
+                moveSlotDrag={moveSlotDrag}
+                moveSlotResize={moveSlotResize}
+                selectedScene={selectedScene}
+                selectedSlotId={selectedSlotId}
+                setSelectedSlotId={setSelectedSlotId}
+                startSlotDrag={startSlotDrag}
+                startSlotResize={startSlotResize}
+                warningSlotIds={warningSlotIds}
+              />
+              {selectedSlot ? (
+                <SlotEditorPanel
+                  blockedLayoutIssues={blockedLayoutIssues}
+                  layoutWarnings={layoutWarnings}
+                  resetSelectedSlot={resetSelectedSlot}
+                  selectedScene={selectedScene}
+                  selectedSlot={selectedSlot}
+                  softLayoutWarnings={softLayoutWarnings}
+                  updateSelectedSlot={updateSelectedSlot}
+                  updateSelectedSlotAspectLock={updateSelectedSlotAspectLock}
+                />
+              ) : null}
+            </div>
+            <div className="scene-safety-action-bar">
+              <span>Compatibility saves may update connected master overlays immediately.</span>
+              <button type="button" disabled>Private preview pending</button>
+              <button type="button" disabled>Apply draft live pending</button>
+              <button type="button" disabled>Rollback pending</button>
+            </div>
+          </div>
         </div>
       ) : null}
     </section>

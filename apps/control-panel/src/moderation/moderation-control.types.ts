@@ -91,7 +91,7 @@ export type StreamerChatModerationAccessResponse = {
   providerAction: false;
 };
 
-export type ModerationPanelKey = "chat" | "rules" | "audit" | "approvals" | "helper";
+export type ModerationPanelKey = "chat" | "active" | "rules" | "approvals" | "users" | "audit";
 
 export type ModerationControlWindowProps = {
   apiBaseUrl: string;
@@ -117,9 +117,10 @@ export const moderationAuditActionLabels: Record<StreamerChatModerationAuditEntr
 };
 
 export const moderationPanelLabels: Record<ModerationPanelKey, string> = {
-  approvals: "Pending Approvals",
-  audit: "Audit History",
+  active: "Active Moderation",
+  approvals: "Approvals & Queues",
+  audit: "Audit & History",
   chat: "Chat",
-  helper: "Live Helper Summary",
+  users: "User Context",
   rules: "Applied Rules"
 };

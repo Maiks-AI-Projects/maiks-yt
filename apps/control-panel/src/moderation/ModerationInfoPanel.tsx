@@ -5,11 +5,13 @@ import { createApiHeaders } from "../dev-auth-token.js";
 export const ModerationInfoPanel = ({
   apiBaseUrl,
   endpoint,
-  title
+  title,
+  variant = "summary"
 }: {
   apiBaseUrl: string;
   endpoint: string;
   title: string;
+  variant?: "approvals" | "summary";
 }): ReactNode => {
   const [status, setStatus] = useState("Loading.");
   const [summary, setSummary] = useState<string[]>([]);
@@ -38,13 +40,19 @@ export const ModerationInfoPanel = ({
         throw new Error("Panel unavailable.");
       }
 
-      const nextSummary = [
-        `Pending approvals: ${Array.isArray(payload.pendingApprovals) ? payload.pendingApprovals.length : 0}`,
-        `Open warnings: ${payload.notificationCounts?.warning ?? 0}`,
-        `Open critical alerts: ${payload.notificationCounts?.critical ?? 0}`,
-        `Active helper grants: ${Array.isArray(payload.activeHelperGrants) ? payload.activeHelperGrants.length : 0}`,
-        `Active local moderation rules: ${Array.isArray(payload.fakeLocalActiveModeration) ? payload.fakeLocalActiveModeration.length : 0}`
-      ];
+      const nextSummary = variant === "approvals"
+        ? [
+          `Pending approvals: ${Array.isArray(payload.pendingApprovals) ? payload.pendingApprovals.length : 0}`,
+          `Open warnings: ${payload.notificationCounts?.warning ?? 0}`,
+          `Open critical alerts: ${payload.notificationCounts?.critical ?? 0}`
+        ]
+        : [
+          `Pending approvals: ${Array.isArray(payload.pendingApprovals) ? payload.pendingApprovals.length : 0}`,
+          `Open warnings: ${payload.notificationCounts?.warning ?? 0}`,
+          `Open critical alerts: ${payload.notificationCounts?.critical ?? 0}`,
+          `Active helper grants: ${Array.isArray(payload.activeHelperGrants) ? payload.activeHelperGrants.length : 0}`,
+          `Active local moderation rules: ${Array.isArray(payload.fakeLocalActiveModeration) ? payload.fakeLocalActiveModeration.length : 0}`
+        ];
 
       setSummary(nextSummary);
       setStatus("Ready");
@@ -63,7 +71,7 @@ export const ModerationInfoPanel = ({
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [endpoint]);
+  }, [endpoint, variant]);
 
   return (
     <section className="moderation-rules-window" aria-label={title}>

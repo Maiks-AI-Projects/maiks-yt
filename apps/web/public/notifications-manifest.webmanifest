@@ -1,0 +1,26 @@
+{
+  "name": "Maiks.yt Notifications",
+  "short_name": "Alerts",
+  "description": "Private actionable Maiks.yt notification inbox and recovery surface.",
+  "id": "/tools/notifications",
+  "start_url": "/tools/notifications",
+  "scope": "/tools/notifications",
+  "display": "standalone",
+  "background_color": "#070b10",
+  "theme_color": "#070b10",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/maiks-tools-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maiks-tools-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

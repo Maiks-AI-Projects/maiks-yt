@@ -6,10 +6,12 @@ import { moderationRuleKindLabels, type StreamerChatModerationRule, type Streame
 
 export const ModerationRulesWindow = ({
   apiBaseUrl,
-  canRetract = true
+  canRetract = true,
+  title = "Applied Rules"
 }: {
   apiBaseUrl: string;
   canRetract?: boolean;
+  title?: string;
 }): ReactNode => {
   const [rules, setRules] = useState<StreamerChatModerationRule[]>([]);
   const [status, setStatus] = useState("Loading applied rules.");
@@ -97,7 +99,7 @@ export const ModerationRulesWindow = ({
   return (
     <section className="moderation-rules-window" aria-label="Applied stream chat rules">
       <div className="section-heading">
-        <h2>Applied Rules</h2>
+        <h2>{title}</h2>
         <span>{status}</span>
       </div>
       {rules.length === 0 ? (

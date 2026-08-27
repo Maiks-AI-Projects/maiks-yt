@@ -9,7 +9,6 @@ import type { SceneLayoutWarning } from "./SceneDesigner.types.js";
 import { createSceneSlotStyle, formatSlotLabel } from "./scene-layout.service.js";
 
 type SceneDesignerToolbarProps = {
-  duplicateSelectedScene: () => Promise<void>;
   loadScenes: () => Promise<void>;
   saveSelectedScene: () => Promise<void>;
   scenes: OverlaySceneDefinition[];
@@ -20,7 +19,6 @@ type SceneDesignerToolbarProps = {
 };
 
 export const SceneDesignerToolbar = ({
-  duplicateSelectedScene,
   loadScenes,
   saveSelectedScene,
   scenes,
@@ -47,10 +45,7 @@ export const SceneDesignerToolbar = ({
       </select>
     </label>
     <button type="button" className="status-action" onClick={() => void saveSelectedScene()}>
-      Save scene
-    </button>
-    <button type="button" className="status-action" onClick={() => void duplicateSelectedScene()}>
-      Duplicate
+      Save compatibility layout
     </button>
     <button type="button" className="status-action" onClick={() => void loadScenes()}>
       Reload

@@ -219,9 +219,12 @@ export const useChatAttention = (enabled: boolean): {
   };
 
   const controls = (
-    <section className="chat-attention" aria-label="Chat attention controls">
+    <details className="chat-attention" aria-label="Chat attention controls">
+      <summary>
+        <span>{unreadCount > 0 ? `${unreadCount} unread` : "Attention ready"}</span>
+      </summary>
       <div className="chat-attention-summary">
-        <strong>{unreadCount > 0 ? `${unreadCount} unread` : "Attention ready"}</strong>
+        <strong>Chat attention</strong>
         <span>{status}</span>
       </div>
       <div className="chat-attention-actions">
@@ -262,7 +265,7 @@ export const useChatAttention = (enabled: boolean): {
           <button type="button" onClick={() => setUnreadCount(0)}>Mark read</button>
         ) : null}
       </div>
-    </section>
+    </details>
   );
 
   return { baselineMessages, notifyMessage, controls };

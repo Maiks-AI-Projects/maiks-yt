@@ -23,7 +23,7 @@ mean a capability is deployed or proven in a real user path.
 | Chat attention and viewer commands | done | done | done | in-progress | blocked | blocked | Production commits for reliable attention readout and viewer commands; `!commands` exists in code | Verify live reply credentials, command output, unread attention, and suppression behavior on the actual channel |
 | Event routing and alerts | done | done | done | in-progress | blocked | blocked | Real-provider execution, cooldown/approval history, top/center transport, and alert-sound work exist in production | Rehearse real follow/sub/chat-derived events, dedupe, audio ownership, and fallback in OBS |
 | Music catalog, requests, and playback | done | done | done | in-progress | blocked | blocked | Production music schema/API/UI, YouTube Audio Library import, browser/OBS playback, and per-PWA output selection | Establish the real catalog, verify play/pause/skip/history/audio output, then finish the VLC/local-agent path |
-| Operational Chat, Moderation, Control, and Notifications PWAs | done | done | in-progress | not-started | not-started | in-progress | Canonical spec in `reports/pwa-operations-redesign-spec.md`; a separate reviewable patch has build and screenshot evidence but is not on `production` | Port and review the approved redesign against current production, preserving live behavior |
+| Operational Chat, Moderation, Control, and Notifications PWAs | done | done | done | in-progress | blocked | in-progress | Production implementation plus local desktop, half-screen, touch, and mobile evidence in `reports/visual-qa/production-pwa-redesign/README.md`; live origins currently return `530` | Deploy after reachability returns, then verify installed access, real provider data, moderation effects, music output, and overlay controls |
 | PWA session and rapid recovery | done | done | in-progress | in-progress | blocked | blocked | Token plus login boundary exists; prior installed-window expiry/recovery failures are real evidence | Prove durable installed access and a recovery path taking less than one minute without weakening owner/moderator boundaries |
 | OBS widget bridge and master-overlay fallback | done | done | in-progress | in-progress | blocked | blocked | Protocol-v1 bridge contracts, local companion, readiness/fallback semantics, and current master-overlay compatibility | Add and verify Browser Source widgets, then run a complete stream rehearsal with fallback |
 | Sandustry OBS collection | in-progress | not-started | not-started | not-started | not-started | not-started | Rejected V1 and later V2 assets under `reports/visual-concepts/sandustry-obs/production-assets-v2`; V2 is reference evidence, not approval | Review V2 at native size, keep only usable assets, then build the OBS collection named exactly `Sandustry` |
@@ -39,7 +39,7 @@ mean a capability is deployed or proven in a real user path.
 ### P0: Make The Next Stream Work
 
 1. Restore reachability to the production host and record the deployed commit. Current SSH is unreachable and the public origins return Cloudflare `530`.
-2. Integrate the approved operational PWA redesign into the current production line without losing provider chat, attention, commands, moderation, music, audio-output, token, or session behavior.
+2. Deploy and live-verify the locally integrated operational PWA redesign without losing provider chat, attention, commands, moderation, music, audio-output, token, or session behavior.
 3. Rehearse the MaiksPlays path end to end: provider intake, newest-first Chat, attention, `!commands`, moderation, alerts, music controls, and reconnect behavior.
 4. Complete the OBS widget Browser Sources while retaining the master overlay as a tested fallback.
 5. Prove installed PWA access remains usable and that owner/moderator recovery takes less than one minute.
@@ -62,6 +62,8 @@ mean a capability is deployed or proven in a real user path.
 
 - No wholesale merge from dev.
 - No effort to keep dev current.
+- No wholesale recovery from the damaged Windows-era `Stream overlay & Website maiks.yt` copy. Use it only to recover a specifically missing, verified asset or history item.
+- No production status claims based on recurring `Check project rule violations` tasks attached to that legacy path.
 - No production test console, simulator framing, fake operational controls, or seed-only success states.
 - No raw secrets, provider payloads, database identifiers, or debug metrics in routine user-facing UI.
 - No claim that a build, migration, screenshot, or historical deployment proves the current live path.

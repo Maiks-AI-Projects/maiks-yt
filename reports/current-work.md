@@ -1,5 +1,15 @@
 # Current Work
 
+## 2026-08-27 operational PWA production slice
+
+- Selectively integrated the approved Chat, Moderation, Control, and Notifications redesign into the reconciled production line. This was a reviewed code port, not a merge from dev or another worktree.
+- Chat is a compact chat-first window with newest-first messages, provider tinting, hover/focus moderation controls, touch-safe Options, Emergency clear, attention controls, and half-screen support.
+- Moderation now opens on Chat and uses permission-derived internal navigation for active moderation, applied rules, approvals, user context, and audit. Control now separates live operations into Overview, Stream Controls, Overlays & Scenes, Actions, Music, and Provider Health. Notifications has a dedicated install manifest and compact mobile layout.
+- Preserved provider chat, attention/read-aloud, per-PWA audio output, moderation actions and audit, token/session gates, music controls, and existing overlay behavior.
+- Corrected misleading scene-editor copy during coordinator review. The existing save endpoint can update connected master-overlay Browser Sources, so the UI now calls it a compatibility layout save and requires an explicit warning confirmation. Private preview, apply, snapshot, and rollback remain unavailable rather than being presented as working controls.
+- `pnpm check:review` passed after integration. A final focused pass after the copy correction also passed the control-panel typecheck, web build, architecture check, and `git diff --check`.
+- Local synthetic visual and interaction evidence is in `reports/visual-qa/production-pwa-redesign/README.md`. Production deployment and installed-window verification remain blocked by the unreachable server and Cloudflare `530` responses.
+
 ## 2026-08-27 production-line reconciliation
 
 - `production` is now the sole forward-development line. Dev remains an idea and implementation inventory only; wanted capabilities must be deliberately rebuilt or selectively reused in production patterns rather than merged wholesale.
@@ -8,6 +18,7 @@
 - `pnpm check:review` passes after reconciliation, including shared builds, 142 domain tests, 411 API tests, database/API typechecks, web build, overlay/control typechecks, architecture validation, and diff checks.
 - Live verification is currently blocked: `codex-server-1` is unreachable from this machine and the public web, API, overlay, and control origins return Cloudflare `530`. Historical deployment notes below are evidence of prior state, not proof of current availability.
 - The evidence-based capability ledger and ranked queue are in `reports/production-capability-ledger.md`.
+- The Codex project/path named `Stream overlay & Website maiks.yt` is the damaged Windows-era copy. It is a non-authoritative legacy recovery source only. Do not merge or sync it wholesale. Recover a missing item only after proving that exact asset or history entry. Recurring `Check project rule violations` tasks attached to that path are not production delivery evidence.
 
 ## 2026-08-21 production chat attention fallback
 
@@ -29,7 +40,7 @@ Updated: 2026-08-18
 
 Build one coherent Maiks.yt product on the dedicated `production` branch. Preserve the approved production visual and interaction system, use dev only as evidence, and deliver missing capabilities as small verified production-native slices.
 
-Canonical operational-PWA redesign specification: `reports/pwa-operations-redesign-spec.md`. It is grounded against production `f1ecd02`; a separate reviewable implementation patch exists, but it has not been integrated into the current production line.
+Canonical operational-PWA redesign specification: `reports/pwa-operations-redesign-spec.md`. Its first production implementation is integrated locally and awaits deployment plus real installed-window verification.
 
 ## Production Website Lane
 

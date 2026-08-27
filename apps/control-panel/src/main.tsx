@@ -1,28 +1,29 @@
 import { validateUrlAccessGate } from "@maiks-yt/ui";
-import { useEffect, useState } from "react";
-import { AiControlsWindow } from "./ai/AiControlsWindow.js";
+import { useEffect, useState, type CSSProperties } from "react";
+import { ControlActionsPanel } from "./actions/ControlActionsPanel.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
 import { captureDevAuthTokenFromUrl, createApiHeaders, withDevAuthToken } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
 import { MusicControlPanel } from "./music/MusicControlPanel.js";
-import { OperationsPanel } from "./operations/OperationsPanel.js";
+import { OperationNavIcon, type OperationNavIconName } from "./operations/OperationNavIcon.js";
 import { SurfaceStatus } from "./overlay/SurfaceStatus.js";
-import { RealtimeProbe } from "./realtime/RealtimeProbe.js";
 import { apiBaseUrl, createWebUrl } from "./runtime-config.service.js";
-import { SimulatorPanel } from "./simulator/SimulatorPanel.js";
 import { SceneDesigner } from "./scene-designer/SceneDesigner.js";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
 const panelModeStorageKey = "maiks.yt.control.panelMode";
+const controlPageStorageKey = "maiks.yt.control.selectedPage";
+const controlSidebarStorageKey = "maiks.yt.control.sidebarCollapsed";
+const controlScaleStorageKey = "maiks.yt.control.uiScale";
 const currentRoutePath = window.location.pathname.replace(/\/+$/, "") || "/";
 const isStandaloneChatRoute = currentRoutePath === "/chat";
-const isModerationRulesRoute = currentRoutePath === "/moderation";
-const isAiControlsRoute = currentRoutePath === "/ai";
+const isModerationRoute = currentRoutePath === "/moderation" || currentRoutePath.startsWith("/moderation/");
 const defaultPanelMode = "creator";
 type PanelMode = "creator" | "advanced";
+type ControlPageKey = "overview" | "stream" | "overlays" | "actions" | "music" | "providers";
 type ControlPanelAuthState =
   | {
     status: "checking";
@@ -46,8 +47,34 @@ type AccountSessionResponse = {
 const controlRouteLabels: Record<string, string> = {
   "/chat": "Streamer Chat",
   "/control": "Control Panel",
-  "/ai": "AI Controls",
   "/moderation": "Moderation"
+};
+
+const controlPageLabels: Record<ControlPageKey, string> = {
+  actions: "Actions",
+  music: "Music",
+  overlays: "Overlays & Scenes",
+  overview: "Overview",
+  providers: "Provider Health",
+  stream: "Stream Controls"
+};
+
+const controlPagePathSegments: Record<ControlPageKey, string> = {
+  actions: "actions",
+  music: "music",
+  overlays: "overlays",
+  overview: "",
+  providers: "providers",
+  stream: "stream"
+};
+const controlPageOrder: readonly ControlPageKey[] = ["overview", "stream", "overlays", "actions", "music", "providers"];
+const controlPageIcons: Record<ControlPageKey, OperationNavIconName> = {
+  actions: "actions",
+  music: "music",
+  overlays: "overlays",
+  overview: "overview",
+  providers: "providers",
+  stream: "stream"
 };
 
 const readStoredPanelMode = (): PanelMode => {
@@ -117,7 +144,7 @@ const updateManifestForRoute = (): void => {
   if (manifestLink) {
     manifestLink.href = isStandaloneChatRoute
       ? "/chat-manifest.webmanifest"
-      : isModerationRulesRoute
+      : isModerationRoute
         ? "/moderation-manifest.webmanifest"
         : "/manifest.webmanifest";
   }
@@ -128,8 +155,36 @@ const getCurrentSurfaceLabel = (): string =>
 
 type ControlPanelBlockedState = Exclude<ControlPanelAuthState, { status: "allowed" }>;
 
+const getInitialControlPage = (): ControlPageKey => {
+  const segment = window.location.pathname.replace(/\/+$/, "").split("/")[2] ?? "";
+  const routePage = (Object.entries(controlPagePathSegments).find(([, pathSegment]) => pathSegment === segment)?.[0] ?? null) as ControlPageKey | null;
+
+  if (routePage) {
+    return routePage;
+  }
+
+  const storedPage = window.localStorage.getItem(controlPageStorageKey);
+
+  return storedPage === "actions"
+    || storedPage === "music"
+    || storedPage === "overlays"
+    || storedPage === "overview"
+    || storedPage === "providers"
+    || storedPage === "stream"
+    ? storedPage
+    : "overview";
+};
+
+const readStoredScale = (): number => {
+  const parsedValue = Number(window.localStorage.getItem(controlScaleStorageKey));
+
+  return Number.isFinite(parsedValue) && parsedValue >= 80 && parsedValue <= 120
+    ? parsedValue
+    : 95;
+};
+
 const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }): React.ReactNode => (
-  <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRulesRoute || isAiControlsRoute ? "chat-surface" : ""}`}>
+  <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRoute ? "chat-surface" : ""}`}>
     <section className="access-required-panel">
       <p className="access-required-eyebrow">{getCurrentSurfaceLabel()}</p>
       <h1>Access Required</h1>
@@ -156,15 +211,18 @@ const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }):
 const App = (): React.ReactNode => {
   const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
+  const [controlPage, setControlPage] = useState<ControlPageKey>(getInitialControlPage);
+  const [controlSidebarCollapsed, setControlSidebarCollapsed] = useState(() =>
+    window.localStorage.getItem(controlSidebarStorageKey) === "true"
+  );
+  const [uiScale, setUiScale] = useState(readStoredScale);
 
   useEffect(() => {
     captureDevAuthTokenFromUrl();
     updateManifestForRoute();
     document.title = isStandaloneChatRoute
       ? "Maiks.yt Streamer Chat"
-      : isAiControlsRoute
-        ? "Maiks.yt AI Controls"
-      : isModerationRulesRoute
+      : isModerationRoute
         ? "Maiks.yt Moderation"
         : "Maiks.yt Control Panel";
     void validateControlPanelAccess().then(setAuthState);
@@ -182,31 +240,70 @@ const App = (): React.ReactNode => {
     window.localStorage.setItem(panelModeStorageKey, nextMode);
   };
 
+  const chooseControlPage = (page: ControlPageKey): void => {
+    setControlPage(page);
+    window.localStorage.setItem(controlPageStorageKey, page);
+    const segment = controlPagePathSegments[page];
+    const nextPath = segment ? `/control/${segment}` : "/control";
+
+    window.history.replaceState(null, "", nextPath);
+  };
+
+  const toggleControlSidebar = (): void => {
+    setControlSidebarCollapsed((currentValue) => {
+      const nextValue = !currentValue;
+
+      window.localStorage.setItem(controlSidebarStorageKey, String(nextValue));
+      return nextValue;
+    });
+  };
+
+  const updateUiScale = (delta: number): void => {
+    setUiScale((currentScale) => {
+      const nextScale = Math.min(120, Math.max(80, currentScale + delta));
+
+      window.localStorage.setItem(controlScaleStorageKey, String(nextScale));
+      return nextScale;
+    });
+  };
+
   if (authState.status !== "allowed") {
     return <AccessRequired authState={authState} />;
   }
 
   if (isStandaloneChatRoute) {
     return (
-    <main className="surface chat-surface chat-window-surface">
-      <ChatWindowHeader apiBaseUrl={apiBaseUrl} />
-      <ChatServiceStatusStrip apiBaseUrl={apiBaseUrl} />
-      <StreamerChatViewer apiBaseUrl={apiBaseUrl} newestOnTop maxMessages={60} variant="standalone" />
+    <main className="surface chat-surface chat-window-surface operations-dark" style={{ fontSize: `${uiScale}%` }}>
+      <div className="chat-compact-topbar">
+        <div className="chat-compact-title">
+          <h1>Streamer Chat</h1>
+          <span>{authState.displayName}</span>
+        </div>
+        <ChatServiceStatusStrip apiBaseUrl={apiBaseUrl} />
+        <ChatWindowHeader apiBaseUrl={apiBaseUrl} />
+        <div className="ui-scale-control" aria-label="UI scale">
+          <button type="button" onClick={() => updateUiScale(-5)}>-</button>
+          <span>{uiScale}%</span>
+          <button type="button" onClick={() => updateUiScale(5)}>+</button>
+        </div>
+      </div>
+      <StreamerChatViewer apiBaseUrl={apiBaseUrl} newestOnTop maxMessages={80} variant="standalone" />
     </main>
   );
   }
 
-  if (isModerationRulesRoute) {
+  if (isModerationRoute) {
     return (
-      <main className="surface chat-surface chat-window-surface">
+      <main className="surface chat-surface moderation-surface operations-dark" style={{ fontSize: `${uiScale}%` }}>
         <div className="surface-header chat-surface-header">
           <div className="surface-title">
             <h1>Moderation</h1>
             <p>{authState.displayName}</p>
           </div>
-          <div className="status-action-group">
-            <a className="secondary-window-link" href="/chat">Chat</a>
-            <a className="secondary-window-link" href="/control">Control panel</a>
+          <div className="ui-scale-control" aria-label="UI scale">
+            <button type="button" onClick={() => updateUiScale(-5)}>-</button>
+            <span>{uiScale}%</span>
+            <button type="button" onClick={() => updateUiScale(5)}>+</button>
           </div>
         </div>
         <ModerationControlWindow apiBaseUrl={apiBaseUrl} />
@@ -214,65 +311,117 @@ const App = (): React.ReactNode => {
     );
   }
 
-  if (isAiControlsRoute) {
+  const shellStyle = { fontSize: `${uiScale}%` } satisfies CSSProperties;
+  const renderControlPage = (): React.ReactNode => {
+    if (controlPage === "overlays") {
+      return (
+        <>
+          <section className="overlay-workflow-strip" aria-label="Live-safe overlay workflow">
+            <div className="overlay-workflow-step active"><span>1</span> Duplicate</div>
+            <div className="overlay-workflow-line" />
+            <div className="overlay-workflow-step current"><span>2</span> Edit compatibility layout</div>
+            <div className="overlay-workflow-line" />
+            <button type="button" disabled>Private preview endpoint pending</button>
+            <div className="overlay-workflow-line" />
+            <button type="button" disabled>Apply live + snapshot pending</button>
+            <button type="button" disabled>Rollback endpoint pending</button>
+          </section>
+          <SceneDesigner apiBaseUrl={apiBaseUrl} />
+        </>
+      );
+    }
+
+    if (controlPage === "actions") {
+      return <ControlActionsPanel apiBaseUrl={apiBaseUrl} />;
+    }
+
+    if (controlPage === "music") {
+      return <MusicControlPanel />;
+    }
+
+    if (controlPage === "providers") {
+      return (
+        <section className="provider-health-page" aria-label="Provider health and recovery">
+          <div className="section-heading">
+            <h2>Provider Health & Recovery</h2>
+            <span>Private intake state</span>
+          </div>
+          <ChatServiceStatusStrip apiBaseUrl={apiBaseUrl} />
+        </section>
+      );
+    }
+
     return (
-      <main className="surface chat-surface chat-window-surface">
-        <div className="surface-header chat-surface-header">
-          <div className="surface-title">
-            <h1>AI Controls</h1>
-            <p>{authState.displayName}</p>
-          </div>
-          <div className="status-action-group">
-            <a className="secondary-window-link" href="/chat">Chat</a>
-            <a className="secondary-window-link" href="/moderation">Moderation</a>
-            <a className="secondary-window-link" href="/control">Control panel</a>
-          </div>
-        </div>
-        <AiControlsWindow />
-      </main>
+      <>
+        <SurfaceStatus apiBaseUrl={apiBaseUrl} panelMode={panelMode} />
+        {controlPage === "overview" ? (
+          <section className="control-live-overview" aria-label="Live operations overview">
+            <article>
+              <span>Next recovery stop</span>
+              <strong>Provider Health</strong>
+              <p>Use the recovery page for intake/provider status; raw diagnostics stay out of the routine overview.</p>
+            </article>
+            <article>
+              <span>Scene work</span>
+              <strong>Overlays & Scenes</strong>
+              <p>Duplicate a layout before editing. Compatibility saves can update the master overlay; the future explicit apply workflow remains disabled until its safety endpoints exist.</p>
+            </article>
+            <article>
+              <span>Live controls</span>
+              <strong>Stream Controls</strong>
+              <p>Emergency overlay controls and routine live operation state remain visible here.</p>
+            </article>
+          </section>
+        ) : null}
+      </>
     );
-  }
+  };
 
   return (
-    <main className="surface">
-      <div className="surface-header">
-        <div className="surface-title">
-          <h1>Maiks.yt Control Panel</h1>
-          <p>{authState.displayName}</p>
-        </div>
-        <button
-          type="button"
-          className={`panel-mode-toggle ${advancedModeEnabled ? "advanced" : ""}`}
-          aria-pressed={advancedModeEnabled}
-          onClick={togglePanelMode}
-        >
-          {advancedModeEnabled ? "Advanced" : "Creator"}
+    <main className={`surface operations-dark control-surface ${controlSidebarCollapsed ? "sidebar-collapsed" : ""}`} style={shellStyle}>
+      <aside className="operations-sidebar" aria-label="Control pages">
+        <button type="button" className="sidebar-collapse-button" onClick={toggleControlSidebar} aria-pressed={controlSidebarCollapsed}>
+          {controlSidebarCollapsed ? ">" : "<"}
         </button>
-      </div>
-      <SurfaceStatus apiBaseUrl={apiBaseUrl} panelMode={panelMode} />
-      <MusicControlPanel />
-      <SceneDesigner apiBaseUrl={apiBaseUrl} />
-      {advancedModeEnabled ? (
-        <OperationsPanel apiBaseUrl={apiBaseUrl} displayName={authState.displayName} panelMode={panelMode} />
-      ) : null}
-      <details className="quiet-section">
-        <summary>
-          <span>Realtime Probe</span>
-          {advancedModeEnabled ? <small>Transport</small> : null}
-        </summary>
-        <div className="quiet-section-body">
-          <RealtimeProbe apiBaseUrl={apiBaseUrl} />
+        <nav className="operations-nav">
+          {controlPageOrder.map((page) => (
+            <button
+              type="button"
+              className={page === controlPage ? "active" : ""}
+              key={page}
+              onClick={() => chooseControlPage(page)}
+              title={controlPageLabels[page]}
+            >
+              <span className="nav-icon" aria-hidden="true"><OperationNavIcon name={controlPageIcons[page]} /></span>
+              <span className="nav-label">{controlPageLabels[page]}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <section className="operations-page">
+        <div className="operations-page-header">
+          <div>
+            <h1>Control</h1>
+            <p>{controlPageLabels[controlPage]} · {authState.displayName}</p>
+          </div>
+          <div className="operations-header-actions">
+            <button
+              type="button"
+              className={`panel-mode-toggle ${advancedModeEnabled ? "advanced" : ""}`}
+              aria-pressed={advancedModeEnabled}
+              onClick={togglePanelMode}
+            >
+              {advancedModeEnabled ? "Advanced" : "Creator"}
+            </button>
+            <div className="ui-scale-control" aria-label="UI scale">
+              <button type="button" onClick={() => updateUiScale(-5)}>-</button>
+              <span>{uiScale}%</span>
+              <button type="button" onClick={() => updateUiScale(5)}>+</button>
+            </div>
+          </div>
         </div>
-      </details>
-      <details className="quiet-section">
-        <summary>
-          <span>Simulator</span>
-          {advancedModeEnabled ? <small>Local replay</small> : null}
-        </summary>
-        <div className="quiet-section-body">
-          <SimulatorPanel apiBaseUrl={apiBaseUrl} />
-        </div>
-      </details>
+        {renderControlPage()}
+      </section>
     </main>
   );
 };

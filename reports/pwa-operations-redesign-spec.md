@@ -1,10 +1,14 @@
 # PWA Operations Redesign Specification
 
-Updated: 2026-08-18
+Updated: 2026-08-27
 
 Grounded against: production branch commit `f1ecd02`
 
-Status: approved product direction; canonical implementation specification; implementation not started
+Status: approved product direction; first production UI implementation integrated locally and verified with synthetic desktop, half-screen, touch, and mobile evidence; not deployed or live-verified
+
+Implementation review base: production commit `db7c8af`
+
+Local visual evidence: `reports/visual-qa/production-pwa-redesign/README.md`
 
 ## Authority And Scope
 
@@ -14,7 +18,7 @@ The approved corrected mockups are visual references for density, hierarchy, and
 
 Operational responsibility, not one page per app or one monitor per app, defines the boundaries. Chat has no sidebar. Moderation and Control have compact internal navigation only. Notifications stays separate. The future AI PWA is separate and deferred. There is no cross-PWA navigation rail or window switcher.
 
-This report does not authorize UI implementation, migrations, authentication changes, secret or provider configuration changes, deployment, or server changes.
+Michael authorized the first UI implementation after approving this specification. That implementation does not authorize migrations, authentication changes, secret or provider configuration changes, deployment, or server changes.
 
 ### Status vocabulary
 

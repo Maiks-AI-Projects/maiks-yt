@@ -1,9 +1,6 @@
 import type { OverlayActiveGoalState, OverlayPresentationState } from "@maiks-yt/events";
 import { useEffect, useState } from "react";
-import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
-import { formatChatTime } from "../chat/chat-time.service.js";
 import {
-  FakeChatSettings,
   GoalWidgetSettings,
   NotificationSettings,
   SurfaceStatusControls,
@@ -14,19 +11,14 @@ import {
   defaultGoalDraft,
   type CenterNotificationTiming,
   type OverlayChatOrderResponse,
-  type OverlayFakeChatTestResponse,
   type OverlayGoalUpdateResponse,
   type OverlayPresentationStateResponse,
-  type OverlayRedeemTestResponse,
-  type RedeemPreset,
   type SurfaceStatusProps
 } from "./SurfaceStatus.types.js";
 
 export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): React.ReactNode => {
   const { overlayPresence, sceneOptions, setOverlayPresence } = useOverlayPresence(apiBaseUrl);
   const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
-  const [fakeChatAuthorName, setFakeChatAuthorName] = useState("Test chatter");
-  const [fakeChatMessage, setFakeChatMessage] = useState("Hello from local test chat.");
   const [goalDraft, setGoalDraft] = useState<OverlayActiveGoalState>(defaultGoalDraft);
 
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
@@ -34,7 +26,6 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
   const chatVisible = overlayPresence.status === "ready" && overlayPresence.chatVisible;
   const chatNewestOnTop = overlayPresence.status === "ready" && overlayPresence.chatNewestOnTop;
   const sponsorVisible = overlayPresence.status === "ready" && overlayPresence.sponsorVisible;
-  const aiMuted = overlayPresence.status === "ready" && overlayPresence.aiMuted;
   const topBarEnabled = overlayPresence.status === "ready" && overlayPresence.topBarEnabled;
   const centerEnabled = overlayPresence.status === "ready" && overlayPresence.centerEnabled;
   const centerTiming = overlayPresence.status === "ready"
@@ -243,178 +234,6 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
     setTopBarActionStatus(visible ? "Sponsor on." : "Sponsor off.");
   };
 
-  const updateAiMuted = async (muted: boolean): Promise<void> => {
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
-    if (!token) {
-      setTopBarActionStatus("Control token missing.");
-      return;
-    }
-
-    const response = await fetch(`${apiBaseUrl}/overlay/ai/muted`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        accessToken: token,
-        muted
-      })
-    });
-
-    if (!response.ok) {
-      setTopBarActionStatus(`AI mute failed with ${response.status}.`);
-      return;
-    }
-
-    setOverlayPresence((currentState) => currentState.status === "ready"
-      ? {
-        ...currentState,
-        aiMuted: muted
-      }
-      : currentState);
-    setTopBarActionStatus(muted ? "AI muted." : "AI live.");
-  };
-
-  const sendTopBarTest = async (): Promise<void> => {
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
-    if (!token) {
-      setTopBarActionStatus("Control token missing.");
-      return;
-    }
-
-    const response = await fetch(`${apiBaseUrl}/overlay/top-bar/test`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        accessToken: token,
-        count: 4
-      })
-    });
-
-    setTopBarActionStatus(response.ok ? "Top bar burst sent." : `Top bar burst failed with ${response.status}.`);
-  };
-
-  const sendRoutedNotificationTest = async (
-    route: "top" | "center",
-    afterCenter: "top" | "none" = "top"
-  ): Promise<void> => {
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
-    if (!token) {
-      setTopBarActionStatus("Control token missing.");
-      return;
-    }
-
-    const response = await fetch(`${apiBaseUrl}/overlay/notification/test`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        accessToken: token,
-        route,
-        afterCenter,
-        count: route === "center" ? 1 : 4
-      })
-    });
-
-    setTopBarActionStatus(response.ok
-      ? route === "center" && afterCenter === "none"
-        ? "Center-only redeem queued."
-        : route === "center" ? "Center then top test queued." : "Routed top burst sent."
-      : `Notification test failed with ${response.status}.`);
-  };
-
-  const sendRedeemTest = async (redeem: RedeemPreset): Promise<void> => {
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-
-    if (!token) {
-      setTopBarActionStatus("Control token missing.");
-      return;
-    }
-
-    const response = await fetch(`${apiBaseUrl}/overlay/redeem/test`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        accessToken: token,
-        redeem
-      })
-    });
-
-    if (!response.ok) {
-      setTopBarActionStatus(`Redeem test failed with ${response.status}.`);
-      return;
-    }
-
-    const result = await response.json() as OverlayRedeemTestResponse;
-
-    if (!result.ok) {
-      setTopBarActionStatus(`Redeem test failed: ${result.reason}.`);
-      return;
-    }
-
-    setTopBarActionStatus(result.queued > 0 ? `${result.redeem} redeem queued.` : `Redeem skipped: ${result.reason ?? "not queued"}.`);
-  };
-
-  const sendFakeChatMessage = async (): Promise<void> => {
-    const token = window.localStorage.getItem("maiks.yt.control.accessToken");
-    const trimmedAuthorName = fakeChatAuthorName.trim();
-    const trimmedMessage = fakeChatMessage.trim();
-
-    if (!token) {
-      setTopBarActionStatus("Control token missing.");
-      return;
-    }
-
-    if (!trimmedAuthorName || !trimmedMessage) {
-      setTopBarActionStatus("Fake chat author and message are required.");
-      return;
-    }
-
-    const response = await fetch(`${apiBaseUrl}/overlay/chat/test`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        accessToken: token,
-        authorKind: "human",
-        authorName: trimmedAuthorName,
-        message: trimmedMessage
-      })
-    });
-
-    if (!response.ok) {
-      setTopBarActionStatus(`Fake chat failed with ${response.status}.`);
-      return;
-    }
-
-    const result = await response.json() as OverlayFakeChatTestResponse;
-
-    if (!result.ok) {
-      setTopBarActionStatus(`Fake chat failed: ${result.reason}.`);
-      return;
-    }
-
-    if (result.reason === "fake_local_author_muted") {
-      setTopBarActionStatus(result.mutedUntil
-        ? `Fake chat suppressed by local mute until ${formatChatTime(result.mutedUntil)}.`
-        : "Fake chat suppressed by local mute.");
-      return;
-    }
-
-    setTopBarActionStatus(result.chatVisible
-      ? `Fake chat sent to ${result.activeOverlayConnections} overlay connection(s).`
-      : "Fake chat sent, but chat is currently hidden.");
-  };
-
   const updateCenterSettings = async (patch: Partial<CenterNotificationTiming> & { enabled?: boolean }): Promise<void> => {
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
@@ -558,19 +377,14 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
   return (
     <section className="surface-status" aria-label="Surface status">
       <SurfaceStatusControls
-        aiMuted={aiMuted}
         chatNewestOnTop={chatNewestOnTop}
         chatVisible={chatVisible}
         emergencyCleanModeEnabled={emergencyCleanModeEnabled}
         overlayActive={overlayActive}
         overlayPresence={overlayPresence}
         panelMode={panelMode}
-        sendRedeemTest={sendRedeemTest}
-        sendRoutedNotificationTest={sendRoutedNotificationTest}
-        sendTopBarTest={sendTopBarTest}
         sponsorVisible={sponsorVisible}
         topBarEnabled={topBarEnabled}
-        updateAiMuted={updateAiMuted}
         updateChatOrder={updateChatOrder}
         updateChatVisibility={updateChatVisibility}
         updateEmergencyCleanMode={updateEmergencyCleanMode}
@@ -583,14 +397,6 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
         themedSceneOptions={themedSceneOptions}
         updatePresentationState={updatePresentationState}
       />
-      <FakeChatSettings
-        fakeChatAuthorName={fakeChatAuthorName}
-        fakeChatMessage={fakeChatMessage}
-        sendFakeChatMessage={sendFakeChatMessage}
-        setFakeChatAuthorName={setFakeChatAuthorName}
-        setFakeChatMessage={setFakeChatMessage}
-      />
-      <StreamerChatViewer apiBaseUrl={apiBaseUrl} newestOnTop={chatNewestOnTop} />
       <GoalWidgetSettings
         activeGoal={activeGoal}
         goalDraft={goalDraft}
@@ -602,7 +408,6 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
       <NotificationSettings
         centerEnabled={centerEnabled}
         centerTiming={centerTiming}
-        sendRedeemTest={sendRedeemTest}
         updateCenterSettings={updateCenterSettings}
       />
     </section>

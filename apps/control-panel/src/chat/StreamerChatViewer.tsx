@@ -1,5 +1,5 @@
 import type { StreamerChatLiveMessage, StreamerChatMessage } from "@maiks-yt/events";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { createApiHeaders } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
@@ -76,11 +76,36 @@ const getProviderWarningStatusText = (
   return `${chatSourceLabels[message.source]} warning message skipped because provider context or write credentials were missing.`;
 };
 
+const getChatAvatarInitials = (authorName: string): string => {
+  const cleanedParts = authorName
+    .replaceAll("_", " ")
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0);
+
+  if (cleanedParts.length === 0) {
+    return "?";
+  }
+
+  return cleanedParts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+};
+
+const sourceGlyphs: Record<StreamerChatMessage["source"], string> = {
+  discord: "◖",
+  "fake-local": "◇",
+  twitch: "▱",
+  youtube: "▶"
+};
+
 export const StreamerChatViewer = ({
   actionAccess = defaultActionAccess,
   apiBaseUrl,
   maxMessages = 12,
   newestOnTop,
+  onSelectedMessageChange,
   showUnavailableActions = false,
   variant = "embedded"
 }: StreamerChatViewerProps): ReactNode => {
@@ -88,10 +113,19 @@ export const StreamerChatViewer = ({
   const [status, setStatus] = useState<string>("Loading streamer chat.");
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [openOptionsMessageId, setOpenOptionsMessageId] = useState<string | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [liveFollowPaused, setLiveFollowPaused] = useState(false);
+  const [newWhilePausedCount, setNewWhilePausedCount] = useState(0);
+  const messageListRef = useRef<HTMLOListElement | null>(null);
+  const liveFollowPausedRef = useRef(false);
   const chatAttention = useChatAttention(variant === "standalone");
   const visibleMessages = newestOnTop
     ? messages.slice(0, maxMessages)
     : messages.slice(0, maxMessages).reverse();
+
+  useEffect(() => {
+    onSelectedMessageChange?.(messages.find((message) => message.id === selectedMessageId) ?? null);
+  }, [messages, onSelectedMessageChange, selectedMessageId]);
 
   const executeStreamerChatModeration = async (
     message: StreamerChatMessage,
@@ -109,6 +143,10 @@ export const StreamerChatViewer = ({
     action: "hide" | "ban" | "warn" | "allow",
     allowScope?: "message" | "always" | "stream" | "timed"
   ): Promise<void> => {
+    if (action === "ban" && !window.confirm(`Ban ${message.authorName} locally from Maiks.yt stream chat surfaces?`)) {
+      return;
+    }
+
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
     if (!token) {
@@ -159,6 +197,7 @@ export const StreamerChatViewer = ({
           ));
       }
       setOpenOptionsMessageId(null);
+      setSelectedMessageId(null);
       setActionStatus(
         action === "hide"
           ? `Message hidden locally. ${result.affectedCount} affected.`
@@ -240,6 +279,10 @@ export const StreamerChatViewer = ({
       return;
     }
 
+    if (action === "ban_author" && !window.confirm(`Ban ${message.authorName} on ${chatSourceLabels[message.source]}?`)) {
+      return;
+    }
+
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
     if (!token) {
@@ -293,6 +336,7 @@ export const StreamerChatViewer = ({
       }
 
       setOpenOptionsMessageId(null);
+      setSelectedMessageId(null);
       setActionStatus(
         result.providerActionSent
           ? action === "delete_message"
@@ -364,10 +408,18 @@ export const StreamerChatViewer = ({
         }
 
         chatAttention.notifyMessage(liveMessage.payload);
+        if (variant === "standalone" && liveFollowPausedRef.current) {
+          setNewWhilePausedCount((currentCount) => currentCount + 1);
+        }
         setMessages((currentMessages) => [
           liveMessage.payload,
           ...currentMessages.filter((message) => message.id !== liveMessage.payload.id)
         ].slice(0, 75));
+        window.requestAnimationFrame(() => {
+          if (!disposed && variant === "standalone" && !liveFollowPausedRef.current) {
+            messageListRef.current?.scrollTo({ top: 0 });
+          }
+        });
       });
       webSocket.addEventListener("close", () => {
         if (!disposed) {
@@ -385,7 +437,34 @@ export const StreamerChatViewer = ({
       disposed = true;
       webSocket?.close();
     };
-  }, [apiBaseUrl, chatAttention.baselineMessages, chatAttention.notifyMessage]);
+  }, [apiBaseUrl, chatAttention.baselineMessages, chatAttention.notifyMessage, variant]);
+
+  const handleMessageListScroll = (): void => {
+    if (variant !== "standalone") {
+      return;
+    }
+
+    const listElement = messageListRef.current;
+
+    if (!listElement) {
+      return;
+    }
+
+    const paused = listElement.scrollTop > 12;
+
+    liveFollowPausedRef.current = paused;
+    setLiveFollowPaused(paused);
+    if (!paused) {
+      setNewWhilePausedCount(0);
+    }
+  };
+
+  const resumeLiveFollow = (): void => {
+    messageListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    liveFollowPausedRef.current = false;
+    setLiveFollowPaused(false);
+    setNewWhilePausedCount(0);
+  };
 
   return (
     <div className={`streamer-chat-viewer ${variant}`} aria-label="Streamer chat viewer">
@@ -393,14 +472,34 @@ export const StreamerChatViewer = ({
         <strong>{variant === "standalone" ? "Live Chat" : "Streamer chat"}</strong>
         <span>{status}</span>
         {actionStatus ? <span>{actionStatus}</span> : null}
+        {variant === "standalone" ? (
+          <div className="streamer-chat-header-actions">
+            <button
+              type="button"
+              className={`chat-follow-toggle ${liveFollowPaused ? "paused" : ""}`}
+              onClick={resumeLiveFollow}
+            >
+              {liveFollowPaused
+                ? newWhilePausedCount > 0
+                  ? `${newWhilePausedCount} new - resume`
+                  : "Resume live"
+                : "Live-follow"}
+            </button>
+            {chatAttention.controls}
+          </div>
+        ) : null}
       </div>
-      {variant === "standalone" ? chatAttention.controls : null}
       {visibleMessages.length === 0 ? (
         <p className="streamer-chat-empty">No streamer chat messages yet.</p>
       ) : (
-        <ol className={`streamer-chat-list ${newestOnTop ? "newest-on-top" : "newest-on-bottom"}`}>
+        <ol
+          className={`streamer-chat-list ${newestOnTop ? "newest-on-top" : "newest-on-bottom"}`}
+          onScroll={handleMessageListScroll}
+          ref={messageListRef}
+        >
           {visibleMessages.map((message) => {
             const optionsOpen = openOptionsMessageId === message.id;
+            const selected = selectedMessageId === message.id;
             const primaryUnavailableReasons = getPrimaryUnavailableReasons(actionAccess, showUnavailableActions);
             const optionUnavailableReasons = getOptionUnavailableReasons(message, actionAccess, showUnavailableActions);
 
@@ -408,16 +507,26 @@ export const StreamerChatViewer = ({
               <li
                 className={[
                   message.visibleOnOverlayByDefault ? "overlay-visible" : "streamer-only",
-                  `source-${message.source}`
+                  `source-${message.source}`,
+                  selected ? "selected" : ""
                 ].join(" ")}
                 key={message.id}
+                onFocus={() => setSelectedMessageId(message.id)}
+                onPointerDown={(event) => {
+                  if (event.pointerType === "touch" || event.pointerType === "pen") {
+                    setSelectedMessageId(message.id);
+                  }
+                }}
+                tabIndex={0}
               >
-                <div>
-                  <strong>{message.authorName}</strong>
-                  <span>{chatSourceLabels[message.source]} · {message.authorKind}</span>
-                  <time dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
-                </div>
-                <p>{message.message}</p>
+                <span className="streamer-chat-avatar" aria-hidden="true">{getChatAvatarInitials(message.authorName)}</span>
+                <strong className="streamer-chat-author" title={message.authorName}>{message.authorName}</strong>
+                <time className="streamer-chat-time" dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
+                <span className="streamer-chat-provider">
+                  <span aria-hidden="true" className="streamer-chat-provider-glyph">{sourceGlyphs[message.source]}</span>
+                  {chatSourceLabels[message.source]}
+                </span>
+                <p className="streamer-chat-message">{message.message}</p>
                 <div className="streamer-chat-actions" aria-label={`Moderation controls for ${message.authorName}`}>
                   {actionAccess.canHide || showUnavailableActions ? (
                     <button
@@ -467,6 +576,32 @@ export const StreamerChatViewer = ({
                           : "Missing chat:warn-user permission."}
                       >
                         Warn
+                      </button>
+                    ) : null}
+                    {actionAccess.canHide || showUnavailableActions ? (
+                      <button
+                        type="button"
+                        className="touch-primary-action"
+                        disabled={!actionAccess.canHide}
+                        onClick={() => void executeStreamerChatModeration(message, "hide")}
+                        title={actionAccess.canHide
+                          ? "Hide this message from Maiks.yt stream chat surfaces locally."
+                          : "Missing chat:hide-message permission."}
+                      >
+                        Hide
+                      </button>
+                    ) : null}
+                    {actionAccess.canBan || showUnavailableActions ? (
+                      <button
+                        type="button"
+                        className="touch-primary-action"
+                        disabled={!actionAccess.canBan}
+                        onClick={() => void executeStreamerChatModeration(message, "ban")}
+                        title={actionAccess.canBan
+                          ? "Ban this author from Maiks.yt stream chat surfaces locally."
+                          : "Missing chat:ban-user-local permission."}
+                      >
+                        Ban
                       </button>
                     ) : null}
                     <button

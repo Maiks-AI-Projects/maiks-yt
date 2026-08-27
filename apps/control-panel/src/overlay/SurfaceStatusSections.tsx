@@ -7,26 +7,19 @@ import type {
 import {
   defaultGoalDraft,
   overlayLayoutOptions,
-  redeemPresetOptions,
   type CenterNotificationTiming,
-  type OverlayPresenceState,
-  type RedeemPreset
+  type OverlayPresenceState
 } from "./SurfaceStatus.types.js";
 
 type SurfaceStatusControlsProps = {
-  aiMuted: boolean;
   chatNewestOnTop: boolean;
   chatVisible: boolean;
   emergencyCleanModeEnabled: boolean;
   overlayActive: boolean;
   overlayPresence: OverlayPresenceState;
   panelMode: string;
-  sendRedeemTest: (redeem: RedeemPreset) => Promise<void>;
-  sendRoutedNotificationTest: (destination: "center", priority: "top") => Promise<void>;
-  sendTopBarTest: () => Promise<void>;
   sponsorVisible: boolean;
   topBarEnabled: boolean;
-  updateAiMuted: (muted: boolean) => Promise<void>;
   updateChatOrder: (newestOnTop: boolean) => Promise<void>;
   updateChatVisibility: (visible: boolean) => Promise<void>;
   updateEmergencyCleanMode: (enabled: boolean) => Promise<void>;
@@ -35,19 +28,14 @@ type SurfaceStatusControlsProps = {
 };
 
 export const SurfaceStatusControls = ({
-  aiMuted,
   chatNewestOnTop,
   chatVisible,
   emergencyCleanModeEnabled,
   overlayActive,
   overlayPresence,
   panelMode,
-  sendRedeemTest,
-  sendRoutedNotificationTest,
-  sendTopBarTest,
   sponsorVisible,
   topBarEnabled,
-  updateAiMuted,
   updateChatOrder,
   updateChatVisibility,
   updateEmergencyCleanMode,
@@ -91,20 +79,6 @@ export const SurfaceStatusControls = ({
       </button>
       <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
         {sponsorVisible ? "Sponsor on" : "Sponsor off"}
-      </button>
-      <button type="button" className="status-action" onClick={() => void updateAiMuted(!aiMuted)}>
-        {aiMuted ? "AI muted" : "AI live"}
-      </button>
-    </div>
-    <div className="status-action-group notification-test-controls" aria-label="Notification test controls">
-      <button type="button" className="status-action" onClick={() => void sendTopBarTest()}>
-        Test top bar
-      </button>
-      <button type="button" className="status-action" onClick={() => void sendRoutedNotificationTest("center", "top")}>
-        Test center + top
-      </button>
-      <button type="button" className="status-action" onClick={() => void sendRedeemTest("hydrate")}>
-        Test redeem
       </button>
     </div>
   </>
@@ -279,9 +253,6 @@ export const GoalWidgetSettings = ({
       <button type="button" className="status-action" onClick={() => setGoalDraft(activeGoal ?? defaultGoalDraft())}>
         Reset
       </button>
-      <button type="button" className="status-action" onClick={() => setGoalDraft(defaultGoalDraft())}>
-        Load demo
-      </button>
       <button type="button" className="status-action" onClick={() => void saveActiveGoal()}>
         Save goal
       </button>
@@ -292,30 +263,16 @@ export const GoalWidgetSettings = ({
 type NotificationSettingsProps = {
   centerEnabled: boolean;
   centerTiming: CenterNotificationTiming;
-  sendRedeemTest: (redeem: RedeemPreset) => Promise<void>;
   updateCenterSettings: (patch: Partial<CenterNotificationTiming> & { enabled?: boolean }) => Promise<void>;
 };
 
 export const NotificationSettings = ({
   centerEnabled,
   centerTiming,
-  sendRedeemTest,
   updateCenterSettings
 }: NotificationSettingsProps): React.ReactNode => (
   <details className="notification-settings">
-    <summary>Notification settings</summary>
-    <div className="status-action-group redeem-test-actions">
-      {redeemPresetOptions.map((redeem) => (
-        <button
-          type="button"
-          className="status-action"
-          key={redeem.key}
-          onClick={() => void sendRedeemTest(redeem.key)}
-        >
-          {redeem.label}
-        </button>
-      ))}
-    </div>
+    <summary>Center notification timing</summary>
     <label>
       <span>Center enabled</span>
       <input

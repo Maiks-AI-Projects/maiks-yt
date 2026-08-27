@@ -4,8 +4,10 @@
 
 - Work only in `/home/michael/Documents/Codex/maiks-yt-production` on branch `production` for forward product development.
 - Treat `/home/michael/Documents/Codex/maiks-yt-fresh`, dev branches, old worktrees, reports, Todo entries, and idea cards as evidence. Do not merge dev wholesale, preserve dev architecture for compatibility, or spend work keeping dev current.
+- Treat the damaged Windows-era Codex project/path `Stream overlay & Website maiks.yt` as a non-authoritative legacy recovery source. Never merge or sync it wholesale. Its recurring `Check project rule violations` tasks do not describe production delivery state.
 - Start from `reports/production-capability-ledger.md`. Keep design, approval, implementation, integration, deployment, and real verification separate.
-- The highest-value safe code slice is integration of the approved operational PWA redesign into current production. Preserve provider chat, attention, commands, moderation, music, audio-output, token/session, and OBS-safe behavior while matching the production visual system.
+- The approved operational PWA redesign is now integrated and locally verified. Its next gate is deployment plus installed Chat, Moderation, Control, and Notifications verification after production reachability returns.
+- The next highest-value local production slice is the approved under-one-minute PWA session recovery path. Preserve the existing URL-token plus signed-in-session boundary. Do not weaken Control tokens to token-only access.
 - Do not deploy while the production origin is unreachable. Current evidence is SSH `No route to host` and Cloudflare `530` on the public web/API/overlay/control origins.
 
 Updated: 2026-08-27

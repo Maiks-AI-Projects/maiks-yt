@@ -5,8 +5,8 @@ import NotificationPanelClient from "./notification-panel-client";
 export const metadata: Metadata = {
   title: "Notifications | Maiks.yt Stream Tools",
   description: "Private system notification panel for Maiks.yt dev and operations alerts.",
-  applicationName: "Maiks.yt Stream Tools",
-  manifest: "/manifest.webmanifest",
+  applicationName: "Maiks.yt Notifications",
+  manifest: "/notifications-manifest.webmanifest",
   appleWebApp: {
     capable: true,
     title: "Notifications",
