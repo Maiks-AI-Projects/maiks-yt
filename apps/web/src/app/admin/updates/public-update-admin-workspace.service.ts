@@ -52,6 +52,7 @@ export type PublicUpdateAdminWorkspaceController = {
   form: UpdateFormState;
   formIsDirty: boolean;
   formIssue: string | null;
+  interactionIsLocked: boolean;
   lineCount: number;
   loadPreview: () => Promise<void>;
   loadState: LoadState;
@@ -107,6 +108,7 @@ export const usePublicUpdateAdminWorkspace = (): PublicUpdateAdminWorkspaceContr
   );
   const formIsDirty = isUpdateFormDirty(selectedUpdate, form);
   const formIssue = getLocalUpdateFormIssue(form);
+  const interactionIsLocked = busyAction !== null;
   const previewIsCurrent = previewMatchesSavedRevision(selectedUpdate, previewAcknowledgement);
   const selectedIsPublished = isPublishedUpdate(selectedUpdate);
   const editorIsReadOnly = !canEditUpdate(selectedUpdate);
@@ -205,6 +207,10 @@ export const usePublicUpdateAdminWorkspace = (): PublicUpdateAdminWorkspaceContr
   }, [formIsDirty]);
 
   const updateForm = (updater: (current: UpdateFormState) => UpdateFormState): void => {
+    if (interactionIsLocked) {
+      return;
+    }
+
     setForm(updater);
     setPreviewAcknowledgement(null);
   };
@@ -224,6 +230,10 @@ export const usePublicUpdateAdminWorkspace = (): PublicUpdateAdminWorkspaceContr
   };
 
   const startNewUpdate = (): void => {
+    if (interactionIsLocked) {
+      return;
+    }
+
     if (!confirmDiscardDirty("a new draft")) {
       return;
     }
@@ -242,6 +252,10 @@ export const usePublicUpdateAdminWorkspace = (): PublicUpdateAdminWorkspaceContr
   };
 
   const selectRow = (update: PublicUpdateSource): void => {
+    if (interactionIsLocked) {
+      return;
+    }
+
     if (!confirmDiscardDirty(update.title)) {
       return;
     }
@@ -253,6 +267,10 @@ export const usePublicUpdateAdminWorkspace = (): PublicUpdateAdminWorkspaceContr
   };
 
   const discardChanges = (): void => {
+    if (interactionIsLocked) {
+      return;
+    }
+
     setForm(selectedUpdate ? toUpdateForm(selectedUpdate) : defaultUpdateForm);
     setPreviewAcknowledgement(null);
     setMessage(selectedUpdate ? "Unsaved changes discarded." : "Unsaved draft cleared.");
@@ -413,6 +431,7 @@ export const usePublicUpdateAdminWorkspace = (): PublicUpdateAdminWorkspaceContr
     form,
     formIsDirty,
     formIssue,
+    interactionIsLocked,
     lineCount,
     loadPreview,
     loadState,

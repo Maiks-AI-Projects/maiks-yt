@@ -14,6 +14,7 @@ import styles from "./public-update-admin.module.css";
 type PublicUpdateAdminInventoryProps = {
   draftCount: number;
   filter: UpdateFilter;
+  interactionIsLocked: boolean;
   onFilterChange: (filter: UpdateFilter) => void;
   onSearchChange: (query: string) => void;
   onSelect: (update: PublicUpdateSource) => void;
@@ -27,6 +28,7 @@ type PublicUpdateAdminInventoryProps = {
 const PublicUpdateAdminInventory = ({
   draftCount,
   filter,
+  interactionIsLocked,
   onFilterChange,
   onSearchChange,
   onSelect,
@@ -80,6 +82,7 @@ const PublicUpdateAdminInventory = ({
           aria-current={selectedId === update.id ? "true" : undefined}
           className={styles.updateRow}
           data-selected={selectedId === update.id}
+          disabled={interactionIsLocked}
           key={update.id}
           onClick={() => onSelect(update)}
           type="button"

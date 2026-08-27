@@ -17,6 +17,7 @@ type PublicUpdateAdminEditorFormProps = {
   editorIsReadOnly: boolean;
   form: UpdateFormState;
   formIssue: string | null;
+  interactionIsLocked: boolean;
   lineCount: number;
   onSaveDraft: () => Promise<void>;
   onUpdateForm: (updater: (current: UpdateFormState) => UpdateFormState) => void;
@@ -30,6 +31,7 @@ const PublicUpdateAdminEditorForm = ({
   editorIsReadOnly,
   form,
   formIssue,
+  interactionIsLocked,
   lineCount,
   onSaveDraft,
   onUpdateForm,
@@ -47,7 +49,7 @@ const PublicUpdateAdminEditorForm = ({
     <label className={styles.field}>
       Type
       <select
-        disabled={editorIsReadOnly}
+        disabled={editorIsReadOnly || interactionIsLocked}
         onChange={(event) => onUpdateForm((current) => ({
           ...current,
           kind: event.target.value as UpdateFormState["kind"]
@@ -63,7 +65,7 @@ const PublicUpdateAdminEditorForm = ({
     <label className={styles.field}>
       Title
       <input
-        disabled={editorIsReadOnly}
+        disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={publicUpdateTitleMaxLength}
         onChange={(event) => onUpdateForm((current) => ({ ...current, title: event.target.value }))}
         placeholder="Public update title"
@@ -75,7 +77,7 @@ const PublicUpdateAdminEditorForm = ({
     <label className={styles.field}>
       Slug
       <input
-        disabled={editorIsReadOnly}
+        disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={slugMaxLength}
         onChange={(event) => onUpdateForm((current) => ({ ...current, slug: event.target.value }))}
         placeholder="lowercase-update-slug"
@@ -88,7 +90,7 @@ const PublicUpdateAdminEditorForm = ({
     <label className={styles.field}>
       Summary
       <textarea
-        disabled={editorIsReadOnly}
+        disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={publicUpdateSummaryMaxLength}
         onChange={(event) => onUpdateForm((current) => ({ ...current, summary: event.target.value }))}
         placeholder="Short public summary"
@@ -102,7 +104,7 @@ const PublicUpdateAdminEditorForm = ({
     <label className={styles.bodyField}>
       Body
       <textarea
-        disabled={editorIsReadOnly}
+        disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={publicUpdateBodyMaxLength}
         onChange={(event) => onUpdateForm((current) => ({ ...current, body: event.target.value }))}
         placeholder="Write the public Markdown body."
@@ -126,7 +128,7 @@ const PublicUpdateAdminEditorForm = ({
       <label className={styles.switchField}>
         <input
           checked={form.isPinned}
-          disabled={editorIsReadOnly}
+          disabled={editorIsReadOnly || interactionIsLocked}
           onChange={(event) => onUpdateForm((current) => ({ ...current, isPinned: event.target.checked }))}
           role="switch"
           type="checkbox"

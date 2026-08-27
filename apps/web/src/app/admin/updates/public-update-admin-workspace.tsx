@@ -24,6 +24,7 @@ const PublicUpdateAdminWorkspace = ({
     form,
     formIsDirty,
     formIssue,
+    interactionIsLocked,
     lineCount,
     loadPreview,
     message,
@@ -145,6 +146,7 @@ const PublicUpdateAdminWorkspace = ({
           editorIsReadOnly={editorIsReadOnly}
           form={form}
           formIssue={formIssue}
+          interactionIsLocked={interactionIsLocked}
           lineCount={lineCount}
           onSaveDraft={saveDraft}
           onUpdateForm={updateForm}

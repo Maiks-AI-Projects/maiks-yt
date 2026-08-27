@@ -262,7 +262,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Add basic blog/update post model.
 - [x] Add an owner/delegated `updates:manage` API workflow for listing, draft creation/editing, saved preview, publishing, and unpublishing without exposing audit identifiers.
 - [x] Generate and approve an image-first `/admin/updates` editor, then connect it to the production Updates API.
-  - 2026-08-27 Michael approved `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png`. The production editor now provides the compact master/detail workflow, saved-preview gate, revision-safe publish/unpublish lifecycle, dirty-state protection, and ordinary example-record omission. The shared Admin shell remains intentionally owner-only; delegated `updates:manage` remains an API capability for a future permission-filtered admin surface. Deployment and real signed-in verification remain separate gates.
+  - 2026-08-27 Michael approved `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png`. The production editor now provides the compact master/detail workflow, saved-preview gate, revision-safe publish/unpublish lifecycle, dirty-state protection including in-flight interaction locking, and ordinary example-record omission. The shared Admin shell remains intentionally owner-only; delegated `updates:manage` remains an API capability for a future permission-filtered admin surface. Deployment and real signed-in verification remain separate gates.
 - [ ] Add AI-assisted draft workflow.
 - [ ] Require approval before publishing AI-generated posts.
 - [x] Add public personal context page.

@@ -27,6 +27,7 @@ run_step "Domain tests" pnpm --filter @maiks-yt/domain test
 run_step "Database typecheck" pnpm --filter @maiks-yt/database typecheck
 run_step "API tests" pnpm --filter @maiks-yt/api test
 run_step "API typecheck" pnpm --filter @maiks-yt/api typecheck
+run_step "Web tests" pnpm --filter @maiks-yt/web test
 run_step "Web build" pnpm --filter @maiks-yt/web build
 run_step "Overlay typecheck" pnpm --filter @maiks-yt/overlay typecheck
 run_step "Control panel typecheck" pnpm --filter @maiks-yt/control-panel typecheck
