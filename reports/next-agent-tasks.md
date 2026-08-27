@@ -24,7 +24,7 @@
 ## Production Admin Overview Hygiene
 
 - Review and deploy the Overview cleanup with the accumulated production Web hygiene slices. Confirm Stream windows contains only functioning Chat, Moderation, Control, Overlay, and Notifications destinations; Live activity contains only real alerts and active helper grants.
-- Confirm the retained `Automated Checks` summary reports the existing owner-only failure evidence without exposing state-file paths, signatures, or test-harness terminology.
+- Confirm production returns a normal `404` for `/admin/testing/smoke-state` and Admin Overview no longer requests or renders its development smoke-state card. Non-production smoke tooling remains separate.
 - The selector audit and cleanup are complete. Provider Integrations now owns its neutral `provider-boundary-list`; retired Live Helper, testing-dashboard, and dev-console selector names are removed.
 
 ## Production-Facing Residue
@@ -32,7 +32,8 @@
 - Deploy and verify the Connections/copy cleanup with the other reviewed Web hygiene slices. Confirm Connections lists only real production sources and its Event catalogue still includes Website plus Twitch/YouTube/Discord entries.
 - Production public Updates omit records explicitly marked as examples from list, detail, and RSS output while non-production keeps labelled fixtures. The owner-only `/admin/updates` editor also omits them from its ordinary inventory without deleting provenance rows.
 - The approved `/admin/updates` editor and manual Updates API are complete in the reviewed production patch. In-flight interactions are locked and covered by a delayed-response real-hook regression test, and Web tests now run in `pnpm check:review`. Deploy only in a deliberate verification window, then prove signed-in owner create, edit, saved preview, revision-safe publish, public detail/RSS visibility, unpublish, stale-preview rejection, and exact MySQL predicate behavior. GUI/visual verification remains blocked by Michael's desktop-control stop order.
-- The Admin Overview summaries and proven-dead CSS are removed in reviewed production patches. Continue with the real Updates publishing workflow and the next evidence-backed operator-surface audit.
+- Public game suggestion submission now returns only an acceptance acknowledgement while keeping the private pending record for owner review. After deployment, verify anonymous submission, exact minimal response, and owner review without exposing private workflow fields.
+- The Admin Overview development smoke-state card and proven-dead CSS are removed in reviewed production patches. Continue with the next evidence-backed operator-surface audit.
 
 ## Production Origin Fallbacks
 
