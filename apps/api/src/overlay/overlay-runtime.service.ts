@@ -309,10 +309,18 @@ export class OverlayRuntime {
       return;
     }
 
+    this.broadcastMessageToMasterOverlay(message);
+  }
+
+  public broadcastMessageToMasterOverlay(message: OverlayLiveMessage): void {
     const serializedMessage = JSON.stringify(message);
 
     for (const client of this.liveClients.values()) {
-      client.socket.send(serializedMessage);
+      try {
+        client.socket.send(serializedMessage);
+      } catch {
+        // A stale overlay connection must not prevent delivery to healthy clients.
+      }
     }
   }
 

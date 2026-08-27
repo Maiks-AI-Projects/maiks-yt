@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { OverlayRuntime, type OverlayLiveSocket } from "../../src/overlay/index.js";
 
 class FakeOverlaySocket implements OverlayLiveSocket {
   public readonly sentMessages: string[] = [];
+  public failSends = false;
   private closeListener: (() => void) | null = null;
 
   public close(): void {
@@ -17,6 +18,10 @@ class FakeOverlaySocket implements OverlayLiveSocket {
   }
 
   public send(message: string): void {
+    if (this.failSends) {
+      throw new Error("overlay_socket_send_failed");
+    }
+
     this.sentMessages.push(message);
   }
 }
@@ -105,5 +110,52 @@ describe("OverlayRuntime", () => {
     runtime.broadcastMessage(runtime.createDemoTopBarNotification(0));
 
     expect(socket.sentMessages).toHaveLength(0);
+  });
+
+  it("can send bridge fallbacks to the master without re-entering the transient handler", () => {
+    const runtime = new OverlayRuntime();
+    const socket = new FakeOverlaySocket();
+    const transientHandler = vi.fn(() => true);
+    runtime.openLiveConnection(
+      "connection-1",
+      {
+        scene: "default",
+        layout: "standard",
+        theme: "default",
+        mode: "normal"
+      },
+      socket
+    );
+    const message = runtime.createDemoTopBarNotification(0);
+    runtime.setTransientMessageHandler(transientHandler);
+
+    runtime.broadcastMessageToMasterOverlay(message);
+
+    expect(transientHandler).not.toHaveBeenCalled();
+    expect(socket.sentMessages).toHaveLength(1);
+    expect(JSON.parse(socket.sentMessages[0] ?? "{}")).toMatchObject(message);
+  });
+
+  it("continues master-overlay fallback delivery after a stale client throws", () => {
+    const runtime = new OverlayRuntime();
+    const staleSocket = new FakeOverlaySocket();
+    const healthySocket = new FakeOverlaySocket();
+    runtime.openLiveConnection("stale", {
+      scene: "default",
+      layout: "standard",
+      theme: "default",
+      mode: "normal"
+    }, staleSocket);
+    runtime.openLiveConnection("healthy", {
+      scene: "default",
+      layout: "standard",
+      theme: "default",
+      mode: "normal"
+    }, healthySocket);
+    staleSocket.failSends = true;
+
+    const message = runtime.createDemoTopBarNotification(0);
+    expect(() => runtime.broadcastMessageToMasterOverlay(message)).not.toThrow();
+    expect(healthySocket.sentMessages).toHaveLength(1);
   });
 });

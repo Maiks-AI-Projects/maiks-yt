@@ -96,6 +96,7 @@ const obsWidgetBridgeRuntime = new ObsWidgetBridgeRuntime({
     theme: "default",
     mode: "normal"
   }),
+  fallbackToMasterOverlay: (message) => overlayRuntime.broadcastMessageToMasterOverlay(message),
   listChatMessages: () => streamerChatRuntime.listVisibleMessages()
 });
 

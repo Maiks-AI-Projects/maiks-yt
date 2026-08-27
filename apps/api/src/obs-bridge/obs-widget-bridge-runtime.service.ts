@@ -32,9 +32,11 @@ type ActiveObsBridgeClient = {
 
 type PendingEffect = {
   connectionId: string;
+  event: ObsBridgeEffectEvent;
   eventId: string;
   expiresAt: string;
-  status: ObsBridgeEffectAckMessage["payload"]["status"] | "pending";
+  expiryTimer: NodeJS.Timeout | null;
+  status: "pending" | "started";
 };
 
 const effectLifetimeMs = 2 * 60 * 1_000;
@@ -53,6 +55,7 @@ export class ObsWidgetBridgeRuntime {
 
   public constructor(private readonly dependencies: {
     createOverlaySnapshot: () => OverlayStateSnapshot;
+    fallbackToMasterOverlay?: (message: ObsBridgeEffectEvent) => void;
     listChatMessages: () => StreamerChatMessage[];
   }) {}
 
@@ -104,6 +107,10 @@ export class ObsWidgetBridgeRuntime {
       supportedWidgets.has(widget)
     );
 
+    if (!this.activeClient.hello.readyWidgets.includes("alerts-effects")) {
+      this.clearPendingEffectsForConnection(connectionId);
+    }
+
     return true;
   }
 
@@ -125,7 +132,7 @@ export class ObsWidgetBridgeRuntime {
   }
 
   public handleOverlayMessage(message: OverlayLiveMessage): boolean {
-    if (!isEffectEvent(message) || !this.canDeliverEffects()) {
+    if (!isEffectEvent(message)) {
       return false;
     }
 
@@ -136,6 +143,10 @@ export class ObsWidgetBridgeRuntime {
       return true;
     }
 
+    if (!this.canDeliverEffects()) {
+      return false;
+    }
+
     const client = this.activeClient;
 
     if (!client) {
@@ -144,6 +155,7 @@ export class ObsWidgetBridgeRuntime {
 
     const deliveryId = randomUUID();
     const expiresAt = new Date(Date.now() + effectLifetimeMs).toISOString();
+    this.deliveredEventIds.set(eventId, Date.now() + dedupeLifetimeMs);
     const delivered = this.send({
       type: "obs.effect.deliver",
       payload: {
@@ -158,11 +170,12 @@ export class ObsWidgetBridgeRuntime {
       return false;
     }
 
-    this.deliveredEventIds.set(eventId, Date.now() + dedupeLifetimeMs);
     this.pendingEffects.set(deliveryId, {
       connectionId: client.connectionId,
+      event: structuredClone(message),
       eventId,
       expiresAt,
+      expiryTimer: this.scheduleEffectExpiry(deliveryId, expiresAt),
       status: "pending"
     });
 
@@ -179,12 +192,17 @@ export class ObsWidgetBridgeRuntime {
       return false;
     }
 
-    pendingEffect.status = acknowledgement.status;
-
-    if (acknowledgement.status === "completed" || acknowledgement.status === "failed") {
-      this.pendingEffects.delete(acknowledgement.deliveryId);
+    if (acknowledgement.status === "started") {
+      pendingEffect.status = "started";
+      return true;
     }
 
+    if (pendingEffect.status === "started") {
+      this.finishPendingEffect(acknowledgement.deliveryId);
+      return true;
+    }
+
+    this.fallbackPendingEffect(acknowledgement.deliveryId);
     return true;
   }
 
@@ -230,7 +248,7 @@ export class ObsWidgetBridgeRuntime {
 
     for (const [deliveryId, effect] of this.pendingEffects) {
       if (Date.parse(effect.expiresAt) <= now) {
-        this.pendingEffects.delete(deliveryId);
+        this.expirePendingEffect(deliveryId);
       }
     }
   }
@@ -238,9 +256,67 @@ export class ObsWidgetBridgeRuntime {
   private clearPendingEffectsForConnection(connectionId: string): void {
     for (const [deliveryId, effect] of this.pendingEffects) {
       if (effect.connectionId === connectionId) {
-        this.pendingEffects.delete(deliveryId);
+        if (effect.status === "started") {
+          this.finishPendingEffect(deliveryId);
+        } else {
+          this.fallbackPendingEffect(deliveryId);
+        }
       }
     }
+  }
+
+  private scheduleEffectExpiry(deliveryId: string, expiresAt: string): NodeJS.Timeout | null {
+    const expiresAtMs = Date.parse(expiresAt);
+
+    if (!Number.isFinite(expiresAtMs)) {
+      return null;
+    }
+
+    return setTimeout(() => this.expirePendingEffect(deliveryId), Math.max(0, expiresAtMs - Date.now()));
+  }
+
+  private expirePendingEffect(deliveryId: string): void {
+    const effect = this.pendingEffects.get(deliveryId);
+
+    if (!effect) {
+      return;
+    }
+
+    if (effect.status === "started") {
+      this.finishPendingEffect(deliveryId);
+      return;
+    }
+
+    this.fallbackPendingEffect(deliveryId);
+  }
+
+  private fallbackPendingEffect(deliveryId: string): void {
+    const effect = this.pendingEffects.get(deliveryId);
+
+    if (!effect) {
+      return;
+    }
+
+    this.finishPendingEffect(deliveryId);
+    try {
+      this.dependencies.fallbackToMasterOverlay?.(structuredClone(effect.event));
+    } catch {
+      // A broken master-overlay client must not escape an acknowledgement or timer callback.
+    }
+  }
+
+  private finishPendingEffect(deliveryId: string): void {
+    const effect = this.pendingEffects.get(deliveryId);
+
+    if (!effect) {
+      return;
+    }
+
+    if (effect.expiryTimer) {
+      clearTimeout(effect.expiryTimer);
+    }
+
+    this.pendingEffects.delete(deliveryId);
   }
 
   private send(message: ObsBridgeServerMessage): boolean {
@@ -254,7 +330,10 @@ export class ObsWidgetBridgeRuntime {
       client.socket.send(JSON.stringify(message));
       return true;
     } catch {
-      this.activeClient = null;
+      this.clearPendingEffectsForConnection(client.connectionId);
+      if (this.activeClient?.connectionId === client.connectionId) {
+        this.activeClient = null;
+      }
       return false;
     }
   }
