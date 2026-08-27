@@ -1,10 +1,16 @@
 # Next Agent Tasks
 
+## Production Admin Overview Hygiene
+
+- Review and deploy the Overview cleanup with the accumulated production Web hygiene slices. Confirm Stream windows contains only functioning Chat, Moderation, Control, Overlay, and Notifications destinations; Live activity contains only real alerts and active helper grants.
+- Confirm the retained `Automated Checks` summary reports the existing owner-only failure evidence without exposing state-file paths, signatures, or test-harness terminology.
+- Next bounded cleanup: prove selector usage, then remove only dead testing-dashboard, retired Live Helper, and dev-console CSS. Preserve `live-helper-boundary-list` and any other shared selectors still consumed by production surfaces.
+
 ## Production-Facing Residue
 
 - Deploy and verify the Connections/copy cleanup with the other reviewed Web hygiene slices. Confirm Connections lists only real production sources and its Event catalogue still includes Website plus Twitch/YouTube/Discord entries.
 - Replace or unpublish the example update records through an approved content workflow; until then keep their example provenance visible.
-- Next bounded cleanup: remove development-harness summaries from Admin Overview and then delete only proven-dead testing/Live Helper/dev-console CSS. Preserve the still-used `live-helper-boundary-list` selectors and real notification self-test behavior.
+- The Admin Overview development-harness summaries are removed in the current production patch. Continue with only proven-dead testing/Live Helper/dev-console CSS, preserving still-used boundary selectors and real notification self-test behavior.
 
 ## Production Origin Fallbacks
 

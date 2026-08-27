@@ -5,7 +5,6 @@ import type { IconType } from "react-icons";
 import {
   FaArrowsRotate,
   FaBell,
-  FaBrain,
   FaChevronRight,
   FaCircleInfo,
   FaComments,
@@ -132,17 +131,11 @@ type TestingSmokeStateResponse =
 type LiveHelperDashboardResponse =
   | {
       ok: true;
-      pendingApprovals: {
-        count: number;
-      };
       notifications: {
         openWarningCount: number;
         openCriticalCount: number;
       };
       activeHelperGrants: {
-        count: number;
-      };
-      fakeLocalActiveModeration: {
         count: number;
       };
     }
@@ -169,28 +162,19 @@ const liveWindowLinks: readonly LiveWindowLink[] = [
     href: createControlUrl("/chat"),
     label: "Streamer chat",
     description: "Private live chat and service dots.",
-    icon: FaComments,
-    statusKey: "moderation"
+    icon: FaComments
   },
   {
     href: createControlUrl("/moderation"),
     label: "Moderation",
     description: "Chat-first moderation and helper context.",
-    icon: FaShieldHalved,
-    statusKey: "moderation"
+    icon: FaShieldHalved
   },
   {
     href: createControlUrl("/control"),
     label: "Control panel",
     description: "Scene controls and live stream tools.",
     icon: FaSliders
-  },
-  {
-    href: createControlUrl("/ai"),
-    label: "AI controls",
-    description: "Safety-gated controls, currently inert.",
-    icon: FaBrain,
-    note: "Safety-gated"
   },
   {
     href: overlayBaseUrl,
@@ -201,19 +185,13 @@ const liveWindowLinks: readonly LiveWindowLink[] = [
   {
     href: "/tools/notifications",
     label: "Notifications",
-    description: "Owner device notices and smoke alerts.",
+    description: "Owner device notices and automated check alerts.",
     icon: FaBell,
     statusKey: "notifications"
   }
 ];
 
 const liveActivityLinks: readonly Omit<LiveWindowLink, "icon">[] = [
-  {
-    href: "/admin/event-routing",
-    label: "Approvals",
-    description: "Safe simulated events waiting for review.",
-    statusKey: "pending-approvals"
-  },
   {
     href: "/tools/notifications",
     label: "Live alerts",
@@ -225,12 +203,6 @@ const liveActivityLinks: readonly Omit<LiveWindowLink, "icon">[] = [
     label: "Helpers",
     description: "Active non-owner helper and moderator grants.",
     statusKey: "helpers"
-  },
-  {
-    href: createControlUrl("/moderation"),
-    label: "Local test state",
-    description: "Active fake/local moderation state.",
-    statusKey: "moderation"
   }
 ];
 
@@ -286,16 +258,9 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
   },
   {
     key: "smoke",
-    label: "Recurring Smoke",
+    label: "Automated Checks",
     value: "Checking",
-    detail: "Reading latest smoke state.",
-    tone: "loading"
-  },
-  {
-    key: "pending-approvals",
-    label: "Approvals",
-    value: "Checking",
-    detail: "Loading live-helper counts.",
+    detail: "Reading the latest automated check result.",
     tone: "loading"
   },
   {
@@ -310,13 +275,6 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     label: "Helpers",
     value: "Checking",
     detail: "Loading helper grant state.",
-    tone: "loading"
-  },
-  {
-    key: "moderation",
-    label: "Moderation",
-    value: "Checking",
-    detail: "Loading active local moderation count.",
     tone: "loading"
   },
   {
@@ -417,9 +375,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const smokeStatus = smokeState?.status ?? "unknown";
   const smokeLastRun = getHumanDate(smokeState?.lastSuccessAt ?? smokeState?.lastFailureNotifiedAt ?? null);
 
-  const pendingApprovals = liveHelperResult?.payload?.ok ? liveHelperResult.payload.pendingApprovals.count : null;
   const activeHelpers = liveHelperResult?.payload?.ok ? liveHelperResult.payload.activeHelperGrants.count : null;
-  const activeModeration = liveHelperResult?.payload?.ok ? liveHelperResult.payload.fakeLocalActiveModeration.count : null;
 
   const liveHelperOpenWarnings = liveHelperResult?.payload?.ok ? liveHelperResult.payload.notifications.openWarningCount : 0;
   const liveHelperOpenCriticals = liveHelperResult?.payload?.ok ? liveHelperResult.payload.notifications.openCriticalCount : 0;
@@ -527,7 +483,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     },
     {
       key: "smoke",
-      label: "Recurring Smoke",
+      label: "Automated Checks",
       value:
         smokeStatus === "passing"
           ? "Passing"
@@ -543,17 +499,6 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
             : smokeStatus === "failing"
               ? "bad"
               : "warn"
-    },
-    {
-      key: "pending-approvals",
-      label: "Approvals",
-      value: pendingApprovals === null ? "Unavailable" : `${pendingApprovals} pending`,
-      detail: pendingApprovals === null ? `HTTP ${liveHelperResult?.status ?? "failed"}` : "Safe simulated/test approvals awaiting review.",
-      tone: pendingApprovals === null
-        ? "bad"
-        : pendingApprovals > 0
-          ? "warn"
-          : "ok"
     },
     {
       key: "live-alerts",
@@ -580,22 +525,6 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
         ? `HTTP ${liveHelperResult?.status ?? "failed"}`
         : "Non-owner helper/moderator grants currently active.",
       tone: activeHelpers === null ? "bad" : "ok"
-    },
-    {
-      key: "moderation",
-      label: "Local Test State",
-      value: activeModeration === null ? "Unavailable" : `${activeModeration} active`,
-      detail: activeModeration === null
-        ? `HTTP ${liveHelperResult?.status ?? "failed"}`
-        : "Fake/local moderation only",
-      tone:
-        activeModeration === null
-          ? "bad"
-          : liveHelperOpenCriticals > 0
-              ? "bad"
-              : activeModeration > 0
-                ? "warn"
-                : "ok"
     },
     {
       key: "money",
@@ -699,7 +628,7 @@ const getProviderActivitySummary = (statusCard: DashboardStatusCard | undefined)
   return statusCard?.tone === "loading" ? "checking" : statusCard?.value.toLowerCase() ?? "unavailable";
 };
 
-const getSmokeSummary = (statusCard: DashboardStatusCard | undefined): string => {
+const getAutomatedCheckSummary = (statusCard: DashboardStatusCard | undefined): string => {
   if (!statusCard || statusCard.tone === "loading") {
     return "checking";
   }
@@ -771,7 +700,7 @@ const AdminDashboardClient = (): React.ReactNode => {
   const apiStatus = findStatusCard(statusCards, "api");
   const healthSummaryRows = getHealthSummaryRows(statusCards);
   const providerActivity = getProviderActivitySummary(findStatusCard(statusCards, "provider-intake"));
-  const smokeSummary = getSmokeSummary(findStatusCard(statusCards, "smoke"));
+  const automatedCheckSummary = getAutomatedCheckSummary(findStatusCard(statusCards, "smoke"));
   const liveActivity = liveActivityLinks.map((item) => ({
     ...item,
     status: item.statusKey ? findStatusCard(statusCards, item.statusKey) : undefined
@@ -882,7 +811,7 @@ const AdminDashboardClient = (): React.ReactNode => {
           <FaCircleInfo aria-hidden="true" />
           <div>
             <strong>Informational</strong>
-            <p>Provider activity: {providerActivity} · Recurring smoke: {smokeSummary}</p>
+            <p>Provider activity: {providerActivity} · Automated checks: {automatedCheckSummary}</p>
             <small>Inactive provider mechanisms are expected when services are not running.</small>
           </div>
         </div>

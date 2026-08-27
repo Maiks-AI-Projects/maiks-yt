@@ -293,7 +293,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [ ] Audit and separately harden Better Auth default trusted origins. This is an auth-boundary change and must keep local/non-production origins available only where intended.
   - [x] Remove the inert `Test/System` simulation option from the production Connections workspace and replace visitor-facing placeholder/dev-service policy copy with concise recovery guidance. Deployment remains separate.
   - [ ] Replace or unpublish the backend example update records. Keep their public example label until the records are no longer examples; do not make seed content look real by hiding provenance.
-  - [ ] Remove remaining development-harness summaries from Admin Overview and delete retired test-console/Live Helper CSS after verifying still-used boundary selectors.
+  - [x] Remove simulated approval counts, fake/local moderation state, and the inert AI launch tile from Admin Overview; keep real operational alerts, helper grants, and automated failure evidence.
+  - [ ] Delete retired test-console/Live Helper CSS after proving which shared boundary selectors remain in use.
   - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API with clearly labelled backend example records.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.
