@@ -157,6 +157,18 @@ function checkTrackedGeneratedFiles() {
   }
 }
 
+function checkWebNotFoundStatus(files) {
+  const rootLoadingPath = "apps/web/src/app/loading.tsx";
+  if (files.some((file) => toRepoPath(file) === rootLoadingPath)) {
+    addFinding(
+      "blocking",
+      "WEB001",
+      "Do not add a root App Router loading boundary; streamed notFound() responses return HTTP 200 instead of 404.",
+      rootLoadingPath
+    );
+  }
+}
+
 async function checkIdeaCardsLinked() {
   const ideaDir = path.join(root, "ideas");
   const entries = await readdir(ideaDir, { withFileTypes: true });
@@ -257,6 +269,7 @@ for (const file of files) {
 }
 
 checkTrackedGeneratedFiles();
+checkWebNotFoundStatus(files);
 await checkIdeaCardsLinked();
 await checkPlanningDocs();
 await writeReport();
