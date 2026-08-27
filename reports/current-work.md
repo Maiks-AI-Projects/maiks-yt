@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 production provider/channel deployment
+
+- Deployed reviewed production revision `2a99457` to Web and API only. This release includes provider-operations hardening, environment-correct token launch URLs, real provider chat routing, authoritative Twitch live/offline routing state, reviewed Games history filtering, and configured-channel EventSub owner controls.
+- Preserved the previous Web and API images as `maiks-yt-production:rollback-2a99457-web-before` and `maiks-yt-production:rollback-2a99457-api-before`. Control and Overlay were not rebuilt or recreated and retained their prior image ids.
+- `pnpm check:full` passed before deployment. After replacement, Web, API, Control, and Overlay were healthy with zero restarts; deployment logs contained no error- or warning-class lines.
+- Live public smoke returned `200` for Home, Projects, Schedule, Games, Links, and API health. Unauthenticated provider status and broadcaster-scoped EventSub reads returned `401`, preserving the owner gate.
+- Chrome reached the deployed provider workspace but the existing production session was signed out, so positive owner UI verification remains open. The production-only short-lived dev-owner-token route correctly remains disabled; no testing bypass was introduced.
+- No EventSub subscription was created, changed, or removed. No provider credential, environment, schema, migration, database, tunnel, Cloudflare, Control, or Overlay state changed.
+
 ## 2026-08-27 Twitch EventSub channel scoping
 
 - Extended the owner EventSub subscription workspace from one implicit Twitch broadcaster to the configured production channel set. `maiksmc` remains the default, while `maiksplays` can now be selected explicitly for listing or creating the existing 20 read-only default event subscriptions.
@@ -7,7 +16,7 @@
 - Helix subscription reads now paginate completely before applying selected-broadcaster filtering. Failed, malformed, repeated-cursor, or over-limit pagination fails closed instead of returning a partial list that could cause duplicate subscription creation.
 - Initial provider-workspace load remains privacy-minimal: the identifier-bearing EventSub list is requested only after an explicit operator action, and the compact channel selector appears only when more than one broadcaster is configured.
 - Focused checks pass with 264 integrations tests, 469 API tests, 40 provider-workspace web tests, relevant typechecks, the production web build, architecture validation, and whitespace checks. Independent senior review found the final corrected slice clean after pagination, list-scoping, configured-channel, and legacy-precedence regressions were added.
-- No EventSub subscription was created, changed, or removed; no live provider call, secret, environment, schema, migration, deployment, Docker, or Cloudflare state changed. Owner UI verification, explicit per-channel subscription reconciliation, deployment, and real intake proof remain open.
+- No EventSub subscription was created, changed, or removed. Revision `2a99457` is now deployed to Web and API with live public/auth-gate smoke complete; owner UI verification, explicit per-channel subscription reconciliation, and real intake proof remain open.
 
 ## 2026-08-27 Twitch live/offline Event Routing state
 

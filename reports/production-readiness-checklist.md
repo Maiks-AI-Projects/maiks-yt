@@ -20,6 +20,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Web-only revision `986a48b` is deployed for the not-found status correction.
 - Revision `f12c98d` is deployed to API and Control for Control-token session enforcement; Web and Overlay were not recreated.
 - Revision `4bb517d` is deployed to the API only for path-only request logging; Web, Control, and Overlay were not recreated.
+- Revision `2a99457` is deployed to Web and API for provider telemetry/privacy hardening, production token launch URLs, durable provider-chat routing, Twitch live/offline rule resolution, and configured-channel EventSub controls. Control and Overlay were not recreated.
 - The dedicated `maiks.yt` Cloudflare tunnel was recovered and is now connected dynamically.
 - Live public checks returned the expected `200` and `404` responses, including correct `404` status for retired or missing routes.
 - Previous web rollback evidence is retained as `maiks-yt-production:rollback-501613c-web`.
@@ -34,6 +35,8 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 - Production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen during the audit.
 - A real valid Control URL token without a signed-in session returns `401 not_authenticated` on the live origin.
 - Matched and missing live API requests with synthetic query markers log only their paths; the marker key and values are absent.
+- Revision `2a99457` passed `pnpm check:full`; live Home, Projects, Schedule, Games, Links, and API health returned `200`, while unauthenticated provider status and broadcaster-scoped EventSub reads returned `401`.
+- After the `2a99457` Web/API replacement, all four containers were healthy with zero restarts, Control and Overlay retained their prior image ids, and recent Web/API logs contained no error- or warning-class lines.
 
 ### Unverified
 
@@ -114,7 +117,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Required: rollback reference is recorded before any live change.
 - Required: rollback includes image/commit reference, database stance, and tunnel/DNS recovery steps where relevant.
-- Current reference: deployed production revision `501613c`; web-only correction `986a48b` remains the current live not-found fix; API/Control auth correction `f12c98d` is live. Current deployment rollback images are retained as `maiks-yt-production:rollback-a802073-web` and `maiks-yt-production:rollback-a802073-shared`.
+- Current reference: Web and API are deployed at revision `2a99457`; Control remains at its prior reviewed image and Overlay remains at its prior reviewed image. Immediate rollback images are retained as `maiks-yt-production:rollback-2a99457-web-before` and `maiks-yt-production:rollback-2a99457-api-before`.
 
 ### Real Verification
 
