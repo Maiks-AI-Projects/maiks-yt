@@ -16,7 +16,6 @@ import {
 
 import { createApiHeaders, withDevAuthToken } from "../dev-auth-token";
 import { useAdminAccess } from "./admin-access";
-import { helperAdminNavigationItem } from "./admin-navigation-data";
 import { createControlUrl, overlayBaseUrl } from "../tool-surface-urls.service";
 import styles from "./admin-dashboard.module.css";
 
@@ -688,30 +687,22 @@ const AdminDashboardClient = (): React.ReactNode => {
 
   if (accessState !== "owner") {
     const isChecking = accessState === "checking";
-    const isHelper = accessState === "helper";
 
     return (
       <section className={styles.adminShell}>
         <header className={styles.dashboardHeader}>
           <div>
             <p className={styles.eyebrow}>Private Admin</p>
-            <h1>{isChecking ? "Checking access" : isHelper ? "Limited admin access" : "Access required"}</h1>
+            <h1>{isChecking ? "Checking access" : "Access required"}</h1>
           </div>
         </header>
         <section className={styles.accessPanel} aria-labelledby="admin-access-state-title">
-          <h2 id="admin-access-state-title">{isChecking ? "Checking" : isHelper ? "Available destination" : "No admin navigation available"}</h2>
+          <h2 id="admin-access-state-title">{isChecking ? "Checking" : "No admin navigation available"}</h2>
           <p>
             {isChecking
               ? "No admin destinations are shown until access is confirmed."
-              : isHelper
-                ? "Open the helper dashboard for active helper grants, alerts, and moderation state."
-                : "The route remains protected by the existing page and API access checks."}
+              : "The route remains owner-only. Moderators and helpers use the separate Moderation PWA."}
           </p>
-          {isHelper ? (
-            <a className={styles.accessLink} href={getDashboardLinkHref(helperAdminNavigationItem.href, devAuthToken)}>
-              Open {helperAdminNavigationItem.label}
-            </a>
-          ) : null}
         </section>
       </section>
     );

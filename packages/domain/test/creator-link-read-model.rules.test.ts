@@ -39,6 +39,8 @@ describe("creator link public read models", () => {
     const links = buildPublicCreatorLinkList([
       createLink("draft", { isPublished: false }),
       createLink("broken", { href: "" }),
+      createLink("layout-lab", { href: "/gemini-lab" }),
+      createLink("test-console", { href: "/dev/test-console" }),
       createLink("support", {
         purpose: "support",
         icon: "support",
@@ -59,5 +61,14 @@ describe("creator link public read models", () => {
       availability: "unavailable",
       availabilityNote: "Support link not available"
     });
+  });
+
+  it("does not hide similarly named public destinations", () => {
+    const links = buildPublicCreatorLinkList([
+      createLink("developer-notes", { href: "/developer-notes" }),
+      createLink("external-lab", { href: "https://example.com/gemini-lab" })
+    ]);
+
+    expect(links.map((link) => link.key)).toEqual(["developer-notes", "external-lab"]);
   });
 });

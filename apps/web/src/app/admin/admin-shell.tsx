@@ -12,7 +12,6 @@ import {
   adminOverviewNavigationItem,
   findAdminNavigationGroup,
   findAdminNavigationItem,
-  helperAdminNavigationItem,
   type AdminNavigationGroup,
   type AdminNavigationItem
 } from "./admin-navigation-data";
@@ -118,21 +117,16 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
   const currentGroup = findAdminNavigationGroup(pathname);
   const currentContext = accessState === "owner"
     ? currentGroup?.label ?? currentItem.label
-    : accessState === "helper"
-      ? helperAdminNavigationItem.label
-      : accessState === "checking"
+    : accessState === "checking"
         ? "Checking access"
         : "Access required";
   const overviewIsCurrent = currentItem.href === adminOverviewNavigationItem.href;
   const buildHref = (href: string): string => withDevAuthToken(href, devAuthToken);
   const OverviewIcon = adminOverviewNavigationItem.icon;
-  const HelperIcon = helperAdminNavigationItem.icon;
   const roleLabel =
     accessState === "owner"
       ? "Owner"
-      : accessState === "helper"
-        ? "Helper"
-        : accessState === "checking"
+      : accessState === "checking"
           ? "Checking"
           : "Signed out";
   const accountSummaryLabel = accountIdentity.isSignedIn ? accountIdentity.displayName : "Sign in";
@@ -145,12 +139,8 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
           description: group.description,
           icon: group.icon
         }))
-      : accessState === "helper"
-        ? [helperAdminNavigationItem]
-        : [];
-  const helperRouteIsCurrent =
-    pathname === helperAdminNavigationItem.href || pathname.startsWith(`${helperAdminNavigationItem.href}/`);
-  const canRenderAdminContent = accessState === "owner" || (accessState === "helper" && helperRouteIsCurrent);
+      : [];
+  const canRenderAdminContent = accessState === "owner";
 
   const signOut = async (): Promise<void> => {
     setSignOutState("busy");
@@ -216,16 +206,6 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
     </>
   );
 
-  const renderHelperNavigation = ({ idPrefix }: NavigationRenderOptions): React.ReactNode => (
-    <AdminItemLink
-      current={pathname === helperAdminNavigationItem.href}
-      href={buildHref(helperAdminNavigationItem.href)}
-      idPrefix={idPrefix}
-      item={helperAdminNavigationItem}
-      variant="overview"
-    />
-  );
-
   const renderRestrictedNotice = (): React.ReactNode => (
     <p className={styles.navNotice}>
       {accessState === "checking" ? "Checking your admin access..." : "Sign in with an account that has access to this admin area."}
@@ -237,10 +217,6 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
       return renderGroupedNavigation(options);
     }
 
-    if (accessState === "helper") {
-      return renderHelperNavigation(options);
-    }
-
     return renderRestrictedNotice();
   };
 
@@ -250,20 +226,16 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
     }
 
     const isChecking = accessState === "checking";
-    const isHelper = accessState === "helper";
-
     return (
       <main className={styles.restrictedContent}>
         <p className={styles.restrictedEyebrow}>
-          {isChecking ? "Checking" : isHelper ? "Limited access" : "Access required"}
+          {isChecking ? "Checking" : "Access required"}
         </p>
-        <h1>{isChecking ? "Checking access" : isHelper ? "This area is not available" : "Sign in required"}</h1>
+        <h1>{isChecking ? "Checking access" : "Owner access required"}</h1>
         <p>
           {isChecking
             ? "Admin content stays hidden until your access is confirmed."
-            : isHelper
-              ? "This account can open only its permitted helper area."
-              : "No admin inventory is shown without a permitted account."}
+            : "No admin inventory is shown without the owner permission. Moderators and helpers use the separate Moderation PWA."}
         </p>
         <div className={styles.restrictedActions}>
           <a href="/" title="Back to public home">
@@ -274,12 +246,6 @@ const AdminShellContent = ({ children }: AdminShellProps): React.ReactNode => {
             {accessState === "none" ? <FiLogIn aria-hidden="true" /> : <FiSettings aria-hidden="true" />}
             <span>{accessState === "none" ? "Sign in" : "Account settings"}</span>
           </a>
-          {isHelper ? (
-            <a href={buildHref(helperAdminNavigationItem.href)} title={helperAdminNavigationItem.description}>
-              <HelperIcon aria-hidden="true" />
-              <span>{helperAdminNavigationItem.label}</span>
-            </a>
-          ) : null}
         </div>
       </main>
     );

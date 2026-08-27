@@ -31,7 +31,6 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
   const pathname = usePathname();
   const [signedIn, setSignedIn] = useState(false);
   const [hasOwnerAccess, setHasOwnerAccess] = useState(false);
-  const [hasHelperAccess, setHasHelperAccess] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -53,20 +52,13 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
 
         setSignedIn(true);
 
-        const [ownerResponse, helperResponse] = await Promise.all([
-          fetch(`${apiBaseUrl}/admin/provider-integrations/status`, {
-            credentials: "include",
-            headers: createApiHeaders()
-          }),
-          fetch(`${apiBaseUrl}/admin/live-helper`, {
-            credentials: "include",
-            headers: createApiHeaders()
-          })
-        ]);
+        const ownerResponse = await fetch(`${apiBaseUrl}/admin/provider-integrations/status`, {
+          credentials: "include",
+          headers: createApiHeaders()
+        });
 
         if (active) {
           setHasOwnerAccess(ownerResponse.ok);
-          setHasHelperAccess(helperResponse.ok);
         }
       } catch {
         // The primary account panel owns session error feedback. Navigation fails closed.
@@ -85,14 +77,10 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
       return [];
     }
 
-    const privilegedItem = hasOwnerAccess
-      ? [{ href: "/admin", label: "Admin" }]
-      : hasHelperAccess
-        ? [{ href: "/admin/live-helper", label: "Live helper" }]
-        : [];
+    const privilegedItem = hasOwnerAccess ? [{ href: "/admin", label: "Admin" }] : [];
 
     return [...accountItems, ...privilegedItem];
-  }, [context, hasHelperAccess, hasOwnerAccess, signedIn]);
+  }, [context, hasOwnerAccess, signedIn]);
 
   const firstItem = items[0];
 

@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken } from "../dev-auth-token";
 
-export type AdminAccessState = "checking" | "owner" | "helper" | "none";
+export type AdminAccessState = "checking" | "owner" | "none";
 
 export type AdminAccountIdentity = {
   avatarUrl: string | null;
@@ -102,16 +102,12 @@ export const AdminAccessProvider = ({ children }: AdminAccessProviderProps): Rea
           return;
         }
 
-        const [domainResponse, ownerResponse, helperResponse] = await Promise.all([
+        const [domainResponse, ownerResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/account/domain`, {
             credentials: "include",
             headers: createApiHeaders()
           }),
           fetch(`${apiBaseUrl}/admin/provider-integrations/status`, {
-            credentials: "include",
-            headers: createApiHeaders()
-          }),
-          fetch(`${apiBaseUrl}/admin/live-helper`, {
             credentials: "include",
             headers: createApiHeaders()
           })
@@ -127,7 +123,7 @@ export const AdminAccessProvider = ({ children }: AdminAccessProviderProps): Rea
         const domainUser = domainProfile?.ok ? domainProfile.domainUser : null;
 
         setAccountIdentity(buildIdentity(session, domainUser));
-        setAccessState(ownerResponse.ok ? "owner" : helperResponse.ok ? "helper" : "none");
+        setAccessState(ownerResponse.ok ? "owner" : "none");
       } catch {
         if (active) {
           setAccessState("none");

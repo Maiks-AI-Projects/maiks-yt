@@ -32,7 +32,7 @@ mean a capability is deployed or proven in a real user path.
 | Page Creator and route ownership | done | done | done | in-progress | blocked | blocked | Persistence, owner editor, preview/publish gate, reserved routes, and exact-path rendering exist | Verify live draft isolation and publish/unpublish behavior before using it for production pages |
 | Backup, export, and recovery evidence | done | in-progress | in-progress | in-progress | blocked | blocked | Key-data export, backup health, runbook, and a dry-run record exist | Approve retention/encryption/owner policy, install the production workflow, and prove a disposable restore drill |
 | Money and accounting | done | in-progress | in-progress | in-progress | blocked | blocked | Private ledger, dated rules, imports, receipts, reports, and posting workflow exist; public money behavior remains gated | Verify bookkeeping against real provider statements before opening any public payment path |
-| Production route and operator-surface hygiene | done | done | not-started | not-started | not-started | not-started | Dev/test/Gemini routes, retired Live Helper remnants, static demos, and implementation-detail copy remain discoverable in the production tree | Remove or hide production-inappropriate routes after the stream-critical path is stable |
+| Production route and operator-surface hygiene | done | done | in-progress | in-progress | blocked | blocked | The production web build no longer registers the dev test console, Gemini lab, or retired Live Helper page; old public links to `/dev` and `/gemini-lab` fail closed; static profile demonstrations and some implementation-detail copy remain | Deploy and verify the retired routes and stale public-link behavior after reachability returns, then continue the narrower product-content audit |
 
 ## Ranked Queue
 
@@ -46,7 +46,7 @@ mean a capability is deployed or proven in a real user path.
 
 ### P1: Make Production Coherent
 
-1. Remove or hide dev/test consoles, Gemini experiments, retired Live Helper UI, fake controls, seed-only states, raw identifiers, and operator metrics without decisions attached.
+1. Continue the production hygiene pass after the dev test console, Gemini experiments, and retired Live Helper page removal. Review static profile demonstrations, fake controls, seed-only states, raw identifiers, and operator metrics one product surface at a time.
 2. Replace static profile demonstrations with reviewed real profile, privacy, recognition, and linked-account read models.
 3. Finish the Ranks & Perks product boundary and simplify moderator/admin workflows around actual permissions.
 4. Finish multi-channel provider identity and routing behavior for the intended Twitch and YouTube channel structure.

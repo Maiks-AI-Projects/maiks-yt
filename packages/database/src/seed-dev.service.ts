@@ -234,20 +234,6 @@ const creatorLinkSeeds = [
     isPublished: true
   },
   {
-    id: "00000000-0000-4000-8000-000000000113",
-    key: "layout-lab",
-    title: "Layout Lab",
-    description: "Preview landing-page directions while the creator site design settles.",
-    purpose: "tool",
-    icon: "tool",
-    availability: "available",
-    href: "/gemini-lab",
-    availabilityNote: null,
-    isPrimary: false,
-    sortOrder: 140,
-    isPublished: true
-  },
-  {
     id: "00000000-0000-4000-8000-000000000114",
     key: "rss-updates",
     title: "RSS Updates",

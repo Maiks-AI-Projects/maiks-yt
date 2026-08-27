@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 production route hygiene
+
+- Removed the user-facing `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, and retired `/admin/live-helper` pages from the production web build.
+- Removed the Layout Lab static fallback and dev seed. Public Creator Links now fail closed for old database rows targeting `/dev` or `/gemini-lab`, while similarly named public and external destinations remain valid.
+- Kept the sanitized owner/helper `/admin/live-helper` API because Admin Overview and the Moderation PWA still consume its compact operational summaries. It is no longer a standalone page or navigation destination.
+- Made the main Admin application owner-only. Moderators and helpers use the separate Moderation PWA instead of entering a partial admin shell.
+- Focused domain and web checks pass. The production Next build no longer registers the retired routes. Live deployment and route verification remain blocked by the unreachable production host and Cloudflare `530` responses.
+- This cleanup did not need the image-first design cycle because it removes obsolete routes without adding or materially redesigning a surface.
+
 ## 2026-08-27 operational PWA production slice
 
 - Selectively integrated the approved Chat, Moderation, Control, and Notifications redesign into the reconciled production line. This was a reviewed code port, not a merge from dev or another worktree.

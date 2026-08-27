@@ -1,5 +1,12 @@
 # Next Agent Tasks
 
+## Production Route Hygiene Follow-Up
+
+- The production tree no longer exposes `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, or `/admin/live-helper` as web pages.
+- Do not restore those routes. The sanitized `/admin/live-helper` API remains an internal data source for Admin Overview and the Moderation PWA.
+- After production reachability returns, deploy the reviewed cleanup and verify the retired routes return the normal not-found experience. Confirm `/links` does not publish any surviving Layout Lab database row.
+- Continue the broader hygiene audit separately. Static profile demonstrations and remaining implementation-detail copy still need deliberate product decisions; do not remove them casually.
+
 ## Production-Only Direction
 
 - Work only in `/home/michael/Documents/Codex/maiks-yt-production` on branch `production` for forward product development.

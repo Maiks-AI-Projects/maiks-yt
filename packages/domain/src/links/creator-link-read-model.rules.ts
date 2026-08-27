@@ -6,7 +6,21 @@ import type {
 
 export type CreatorLinkInvariantIssue =
   | "available_link_requires_href"
-  | "unavailable_link_requires_availability_note";
+  | "unavailable_link_requires_availability_note"
+  | "retired_internal_destination";
+
+const retiredInternalDestinationPrefixes = ["/dev", "/gemini-lab"] as const;
+
+const isRetiredInternalDestination = (href: string): boolean => {
+  const normalizedHref = href.trim();
+
+  return retiredInternalDestinationPrefixes.some((prefix) =>
+    normalizedHref === prefix
+    || normalizedHref.startsWith(`${prefix}/`)
+    || normalizedHref.startsWith(`${prefix}?`)
+    || normalizedHref.startsWith(`${prefix}#`)
+  );
+};
 
 const compareText = (left: string, right: string): number =>
   left.localeCompare(right, "en", { sensitivity: "base" });
@@ -32,6 +46,10 @@ export const validateCreatorLinkAvailability = ({
 
   if (availability === "available" && !href?.trim()) {
     issues.push("available_link_requires_href");
+  }
+
+  if (href?.trim() && isRetiredInternalDestination(href)) {
+    issues.push("retired_internal_destination");
   }
 
   if (availability === "unavailable" && !availabilityNote?.trim()) {

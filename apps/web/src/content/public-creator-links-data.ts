@@ -184,17 +184,6 @@ export const publicCreatorLinks: readonly PublicCreatorLink[] = [
     sortOrder: 130
   },
   {
-    key: "layout-lab",
-    title: "Layout Lab",
-    description: "Preview landing-page directions while the creator site design settles.",
-    purpose: "tool",
-    icon: "tool",
-    availability: "available",
-    href: "/gemini-lab",
-    isPrimary: false,
-    sortOrder: 140
-  },
-  {
     key: "rss-updates",
     title: "RSS Updates",
     description: "Public project and blog updates in an open feed.",

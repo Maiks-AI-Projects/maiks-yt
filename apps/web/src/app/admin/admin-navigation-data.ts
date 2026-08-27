@@ -9,7 +9,6 @@ import {
   FaKey,
   FaLink,
   FaMusic,
-  FaPeopleGroup,
   FaPlug,
   FaRoute,
   FaShieldHalved,
@@ -188,14 +187,6 @@ export const adminNavigationGroups: readonly AdminNavigationGroup[] = [
     ]
   }
 ];
-
-export const helperAdminNavigationItem: AdminNavigationItem = {
-  href: "/admin/live-helper",
-  label: "Live Helper",
-  description: "Active helper grants, alerts, and moderation state.",
-  icon: FaPeopleGroup,
-  statusKey: "helpers"
-};
 
 export const adminNavigationItems: readonly AdminNavigationItem[] = adminNavigationGroups.flatMap((group) => group.items);
 
