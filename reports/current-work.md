@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 API public-origin fallback hygiene
+
+- Added one environment-aware API public-base-URL policy and applied it to managed profile-image URL generation, domain-avatar origin validation, and API runtime configuration. Missing production configuration now resolves to `https://api.maiks.yt` instead of localhost.
+- Test and development retain `http://localhost:3001`. Explicit `API_PUBLIC_BASE_URL` values remain authoritative and are trimmed with trailing slashes removed before use.
+- Focused policy coverage, API typecheck, and all 505 API tests pass. Existing provider-specific callback services already defaulted to the production API origin and were not changed.
+- No auth policy, session, cookie, profile visibility, image bytes, provider callback, schema, migration, environment, deployment, or server state changed. Live generated-avatar and OAuth callback checks remain deployment verification work.
+
 ## 2026-08-27 Better Auth production-origin defaults
 
 - Extracted Better Auth origin and base-URL fallback policy into a pure tested module. Missing production configuration now defaults to `maiks.yt`, `www.maiks.yt`, `control.maiks.yt`, `overlay.maiks.yt`, and `api.maiks.yt`; it no longer trusts localhost or retired dev origins in production.

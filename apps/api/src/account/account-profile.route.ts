@@ -3,6 +3,7 @@ import { validateProfileSettings } from "@maiks-yt/domain/identity";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
+import { getApiPublicBaseUrl } from "../api-public-base-url.rules.js";
 import type { AuthSessionSnapshot } from "./auth-session.types.js";
 import { getDomainUserForAuthUser } from "./domain-identity.service.js";
 import {
@@ -55,11 +56,8 @@ type AccountProfileRouteDependencies = {
   getDatabasePool: () => DatabasePool;
 };
 
-const getPublicApiBaseUrl = (): string =>
-  (process.env.API_PUBLIC_BASE_URL ?? "http://localhost:3001").replace(/\/$/u, "");
-
 const buildAvatarUrl = (userId: string): string =>
-  `${getPublicApiBaseUrl()}/profiles/images/${userId}?v=${Date.now()}`;
+  `${getApiPublicBaseUrl()}/profiles/images/${userId}?v=${Date.now()}`;
 
 export const registerAccountProfileRoutes = (
   server: FastifyInstance,

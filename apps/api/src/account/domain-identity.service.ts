@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
 
+import { getApiPublicBaseUrl } from "../api-public-base-url.rules.js";
 import type { AuthSessionSnapshot } from "./auth-session.types.js";
 
 export type DomainUserRow = {
@@ -17,7 +18,7 @@ export const getManagedAvatarUrl = (userId: string, avatarUrl?: string | null): 
   }
 
   try {
-    const publicApiUrl = new URL(process.env.API_PUBLIC_BASE_URL ?? "http://localhost:3001");
+    const publicApiUrl = new URL(getApiPublicBaseUrl());
     const candidate = new URL(avatarUrl);
 
     return candidate.origin === publicApiUrl.origin

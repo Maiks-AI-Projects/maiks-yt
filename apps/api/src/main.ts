@@ -28,6 +28,7 @@ import { fromNodeHeaders } from "better-auth/node";
 import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 
+import { getApiPublicBaseUrl } from "./api-public-base-url.rules.js";
 import { createApiAuthRuntime } from "./api-auth-runtime.service.js";
 import { registerRetiredAccountAuthRoutes } from "./account/account-retired-auth.route.js";
 import {
@@ -75,7 +76,7 @@ import {
 const config = createRuntimeConfig({
   environment: process.env.NODE_ENV === "production" ? "production" : "development",
   surface: "api",
-  publicBaseUrl: process.env.API_PUBLIC_BASE_URL ?? "http://localhost:3001"
+  publicBaseUrl: getApiPublicBaseUrl()
 });
 
 const server = Fastify({ logger: apiRequestLoggerOptions });
