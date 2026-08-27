@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 Better Auth production-origin defaults
+
+- Extracted Better Auth origin and base-URL fallback policy into a pure tested module. Missing production configuration now defaults to `maiks.yt`, `www.maiks.yt`, `control.maiks.yt`, `overlay.maiks.yt`, and `api.maiks.yt`; it no longer trusts localhost or retired dev origins in production.
+- Local, test, and development environments retain the established localhost and `*-dev.maiks.yt` defaults. Explicit `AUTH_TRUSTED_ORIGINS` and `BETTER_AUTH_URL` values remain authoritative, with configured origins trimmed and deduplicated. Production startup rejects Better Auth's separate additive `BETTER_AUTH_TRUSTED_ORIGINS` hook so it cannot silently widen the reviewed list.
+- Focused API coverage proves production/non-production separation, configured-value precedence, deduplication, alternate-hook rejection, and environment-correct base URLs. API typecheck and all 502 API tests pass. Production compose already sets the intended explicit values, so this patch is fallback hardening rather than a live configuration change.
+- No provider credentials, auth secrets, sessions, cookies, account-linking policy, schema, migration, environment, deployment, or server state changed. Independent security review is clean after the additive-env guard; live sign-in and account-linking verification remain deployment gates.
+
 ## 2026-08-27 production Admin Overview hygiene
 
 - Removed simulated approval counts, fake/local moderation state, and the inert AI launch tile from the production Admin Overview. Stream windows now link only to functioning operator surfaces, while Live activity remains limited to real notification and helper-grant state.

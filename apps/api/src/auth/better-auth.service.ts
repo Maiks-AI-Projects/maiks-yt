@@ -3,14 +3,13 @@ import * as databaseSchema from "@maiks-yt/database";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
-const defaultTrustedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3002",
-  "http://localhost:3003",
-  "https://web-dev.maiks.yt",
-  "https://overlay-dev.maiks.yt",
-  "https://control-dev.maiks.yt"
-] as const;
+import {
+  assertTrustedOriginEnvironment,
+  getBetterAuthBaseUrl,
+  getTrustedOrigins
+} from "./better-auth-origin.rules.js";
+
+export { getTrustedOrigins } from "./better-auth-origin.rules.js";
 
 export const configuredAuthProviderIds = [
   process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET ? "github" : undefined,
@@ -18,14 +17,6 @@ export const configuredAuthProviderIds = [
   process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET ? "discord" : undefined,
   process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET ? "twitch" : undefined
 ].filter((providerId): providerId is string => Boolean(providerId));
-
-export const getTrustedOrigins = (): string[] => {
-  const configuredOrigins = process.env.AUTH_TRUSTED_ORIGINS?.split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-
-  return configuredOrigins?.length ? configuredOrigins : [...defaultTrustedOrigins];
-};
 
 const createSocialProviders = () => ({
   ...(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
@@ -62,6 +53,8 @@ const createSocialProviders = () => ({
     : {})
 });
 
+assertTrustedOriginEnvironment();
+
 const database = createDatabase(createDatabasePool());
 const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
 
@@ -70,7 +63,7 @@ if (process.env.NODE_ENV === "production" && !betterAuthSecret) {
 }
 
 export const auth = betterAuth({
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3001",
+  baseURL: getBetterAuthBaseUrl(),
   basePath: "/auth",
   secret: betterAuthSecret ?? "development-only-better-auth-secret-change-before-production",
   trustedOrigins: getTrustedOrigins(),
