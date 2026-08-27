@@ -16,7 +16,7 @@ const providers: readonly OAuthProvider[] = [
   { id: "twitch", label: "Continue with Twitch" }
 ];
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 type SignInResponse = {
   url?: string;

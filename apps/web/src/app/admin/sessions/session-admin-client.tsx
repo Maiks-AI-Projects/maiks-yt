@@ -19,7 +19,7 @@ type SessionAdminMutationResponse =
 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 const getFailureMessage = (response: Response, reason?: string): string => {
   if (response.status === 401 || reason === "not_authenticated") return "Sign in before managing sessions.";

@@ -46,7 +46,7 @@ type TokenFormState = {
   label: string;
 };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 const defaultTokenForm: TokenFormState = {
   target: "overlay",

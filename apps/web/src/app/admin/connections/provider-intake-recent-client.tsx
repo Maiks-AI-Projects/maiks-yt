@@ -47,7 +47,7 @@ type SafetyFilter = "any" | "money" | "moderation" | "auth-token" | "high-volume
 type StatusFilter = ProcessingStatus | "any";
 type RowLimit = 25 | 50 | 100;
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 const providerLabels: Record<Provider, string> = {
   discord: "Discord",

@@ -203,7 +203,7 @@ export class YouTubeChannelDiscoveryService {
   }
 
   private getFallbackRedirectUri(): string {
-    const apiBaseUrl = this.options.apiBaseUrl ?? process.env.API_PUBLIC_BASE_URL ?? "https://api-dev.maiks.yt";
+    const apiBaseUrl = this.options.apiBaseUrl ?? process.env.API_PUBLIC_BASE_URL ?? "https://api.maiks.yt";
     return new URL("/admin/provider-integrations/youtube/callback", apiBaseUrl).toString();
   }
 }

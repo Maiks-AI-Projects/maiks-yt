@@ -4,7 +4,7 @@ import type {
   PublicUpdateSummary
 } from "@maiks-yt/domain/updates";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 type PublicUpdateListApiResponse =
   | { ok: true; updates: readonly PublicUpdateSummary[] }

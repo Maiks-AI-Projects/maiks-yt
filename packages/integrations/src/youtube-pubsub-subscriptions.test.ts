@@ -22,6 +22,15 @@ describe("YouTube PubSub subscription rules", () => {
     });
   });
 
+  it("defaults webhook delivery to the production API origin", () => {
+    expect(resolveYouTubePubSubSubscriptionTarget({
+      channelId: "UC123",
+      env: {}
+    })).toMatchObject({
+      callbackUrl: "https://api.maiks.yt/provider-webhooks/youtube/pubsub"
+    });
+  });
+
   it("rejects missing or malformed channel ids", () => {
     expect(resolveYouTubePubSubSubscriptionTarget({
       channelId: "",

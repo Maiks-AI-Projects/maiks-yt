@@ -28,7 +28,7 @@ type LinkFormState = {
   isPublished: boolean;
 };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 const protectedFundingAvailabilityNote = "Funding launches later";
 const purposes = ["account", "accountability", "affiliate", "community", "context", "feed", "project", "social", "stream", "support", "tool"] satisfies CreatorLinkPurpose[];
 const iconNames = ["account", "accountability", "affiliate", "community", "context", "discord", "feed", "project", "social", "stream", "support", "twitch", "tool", "youtube"] satisfies CreatorLinkIcon[];

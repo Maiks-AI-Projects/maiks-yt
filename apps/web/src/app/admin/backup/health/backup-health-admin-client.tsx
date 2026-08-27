@@ -36,7 +36,7 @@ type BackupHealthResponse =
 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 const getLoadFailure = (status: number, reason?: string): {
   message: string;

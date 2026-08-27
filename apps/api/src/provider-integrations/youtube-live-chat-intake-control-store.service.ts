@@ -162,7 +162,7 @@ export const createYouTubeLiveChatContextRepository = (
     options.env ?? process.env,
     new URL(
       "/admin/provider-integrations/youtube/callback",
-      options.apiBaseUrl ?? process.env.API_PUBLIC_BASE_URL ?? "https://api-dev.maiks.yt"
+      options.apiBaseUrl ?? process.env.API_PUBLIC_BASE_URL ?? "https://api.maiks.yt"
     ).toString()
   )
 });

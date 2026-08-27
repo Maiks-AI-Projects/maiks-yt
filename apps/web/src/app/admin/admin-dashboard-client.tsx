@@ -162,7 +162,7 @@ type MoneyLedgerDashboardResponse =
       reason: string;
     };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 const liveWindowLinks: readonly LiveWindowLink[] = [
   {

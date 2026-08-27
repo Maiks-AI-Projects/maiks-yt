@@ -98,7 +98,7 @@ type HistoryResponse = { ok: true; history: readonly RoutingHistoryItem[] } | { 
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 type StateFilter = "all" | "enabled" | "disabled" | "saved" | "default";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 const pageSize = 7;
 const preferredEventOrder: readonly EventKind[] = [
   "chat",

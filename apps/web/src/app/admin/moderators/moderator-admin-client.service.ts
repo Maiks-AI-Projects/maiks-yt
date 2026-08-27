@@ -165,7 +165,7 @@ export type RoleFormState = {
   isSystem: boolean;
 };
 
-export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 export const trustLevelLabels: Record<ModeratorTrustLevel, string> = {
   observer: "Observer",

@@ -1,5 +1,11 @@
 # Next Agent Tasks
 
+## Production Origin Fallbacks
+
+- Review and deploy the production-origin fallback patch only with a deliberate Web/API/Control/Overlay verification window. Confirm configured environment values still win and that a build with an omitted optional public-origin variable never contacts `*-dev.maiks.yt`.
+- Verify YouTube owner consent redirects, Twitch EventSub callbacks, and YouTube PubSub callbacks continue to use the configured production origins. Do not create or replace provider subscriptions merely to test this code slice.
+- Treat Better Auth trusted origins as a separate auth/security slice; do not casually replace its local and dev defaults without explicit environment-aware tests and senior review.
+
 ## Account Privacy And Real Profiles
 
 - Deploy the independently reviewed production account-hygiene patch when this slice has a deliberate live verification window. Then verify the old `/identity/dev/*` routes and both methods on `/auth/dev/status` are absent, signed-in `/account/connections` still lists configured providers, and signed-out provider configuration remains `401`.

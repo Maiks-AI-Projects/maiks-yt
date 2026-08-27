@@ -193,7 +193,7 @@ const resolveTwitchEventSubBroadcasterLogins = (env: Record<string, string | und
 const getApiBaseUrl = (env: Record<string, string | undefined>): string => {
   const configured = trimToNull(env.API_PUBLIC_BASE_URL);
 
-  return configured ?? "https://api-dev.maiks.yt";
+  return configured ?? "https://api.maiks.yt";
 };
 
 export const resolveTwitchEventSubSubscriptionConfig = (

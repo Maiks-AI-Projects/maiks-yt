@@ -113,6 +113,14 @@ describe("Twitch EventSub subscription rules", () => {
     })).toBeNull();
   });
 
+  it("defaults webhook delivery to the production API origin", () => {
+    const { API_PUBLIC_BASE_URL: _omitted, ...productionFallbackEnv } = env;
+
+    expect(resolveTwitchEventSubSubscriptionConfig(productionFallbackEnv)).toMatchObject({
+      callbackUrl: "https://api.maiks.yt/provider-webhooks/twitch/eventsub"
+    });
+  });
+
   it("normalizes and deduplicates the configured broadcaster set", () => {
     expect(resolveTwitchEventSubSubscriptionConfig({
       ...env,

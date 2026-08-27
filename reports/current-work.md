@@ -1,11 +1,18 @@
 # Current Work
 
+## 2026-08-27 production-origin fallback hygiene
+
+- Corrected default runtime origins across the public Web app, account/admin clients, Control, Overlay, YouTube owner consent/channel discovery/live-chat control, Twitch EventSub, and YouTube PubSub. Explicit environment variables remain authoritative; only a missing value changes behavior, and it now fails toward `maiks.yt`, `api.maiks.yt`, `control.maiks.yt`, or `overlay.maiks.yt` instead of the retired dev line.
+- Removed remaining public wording that told visitors to wait for dev services, and renamed the Notifications `dev_smoke` source label to the production-facing `System check` without changing the stored event kind.
+- Focused verification passes with 266 Integration tests, 495 API tests, 40 Web tests, Web/Control/Overlay typechecks, architecture rules, and whitespace checks. Twitch EventSub, YouTube PubSub, and YouTube owner-consent redirects now have explicit regression coverage for production defaults and configured-origin precedence.
+- This independently reviewed patch remains undeployed. Better Auth trusted-origin defaults are intentionally excluded because changing the auth boundary requires its own reviewed slice.
+
 ## 2026-08-27 production account privacy and route hygiene
 
 - Removed three legacy development endpoints from the production route table: the fixed creator snapshot, development owner claim, and development auth-status surface. They remain isolated in `account-dev.route.ts` for non-production use only. The real Connections page now reads configured provider ids from signed-in `GET /account/connections/providers`, which returns no auth implementation labels, domain-model labels, secrets, or provider credentials.
 - Corrected managed profile-image caching. Minimal/public images now use a bounded 60-second cache with revalidation instead of one-year immutable caching; private owner reads and all denied/not-found image responses use `private, no-store`. This limits stale public access after a profile becomes private while preserving the existing image bytes and authorization rules.
 - Focused route tests prove production omission without database/session calls, `GET` and `POST` tombstones before Better Auth, non-production registration, provider-list authentication and response minimization, public/minimal avatar revalidation, signed-out and signed-in non-owner private denial, and owner-only private image access. The full `pnpm check:review` gate passes with 148 domain tests and 493 API tests plus the production web build and cross-app checks.
-- The patch is implemented locally but not deployed. Live baseline still shows the old development routes registered (`creator_not_seeded`, unauthenticated owner-claim `401`, and public development auth status), so deployment and signed-in Connections verification remain open.
+- Reviewed production commit `2b6264d` is pushed but not deployed. Live baseline still shows the old development routes registered (`creator_not_seeded`, unauthenticated owner-claim `401`, and public development auth status), so deployment and signed-in Connections verification remain open.
 
 ## 2026-08-27 real profile schema gate
 

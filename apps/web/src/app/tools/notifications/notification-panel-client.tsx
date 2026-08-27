@@ -58,7 +58,7 @@ type PushState =
   | "subscribed"
   | "failed";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 const pollIntervalMs = 30000;
 const notificationServiceWorkerPath = "/notification-service-worker.js";
 
@@ -69,7 +69,7 @@ const severityLabels = {
 } satisfies Record<NotificationSeverity, string>;
 
 const sourceLabels = {
-  dev_smoke: "Dev smoke",
+  dev_smoke: "System check",
   moderation: "Moderation",
   money: "Money",
   provider: "Provider",

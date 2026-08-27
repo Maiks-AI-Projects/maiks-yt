@@ -289,6 +289,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [ ] After approval, add normalized unique `users.profile_handle`, reserved-name rules, safe backfill/account creation, public search/detail projections, and replace the labelled static demonstrations without publishing operational identity data.
   - [x] Remove legacy development identity/status routes from the production API route table and move the real Connections provider list to an authenticated minimal account endpoint. Deployment remains separate.
   - [x] Replace one-year immutable managed-avatar caching with bounded revalidation for minimal/public profiles and `private, no-store` for private/denied image responses. Deployment remains separate.
+  - [x] Make missing Web, Control, Overlay, YouTube callback, Twitch EventSub, and YouTube PubSub runtime configuration fall back to production origins instead of the retired dev origins. Explicit environment configuration still wins; deployment remains separate.
+  - [ ] Audit and separately harden Better Auth default trusted origins. This is an auth-boundary change and must keep local/non-production origins available only where intended.
   - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API with clearly labelled backend example records.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.

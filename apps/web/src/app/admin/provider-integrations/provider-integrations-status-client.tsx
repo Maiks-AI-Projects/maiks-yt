@@ -28,7 +28,7 @@ import type {
   YouTubePubSubSubscriptionResponse,
   YouTubeSavedChannel
 } from "./provider-integrations-status.types";
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 const youtubeLiveChatReadScope = "https://www.googleapis.com/auth/youtube.readonly";
 
 const ProviderIntegrationsStatusClient = (): React.ReactNode => {

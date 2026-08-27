@@ -11,7 +11,7 @@ import type {
 } from "@maiks-yt/events";
 import type { CSSProperties } from "react";
 
-export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api-dev.maiks.yt";
+export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "https://api.maiks.yt";
 export const overlayAccessStorageKey = "maiks.yt.overlay.accessToken";
 export const overlayCanvasWidth = 1920;
 export const overlayCanvasHeight = 1080;

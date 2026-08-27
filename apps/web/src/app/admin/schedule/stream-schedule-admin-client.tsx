@@ -39,7 +39,7 @@ type ScheduleFormState = {
 type CancellationFormState = { cancellationReasonCode: StreamScheduleCancellationReasonCode; cancellationReason: string };
 type GameLinkFormState = { gameId: string; publicNote: string };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 const visibilities = ["draft", "public", "private"] satisfies StreamScheduleVisibility[];
 const editableStatuses = ["planned", "live", "completed"] satisfies StreamScheduleStatus[];
 const cancellationReasonCodes = ["health", "family", "energy", "technical", "schedule-conflict", "other"] satisfies StreamScheduleCancellationReasonCode[];

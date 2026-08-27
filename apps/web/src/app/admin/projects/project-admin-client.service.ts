@@ -72,7 +72,7 @@ export type UpdateFormState = {
   sortOrder: number;
 };
 
-export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maiks.yt";
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 export const projectTypes = [
   "one-time-purchase",

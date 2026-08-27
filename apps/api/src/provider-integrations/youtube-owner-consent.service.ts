@@ -237,7 +237,8 @@ export class YouTubeOwnerConsentService {
   }
 
   public getAdminRedirectUrl(result: YouTubeOwnerConsentResult): string {
-    const baseUrl = this.options.webBaseUrl ?? process.env.WEB_PUBLIC_BASE_URL ?? "https://web-dev.maiks.yt";
+    const env = this.options.env ?? process.env;
+    const baseUrl = this.options.webBaseUrl ?? env.WEB_PUBLIC_BASE_URL ?? "https://maiks.yt";
     const url = new URL("/admin/provider-integrations", baseUrl);
 
     url.searchParams.set("youtube", result.ok ? "connected" : "error");
@@ -276,7 +277,8 @@ export class YouTubeOwnerConsentService {
   }
 
   private getFallbackRedirectUri(): string {
-    const apiBaseUrl = this.options.apiBaseUrl ?? process.env.API_PUBLIC_BASE_URL ?? "https://api-dev.maiks.yt";
+    const env = this.options.env ?? process.env;
+    const apiBaseUrl = this.options.apiBaseUrl ?? env.API_PUBLIC_BASE_URL ?? "https://api.maiks.yt";
     return new URL("/admin/provider-integrations/youtube/callback", apiBaseUrl).toString();
   }
 }

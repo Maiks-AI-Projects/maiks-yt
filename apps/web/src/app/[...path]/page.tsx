@@ -42,7 +42,7 @@ const RuntimeContentPage = async ({ params }: ContentPageRouteProps): Promise<Re
       <main className="content-page">
         <section className="project-state-card failed" aria-live="polite">
           <h1>Page temporarily unavailable</h1>
-          <p>The public page API did not respond. Try again after the dev services settle.</p>
+          <p>The public page service did not respond. Try again shortly.</p>
         </section>
       </main>
     );
