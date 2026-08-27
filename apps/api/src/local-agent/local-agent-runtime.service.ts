@@ -8,6 +8,7 @@ import type {
   CommandEnvelope,
   JsonValue
 } from "@maiks-yt/events";
+import { isTerminalAcknowledgement } from "@maiks-yt/events";
 
 export type LocalAgentConnection = {
   close: (code: number, reason: string) => void;
@@ -27,6 +28,7 @@ type ActiveConnection = {
 type CommandRecord = {
   acknowledgement: CommandAcknowledgement | null;
   command: CommandEnvelope;
+  expiryTimer: ReturnType<typeof setTimeout> | null;
 };
 
 export type LocalAgentRuntimeStatus = ReturnType<LocalAgentRuntimeService["getStatus"]>;
@@ -37,6 +39,7 @@ export type LocalAgentAcknowledgementListener = (
 ) => void;
 
 const maxCommandRecords = 256;
+const maxTimerDelayMs = 2_147_483_647;
 
 export class LocalAgentRuntimeService {
   #active: ActiveConnection | null = null;
@@ -90,16 +93,26 @@ export class LocalAgentRuntimeService {
       return false;
     }
 
+    this.#expireDueCommands();
+
     const record = this.#commands.get(input.acknowledgement.eventId);
     if (!record || record.command.commandId !== input.acknowledgement.commandId) {
       return false;
     }
 
+    if (record.acknowledgement && isTerminalAcknowledgement(record.acknowledgement)) {
+      return true;
+    }
+
     record.acknowledgement = structuredClone(input.acknowledgement);
+    if (isTerminalAcknowledgement(input.acknowledgement)) {
+      this.#clearExpiryTimer(record);
+    }
     this.#active!.lastSeenAt = new Date().toISOString();
     for (const listener of this.#acknowledgementListeners) {
       listener(structuredClone(input.acknowledgement), structuredClone(record.command));
     }
+    this.#notifyStatus();
     return true;
   }
 
@@ -136,7 +149,9 @@ export class LocalAgentRuntimeService {
       payload: input.payload,
       ...(input.expiresAt ? { expiresAt: input.expiresAt } : {})
     };
-    this.#commands.set(command.eventId, { acknowledgement: null, command });
+    const record: CommandRecord = { acknowledgement: null, command, expiryTimer: null };
+    this.#commands.set(command.eventId, record);
+    this.#scheduleExpiry(record);
     this.#pruneCommands();
     active.socket.send(JSON.stringify(command));
     return { ok: true, command: structuredClone(command) };
@@ -168,6 +183,7 @@ export class LocalAgentRuntimeService {
     lastSeenAt: string | null;
     pendingCommands: number;
   } {
+    this.#expireDueCommands();
     const active = this.#active;
     return {
       connected: Boolean(active),
@@ -200,7 +216,71 @@ export class LocalAgentRuntimeService {
       if (!oldestKey) {
         return;
       }
+      const oldest = this.#commands.get(oldestKey);
+      if (oldest) {
+        this.#clearExpiryTimer(oldest);
+      }
       this.#commands.delete(oldestKey);
+    }
+  }
+
+  #scheduleExpiry(record: CommandRecord): void {
+    const expiresAtMs = record.command.expiresAt ? Date.parse(record.command.expiresAt) : Number.NaN;
+    if (!Number.isFinite(expiresAtMs)) {
+      return;
+    }
+
+    const delayMs = Math.min(maxTimerDelayMs, Math.max(0, expiresAtMs - Date.now()));
+    record.expiryTimer = setTimeout(() => {
+      if (this.#expireCommand(record.command.eventId, Date.now())) {
+        this.#notifyStatus();
+      } else {
+        this.#scheduleExpiry(record);
+      }
+    }, delayMs);
+  }
+
+  #expireDueCommands(nowMs = Date.now()): void {
+    for (const eventId of this.#commands.keys()) {
+      this.#expireCommand(eventId, nowMs);
+    }
+  }
+
+  #expireCommand(eventId: string, nowMs: number): boolean {
+    const record = this.#commands.get(eventId);
+    if (!record || (record.acknowledgement && isTerminalAcknowledgement(record.acknowledgement))) {
+      return false;
+    }
+
+    const expiresAtMs = record.command.expiresAt ? Date.parse(record.command.expiresAt) : Number.NaN;
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs > nowMs) {
+      return false;
+    }
+
+    this.#clearExpiryTimer(record);
+    const acknowledgement: CommandAcknowledgement = {
+      eventId: record.command.eventId,
+      commandId: record.command.commandId,
+      status: "expired",
+      acknowledgedAt: new Date(nowMs).toISOString(),
+      replayed: false,
+      error: {
+        code: "COMMAND_EXPIRED",
+        message: "Command expired before terminal acknowledgement",
+        retriable: true
+      }
+    };
+    record.acknowledgement = acknowledgement;
+    for (const listener of this.#acknowledgementListeners) {
+      listener(structuredClone(acknowledgement), structuredClone(record.command));
+    }
+    return true;
+  }
+
+  #clearExpiryTimer(record: CommandRecord): void {
+    if (record.expiryTimer) {
+      clearTimeout(record.expiryTimer);
+      record.expiryTimer = null;
     }
   }
 

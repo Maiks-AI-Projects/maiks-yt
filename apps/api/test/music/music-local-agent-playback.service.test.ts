@@ -260,30 +260,33 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
     coordinator.dispose();
   });
 
-  it("releases the player lease when local playback fails", async () => {
-    const runtime = new RuntimeFixture();
-    const playback = {
-      getCurrentAudioTrack: vi.fn(() => track("playback-1")),
-      getInternalState: vi.fn(() => snapshot("playback-1")),
-      getPlayerState: vi.fn((input: { createAudioUrl: (id: string, value: MusicSelectableTrack) => string | null }) => ({
-        ...snapshot("playback-1"),
-        audioUrl: input.createAudioUrl("playback-1", track("playback-1")),
-        player: { connected: true, owned: true, blockedReason: null }
-      })),
-      recordPlayerEvent: vi.fn(),
-      releasePlayerLease: vi.fn()
-    };
-    const coordinator = new MusicLocalAgentPlaybackCoordinator({
-      playback,
-      publicApiBaseUrl: "https://api.maiks.yt",
-      runtime
-    });
-    coordinator.handleControl({ action: "play", before: snapshot(null), after: snapshot("playback-1") });
-    await settle();
+  it.each(["failed", "expired"] as const)(
+    "releases the player lease when local playback %s",
+    async (acknowledgementStatus) => {
+      const runtime = new RuntimeFixture();
+      const playback = {
+        getCurrentAudioTrack: vi.fn(() => track("playback-1")),
+        getInternalState: vi.fn(() => snapshot("playback-1")),
+        getPlayerState: vi.fn((input: { createAudioUrl: (id: string, value: MusicSelectableTrack) => string | null }) => ({
+          ...snapshot("playback-1"),
+          audioUrl: input.createAudioUrl("playback-1", track("playback-1")),
+          player: { connected: true, owned: true, blockedReason: null }
+        })),
+        recordPlayerEvent: vi.fn(),
+        releasePlayerLease: vi.fn()
+      };
+      const coordinator = new MusicLocalAgentPlaybackCoordinator({
+        playback,
+        publicApiBaseUrl: "https://api.maiks.yt",
+        runtime
+      });
+      coordinator.handleControl({ action: "play", before: snapshot(null), after: snapshot("playback-1") });
+      await settle();
 
-    runtime.acknowledge(runtime.commands[0]!, "failed");
+      runtime.acknowledge(runtime.commands[0]!, acknowledgementStatus);
 
-    expect(playback.releasePlayerLease).toHaveBeenCalledWith("local-agent-vlc");
-    coordinator.dispose();
-  });
+      expect(playback.releasePlayerLease).toHaveBeenCalledWith("local-agent-vlc");
+      coordinator.dispose();
+    }
+  );
 });
