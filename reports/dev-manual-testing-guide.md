@@ -138,7 +138,7 @@ Goal: confirm moderator permissions are understandable and reversible.
 - Create or update only harmless test grants.
 - Confirm the moderator window exposes actions based on rights.
 - Revoke the test grant and confirm the audit trail is still visible.
-- Open `/admin/live-helper` and confirm summaries omit raw payloads, tokens, and role permission internals.
+- Open `/admin` and confirm the compact activity summary exposes only actionable warning/critical counts and active helper counts, without raw payloads, tokens, role permission internals, simulated history, or fake/local moderation data.
 
 ## Pass 7: Event Routing And Overlay
 
@@ -146,9 +146,9 @@ Goal: verify public stream output still requires explicit routing/approval.
 
 - Open `/admin/event-routing`.
 - Confirm privacy/security/provider-token events cannot be routed publicly.
-- Use `/dev/test-console` for safe simulated events.
-- Test an approval-required event and approve/reject it from event routing.
-- Confirm top/center overlay notifications work for safe simulated events.
+- Do not use the retired `/dev/test-console` or simulated production history. Exercise a controlled real provider event only during an authorized rehearsal.
+- Test any approval-required real event through its owning review surface.
+- Confirm top/center overlay notifications work for explicitly routed real events.
 - Confirm normal provider chat still does not appear on overlay unless explicitly routed later.
 
 ## Stop And Record

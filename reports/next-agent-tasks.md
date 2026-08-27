@@ -4,7 +4,7 @@
 
 - Review and deploy the Overview cleanup with the accumulated production Web hygiene slices. Confirm Stream windows contains only functioning Chat, Moderation, Control, Overlay, and Notifications destinations; Live activity contains only real alerts and active helper grants.
 - Confirm the retained `Automated Checks` summary reports the existing owner-only failure evidence without exposing state-file paths, signatures, or test-harness terminology.
-- The selector audit and cleanup are complete in the current production patch. `live-helper-boundary-list` remains because Provider Integrations consumes it; the unreferenced testing-dashboard, retired Live Helper, and dev-console selectors are removed.
+- The selector audit and cleanup are complete. Provider Integrations now owns its neutral `provider-boundary-list`; retired Live Helper, testing-dashboard, and dev-console selector names are removed.
 
 ## Production-Facing Residue
 
@@ -49,7 +49,7 @@
 ## Production Route Hygiene Follow-Up
 
 - The production tree no longer exposes `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, or `/admin/live-helper` as web pages.
-- Do not restore those routes. The sanitized `/admin/live-helper` API remains an internal data source for the real notification/helper summaries on Admin Overview; do not reintroduce its simulated/test approval or fake/local summaries into production operator navigation.
+- Do not restore those routes. The retired `/admin/live-helper` API aggregate is replaced by owner-only `/admin/overview/activity`, which returns only actionable warning/critical counts and active helper counts. Do not reintroduce simulated/test approval, history, or fake-local summaries into production operator navigation.
 - The orphaned Control realtime probe, event simulator, fake-chat editor contract, and simulation-only Moderation approvals route are removed in the current reviewed patch. Preserve the real chat, rules, audit, notifications, and provider-moderation owners instead of rebuilding an aggregate test panel.
 - After production reachability returns, deploy the reviewed cleanup and verify the retired routes return the normal not-found experience. Confirm `/links` does not publish any surviving Layout Lab database row.
 - Continue the broader hygiene audit separately. Static profile demonstrations and remaining implementation-detail copy still need deliberate product decisions; do not remove them casually.

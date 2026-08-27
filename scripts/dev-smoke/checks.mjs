@@ -634,21 +634,21 @@ const checkOwnerOperationalReadModels = ({ config, getDevOwnerToken, http }) => 
     config,
     getDevOwnerToken,
     http,
-    name: "live helper API",
-    path: "/admin/live-helper",
+    name: "admin overview activity API",
+    path: "/admin/overview/activity",
     validate: (json) => {
       if (
         json?.ok !== true
-        || json?.readOnly !== true
         || typeof json?.generatedAt !== "string"
-        || typeof json?.pendingApprovals?.count !== "number"
-        || !Array.isArray(json?.pendingApprovals?.items)
         || typeof json?.notifications?.openWarningCount !== "number"
         || typeof json?.notifications?.openCriticalCount !== "number"
-        || !Array.isArray(json?.activeHelperGrants?.items)
-        || !Array.isArray(json?.boundaries)
+        || typeof json?.activeHelperGrants?.count !== "number"
+        || "pendingApprovals" in json
+        || "recentSimulatedHistory" in json
+        || "fakeLocalModerationAudit" in json
+        || "fakeLocalActiveModeration" in json
       ) {
-        return "live helper API returned an unexpected payload.";
+        return "admin overview activity API returned an unexpected payload.";
       }
 
       return null;
@@ -1155,13 +1155,12 @@ const createPwaIconChecks = ({ config, http }) => pwaIconChecks.map(([name, conf
 );
 
 const ownerAdminPageChecks = [
-  ["admin dashboard", "/admin", ["Admin", "Stream Windows", "Streamer Chat", "Moderation Window", "Control Panel", "Notifications", "Recurring Smoke", "Provider Intake", "Pending Approvals", "Active Helpers", "Active Moderation", "Money Ledger"]],
+  ["admin dashboard", "/admin", ["Overview", "Stream windows", "Streamer chat", "Moderation", "Control panel", "Notifications", "Live activity", "Health summary", "Automated Checks", "Helpers"]],
   ["admin backup health", "/admin/backup/health", ["Backup Health"]],
   ["admin connections", "/admin/connections", ["Connections", "Provider Action Readiness", "Fail-closed", "provider.warn-in-origin-chat"]],
   ["admin event routing", "/admin/event-routing", ["Event"]],
   ["admin games", "/admin/games", ["Game"]],
   ["admin links", "/admin/links", ["Link"]],
-  ["admin live helper", "/admin/live-helper", ["Live"]],
   ["admin money", "/admin/money", ["Money"]],
   ["admin moderators", "/admin/moderators", ["Moderator"]],
   ["admin pages", "/admin/pages", ["Page Creator"]],

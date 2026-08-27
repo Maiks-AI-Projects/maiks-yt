@@ -128,7 +128,7 @@ type TestingSmokeStateResponse =
       reason: string;
     };
 
-type LiveHelperDashboardResponse =
+type AdminOverviewActivityResponse =
   | {
       ok: true;
       notifications: {
@@ -327,7 +327,7 @@ const findStatusCard = (
 ): DashboardStatusCard | undefined => statusCards.find((card) => card.key === key);
 
 const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
-  const [api, database, notifications, intakeHealth, sessions, backupHealth, localAgent, testingSmokeState, liveHelper, moneyLedger] =
+  const [api, database, notifications, intakeHealth, sessions, backupHealth, localAgent, testingSmokeState, activity, moneyLedger] =
     await Promise.allSettled([
       readJson<{ ok?: boolean; surface?: string }>("/health"),
       readJson<{ ok?: boolean; database?: string }>("/health/database"),
@@ -337,7 +337,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
       readJson<BackupHealthResponse>("/admin/backup/health", true),
       readJson<LocalAgentStatusResponse>("/admin/local-agent/status", true),
       readJson<TestingSmokeStateResponse>("/admin/testing/smoke-state", true),
-      readJson<LiveHelperDashboardResponse>("/admin/live-helper", true),
+      readJson<AdminOverviewActivityResponse>("/admin/overview/activity", true),
       readJson<MoneyLedgerDashboardResponse>("/admin/money/ledger", true)
     ]);
 
@@ -352,7 +352,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const backupResult = getFulfilled(backupHealth);
   const localAgentResult = getFulfilled(localAgent);
   const smokeResult = getFulfilled(testingSmokeState);
-  const liveHelperResult = getFulfilled(liveHelper);
+  const activityResult = getFulfilled(activity);
   const moneyLedgerResult = getFulfilled(moneyLedger);
 
   const intakeEntries = intakeResult?.payload?.ok ? intakeResult.payload.entries : [];
@@ -375,10 +375,10 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const smokeStatus = smokeState?.status ?? "unknown";
   const smokeLastRun = getHumanDate(smokeState?.lastSuccessAt ?? smokeState?.lastFailureNotifiedAt ?? null);
 
-  const activeHelpers = liveHelperResult?.payload?.ok ? liveHelperResult.payload.activeHelperGrants.count : null;
+  const activeHelpers = activityResult?.payload?.ok ? activityResult.payload.activeHelperGrants.count : null;
 
-  const liveHelperOpenWarnings = liveHelperResult?.payload?.ok ? liveHelperResult.payload.notifications.openWarningCount : 0;
-  const liveHelperOpenCriticals = liveHelperResult?.payload?.ok ? liveHelperResult.payload.notifications.openCriticalCount : 0;
+  const activityOpenWarnings = activityResult?.payload?.ok ? activityResult.payload.notifications.openWarningCount : 0;
+  const activityOpenCriticals = activityResult?.payload?.ok ? activityResult.payload.notifications.openCriticalCount : 0;
 
   const moneyWarnings = moneyLedgerResult?.payload?.ok ? moneyLedgerResult.payload.warnings.length : null;
 
@@ -503,17 +503,17 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     {
       key: "live-alerts",
       label: "Live Alerts",
-      value: liveHelperResult?.payload?.ok
-        ? `${liveHelperOpenWarnings + liveHelperOpenCriticals} open`
+      value: activityResult?.payload?.ok
+        ? `${activityOpenWarnings + activityOpenCriticals} open`
         : "Unavailable",
-      detail: liveHelperResult?.payload?.ok
-        ? `${liveHelperOpenWarnings} warning · ${liveHelperOpenCriticals} critical`
-        : `HTTP ${liveHelperResult?.status ?? "failed"}`,
-      tone: !liveHelperResult?.payload?.ok
+      detail: activityResult?.payload?.ok
+        ? `${activityOpenWarnings} warning · ${activityOpenCriticals} critical`
+        : `HTTP ${activityResult?.status ?? "failed"}`,
+      tone: !activityResult?.payload?.ok
         ? "bad"
-        : liveHelperOpenCriticals > 0
+        : activityOpenCriticals > 0
           ? "bad"
-          : liveHelperOpenWarnings > 0
+          : activityOpenWarnings > 0
             ? "warn"
             : "ok"
     },
@@ -522,7 +522,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
       label: "Helpers",
       value: activeHelpers === null ? "Unavailable" : `${activeHelpers} active`,
       detail: activeHelpers === null
-        ? `HTTP ${liveHelperResult?.status ?? "failed"}`
+        ? `HTTP ${activityResult?.status ?? "failed"}`
         : "Non-owner helper/moderator grants currently active.",
       tone: activeHelpers === null ? "bad" : "ok"
     },

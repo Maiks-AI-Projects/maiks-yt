@@ -50,7 +50,7 @@ Moderation is for helpers/moderators and for Michael when no helper is available
 
 A compact internal sidebar exposes only pages granted by the signed-in user's effective permissions. It collapses to icons. Its pages are Chat, Active Moderation, Applied Rules, Approvals & Queues, User Context, and Audit & History. Actions are permission-derived; the interface must not imply that every moderator has Timeout, Ban, Emergency clear, provider moderation, or rule retraction.
 
-There is no separate Live Helper page in the target architecture. Useful production data currently aggregated by `/admin/live-helper` must move to its responsible Moderation page, the separate Notifications PWA, or an Admin surface before the old page/read model is retired.
+There is no separate Live Helper page in the target architecture. The old page/read model is retired: actionable notification and helper-grant counts now belong to Admin Overview, while real moderation, approval, and audit data remain with their owning surfaces.
 
 At narrower widths, selected-user context becomes a drawer rather than permanently narrowing the feed.
 
@@ -140,9 +140,9 @@ Production inconsistencies to correct during implementation:
 | Provider moderation | `POST /streamer-chat/moderation/provider-action` | Twitch/Discord delete, 10-minute timeout, and ban are fail-closed behind `chat:provider-moderate` and provider context. YouTube destructive provider actions remain unavailable. |
 | Applied rules and audit | `GET /streamer-chat/moderation/rules`, `GET /streamer-chat/moderation/audit`, `POST /streamer-chat/moderation/rules/retract` | Implemented. Current clients poll rules/audit every 10 seconds. Permission mapping for retract needs correction. |
 | Active moderation | `moderation_active_states`, `moderation_audit_logs`, moderation store/runtime | Partial. Current rules cover Maiks.yt-local message/author effects and durable history; provider-side state and full policy/strike semantics remain gated. |
-| Approvals/queues | Action Panel APIs; event-routing approval data; `/admin/live-helper` read model | Partial. Working data exists, but Moderation needs a permission-safe projection and decision mapping rather than a summary count. |
+| Approvals/queues | Action Panel APIs and event-routing approval data | Partial. Working data exists, but Moderation needs a permission-safe projection and decision mapping rather than a summary count. |
 | User context | Message provider/user identifiers, linked-account/account APIs, moderator grant data | Backend gap for the target. There is no single moderator-safe, redacted selected-user projection. |
-| Live Helper summary | `GET /admin/live-helper` and `/admin/live-helper` web page | Implemented read-only compatibility surface containing pending approvals, warnings/critical notifications, active helper grants, simulated history, and fake/local moderation summaries. It mixes responsibilities and includes development-only data; split it rather than copying it into the new sidebar. |
+| Admin Overview activity | `GET /admin/overview/activity` | Implemented owner-only projection containing warning/critical notification counts and active helper counts. The retired Live Helper aggregate and its simulated/fake-local data are not compatibility dependencies. |
 
 ### Control and overlay data/API inventory
 
@@ -214,7 +214,7 @@ The existing request records, catalog, preview player, playlists, and play-histo
 | Chat Open dropdown and Moderation Chat/Control/AI links | Remove routine cross-PWA navigation. A contextual link may appear only when a specific recovery requires Admin or Control. |
 | Clickable provider recovery in Chat | Keep compact read-only health in Chat. Move routine retry/recovery to Control Provider Health & Recovery. Chat may show a contextual degraded-state link. |
 | Moderation Live Helper panel | Remove. Split real approval data into Approvals & Queues, current effects into Active Moderation, helper/user information into User Context, and history into Audit & History. Notifications stay in Notifications. Do not carry simulated-history summaries into live Moderation. |
-| `/admin/live-helper` page/API | Keep temporarily as a compatibility/read-model source. Hide from routine operational navigation, then narrow/retire only after each useful field has a named destination. |
+| `/admin/live-helper` page/API | Retired. Admin Overview now consumes the narrow owner-only `/admin/overview/activity` projection for warning/critical counts and active helper counts. Do not restore simulated history, fake/local moderation data, or the old aggregate. |
 | Control Realtime Probe, Simulator, fake chat sender, top/center/redeem test buttons, and raw API/surface labels | Remove from Control. Retain the underlying development tools/endpoints only in explicit development/testing surfaces until separately retired. `/admin/testing` is already retired; do not propose moving them back there. |
 | Routine AI mute and `/ai` links | Remove from Chat/Moderation/Control navigation. Keep the prototype dev-only or retire it. A future emergency-only AI recovery contract requires separate approval. |
 | Current one-page Control | Split into focused pages while preserving live overlay status/toggles, scene geometry work, and Action Panel/music systems. |

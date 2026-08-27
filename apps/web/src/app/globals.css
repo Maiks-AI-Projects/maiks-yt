@@ -1546,7 +1546,7 @@ button:disabled {
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }
 
-.live-helper-boundary-list {
+.provider-boundary-list {
   color: #4b5966;
   display: grid;
   gap: 0.5rem;

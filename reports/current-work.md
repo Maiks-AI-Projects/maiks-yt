@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-27 Admin Overview activity boundary
+
+- Replaced the retired `/admin/live-helper` API aggregate with owner-only `GET /admin/overview/activity`. The production Admin Overview now receives only open warning/critical notification counts and the count of active, safe non-owner helper/moderator grants.
+- Removed the old Live Helper service, repository, route, types, and tests. Production no longer queries or returns simulated Event Routing approvals/history or fake/local moderation audit/state merely to render Admin Overview.
+- The new projection requires an active linked owner wildcard role, filters helper grants through existing moderator-grant safety rules, returns sanitized failures, and includes focused unauthenticated, forbidden, owner, filtering, payload-minimization, and failure tests.
+- Updated the Admin Overview client and smoke definitions to use the new endpoint and removed stale `/admin/live-helper` page checks. No visual layout changes are introduced, so the image-first redesign cycle does not apply; GUI verification remains prohibited by Michael's desktop-control stop order.
+- Focused API/Web checks and the shared production review gate pass with 148 domain tests, 512 API tests, 41 Web tests, production builds/typechecks, 16 Local Agent tests, architecture rules, and whitespace checks. Independent GPT-5.5 security/cross-app review found no blocking code issues; its two stale current-guidance references to the retired route were corrected. This slice does not change schemas, migrations, credentials, provider behavior, environment, deployment, or server state.
+
 ## 2026-08-27 Control and Moderation production residue cleanup
 
 - Removed two orphaned Control components that implemented an unmounted realtime probe and event simulator, along with their dead styles. No realtime transport, provider intake, Event Routing runtime, or operator health endpoint changed.
@@ -234,7 +242,7 @@
 
 - Removed the user-facing `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, and retired `/admin/live-helper` pages from the production web build.
 - Removed the Layout Lab static fallback and dev seed. Public Creator Links now fail closed for old database rows targeting `/dev` or `/gemini-lab`, while similarly named public and external destinations remain valid.
-- Kept the sanitized owner/helper `/admin/live-helper` API because Admin Overview still consumes its real notification/helper summaries. It is no longer a standalone page or Moderation navigation destination, and its simulated/test summaries are not presented in production operator navigation.
+- The first route cleanup temporarily kept the sanitized `/admin/live-helper` API for Admin Overview. The later production activity slice replaces it with owner-only `/admin/overview/activity`, so the retired aggregate is no longer registered or consumed.
 - Made the main Admin application owner-only. Moderators and helpers use the separate Moderation PWA instead of entering a partial admin shell.
 - Focused domain and web checks pass. The production Next build no longer registers the retired routes, and web revision `986a48b` returns the production 404 experience with a real HTTP `404`.
 - This cleanup did not need the image-first design cycle because it removes obsolete routes without adding or materially redesigning a surface.

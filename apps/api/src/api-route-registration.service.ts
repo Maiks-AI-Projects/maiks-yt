@@ -2,6 +2,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 import type { OverlayFakeChatMessageReceivedEvent, StreamerChatMessage } from "@maiks-yt/events";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
+import { registerAdminOverviewActivityRoutes } from "./admin-overview/index.js";
 import { configuredAuthProviderIds } from "./auth/better-auth.service.js";
 import { registerBackupHealthRoutes, registerBackupKeyDataExportRoutes } from "./backup/index.js";
 import {
@@ -21,7 +22,6 @@ import { registerDevOwnerTokenRoutes } from "./dev-testing/index.js";
 import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index.js";
 import { registerGameLibraryRoutes } from "./games/index.js";
 import { registerCreatorLinkAdminRoutes, registerCreatorLinkReadRoutes } from "./links/index.js";
-import { registerLiveHelperDashboardRoutes } from "./live-helper/index.js";
 import {
   registerLocalAgentAdminStatusRoutes,
   type LocalAgentRuntimeService,
@@ -203,7 +203,7 @@ export const registerApplicationRoutes = ({
     getDatabasePool,
     runtime: fakeLocalModerationRuntime
   });
-  registerLiveHelperDashboardRoutes(server, {
+  registerAdminOverviewActivityRoutes(server, {
     getAuthSession,
     getDatabasePool
   });

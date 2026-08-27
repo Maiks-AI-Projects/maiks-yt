@@ -77,7 +77,7 @@ const ProviderIntegrationsStatusSection = ({
           <p>Current integration limits.</p>
         </div>
       </div>
-      <ul className="live-helper-boundary-list">
+      <ul className="provider-boundary-list">
         {snapshot.boundaries.map((boundary) => (
           <li key={boundary}>{boundary}</li>
         ))}
