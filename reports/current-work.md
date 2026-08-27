@@ -1,5 +1,10 @@
 # Current Work
 
+## 2026-08-27 production Updates editor image gate
+
+- Generated and saved an image-first `/admin/updates` candidate at `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png`. It uses the established compact production admin shell and depicts the real draft, saved-preview, publish/unpublish, status-filter, and pinning workflow supported by the production Updates API.
+- The candidate is explicitly unapproved. No editor UI was implemented, and it must not become the acceptance reference until Michael approves it or requests a revision. No runtime code, API, schema, migration, deployment, or server state changed.
+
 ## 2026-08-27 production reachability reconciliation
 
 - Read-only public probes confirmed `https://maiks.yt/`, `https://api.maiks.yt/health`, `https://control.maiks.yt/`, and `https://overlay.maiks.yt/` all return `200` through Cloudflare. The earlier `No route to host`/Cloudflare `530` condition is no longer current.

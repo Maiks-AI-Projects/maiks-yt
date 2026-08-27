@@ -10,6 +10,7 @@
 
 - Deploy and verify the Connections/copy cleanup with the other reviewed Web hygiene slices. Confirm Connections lists only real production sources and its Event catalogue still includes Website plus Twitch/YouTube/Discord entries.
 - Production public Updates now omit records explicitly marked as examples from list, detail, and RSS output while non-production keeps labelled fixtures. Future authored records still need a real owner publishing workflow; do not make seed content look real by hiding its provenance.
+- The manual Updates API is complete and image-first candidate `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png` awaits Michael's approval. Do not implement the material `/admin/updates` page until that image is approved or revised.
 - The Admin Overview summaries and proven-dead CSS are removed in reviewed production patches. Continue with the real Updates publishing workflow and the next evidence-backed operator-surface audit.
 
 ## Production Origin Fallbacks
