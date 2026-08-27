@@ -5,9 +5,10 @@
 - Work only in `/home/michael/Documents/Codex/maiks-yt-production` on branch `production` for forward product development.
 - Treat `/home/michael/Documents/Codex/maiks-yt-fresh`, dev branches, old worktrees, reports, Todo entries, and idea cards as evidence. Do not merge dev wholesale, preserve dev architecture for compatibility, or spend work keeping dev current.
 - Treat the damaged Windows-era Codex project/path `Stream overlay & Website maiks.yt` as a non-authoritative legacy recovery source. Never merge or sync it wholesale. Its recurring `Check project rule violations` tasks do not describe production delivery state.
+- Do not use `/home/michael/Documents/UI Skill` or its catalogs as design authority. Generate and obtain approval for a representative image before implementing a new or materially redesigned production page, then verify the real responsive or OBS result against that image.
 - Start from `reports/production-capability-ledger.md`. Keep design, approval, implementation, integration, deployment, and real verification separate.
 - The approved operational PWA redesign is now integrated and locally verified. Its next gate is deployment plus installed Chat, Moderation, Control, and Notifications verification after production reachability returns.
-- The next highest-value local production slice is the approved under-one-minute PWA session recovery path. Preserve the existing URL-token plus signed-in-session boundary. Do not weaken Control tokens to token-only access.
+- The PWA access checker now has bounded transient retry plus online/foreground/manual recovery. The next recovery slice is the dedicated main-site OAuth return page, pending approval of the candidate image recorded in `reports/current-work.md`. Preserve the existing URL-token plus signed-in-session boundary. Do not weaken Control tokens to token-only access or copy launch tokens across origins.
 - Do not deploy while the production origin is unreachable. Current evidence is SSH `No route to host` and Cloudflare `530` on the public web/API/overlay/control origins.
 
 Updated: 2026-08-27

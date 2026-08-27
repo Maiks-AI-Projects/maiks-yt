@@ -9,6 +9,8 @@
 - Corrected misleading scene-editor copy during coordinator review. The existing save endpoint can update connected master-overlay Browser Sources, so the UI now calls it a compatibility layout save and requires an explicit warning confirmation. Private preview, apply, snapshot, and rollback remain unavailable rather than being presented as working controls.
 - `pnpm check:review` passed after integration. A final focused pass after the copy correction also passed the control-panel typecheck, web build, architecture check, and `git diff --check`.
 - Local synthetic visual and interaction evidence is in `reports/visual-qa/production-pwa-redesign/README.md`. Production deployment and installed-window verification remain blocked by the unreachable server and Cloudflare `530` responses.
+- Added a bounded access retry foundation for Control, Chat, and Moderation. Temporary token/session API failures retry after 2, 5, 10, 20, then at most 30 seconds; returning online or foreground triggers an immediate silent check; a visible Try again action remains available. Stale overlapping checks cannot replace newer access state.
+- A dedicated main-site OAuth recovery page is still pending visual approval. Its candidate image is `/home/michael/.codex/generated_images/019ee64d-d00e-7c42-8341-b394df487b64/exec-a75e7750-246a-42ae-9d00-6c050eacc448.png`. No recovery-page code remains in the production patch before that approval.
 
 ## 2026-08-27 production-line reconciliation
 
@@ -19,6 +21,7 @@
 - Live verification is currently blocked: `codex-server-1` is unreachable from this machine and the public web, API, overlay, and control origins return Cloudflare `530`. Historical deployment notes below are evidence of prior state, not proof of current availability.
 - The evidence-based capability ledger and ranked queue are in `reports/production-capability-ledger.md`.
 - The Codex project/path named `Stream overlay & Website maiks.yt` is the damaged Windows-era copy. It is a non-authoritative legacy recovery source only. Do not merge or sync it wholesale. Recover a missing item only after proving that exact asset or history entry. Recurring `Check project rule violations` tasks attached to that path are not production delivery evidence.
+- `/home/michael/Documents/UI Skill` and its example catalogs are not current design authority. New or materially redesigned production pages need an approved representative image before implementation. Small functional corrections can proceed without that image cycle.
 
 ## 2026-08-21 production chat attention fallback
 

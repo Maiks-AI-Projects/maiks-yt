@@ -1,10 +1,11 @@
-import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState, type CSSProperties } from "react";
+import type { ControlPanelAuthState } from "./access/control-access.service.js";
+import { useControlAccess } from "./access/control-access.state.js";
 import { ControlActionsPanel } from "./actions/ControlActionsPanel.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
-import { captureDevAuthTokenFromUrl, createApiHeaders, withDevAuthToken } from "./dev-auth-token.js";
+import { captureDevAuthTokenFromUrl, withDevAuthToken } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
 import { MusicControlPanel } from "./music/MusicControlPanel.js";
 import { OperationNavIcon, type OperationNavIconName } from "./operations/OperationNavIcon.js";
@@ -24,26 +25,6 @@ const isModerationRoute = currentRoutePath === "/moderation" || currentRoutePath
 const defaultPanelMode = "creator";
 type PanelMode = "creator" | "advanced";
 type ControlPageKey = "overview" | "stream" | "overlays" | "actions" | "music" | "providers";
-type ControlPanelAuthState =
-  | {
-    status: "checking";
-  }
-  | {
-    status: "allowed";
-    displayName: string;
-  }
-  | {
-    status: "blocked";
-    message: string;
-  };
-
-type AccountSessionResponse = {
-  user: {
-    name?: string | null;
-    email?: string | null;
-  };
-} | null;
-
 const controlRouteLabels: Record<string, string> = {
   "/chat": "Streamer Chat",
   "/control": "Control Panel",
@@ -81,61 +62,6 @@ const readStoredPanelMode = (): PanelMode => {
   const storedValue = window.localStorage.getItem(panelModeStorageKey);
 
   return storedValue === "advanced" ? "advanced" : defaultPanelMode;
-};
-
-const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
-  const gateState = await validateUrlAccessGate({
-    apiBaseUrl,
-    surface: "control-panel",
-    scope: "control:open",
-    storageKey: "maiks.yt.control.accessToken"
-  });
-
-  if (gateState.status === "checking") {
-    return {
-      status: "checking"
-    };
-  }
-
-  if (gateState.status !== "allowed") {
-    return {
-      status: "blocked",
-      message: gateState.message
-    };
-  }
-
-  if (!gateState.requiresLogin) {
-    return {
-      status: "allowed",
-      displayName: "Token user"
-    };
-  }
-
-  const sessionResponse = await fetch(`${apiBaseUrl}/account/session`, {
-    credentials: "include",
-    headers: createApiHeaders()
-  });
-
-  if (!sessionResponse.ok) {
-    return {
-      status: "blocked",
-      message: "Sign in on the main site before opening the control panel."
-    };
-  }
-
-  const session = await sessionResponse.json() as AccountSessionResponse;
-
-  if (!session) {
-    return {
-      status: "blocked",
-      message: "Sign in on the main site before opening the control panel."
-    };
-  }
-
-  return {
-    status: "allowed",
-    displayName: session.user.name ?? session.user.email ?? "Signed-in user"
-  };
 };
 
 const updateManifestForRoute = (): void => {
@@ -183,7 +109,13 @@ const readStoredScale = (): number => {
     : 95;
 };
 
-const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }): React.ReactNode => (
+const AccessRequired = ({
+  authState,
+  onRetry
+}: {
+  authState: ControlPanelBlockedState;
+  onRetry: () => void;
+}): React.ReactNode => (
   <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRoute ? "chat-surface" : ""}`}>
     <section className="access-required-panel">
       <p className="access-required-eyebrow">{getCurrentSurfaceLabel()}</p>
@@ -192,15 +124,24 @@ const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }):
       {authState.status === "blocked" ? (
         <>
           <p className="access-required-help">
-            Use the current generated Control Panel access URL from Access Tokens. Opening the bare route is expected to stop here.
+            {authState.kind === "login-required"
+              ? "Renew your account sign-in. The launch token stays in this window and will be checked again when you return."
+              : authState.kind === "unavailable"
+                ? "This window retries automatically while it is visible and whenever the network returns."
+                : "Use a current generated Control Panel access URL. Opening a bare route on a new device is expected to stop here."}
           </p>
           <div className="access-required-actions">
-            <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin/tokens"))}>
-              Access Tokens
-            </a>
-            <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin"))}>
-              Admin Overview
-            </a>
+            <button type="button" className="secondary-window-link" onClick={onRetry}>Try again</button>
+            {authState.kind === "login-required" ? (
+              <a className="secondary-window-link" href={createWebUrl("/account")}>
+                Open account sign-in
+              </a>
+            ) : null}
+            {authState.kind === "missing-token" || authState.kind === "token-denied" ? (
+              <a className="secondary-window-link" href={withDevAuthToken(createWebUrl("/admin/tokens"))}>
+                Access Tokens
+              </a>
+            ) : null}
           </div>
         </>
       ) : null}
@@ -209,7 +150,7 @@ const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }):
 );
 
 const App = (): React.ReactNode => {
-  const [authState, setAuthState] = useState<ControlPanelAuthState>({ status: "checking" });
+  const { authState, retryAccess } = useControlAccess(apiBaseUrl);
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
   const [controlPage, setControlPage] = useState<ControlPageKey>(getInitialControlPage);
   const [controlSidebarCollapsed, setControlSidebarCollapsed] = useState(() =>
@@ -225,7 +166,6 @@ const App = (): React.ReactNode => {
       : isModerationRoute
         ? "Maiks.yt Moderation"
         : "Maiks.yt Control Panel";
-    void validateControlPanelAccess().then(setAuthState);
   }, []);
 
   useEffect(() => {
@@ -268,7 +208,7 @@ const App = (): React.ReactNode => {
   };
 
   if (authState.status !== "allowed") {
-    return <AccessRequired authState={authState} />;
+    return <AccessRequired authState={authState} onRetry={retryAccess} />;
   }
 
   if (isStandaloneChatRoute) {
