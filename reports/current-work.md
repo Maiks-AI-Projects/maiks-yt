@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 production deployment and tunnel recovery
+
+- Restored the dedicated `maiks.yt` Cloudflare tunnel after proving its stopped container was pinned to `192.168.187.2`, which Docker had reassigned to the healthy production web container after a restart. Removed only the stale tunnel IP pin, reconnected it dynamically at `192.168.187.7`, and left the unrelated `mmc.onl` tunnel unchanged.
+- Verified `maiks.yt`, `www.maiks.yt`, `api.maiks.yt/health`, `overlay.maiks.yt`, and `control.maiks.yt` all return `200` with four registered tunnel connections.
+- Ran `pnpm check:full`, pushed the reviewed `production` fast-forward, preserved the previous images under rollback tags, and deployed revision `501613c` as one shared image across web, API, overlay, and control.
+- All four containers are healthy with zero restarts and no error-class log lines since deployment. Public smoke covered Home, Progress, Schedule, Projects, Games, Updates, Links, Community Rules, Analytics Privacy, Accountability, Affiliates, Support, Channels, Sponsors, Interactions, and Music.
+- The retired dev test console, Gemini lab, Live Helper page, and old Admin Testing page now render the production 404 experience. Next currently streams those dynamic not-found responses with HTTP `200`; that status-code correctness issue remains separate from the removed page behavior.
+- Unauthenticated Local Agent, Games, and Backup Health admin APIs return `401`. Chrome confirmed the owner Admin shell fails closed while signed out. Real owner-session, installed-PWA, provider, OBS, music-output, and streaming-PC Local Agent verification remain open.
+
 ## 2026-08-27 sanitized Backup Health failures
 
 - Added a small production database-failure taxonomy to Backup Health: `timeout`, `authentication`, `network`, `query`, or `unknown`.
@@ -14,7 +23,7 @@
 - Added a compact Local Agent row to the existing Admin Overview Health Summary. It shows connection state, available-module count, and service version without creating a new page or exposing internal identity.
 - The projection deliberately excludes the dedicated credential, device and agent identifiers, expected identities, playback IDs, pending command counts, command and acknowledgement bodies, raw module details, and filesystem paths.
 - Focused service/route tests cover unauthenticated, non-owner, unlinked, connected, stale/degraded, disconnected, and missing-configuration states plus explicit redaction assertions. A synthetic owner-dashboard proof at 1440x1000 confirms the compact row renders without horizontal overflow.
-- Managed credential rotation/revocation remains separate work. No schema, migration, environment, service, deployment, or live state changed; deployment and real connection verification remain blocked by production reachability.
+- Managed credential rotation/revocation remains separate work. The owner status endpoint and compact dashboard row are deployed; the streaming-PC service is not configured, so real connection verification remains open.
 
 ## 2026-08-27 production music-to-VLC integration
 
@@ -22,8 +31,8 @@
 - The local player claims the existing playback lease only when the agent and VLC capability are available. Disconnects and failed play commands release that lease so `/music/player` remains the migration and failure fallback.
 - Added immediate bounded module-state reporting. VLC started, paused, ended, and error state returns through the authenticated agent connection; Maiks.yt continues to own history and next-track selection.
 - Added authenticated media retrieval for the agent without credential-bearing URLs. The device bearer is sent only to the configured Maiks.yt API origin, downloaded audio is bounded to 75 MiB and stored in a mode-0600 temporary directory, and VLC receives only the temporary local path through stdin.
-- No UI, schema, migration, production environment, service, audio routing, deployment, or live server state changed. Focused API/local-agent tests and typechecks pass; the full production review gate is the final local gate for this slice.
-- Remaining gates are managed credential rotation/status, service installation/configuration, real VLC and PipeWire `stream_music` proof, reconnect and automatic-next rehearsal, browser fallback proof, deployment, and live verification. Production is still unreachable from this workstation.
+- No UI, schema, migration, or audio-routing contract changed in this slice. The server-side integration is deployed after full production checks.
+- Remaining gates are managed credential rotation, streaming-PC service installation/configuration, real VLC and PipeWire `stream_music` proof, reconnect and automatic-next rehearsal, browser fallback proof, and live verification.
 
 ## 2026-08-27 production local-agent foundation
 
@@ -51,7 +60,7 @@
 - Removed the Layout Lab static fallback and dev seed. Public Creator Links now fail closed for old database rows targeting `/dev` or `/gemini-lab`, while similarly named public and external destinations remain valid.
 - Kept the sanitized owner/helper `/admin/live-helper` API because Admin Overview and the Moderation PWA still consume its compact operational summaries. It is no longer a standalone page or navigation destination.
 - Made the main Admin application owner-only. Moderators and helpers use the separate Moderation PWA instead of entering a partial admin shell.
-- Focused domain and web checks pass. The production Next build no longer registers the retired routes. Live deployment and route verification remain blocked by the unreachable production host and Cloudflare `530` responses.
+- Focused domain and web checks pass. The production Next build no longer registers the retired routes, and revision `501613c` is deployed. The routes render the production 404 experience; correcting the streamed HTTP `200` status remains separate.
 - This cleanup did not need the image-first design cycle because it removes obsolete routes without adding or materially redesigning a surface.
 
 ## 2026-08-27 operational PWA production slice
@@ -63,7 +72,7 @@
 - Corrected misleading scene-editor copy during coordinator review. The existing save endpoint can update connected master-overlay Browser Sources, so the UI now calls it a compatibility layout save and requires an explicit warning confirmation. Private preview, apply, snapshot, and rollback remain unavailable rather than being presented as working controls.
 - Removed the duplicated disabled preview/apply/snapshot/rollback controls and backend-status copy from the production overlay workspace. The remaining workflow shows only Duplicate and Edit, keeps working Save/Reload controls and the live-update warning, and stacks the editor cleanly at 960px instead of clipping controls beyond the viewport.
 - `pnpm check:review` passed after integration. A final focused pass after the copy correction also passed the control-panel typecheck, web build, architecture check, and `git diff --check`.
-- Local synthetic visual and interaction evidence is in `reports/visual-qa/production-pwa-redesign/README.md`. Production deployment and installed-window verification remain blocked by the unreachable server and Cloudflare `530` responses.
+- Local synthetic visual and interaction evidence is in `reports/visual-qa/production-pwa-redesign/README.md`. The redesign is deployed at `501613c`; installed-window access and real provider/moderation/music/overlay behavior remain unverified.
 - Added a bounded access retry foundation for Control, Chat, and Moderation. Temporary token/session API failures retry after 2, 5, 10, 20, then at most 30 seconds; returning online or foreground triggers an immediate silent check; a visible Try again action remains available. Stale overlapping checks cannot replace newer access state.
 - A dedicated main-site OAuth recovery page is still pending visual approval. Its candidate image is `/home/michael/.codex/generated_images/019ee64d-d00e-7c42-8341-b394df487b64/exec-a75e7750-246a-42ae-9d00-6c050eacc448.png`. No recovery-page code remains in the production patch before that approval.
 
@@ -73,7 +82,7 @@
 - Safely preserved and committed the existing context-page redesign, PWA operations specification, and OBS status note before reconciling the checkout with `origin/production`.
 - Reconciliation commits are `39e1b98`, `08128d8`, and merge commit `ec13b74`. The only upstream overlap was this report; the context implementation and PWA specification had no code overlap with the 13 incoming production commits.
 - `pnpm check:review` passes after reconciliation, including shared builds, 142 domain tests, 411 API tests, database/API typechecks, web build, overlay/control typechecks, architecture validation, and diff checks.
-- Live verification is currently blocked: `codex-server-1` is unreachable from this machine and the public web, API, overlay, and control origins return Cloudflare `530`. Historical deployment notes below are evidence of prior state, not proof of current availability.
+- The production host is reachable again and revision `501613c` is deployed. Public origins and core routes pass live HTTP smoke; owner-session and stream-critical integrated verification remain incomplete.
 - The evidence-based capability ledger and ranked queue are in `reports/production-capability-ledger.md`.
 - The Codex project/path named `Stream overlay & Website maiks.yt` is the damaged Windows-era copy. It is a non-authoritative legacy recovery source only. Do not merge or sync it wholesale. Recover a missing item only after proving that exact asset or history entry. Recurring `Check project rule violations` tasks attached to that path are not production delivery evidence.
 - `/home/michael/Documents/UI Skill` and its example catalogs are not current design authority. New or materially redesigned production pages need an approved representative image before implementation. Small functional corrections can proceed without that image cycle.
@@ -98,7 +107,7 @@ Updated: 2026-08-18
 
 Build one coherent Maiks.yt product on the dedicated `production` branch. Preserve the approved production visual and interaction system, use dev only as evidence, and deliver missing capabilities as small verified production-native slices.
 
-Canonical operational-PWA redesign specification: `reports/pwa-operations-redesign-spec.md`. Its first production implementation is integrated locally and awaits deployment plus real installed-window verification.
+Canonical operational-PWA redesign specification: `reports/pwa-operations-redesign-spec.md`. Its first production implementation is deployed at `501613c` and awaits real installed-window verification.
 
 ## Production Website Lane
 
