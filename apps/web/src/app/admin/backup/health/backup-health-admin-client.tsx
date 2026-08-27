@@ -17,6 +17,7 @@ type BackupHealthResponse =
     checkedAt: string;
     healthOk: boolean;
     databaseReachable: boolean;
+    databaseFailureCategory: "timeout" | "authentication" | "network" | "query" | "unknown" | null;
     requiredTables: Array<{
       name: string;
       present: boolean;
@@ -88,6 +89,17 @@ const formatCheckedAt = (value: string): string => {
   });
 
   return `${date} at ${time}`;
+};
+
+const databaseFailureLabels: Record<
+  NonNullable<Extract<BackupHealthResponse, { ok: true }>["databaseFailureCategory"]>,
+  string
+> = {
+  timeout: "Connection timed out",
+  authentication: "Authentication failed",
+  network: "Network connection failed",
+  query: "Database query failed",
+  unknown: "Unknown database failure"
 };
 
 const BackupHealthAdminClient = (): React.ReactNode => {
@@ -248,6 +260,14 @@ const BackupHealthAdminClient = (): React.ReactNode => {
                     {healthSnapshot.databaseReachable ? "Passed" : "Failed"}
                   </dd>
                 </div>
+                {!healthSnapshot.databaseReachable && healthSnapshot.databaseFailureCategory ? (
+                  <div>
+                    <dt>Failure category</dt>
+                    <dd className={styles.dangerText}>
+                      {databaseFailureLabels[healthSnapshot.databaseFailureCategory]}
+                    </dd>
+                  </div>
+                ) : null}
                 <div>
                   <dt>Dump tool</dt>
                   <dd className={backupTool?.available ? styles.okText : styles.warningText}>

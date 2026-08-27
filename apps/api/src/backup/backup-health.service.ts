@@ -34,6 +34,7 @@ export class BackupHealthService {
       ...(health.reason ? { reason: health.reason } : {}),
       warnings: health.warnings,
       databaseReachable: health.databaseReachable,
+      databaseFailureCategory: health.databaseFailureCategory,
       requiredTables: health.requiredTables,
       backupTool: health.backupTool
     };

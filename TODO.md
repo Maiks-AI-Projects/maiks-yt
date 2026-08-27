@@ -603,8 +603,9 @@ Gate note: later money features require an immutable ledger design, refund/revoc
   - Define a sanitized manifest for a real dump containing schema/migration identity, expected/found tables, artifact size, checksum result, and verification timestamp. Never expose data samples, credentials, sensitive metadata, or secret-bearing filesystem/storage paths.
 - [ ] Persist restore-drill evidence.
   - Record the environment, artifact reference, operator, result, and timestamp for key-data and full SQL restore drills. Restore execution remains a separate explicitly authorized workflow against an exact disposable non-production target; Backup Health must not gain an automated restore button.
-- [ ] Add sanitized database failure classification to Backup Health.
+- [x] Add sanitized database failure classification to Backup Health.
   - Map backend failures to a small safe enum such as `timeout`, `authentication`, `network`, or `query`. Never return raw driver errors, database hosts, usernames, SQL, or credentials.
+  - The production check now classifies stable driver codes as `timeout`, `authentication`, `network`, `query`, or `unknown`; the owner Backup Health page displays only the category label.
 
 Gate note: backup/export can start before production money, but must be treated as reliability/security work. First safe slice is a backup inventory and restore runbook using dev/staging data only; do not automate production backups, touch secrets, or claim recovery guarantees until retention, encryption, and restore testing are defined.
   - 2026-07-09 Phase E1 added `reports/backup-restore-runbook.md` for dev/staging-safe inventory, manual export/restore verification, improper-deletion drill boundaries, and failure-only backup-health notification expectations. Production backup automation, encryption/key policy, retention, and destructive restore remain gated.

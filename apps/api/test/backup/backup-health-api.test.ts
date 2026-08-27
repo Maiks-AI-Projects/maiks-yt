@@ -251,6 +251,7 @@ describe("backup health route", () => {
           skipped: false,
           warnings: ["No mysqldump or mariadb-dump command was found."],
           databaseReachable: true,
+          databaseFailureCategory: null,
           requiredTables: [{
             name: "users",
             present: true
@@ -278,6 +279,7 @@ describe("backup health route", () => {
       skipped: false,
       warnings: ["No mysqldump or mariadb-dump command was found."],
       databaseReachable: true,
+      databaseFailureCategory: null,
       requiredTables: [{
         name: "users",
         present: true
@@ -289,6 +291,48 @@ describe("backup health route", () => {
       }
     });
     expect(JSON.stringify(response.json())).not.toContain("DATABASE_URL");
+
+    await server.close();
+  });
+
+  it("returns only a sanitized database failure category", async () => {
+    const server = Fastify();
+
+    registerBackupHealthRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => ({
+        getHealth: async () => ({
+          ok: true,
+          readOnly: true,
+          healthOk: false,
+          checkedAt: "2026-08-27T12:00:00.000Z",
+          skipped: false,
+          warnings: [],
+          databaseReachable: false,
+          databaseFailureCategory: "authentication",
+          requiredTables: [],
+          backupTool: {
+            available: true,
+            command: "mariadb-dump",
+            version: "mariadb-dump 11"
+          }
+        })
+      })
+    });
+
+    const response = await server.inject({ method: "GET", url: "/admin/backup/health" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      databaseReachable: false,
+      databaseFailureCategory: "authentication"
+    });
+    expect(response.body).not.toContain("password");
+    expect(response.body).not.toContain("DATABASE_URL");
+    expect(response.body).not.toContain("SELECT");
 
     await server.close();
   });

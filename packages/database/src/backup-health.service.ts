@@ -22,6 +22,13 @@ type BackupToolStatus = {
   version: string | null;
 };
 
+export type BackupHealthDatabaseFailureCategory =
+  | "timeout"
+  | "authentication"
+  | "network"
+  | "query"
+  | "unknown";
+
 type BackupHealthResult = {
   checkedAt: string;
   ok: boolean;
@@ -29,11 +36,57 @@ type BackupHealthResult = {
   reason?: string;
   warnings: string[];
   databaseReachable: boolean;
+  databaseFailureCategory: BackupHealthDatabaseFailureCategory | null;
   requiredTables: Array<{
     name: string;
     present: boolean;
   }>;
   backupTool: BackupToolStatus;
+};
+
+const timeoutErrorCodes = new Set([
+  "ETIMEDOUT",
+  "ER_QUERY_TIMEOUT",
+  "PROTOCOL_SEQUENCE_TIMEOUT"
+]);
+const authenticationErrorCodes = new Set([
+  "ER_ACCESS_DENIED_ERROR",
+  "ER_ACCESS_DENIED_NO_PASSWORD_ERROR",
+  "ER_DBACCESS_DENIED_ERROR"
+]);
+const networkErrorCodes = new Set([
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ENOTFOUND",
+  "PROTOCOL_CONNECTION_LOST"
+]);
+
+export const classifyBackupHealthDatabaseFailure = (
+  error: unknown
+): BackupHealthDatabaseFailureCategory => {
+  if (!error || typeof error !== "object") {
+    return "unknown";
+  }
+
+  const code = "code" in error && typeof error.code === "string"
+    ? error.code.toUpperCase()
+    : null;
+  if (!code) {
+    return "unknown";
+  }
+  if (timeoutErrorCodes.has(code)) {
+    return "timeout";
+  }
+  if (authenticationErrorCodes.has(code)) {
+    return "authentication";
+  }
+  if (networkErrorCodes.has(code)) {
+    return "network";
+  }
+  return code.startsWith("ER_") || code.startsWith("WARN_") ? "query" : "unknown";
 };
 
 const checkBackupTool = async (): Promise<BackupToolStatus> => {
@@ -110,6 +163,7 @@ export const runBackupHealthCheck = async (
       reason: "DATABASE_URL is not configured.",
       warnings: backupTool.available ? [] : ["No mysqldump or mariadb-dump command was found."],
       databaseReachable: false,
+      databaseFailureCategory: null,
       requiredTables: requiredTables.map((name) => ({
         name,
         present: false
@@ -128,16 +182,18 @@ export const runBackupHealthCheck = async (
       ok: hasAllTables,
       skipped: false,
       warnings,
+      databaseFailureCategory: null,
       ...database,
       backupTool
     };
-  } catch {
+  } catch (error) {
     return {
       checkedAt,
       ok: false,
       skipped: false,
       warnings: backupTool.available ? [] : ["No mysqldump or mariadb-dump command was found."],
       databaseReachable: false,
+      databaseFailureCategory: classifyBackupHealthDatabaseFailure(error),
       requiredTables: requiredTables.map((name) => ({
         name,
         present: false

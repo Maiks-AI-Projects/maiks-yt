@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 sanitized Backup Health failures
+
+- Added a small production database-failure taxonomy to Backup Health: `timeout`, `authentication`, `network`, `query`, or `unknown`.
+- Classification uses stable driver codes only. Raw driver messages, database hosts, usernames, credentials, SQL, and connection strings are neither inspected for display nor returned by the database/API boundary.
+- The existing owner Backup Health page now shows one compact failure-category row only when the source database is unreachable. No backup/restore execution controls, workflow automation, schema, migration, secret, deployment, or live state changed.
+- Focused database/API tests and database/API/web typechecks pass. Backup recency, artifact verification, durable restore evidence, retention, encryption, and real restore drills remain separate gated work.
+
 ## 2026-08-27 production local-agent owner status
 
 - Added owner-only `GET /admin/local-agent/status` as a read-only operational projection over the existing Local Agent runtime.
