@@ -15,19 +15,16 @@ import {
 
 import { createApiHeaders, withDevAuthToken } from "../dev-auth-token";
 import { useAdminAccess } from "./admin-access";
+import {
+  adminDashboardStatusRequestPaths,
+  createAdminDashboardLoadingCards,
+  type DashboardStatusCard,
+  type DashboardStatusTone
+} from "./admin-dashboard.rules";
 import { createControlUrl, overlayBaseUrl } from "../tool-surface-urls.service";
 import styles from "./admin-dashboard.module.css";
 
-type DashboardStatusTone = "loading" | "ok" | "warn" | "bad";
 type HealthSummaryTone = "loading" | "ok" | "neutral" | "bad";
-
-type DashboardStatusCard = {
-  key: string;
-  label: string;
-  value: string;
-  detail: string;
-  tone: DashboardStatusTone;
-};
 
 type LiveWindowLink = {
   href: string;
@@ -110,24 +107,6 @@ type LocalAgentStatusResponse =
       reason: string;
     };
 
-type TestingSmokeStateResponse =
-  | {
-      ok: true;
-      stateFileConfigured: boolean;
-      state: {
-        status: "passing" | "failing" | "unknown";
-        stateAvailable: boolean;
-        hadActiveFailure: boolean | null;
-        lastSuccessAt: string | null;
-        lastFailureNotifiedAt: string | null;
-        lastFailureSignaturePresent: boolean;
-      };
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
-
 type AdminOverviewActivityResponse =
   | {
       ok: true;
@@ -185,7 +164,7 @@ const liveWindowLinks: readonly LiveWindowLink[] = [
   {
     href: "/tools/notifications",
     label: "Notifications",
-    description: "Owner device notices and automated check alerts.",
+    description: "Owner device notices and alert inbox.",
     icon: FaBell,
     statusKey: "notifications"
   }
@@ -203,86 +182,6 @@ const liveActivityLinks: readonly Omit<LiveWindowLink, "icon">[] = [
     label: "Helpers",
     description: "Active non-owner helper and moderator grants.",
     statusKey: "helpers"
-  }
-];
-
-const loadingCards = (): readonly DashboardStatusCard[] => [
-  {
-    key: "api",
-    label: "API",
-    value: "Checking",
-    detail: "Health endpoint pending.",
-    tone: "loading"
-  },
-  {
-    key: "database",
-    label: "Database",
-    value: "Checking",
-    detail: "Database health endpoint pending.",
-    tone: "loading"
-  },
-  {
-    key: "notifications",
-    label: "Notifications",
-    value: "Checking",
-    detail: "Reading unread critical state.",
-    tone: "loading"
-  },
-  {
-    key: "provider-intake",
-    label: "Provider Intake",
-    value: "Checking",
-    detail: "Reading mechanism health summary.",
-    tone: "loading"
-  },
-  {
-    key: "sessions",
-    label: "Sessions",
-    value: "Checking",
-    detail: "Listing owner session admin access.",
-    tone: "loading"
-  },
-  {
-    key: "backup",
-    label: "Backup",
-    value: "Checking",
-    detail: "Reading backup readiness probe.",
-    tone: "loading"
-  },
-  {
-    key: "local-agent",
-    label: "Local Agent",
-    value: "Checking",
-    detail: "Reading streaming-PC service health.",
-    tone: "loading"
-  },
-  {
-    key: "smoke",
-    label: "Automated Checks",
-    value: "Checking",
-    detail: "Reading the latest automated check result.",
-    tone: "loading"
-  },
-  {
-    key: "live-alerts",
-    label: "Live Alerts",
-    value: "Checking",
-    detail: "Loading warning and critical state.",
-    tone: "loading"
-  },
-  {
-    key: "helpers",
-    label: "Helpers",
-    value: "Checking",
-    detail: "Loading helper grant state.",
-    tone: "loading"
-  },
-  {
-    key: "money",
-    label: "Money",
-    value: "Checking",
-    detail: "Loading private ledger warning count.",
-    tone: "loading"
   }
 ];
 
@@ -313,32 +212,23 @@ const readJson = async <Payload,>(path: string, authenticated = false): Promise<
   }
 };
 
-const getHumanDate = (value: string | null): string => {
-  if (!value) {
-    return "not recorded";
-  }
-
-  return new Date(value).toLocaleString();
-};
-
 const findStatusCard = (
   statusCards: readonly DashboardStatusCard[],
   key: string
 ): DashboardStatusCard | undefined => statusCards.find((card) => card.key === key);
 
 const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
-  const [api, database, notifications, intakeHealth, sessions, backupHealth, localAgent, testingSmokeState, activity, moneyLedger] =
+  const [api, database, notifications, intakeHealth, sessions, backupHealth, localAgent, activity, moneyLedger] =
     await Promise.allSettled([
-      readJson<{ ok?: boolean; surface?: string }>("/health"),
-      readJson<{ ok?: boolean; database?: string }>("/health/database"),
-      readJson<NotificationListResponse>("/admin/notifications?limit=5", true),
-      readJson<ProviderIntakeHealthResponse>("/admin/connections/intake/health", true),
-      readJson<SessionListResponse>("/admin/sessions", true),
-      readJson<BackupHealthResponse>("/admin/backup/health", true),
-      readJson<LocalAgentStatusResponse>("/admin/local-agent/status", true),
-      readJson<TestingSmokeStateResponse>("/admin/testing/smoke-state", true),
-      readJson<AdminOverviewActivityResponse>("/admin/overview/activity", true),
-      readJson<MoneyLedgerDashboardResponse>("/admin/money/ledger", true)
+      readJson<{ ok?: boolean; surface?: string }>(adminDashboardStatusRequestPaths.health),
+      readJson<{ ok?: boolean; database?: string }>(adminDashboardStatusRequestPaths.databaseHealth),
+      readJson<NotificationListResponse>(adminDashboardStatusRequestPaths.notifications, true),
+      readJson<ProviderIntakeHealthResponse>(adminDashboardStatusRequestPaths.providerIntakeHealth, true),
+      readJson<SessionListResponse>(adminDashboardStatusRequestPaths.sessions, true),
+      readJson<BackupHealthResponse>(adminDashboardStatusRequestPaths.backupHealth, true),
+      readJson<LocalAgentStatusResponse>(adminDashboardStatusRequestPaths.localAgentStatus, true),
+      readJson<AdminOverviewActivityResponse>(adminDashboardStatusRequestPaths.activity, true),
+      readJson<MoneyLedgerDashboardResponse>(adminDashboardStatusRequestPaths.moneyLedger, true)
     ]);
 
   const getFulfilled = <Payload,>(result: PromiseSettledResult<{ status: number; payload: Payload | null }>) =>
@@ -351,7 +241,6 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const sessionResult = getFulfilled(sessions);
   const backupResult = getFulfilled(backupHealth);
   const localAgentResult = getFulfilled(localAgent);
-  const smokeResult = getFulfilled(testingSmokeState);
   const activityResult = getFulfilled(activity);
   const moneyLedgerResult = getFulfilled(moneyLedger);
 
@@ -370,10 +259,6 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
     (module) => module.availability === "available"
   ).length ?? 0;
   const localAgentState = localAgentSnapshot?.connection.state ?? null;
-
-  const smokeState = smokeResult?.payload?.ok ? smokeResult.payload.state : null;
-  const smokeStatus = smokeState?.status ?? "unknown";
-  const smokeLastRun = getHumanDate(smokeState?.lastSuccessAt ?? smokeState?.lastFailureNotifiedAt ?? null);
 
   const activeHelpers = activityResult?.payload?.ok ? activityResult.payload.activeHelperGrants.count : null;
 
@@ -480,25 +365,6 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
         : localAgentState === "degraded"
           ? "warn"
           : "bad"
-    },
-    {
-      key: "smoke",
-      label: "Automated Checks",
-      value:
-        smokeStatus === "passing"
-          ? "Passing"
-          : smokeStatus === "failing"
-            ? "Failing"
-            : "Unknown",
-      detail: smokeResult?.payload?.ok ? `Last run: ${smokeLastRun}.` : `HTTP ${smokeResult?.status ?? "failed"}`,
-      tone:
-        !smokeResult?.payload?.ok
-          ? "bad"
-          : smokeStatus === "passing"
-            ? "ok"
-            : smokeStatus === "failing"
-              ? "bad"
-              : "warn"
     },
     {
       key: "live-alerts",
@@ -628,25 +494,13 @@ const getProviderActivitySummary = (statusCard: DashboardStatusCard | undefined)
   return statusCard?.tone === "loading" ? "checking" : statusCard?.value.toLowerCase() ?? "unavailable";
 };
 
-const getAutomatedCheckSummary = (statusCard: DashboardStatusCard | undefined): string => {
-  if (!statusCard || statusCard.tone === "loading") {
-    return "checking";
-  }
-
-  if (statusCard.value === "Unknown") {
-    return "no recorded run";
-  }
-
-  return statusCard.value.toLowerCase();
-};
-
 const AdminDashboardClient = (): React.ReactNode => {
   const { accessState, devAuthToken } = useAdminAccess();
-  const [statusCards, setStatusCards] = useState<readonly DashboardStatusCard[]>(() => loadingCards());
+  const [statusCards, setStatusCards] = useState<readonly DashboardStatusCard[]>(() => createAdminDashboardLoadingCards());
   const [statusMessage, setStatusMessage] = useState("Checking now");
 
   const refreshStatus = async (): Promise<void> => {
-    setStatusCards(loadingCards());
+    setStatusCards(createAdminDashboardLoadingCards());
     setStatusMessage("Checking now");
 
     try {
@@ -700,7 +554,6 @@ const AdminDashboardClient = (): React.ReactNode => {
   const apiStatus = findStatusCard(statusCards, "api");
   const healthSummaryRows = getHealthSummaryRows(statusCards);
   const providerActivity = getProviderActivitySummary(findStatusCard(statusCards, "provider-intake"));
-  const automatedCheckSummary = getAutomatedCheckSummary(findStatusCard(statusCards, "smoke"));
   const liveActivity = liveActivityLinks.map((item) => ({
     ...item,
     status: item.statusKey ? findStatusCard(statusCards, item.statusKey) : undefined
@@ -811,7 +664,7 @@ const AdminDashboardClient = (): React.ReactNode => {
           <FaCircleInfo aria-hidden="true" />
           <div>
             <strong>Informational</strong>
-            <p>Provider activity: {providerActivity} · Automated checks: {automatedCheckSummary}</p>
+            <p>Provider activity: {providerActivity}</p>
             <small>Inactive provider mechanisms are expected when services are not running.</small>
           </div>
         </div>

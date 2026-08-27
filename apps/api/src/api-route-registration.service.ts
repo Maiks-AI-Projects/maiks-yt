@@ -230,10 +230,12 @@ export const registerApplicationRoutes = ({
     getAuthSession,
     getDatabasePool
   });
-  registerTestingSmokeStateRoutes(server, {
-    getAuthSession,
-    getDatabasePool
-  });
+  if (process.env.NODE_ENV !== "production") {
+    registerTestingSmokeStateRoutes(server, {
+      getAuthSession,
+      getDatabasePool
+    });
+  }
   registerEventRoutingAdminRoutes(server, {
     getAuthSession,
     getDatabasePool

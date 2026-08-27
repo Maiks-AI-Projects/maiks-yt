@@ -12,6 +12,8 @@ import type {
   TestingSmokeStateRepository
 } from "../../src/testing/testing-smoke-state.types.js";
 
+const originalNodeEnvironment = process.env.NODE_ENV;
+
 class FakeTestingSmokeStateRepository implements TestingSmokeStateRepository {
   public actor: TestingSmokeStateActor | null = {
     domainUserId: "domain-user",
@@ -32,6 +34,12 @@ describe("TestingSmokeStateService", () => {
 
   afterEach(async () => {
     await rm(tempDir, { force: true, recursive: true });
+
+    if (originalNodeEnvironment === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnvironment;
+    }
   });
 
   it("allows owner wildcard and denies normal linked users", async () => {
@@ -131,7 +139,49 @@ describe("TestingSmokeStateService", () => {
 });
 
 describe("testing smoke state route", () => {
+  afterEach(() => {
+    if (originalNodeEnvironment === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnvironment;
+    }
+  });
+
+  it("is not registered in production", async () => {
+    process.env.NODE_ENV = "production";
+    const server = Fastify();
+
+    registerTestingSmokeStateRoutes(server, {
+      getAuthSession: async () => {
+        throw new Error("auth should not be used");
+      },
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => {
+        throw new Error("service should not be created");
+      }
+    });
+
+    expect(server.hasRoute({ method: "GET", url: "/admin/testing/smoke-state" })).toBe(false);
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/testing/smoke-state"
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({
+      error: "Not Found",
+      message: "Route GET:/admin/testing/smoke-state not found",
+      statusCode: 404
+    });
+
+    await server.close();
+  });
+
   it("returns 401 without a session", async () => {
+    process.env.NODE_ENV = "test";
     const server = Fastify();
 
     registerTestingSmokeStateRoutes(server, {
@@ -156,6 +206,7 @@ describe("testing smoke state route", () => {
   });
 
   it("returns a safe read-only owner payload", async () => {
+    process.env.NODE_ENV = "test";
     const server = Fastify();
 
     registerTestingSmokeStateRoutes(server, {

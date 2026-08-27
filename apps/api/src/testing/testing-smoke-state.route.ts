@@ -20,6 +20,10 @@ export const registerTestingSmokeStateRoutes = (
   server: FastifyInstance,
   dependencies: TestingSmokeStateRouteDependencies
 ): void => {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
   const getService = (): Pick<TestingSmokeStateService, "getState"> =>
     dependencies.createService?.()
     ?? new TestingSmokeStateService(createTestingSmokeStateRepository(dependencies.getDatabasePool()));
