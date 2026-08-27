@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-27 production roadmap reconciliation
+
+- Corrected three stale implementation claims after tracing the deployed production paths. Twitch live/offline Event Routing now has an authoritative fail-closed resolver, newly inserted normalized Twitch/YouTube/Discord events already execute production routing rules, and the Control PWA already contains authoritative music state plus play, pause/resume, and skip controls.
+- Kept the real open gates explicit: owner/provider rehearsal and eventual `When` enablement, reviewed website-event dispatch with privacy and cooldown prerequisites, installed Control access, and real VLC/OBS playback proof.
+- Architecture validation and whitespace checks pass. This is documentation-only and does not change runtime, provider, database, migration, credential, or server state.
+
 ## 2026-08-27 production provider/channel deployment
 
 - Deployed reviewed production revision `2a99457` to Web and API only. This release includes provider-operations hardening, environment-correct token launch URLs, real provider chat routing, authoritative Twitch live/offline routing state, reviewed Games history filtering, and configured-channel EventSub owner controls.
