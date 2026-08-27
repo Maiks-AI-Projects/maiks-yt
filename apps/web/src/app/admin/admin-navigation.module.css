@@ -619,7 +619,6 @@
 .content :global(.action-item-card),
 .content :global(.auth-panel),
 .content :global(.session-card),
-.content :global(.live-helper-kpi),
 .content :global(.connections-action-card),
 .content :global(.connections-intake-health-card),
 .content :global(.connections-intake-row),
@@ -629,10 +628,7 @@
 .content :global(.provider-capability-card),
 .content :global(.provider-chat-status-grid > div),
 .content :global(.provider-chat-recent-list li),
-.content :global(.testing-checklist-item),
-.content :global(.content-page-article.preview),
-.content :global(.dev-test-console-safety),
-.content :global(.dev-test-console-preview-card) {
+.content :global(.content-page-article.preview) {
   background: var(--admin-surface);
   border-color: var(--admin-line);
   color: var(--admin-text);
@@ -652,7 +648,6 @@
 .content :global(.admin-dashboard-status-card),
 .content :global(.auth-panel),
 .content :global(.session-card),
-.content :global(.live-helper-kpi),
 .content :global(.connections-action-card),
 .content :global(.connections-intake-health-card),
 .content :global(.connections-intake-row),
@@ -662,10 +657,7 @@
 .content :global(.provider-capability-card),
 .content :global(.provider-chat-status-grid > div),
 .content :global(.provider-chat-recent-list li),
-.content :global(.testing-checklist-item),
-.content :global(.content-page-article.preview),
-.content :global(.dev-test-console-safety),
-.content :global(.dev-test-console-preview-card) {
+.content :global(.content-page-article.preview) {
   border-radius: 8px;
 }
 
@@ -681,8 +673,6 @@
 .content :global(.project-admin-link-list span),
 .content :global(.project-admin-note),
 .content :global(.link-admin-warning),
-.content :global(.testing-checklist-panel),
-.content :global(.testing-checklist-progress),
 .content :global(.action-history-note),
 .content :global(.action-priority.low),
 .content :global(.action-priority.normal) {
@@ -700,8 +690,6 @@
   color: var(--admin-muted);
 }
 
-.content :global(.live-helper-pill),
-.content :global(.dev-test-console-badges span),
 .content :global(.provider-integration-state),
 .content :global(.action-priority),
 .content :global(.admin-dashboard-link-badge) {
@@ -719,7 +707,6 @@
   color: var(--admin-text);
 }
 
-.content :global(.testing-checklist-pass.complete),
 .content :global(.provider-integration-row.configured),
 .content :global(.provider-capability-card.available),
 .content :global(.provider-capability-card.configured),
@@ -749,10 +736,7 @@
 .content :global(.provider-chat-state.stopped),
 .content :global(.provider-chat-state.unconfigured),
 .content :global(.provider-integration-state.missing),
-.content :global(.provider-integration-state.disabled),
-.content :global(.dev-test-console-warning),
-.content :global(.dev-test-console-badges span.blocked),
-.content :global(.dev-test-console-badges span.warning) {
+.content :global(.provider-integration-state.disabled) {
   background: #2b2514;
   border-color: #8b6d25;
   color: var(--admin-text);
@@ -850,14 +834,6 @@
 .content :global(input::placeholder),
 .content :global(textarea::placeholder) {
   color: var(--admin-quiet);
-}
-
-.content :global(.testing-checklist-progress-track) {
-  background: #1a2a31;
-}
-
-.content :global(.testing-checklist-progress-track span) {
-  background: var(--admin-mint);
 }
 
 .content :global(table) {

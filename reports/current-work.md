@@ -5,7 +5,7 @@
 - Removed simulated approval counts, fake/local moderation state, and the inert AI launch tile from the production Admin Overview. Stream windows now link only to functioning operator surfaces, while Live activity remains limited to real notification and helper-grant state.
 - Preserved the recurring internal health probe because its failure state supports a real owner decision, but renamed its user-facing presentation from smoke-test terminology to `Automated Checks`. The underlying owner-only endpoint and failure notification behavior are unchanged.
 - Focused Web tests and typecheck pass. No API, route, schema, migration, provider, auth, money, environment, deployment, or server state changed. GUI verification was skipped under Michael's active desktop-control stop order.
-- Retired test-console and Live Helper CSS remains a separate cleanup slice so still-used shared boundary selectors are not removed accidentally.
+- A follow-up selector audit proved that every `testing-*`, every `dev-test-console-*`, and all retired Live Helper UI selectors had no production source consumer. Removed 327 lines of dead global/admin-shell CSS while preserving `live-helper-boundary-list`, which Provider Integrations still uses. Web tests, typecheck, and the production build pass after removal.
 
 ## 2026-08-27 production-facing residue cleanup
 
