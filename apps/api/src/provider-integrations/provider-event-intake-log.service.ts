@@ -1,4 +1,4 @@
-import { normalizeProviderEventIntake } from "@maiks-yt/domain/events";
+import { normalizeProviderEventIntake, type NormalizedProviderEventIntake } from "@maiks-yt/domain/events";
 
 import type {
   ProviderChatMessageForIntake,
@@ -22,6 +22,7 @@ export class ProviderEventIntakeLogService {
   public async recordChatMessage(message: ProviderChatMessageForIntake): Promise<ProviderEventIntakeLogResult> {
     const normalized = normalizeProviderEventIntake({
       actorDisplayName: message.authorName,
+      actorExternalId: this.resolveActorExternalId(message),
       mechanism: this.resolveMechanism(message),
       occurredAt: message.createdAt,
       provider: message.source,
@@ -42,6 +43,9 @@ export class ProviderEventIntakeLogService {
 
     try {
       const result = await this.repository.write(normalized.value);
+      if (result.inserted) {
+        this.routeRecordedProviderEvent(normalized.value);
+      }
       return {
         inserted: result.inserted,
         ok: true
@@ -81,11 +85,7 @@ export class ProviderEventIntakeLogService {
     try {
       const result = await this.repository.write(normalized.value);
       if (result.inserted) {
-        try {
-          void Promise.resolve(this.onRecordedProviderEvent?.(normalized.value)).catch(() => undefined);
-        } catch {
-          // Intake is already durable; routing failures must not trigger provider retries.
-        }
+        this.routeRecordedProviderEvent(normalized.value);
       }
       return {
         inserted: result.inserted,
@@ -125,6 +125,18 @@ export class ProviderEventIntakeLogService {
     }
 
     return "MESSAGE_CREATE";
+  }
+
+  private resolveActorExternalId(message: ProviderChatMessageForIntake): string | null {
+    if (message.source === "twitch") {
+      return message.userId;
+    }
+
+    if (message.source === "youtube") {
+      return message.authorChannelId;
+    }
+
+    return message.userId;
   }
 
   private resolveMechanism(message: ProviderChatMessageForIntake) {
@@ -171,5 +183,13 @@ export class ProviderEventIntakeLogService {
       ...basePayload,
       channelName: message.channelName
     };
+  }
+
+  private routeRecordedProviderEvent(event: NormalizedProviderEventIntake): void {
+    try {
+      void Promise.resolve(this.onRecordedProviderEvent?.(event)).catch(() => undefined);
+    } catch {
+      // Intake is already durable; routing failures must not trigger provider retries.
+    }
   }
 }

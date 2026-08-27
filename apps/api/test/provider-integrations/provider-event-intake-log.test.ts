@@ -11,6 +11,7 @@ import type { ProviderEventIntakeLogRepository } from "../../src/provider-integr
 
 class FakeProviderEventIntakeLogRepository implements ProviderEventIntakeLogRepository {
   public readonly writes: NormalizedProviderEventIntake[] = [];
+  public inserted = true;
   public shouldThrow = false;
 
   public async write(input: NormalizedProviderEventIntake): Promise<{ inserted: boolean }> {
@@ -18,8 +19,10 @@ class FakeProviderEventIntakeLogRepository implements ProviderEventIntakeLogRepo
       throw new Error("database unavailable with secret-token-value");
     }
 
-    this.writes.push(structuredClone(input));
-    return { inserted: true };
+    if (this.inserted) {
+      this.writes.push(structuredClone(input));
+    }
+    return { inserted: this.inserted };
   }
 }
 
@@ -28,8 +31,10 @@ const fixedNow = new Date("2026-07-04T16:00:00.000Z");
 describe("ProviderEventIntakeLogService", () => {
   it("records Twitch chat as a pre-routing Twitch IRC event", async () => {
     const repository = new FakeProviderEventIntakeLogRepository();
+    const onRecordedProviderEvent = vi.fn();
     const service = new ProviderEventIntakeLogService({
       now: () => fixedNow,
+      onRecordedProviderEvent,
       repository
     });
     const message: TwitchChatProjectedMessage = {
@@ -41,6 +46,8 @@ describe("ProviderEventIntakeLogService", () => {
       message: "hello twitch",
       providerMessageId: "twitch-message-1",
       source: "twitch",
+      userId: "twitch-user-1",
+      userName: "maiksviewer",
       visibleOnOverlayByDefault: false
     };
 
@@ -52,6 +59,7 @@ describe("ProviderEventIntakeLogService", () => {
     expect(repository.writes).toHaveLength(1);
     expect(repository.writes[0]).toMatchObject({
       actorDisplayName: "MaiksViewer",
+      actorExternalId: "twitch-user-1",
       catalogKnown: true,
       category: "chat",
       internalTrigger: "provider.twitch.irc.privmsg",
@@ -67,6 +75,12 @@ describe("ProviderEventIntakeLogService", () => {
       message: "hello twitch",
       source: "twitch"
     });
+    expect(repository.writes[0]?.redactedPayload).not.toHaveProperty("userId");
+    expect(onRecordedProviderEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actorExternalId: "twitch-user-1"
+    }));
+    expect(onRecordedProviderEvent).toHaveBeenCalledOnce();
+    expect(onRecordedProviderEvent).toHaveBeenCalledWith(repository.writes[0]);
   });
 
   it("records Twitch EventSub notifications as pre-routing EventSub events", async () => {
@@ -120,8 +134,10 @@ describe("ProviderEventIntakeLogService", () => {
 
   it("records Discord chat as a Gateway message create event", async () => {
     const repository = new FakeProviderEventIntakeLogRepository();
+    const onRecordedProviderEvent = vi.fn();
     const service = new ProviderEventIntakeLogService({
       now: () => fixedNow,
+      onRecordedProviderEvent,
       repository
     });
     const message: DiscordChatProjectedMessage = {
@@ -135,6 +151,7 @@ describe("ProviderEventIntakeLogService", () => {
       message: "hello discord",
       providerMessageId: "discord-message-1",
       source: "discord",
+      userId: "discord-user-1",
       visibleOnOverlayByDefault: false
     };
 
@@ -144,6 +161,7 @@ describe("ProviderEventIntakeLogService", () => {
 
     expect(repository.writes[0]).toMatchObject({
       actorDisplayName: "DiscordUser",
+      actorExternalId: "discord-user-1",
       internalTrigger: "provider.discord.gateway.message-create",
       mechanism: "discord-gateway",
       provider: "discord",
@@ -155,6 +173,12 @@ describe("ProviderEventIntakeLogService", () => {
       guildId: "discord-guild-1",
       message: "hello discord"
     });
+    expect(repository.writes[0]?.redactedPayload).not.toHaveProperty("userId");
+    expect(onRecordedProviderEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actorExternalId: "discord-user-1"
+    }));
+    expect(onRecordedProviderEvent).toHaveBeenCalledOnce();
+    expect(onRecordedProviderEvent).toHaveBeenCalledWith(repository.writes[0]);
   });
 
   it("records non-chat Discord Gateway events as provider intake rows", async () => {
@@ -239,12 +263,15 @@ describe("ProviderEventIntakeLogService", () => {
 
   it("records YouTube chat as a live chat text event", async () => {
     const repository = new FakeProviderEventIntakeLogRepository();
+    const onRecordedProviderEvent = vi.fn();
     const service = new ProviderEventIntakeLogService({
       now: () => fixedNow,
+      onRecordedProviderEvent,
       repository
     });
     const message: YouTubeLiveChatProjectedMessage = {
       authorKind: "human",
+      authorChannelId: "youtube-channel-user-1",
       authorName: "YouTubeUser",
       channelName: "MaiksMC",
       createdAt: "2026-07-04T15:59:59.000Z",
@@ -261,19 +288,94 @@ describe("ProviderEventIntakeLogService", () => {
 
     expect(repository.writes[0]).toMatchObject({
       actorDisplayName: "YouTubeUser",
+      actorExternalId: "youtube-channel-user-1",
       internalTrigger: "provider.youtube.live.chat.textmessageevent",
       mechanism: "youtube-live-chat",
       provider: "youtube",
       providerChannelId: "MaiksMC",
       providerEventName: "textMessageEvent"
     });
+    expect(repository.writes[0]?.redactedPayload).not.toHaveProperty("authorChannelId");
+    expect(onRecordedProviderEvent).toHaveBeenCalledWith(expect.objectContaining({
+      actorExternalId: "youtube-channel-user-1"
+    }));
+    expect(onRecordedProviderEvent).toHaveBeenCalledOnce();
+    expect(onRecordedProviderEvent).toHaveBeenCalledWith(repository.writes[0]);
   });
 
-  it("returns a safe failure when the repository write fails", async () => {
+  it("preserves missing optional chat actor IDs as null", async () => {
     const repository = new FakeProviderEventIntakeLogRepository();
-    repository.shouldThrow = true;
+    const onRecordedProviderEvent = vi.fn();
     const service = new ProviderEventIntakeLogService({
       now: () => fixedNow,
+      onRecordedProviderEvent,
+      repository
+    });
+
+    await expect(service.recordChatMessage({
+      authorKind: "human",
+      authorName: "TwitchWithoutId",
+      channelName: "maiksmc",
+      createdAt: "2026-07-04T15:59:59.000Z",
+      id: "local-twitch-no-user-id",
+      message: "hello without twitch id",
+      providerMessageId: "twitch-message-no-user-id",
+      source: "twitch",
+      userId: null,
+      userName: "twitchwithoutid",
+      visibleOnOverlayByDefault: false
+    })).resolves.toEqual({
+      inserted: true,
+      ok: true
+    });
+
+    await expect(service.recordChatMessage({
+      authorChannelId: null,
+      authorKind: "human",
+      authorName: "YouTubeWithoutId",
+      channelName: "MaiksMC",
+      createdAt: "2026-07-04T15:59:59.000Z",
+      id: "local-youtube-no-author-id",
+      message: "hello without youtube id",
+      providerMessageId: "youtube-message-no-author-id",
+      source: "youtube",
+      visibleOnOverlayByDefault: false
+    })).resolves.toEqual({
+      inserted: true,
+      ok: true
+    });
+
+    expect(repository.writes).toHaveLength(2);
+    expect(repository.writes[0]).toMatchObject({
+      actorDisplayName: "TwitchWithoutId",
+      actorExternalId: null,
+      provider: "twitch"
+    });
+    expect(repository.writes[1]).toMatchObject({
+      actorDisplayName: "YouTubeWithoutId",
+      actorExternalId: null,
+      provider: "youtube"
+    });
+    expect(onRecordedProviderEvent).toHaveBeenNthCalledWith(1, repository.writes[0]);
+    expect(onRecordedProviderEvent).toHaveBeenNthCalledWith(2, repository.writes[1]);
+  });
+
+  it("routes chat intake only after the durable ledger insert succeeds", async () => {
+    const order: string[] = [];
+    const repository: ProviderEventIntakeLogRepository = {
+      async write(input) {
+        order.push(`write:${input.provider}:${input.providerEventName}`);
+        await Promise.resolve();
+        order.push("inserted");
+        return { inserted: true };
+      }
+    };
+    const onRecordedProviderEvent = vi.fn((event: NormalizedProviderEventIntake) => {
+      order.push(`callback:${event.provider}:${event.providerEventName}`);
+    });
+    const service = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      onRecordedProviderEvent,
       repository
     });
 
@@ -286,10 +388,134 @@ describe("ProviderEventIntakeLogService", () => {
       message: "hello twitch",
       providerMessageId: "twitch-message-1",
       source: "twitch",
+      userId: "twitch-user-1",
+      userName: "maiksviewer",
+      visibleOnOverlayByDefault: false
+    })).resolves.toEqual({
+      inserted: true,
+      ok: true
+    });
+
+    expect(order).toEqual([
+      "write:twitch:PRIVMSG",
+      "inserted",
+      "callback:twitch:PRIVMSG"
+    ]);
+    expect(onRecordedProviderEvent).toHaveBeenCalledOnce();
+  });
+
+  it("does not route duplicate chat intake rows", async () => {
+    const repository = new FakeProviderEventIntakeLogRepository();
+    repository.inserted = false;
+    const onRecordedProviderEvent = vi.fn();
+    const service = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      onRecordedProviderEvent,
+      repository
+    });
+
+    await expect(service.recordChatMessage({
+      authorKind: "human",
+      authorName: "MaiksViewer",
+      channelName: "maiksmc",
+      createdAt: "2026-07-04T15:59:59.000Z",
+      id: "local-twitch-1",
+      message: "hello twitch",
+      providerMessageId: "twitch-message-1",
+      source: "twitch",
+      userId: "twitch-user-1",
+      userName: "maiksviewer",
+      visibleOnOverlayByDefault: false
+    })).resolves.toEqual({
+      inserted: false,
+      ok: true
+    });
+
+    expect(repository.writes).toHaveLength(0);
+    expect(onRecordedProviderEvent).not.toHaveBeenCalled();
+  });
+
+  it("contains chat routing callback failures after durable intake", async () => {
+    const syncFailureRepository = new FakeProviderEventIntakeLogRepository();
+    const syncFailureService = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      onRecordedProviderEvent: () => {
+        throw new Error("routing failed");
+      },
+      repository: syncFailureRepository
+    });
+
+    await expect(syncFailureService.recordChatMessage({
+      authorKind: "human",
+      authorName: "MaiksViewer",
+      channelName: "maiksmc",
+      createdAt: "2026-07-04T15:59:59.000Z",
+      id: "local-twitch-1",
+      message: "hello twitch",
+      providerMessageId: "twitch-message-1",
+      source: "twitch",
+      userId: "twitch-user-1",
+      userName: "maiksviewer",
+      visibleOnOverlayByDefault: false
+    })).resolves.toEqual({
+      inserted: true,
+      ok: true
+    });
+
+    const asyncFailureRepository = new FakeProviderEventIntakeLogRepository();
+    const asyncFailureService = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      onRecordedProviderEvent: async () => {
+        throw new Error("routing failed async");
+      },
+      repository: asyncFailureRepository
+    });
+
+    await expect(asyncFailureService.recordChatMessage({
+      authorKind: "human",
+      authorName: "DiscordUser",
+      channelId: "discord-channel-1",
+      channelName: "general",
+      createdAt: "2026-07-04T15:59:59.000Z",
+      guildId: "discord-guild-1",
+      id: "local-discord-1",
+      message: "hello discord",
+      providerMessageId: "discord-message-1",
+      source: "discord",
+      userId: "discord-user-1",
+      visibleOnOverlayByDefault: false
+    })).resolves.toEqual({
+      inserted: true,
+      ok: true
+    });
+  });
+
+  it("returns a safe failure when the repository write fails", async () => {
+    const repository = new FakeProviderEventIntakeLogRepository();
+    repository.shouldThrow = true;
+    const onRecordedProviderEvent = vi.fn();
+    const service = new ProviderEventIntakeLogService({
+      now: () => fixedNow,
+      onRecordedProviderEvent,
+      repository
+    });
+
+    await expect(service.recordChatMessage({
+      authorKind: "human",
+      authorName: "MaiksViewer",
+      channelName: "maiksmc",
+      createdAt: "2026-07-04T15:59:59.000Z",
+      id: "local-twitch-1",
+      message: "hello twitch",
+      providerMessageId: "twitch-message-1",
+      source: "twitch",
+      userId: "twitch-user-1",
+      userName: "maiksviewer",
       visibleOnOverlayByDefault: false
     })).resolves.toEqual({
       ok: false,
       reason: "write_failed"
     });
+    expect(onRecordedProviderEvent).not.toHaveBeenCalled();
   });
 });

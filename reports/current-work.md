@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-27 real provider chat Event Routing
+
+- Completed the existing real-provider routing path for durable Twitch, Discord, and YouTube chat intake. Newly inserted chat ledger rows now invoke the same production Event Routing callback as other provider events; duplicate and failed writes do not route.
+- Preserved stable provider actor identity for per-user cooldowns and audit attribution: Twitch and Discord use their provider user IDs, YouTube uses the author channel ID, and nullable identities remain null so per-user rules fail closed. Actor IDs are not copied into the redacted payload.
+- Callback execution remains fire-and-forget after durable intake, and synchronous or asynchronous routing failures cannot make providers retry an already-recorded message.
+- Focused coverage verifies all three providers, null preservation, redacted-payload exclusion, insert ordering, duplicate suppression, failed-write suppression, and callback failure containment. Independent senior re-review is clean; the shared production review gate passes with 458 API tests.
+- No provider write, schema, migration, UI, auth, secret, environment, deployment, or live provider state changed. Real provider and OBS rehearsal remains open.
+
 ## 2026-08-27 reviewed Games history filtering
 
 - Corrected `/admin/games` so a text or status match remains visible when reviewed suggestion history is collapsed to eight rows. The collapsed limit now applies after filtering instead of before it.
