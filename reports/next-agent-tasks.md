@@ -1,5 +1,13 @@
 # Next Agent Tasks
 
+## Production Stream-Path Reliability
+
+- Review and deploy the reconnect-safe streamer-chat slice only in a deliberate verification window. Prove installed Chat/Moderation sleep-wake recovery, API restart recovery, malformed-frame HTTP fallback, newest-first ordering, missed-message attention, and authorization-close behavior with real provider traffic.
+- Verify the public schedule returns a currently live visible entry after deployment while planned/cancelled cutoffs and completed/private exclusions remain intact.
+- Configure the streaming-PC Local Agent, deliberately let one expiring play command go unacknowledged, and prove the lease returns to `/music/player` without duplicate terminal acknowledgements. Also prove normal VLC acknowledgement and browser fallback paths.
+- Rehearse the OBS bridge with a pending unstarted effect across send failure and widget readiness loss, then with a started effect across disconnect. Confirm exactly one visual/audio consumer and healthy master-overlay clients still receive fallback when another client is stale.
+- None of these code-complete slices is deployed or live-verified yet. Michael's desktop-control stop order remains active; use an explicitly authorized non-GUI/live rehearsal path or wait for separate authorization.
+
 ## Production Admin Overview Hygiene
 
 - Review and deploy the Overview cleanup with the accumulated production Web hygiene slices. Confirm Stream windows contains only functioning Chat, Moderation, Control, Overlay, and Notifications destinations; Live activity contains only real alerts and active helper grants.
@@ -57,7 +65,7 @@
 - Production also omits the standalone realtime spike routes `/events/test`, `/realtime/spike/sse`, and `/realtime/spike/ws`. Keep `scripts/realtime-spike-test.mjs` and the route harness available only for non-production transport experiments; they are not part of production realtime delivery.
 - The remaining `/dev/testing/owner-token`, `/dev/event-routing/dispatch`, and `/dev/notifications` routes are now absent from the production route table rather than returning distinctive handler-level 404 responses. Keep their non-production workflows available; preserve real notification reads, subscriptions, and status updates in production.
 - Public Updates now omit rows explicitly marked `isExample` in production, including direct slug reads and the shared RSS data path. Development retains labelled fixtures. The next Updates work is a real owner publishing/admin workflow or real authored records, not disguising seed content.
-- The manual Updates backend is now implemented over the existing schema: `/admin/updates` supports owner/delegated listing, draft create/edit, saved preview, publish, and unpublish without returning audit identifiers. The next Updates slice is an image-first `/admin/updates` editor; do not improvise or port the old dev UI before Michael approves a representative image.
+- The manual Updates backend and Michael-approved image-first `/admin/updates` editor are implemented in production commits `77cc9d9` and `4611f2d`. The next gate is deliberate deployment and real owner create/edit/preview/revision-safe publish/unpublish verification, not another editor redesign.
 - In a deliberate deployment window, deploy the reviewed cleanup and verify the retired routes return the normal not-found experience. Confirm `/links` does not publish any surviving Layout Lab database row.
 - Continue the broader hygiene audit separately. Static profile demonstrations and remaining implementation-detail copy still need deliberate product decisions; do not remove them casually.
 

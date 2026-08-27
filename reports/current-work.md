@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 production stream-path reliability
+
+- Private streamer chat now reconnects with one active socket and bounded 1/2/4/8/15-second retries, stops on an authorization close, and ignores stale socket callbacks after cleanup. API snapshots and messages carry a process session id plus monotonic revision, so late HTTP responses and stale same-process WebSocket frames cannot replace newer messages while an API restart can establish a new baseline.
+- The Chat client validates the versioned live contract before treating a WebSocket frame as authoritative. Malformed or rolling old-contract frames leave the HTTP snapshot recovery available. Initial history remains quiet, while genuinely missed messages found in a valid reconnect snapshot can trigger the existing private attention path.
+- Public schedule reads now include currently `live` visible entries even when their start time is in the past. Planned and cancelled entries remain future-only; completed and private rows remain excluded.
+- Expiring Local Agent commands now produce one terminal `COMMAND_EXPIRED` acknowledgement, clear runtime state, and release an abandoned `local-agent-vlc` playback lease so browser playback can resume. Commands without an expiry remain unchanged, and long expiry delays are safely rescheduled within the runtime timer limit.
+- OBS transient effects remain owned by the bridge only after its `started` acknowledgement. Unstarted effects return to the master overlay on disconnect, replacement, expiry, send failure, or alerts-widget readiness loss. Started effects never duplicate through fallback. Master-overlay delivery isolates stale sockets so one failure cannot block healthy clients or escape acknowledgement/timer callbacks.
+- Independent GPT-5.5 re-review is clean for all four slices after correcting malformed chat-frame recovery and the OBS send/readiness/fallback exception paths. `pnpm check:review` passes with 151 domain tests, 539 API tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks. Implementation commits are `8e41696`, `f457085`, `eb421e8`, and `6188f03`. No deployment, installed-PWA check, live provider test, live database query, VLC playback, or OBS rehearsal was performed.
+
 ## 2026-08-27 production Updates editor
 
 - Generated and saved an image-first `/admin/updates` candidate at `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png`. It uses the established compact production admin shell and depicts the real draft, saved-preview, publish/unpublish, status-filter, and pinning workflow supported by the production Updates API.

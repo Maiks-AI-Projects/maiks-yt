@@ -182,6 +182,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - 2026-08-27 production follow-up extends that execution path to newly inserted Twitch, Discord, and YouTube chat ledger rows. Stable provider actor identity supports per-user cooldowns and audit attribution, nullable identities remain fail-closed, duplicates and failed writes do not route, and actor IDs remain outside the redacted payload. Deployment and real provider/OBS rehearsal remain open.
 - [x] Add the authenticated Maiks.yt OBS bridge transport while preserving the master overlay fallback.
   - 2026-08-20 added `/obs-bridge/live` using the existing `overlay:connect` access token through a Bearer header, one active bridge installation, state updates from overlay/chat runtimes, deduplicated effect delivery, send-failure fallback, and token-gated `/obs-bridge/status`. A bridge becomes the sole transient owner only while its local Alerts & Effects Browser Source explicitly reports ready; otherwise the master overlay remains the owner.
+  - 2026-08-27 acknowledgement hardening keeps ownership with OBS only after `started`; unstarted effects return to the master overlay on disconnect, replacement, expiry, bridge send failure, or alerts-widget readiness loss. Started effects do not duplicate through fallback, and a stale master-overlay socket cannot block healthy clients. A real OBS/audio/reconnect rehearsal remains open.
 - [x] Complete and locally run the OBS loopback broker against protocol v1.
   - 2026-08-20 the companion is built in `/home/michael/Documents/Codex/maiks-yt-obs-bridge`, connects to production and local OBS through one authenticated remote session, and runs as the enabled `maiks-yt-obs-bridge.service` user service. It reports no ready widgets until their Browser Sources connect, preserving master-overlay effect ownership.
 - [x] Apply the first game-specific theme to the currently real Maiks.yt widget surfaces.
@@ -335,6 +336,7 @@ Note: Chunk 2 project-admin domain/API route code, tests, API registration, and 
 - [x] Build stream schedule model.
 - [x] Build admin schedule page.
 - [x] Build public schedule page.
+  - 2026-08-27 public reads include visible entries currently marked `live` even after their scheduled start, while planned/cancelled entries remain future-only and completed/private entries remain excluded. Deployment and a live-database public read are still separate verification gates.
 - [x] Add cancellation flow.
 - [x] Add cancellation reason templates.
 - [x] Design game library, game suggestions, and play-schedule links.
@@ -396,7 +398,7 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
 ## 12. AI Stream Assistant
 
 - [x] Add a provider-independent private chat attention/readout fallback.
-  - 2026-08-21 the standalone Chat and Moderation chat views gained local new-human-message cues, sender-plus-message speech, optional desktop notifications, unread title/count state, replay-latest, and a test control. Initial history, reconnect snapshots, duplicate events, empty messages, and bot output remain silent. This path does not depend on an AI provider and does not send speech or messages to stream outputs.
+  - 2026-08-21 the standalone Chat and Moderation chat views gained local new-human-message cues, sender-plus-message speech, optional desktop notifications, unread title/count state, replay-latest, and a test control. Initial history, duplicate events, empty messages, and bot output remain silent. 2026-08-27 reconnect hardening adds one bounded retrying socket plus session/revision-aware snapshots: malformed frames retain HTTP recovery, stale snapshots cannot erase newer messages, and genuinely missed human messages recovered after the initial baseline can use the existing attention path. This path does not depend on an AI provider and does not send speech or messages to stream outputs.
 - [x] Add per-PWA custom output selection for routable attention audio.
   - Chat and Moderation store separate device-local output choices and route Web Audio cues through Chromium's selected audio sink. Browser `speechSynthesis` has no sink API, so read-aloud continues to follow the full PWA/system/extension route until it is replaced by routable generated audio.
 - [x] Make standalone Chat quick moderation actions reflect active rank permissions and fail closed while access is unavailable.
@@ -546,6 +548,7 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [ ] Add managed local-agent credential rotation/revocation.
 - [x] Connect authoritative Maiks.yt playback to local VLC while retaining `/music/player` as a fallback.
   - Maiks.yt remains authoritative for selection, play/pause/skip, history, review outcomes, and now-playing state. The local connector claims playback only while its VLC capability is available, downloads audio with the dedicated bearer without placing it in URLs or VLC arguments, reports started/ended/error lifecycle state, advances to the next track, targets `stream_music`, and releases the browser fallback lease on disconnect or command failure. Deployment, service installation, audio-channel proof, reconnect rehearsal, and full browser fallback proof remain open.
+  - 2026-08-27 expiring Local Agent commands now produce one terminal `COMMAND_EXPIRED` acknowledgement and clear pending state. An unacknowledged `track.play` releases the `local-agent-vlc` lease for browser fallback; commands without an expiry remain unchanged. Real VLC and fallback verification remains open.
 - [ ] Add `/music/overlay` now-playing, attribution, safety, and vote display.
 - [x] Add authoritative music controls to the existing Control PWA instead of creating a separate music PWA.
   - The `/control/music` view reads real playback state and sends permission-gated play, pause/resume, and skip commands. It preserves the `/music/player` browser fallback while the local VLC agent is unavailable. Installed owner access and real VLC/OBS playback remain verification gates rather than implementation work.
