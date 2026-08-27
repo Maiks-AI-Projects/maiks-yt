@@ -97,9 +97,9 @@ export type StreamVisibilityPreferencesSnapshot = {
   reason: string;
 };
 
-export type AuthConfigurationStatus = {
+export type AccountConnectionProvidersResponse = {
   ok: true;
-  configuredProviders: OAuthProviderId[];
+  configuredProviderIds: OAuthProviderId[];
 };
 
 export type LinkSocialResponse = {

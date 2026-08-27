@@ -29,6 +29,7 @@ import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { createApiAuthRuntime } from "./api-auth-runtime.service.js";
+import { registerRetiredAccountAuthRoutes } from "./account/account-retired-auth.route.js";
 import {
   apiRequestLoggerOptions,
   registerSanitizedNotFoundHandler
@@ -559,6 +560,8 @@ server.get("/health/database", async (_request, reply) => {
     };
   }
 });
+
+registerRetiredAccountAuthRoutes(server);
 
 server.route({
   method: ["GET", "POST"],

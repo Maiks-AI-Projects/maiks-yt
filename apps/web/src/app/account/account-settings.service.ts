@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../dev-auth-token";
 import type {
+  AccountConnectionProvidersResponse,
   AuthAccount,
-  AuthConfigurationStatus,
   AuthSession,
   DomainAccountSnapshot,
   DomainUserProfile,
@@ -108,7 +108,7 @@ export const useAccountSettingsData = ({
           credentials: "include"
         }),
         loadConfiguration
-          ? fetch(`${apiBaseUrl}/auth/dev/status`, {
+          ? fetch(`${apiBaseUrl}/account/connections/providers`, {
             headers: createApiHeaders(),
             credentials: "include"
           })
@@ -123,8 +123,8 @@ export const useAccountSettingsData = ({
       setSession(nextSession);
 
       if (configurationResponse?.ok) {
-        const configuration = await configurationResponse.json() as AuthConfigurationStatus;
-        setConfiguredProviders(configuration.configuredProviders);
+        const configuration = await configurationResponse.json() as AccountConnectionProvidersResponse;
+        setConfiguredProviders(configuration.configuredProviderIds);
       }
 
       if (!nextSession) {

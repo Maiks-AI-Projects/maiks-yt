@@ -1,5 +1,18 @@
 # Current Work
 
+## 2026-08-27 production account privacy and route hygiene
+
+- Removed three legacy development endpoints from the production route table: the fixed creator snapshot, development owner claim, and development auth-status surface. They remain isolated in `account-dev.route.ts` for non-production use only. The real Connections page now reads configured provider ids from signed-in `GET /account/connections/providers`, which returns no auth implementation labels, domain-model labels, secrets, or provider credentials.
+- Corrected managed profile-image caching. Minimal/public images now use a bounded 60-second cache with revalidation instead of one-year immutable caching; private owner reads and all denied/not-found image responses use `private, no-store`. This limits stale public access after a profile becomes private while preserving the existing image bytes and authorization rules.
+- Focused route tests prove production omission without database/session calls, `GET` and `POST` tombstones before Better Auth, non-production registration, provider-list authentication and response minimization, public/minimal avatar revalidation, signed-out and signed-in non-owner private denial, and owner-only private image access. The full `pnpm check:review` gate passes with 148 domain tests and 493 API tests plus the production web build and cross-app checks.
+- The patch is implemented locally but not deployed. Live baseline still shows the old development routes registered (`creator_not_seeded`, unauthenticated owner-claim `401`, and public development auth status), so deployment and signed-in Connections verification remain open.
+
+## 2026-08-27 real profile schema gate
+
+- The current `users` table can safely support only searchable display name, visibility, and managed avatar. `linked_accounts` has no publication-consent field, and recognition, badges, perks, public game identities, biography, and per-field visibility have no approved persistence model. Do not project those records publicly from operational tables.
+- The recommended first real-profile shape keeps a normalized stable `profile_handle` on `users`, with lower-case ASCII validation, reserved-name protection, uniqueness, no reuse after deletion, and no self-serve rename until redirect/history rules exist. Private accounts remain searchable but expose only their display name and `This account is set to private`; minimal/public initially expose only handle, display name, and a safe managed avatar.
+- No migration was generated. Michael still needs to approve permanent handle/no-reuse behavior, choose the owner handle, and decide whether every existing non-deleted account becomes searchable during backfill. The static profile demonstrations remain clearly labelled until that gate is resolved.
+
 ## 2026-08-27 permission-aware Control navigation
 
 - Added a signed-in Control navigation projection behind the existing `control:open` URL-token gate. Overview, Stream Controls, and Overlays & Scenes remain the core pages governed by that existing outer Control access; Actions, Music, and the chat-intake Provider Health view now appear only when the linked user has `action-panel:view`, `music:play-control`, or `chat:view` respectively. Owner wildcard retains the complete workspace.

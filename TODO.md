@@ -284,6 +284,11 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Redesign `/games` over the live game library, suggestion, and schedule-link APIs.
   - [x] Redesign `/community-rules` as the production Community participation guide.
   - [x] Replace the `/profiles` placeholder with a search mock plus separate searchable public and private Michael profile examples while live profile, identity, and recognition work continues separately.
+  - [x] Audit the real profile data boundary: current safe public fields are display name, visibility, and managed avatar only; linked accounts, auth rows, roles, provider identities, recognition, perks, and verified game names remain private/unmodelled.
+  - [ ] Approve the real-profile handle gate: permanent/no-reuse policy, owner handle, and whether every existing non-deleted user becomes searchable during backfill.
+  - [ ] After approval, add normalized unique `users.profile_handle`, reserved-name rules, safe backfill/account creation, public search/detail projections, and replace the labelled static demonstrations without publishing operational identity data.
+  - [x] Remove legacy development identity/status routes from the production API route table and move the real Connections provider list to an authenticated minimal account endpoint. Deployment remains separate.
+  - [x] Replace one-year immutable managed-avatar caching with bounded revalidation for minimal/public profiles and `private, no-store` for private/denied image responses. Deployment remains separate.
   - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API with clearly labelled backend example records.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.

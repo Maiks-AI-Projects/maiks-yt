@@ -1,6 +1,6 @@
 import type { DatabasePool } from "@maiks-yt/database";
 import { validateProfileSettings } from "@maiks-yt/domain/identity";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import type { AuthSessionSnapshot } from "./auth-session.types.js";
@@ -30,6 +30,20 @@ const profileImageUploadSchema = z.object({
 const profileImageParamsSchema = z.object({
   userId: z.string().uuid()
 }).strict();
+
+const publicProfileImageCacheControl = "public, max-age=60, must-revalidate";
+const privateProfileImageCacheControl = "private, no-store";
+
+const replyWithProfileImageNotFound = (reply: FastifyReply): {
+  ok: false;
+  reason: "profile_image_not_found";
+} => {
+  reply
+    .code(404)
+    .header("cache-control", privateProfileImageCacheControl);
+  return { ok: false, reason: "profile_image_not_found" };
+};
+
 const providerProfileApplySchema = z.object({
   accountId: z.string().min(1).max(191),
   useDisplayName: z.boolean(),
@@ -310,8 +324,7 @@ export const registerAccountProfileRoutes = (
     const parsedParams = profileImageParamsSchema.safeParse(request.params);
 
     if (!parsedParams.success) {
-      reply.code(404);
-      return { ok: false, reason: "profile_image_not_found" };
+      return replyWithProfileImageNotFound(reply);
     }
 
     try {
@@ -325,32 +338,36 @@ export const registerAccountProfileRoutes = (
         : undefined;
 
       if (!row) {
-        reply.code(404);
-        return { ok: false, reason: "profile_image_not_found" };
+        return replyWithProfileImageNotFound(reply);
       }
 
-      if (row.profileVisibility === "private") {
+      const isPublicProfileImage = row.profileVisibility === "public"
+        || row.profileVisibility === "minimal";
+
+      if (!isPublicProfileImage) {
+        if (row.profileVisibility !== "private") {
+          return replyWithProfileImageNotFound(reply);
+        }
+
         const session = await dependencies.getAuthSession(request);
 
         if (!session || session.user.id !== row.authUserId) {
-          reply.code(404);
-          return { ok: false, reason: "profile_image_not_found" };
+          return replyWithProfileImageNotFound(reply);
         }
       }
 
       const image = await readProfileImage(parsedParams.data.userId);
 
       if (!image) {
-        reply.code(404);
-        return { ok: false, reason: "profile_image_not_found" };
+        return replyWithProfileImageNotFound(reply);
       }
 
       reply
         .header("content-type", "image/webp")
         .header("content-length", String(image.length))
-        .header("cache-control", row.profileVisibility === "private"
-          ? "private, no-store"
-          : "public, max-age=31536000, immutable");
+        .header("cache-control", isPublicProfileImage
+          ? publicProfileImageCacheControl
+          : privateProfileImageCacheControl);
 
       return image;
     } catch (error) {

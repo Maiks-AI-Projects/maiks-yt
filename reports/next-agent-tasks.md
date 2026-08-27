@@ -1,5 +1,12 @@
 # Next Agent Tasks
 
+## Account Privacy And Real Profiles
+
+- Deploy the independently reviewed production account-hygiene patch when this slice has a deliberate live verification window. Then verify the old `/identity/dev/*` routes and both methods on `/auth/dev/status` are absent, signed-in `/account/connections` still lists configured providers, and signed-out provider configuration remains `401`.
+- Verify profile-image privacy on the deployed origin: minimal/public images revalidate within 60 seconds, private anonymous reads remain indistinguishable `404` responses with `private, no-store`, and the owner can still load a private image without creating a shared cache entry.
+- Before replacing the labelled static profile demonstrations, approve the stable-handle gate: permanent/no-reuse behavior, the owner handle, and whether all existing non-deleted users become searchable. Keep public/private projections limited to `users`; never publish linked accounts, auth rows, provider identities, roles, event history, recognition, or perks without explicit consent and a reviewed data model.
+- After approval, sequence the real-profile work as domain handle/projection rules, generated-and-reviewed migration, safe account-creation/backfill behavior, public search/detail API, then the existing production-styled pages. Migration application and live backfill remain separate coordinator actions.
+
 ## Permission-Aware Control Navigation
 
 - The production patch derives optional Control pages from active role permissions behind the existing Control URL-token and linked-session gates. It does not weaken token/session requirements or expose raw role data.
