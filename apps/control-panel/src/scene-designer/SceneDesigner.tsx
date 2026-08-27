@@ -443,7 +443,6 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
             <button type="button" className="status-action duplicate-layout-action" onClick={() => void duplicateSelectedScene()}>
               Duplicate selected
             </button>
-            <p>The existing save endpoint maintains the master-overlay compatibility path. Private preview, explicit live apply, snapshot, and rollback controls stay disabled until their backend endpoints exist.</p>
           </aside>
           <div className="scene-editor-main">
             <SceneDesignerToolbar
@@ -480,12 +479,6 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
                   updateSelectedSlotAspectLock={updateSelectedSlotAspectLock}
                 />
               ) : null}
-            </div>
-            <div className="scene-safety-action-bar">
-              <span>Compatibility saves may update connected master overlays immediately.</span>
-              <button type="button" disabled>Private preview pending</button>
-              <button type="button" disabled>Apply draft live pending</button>
-              <button type="button" disabled>Rollback pending</button>
             </div>
           </div>
         </div>

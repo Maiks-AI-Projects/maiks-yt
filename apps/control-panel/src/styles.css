@@ -2253,12 +2253,6 @@ a {
   height: 1px;
 }
 
-.overlay-workflow-strip button,
-.scene-safety-action-bar button {
-  min-height: 2rem;
-  padding: 0.25rem 0.55rem;
-}
-
 .scene-editor-shell {
   display: grid;
   gap: 0.65rem;
@@ -2274,7 +2268,7 @@ a {
 .scene-layout-list {
   display: grid;
   gap: 0.55rem;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
 .scene-layout-list-heading {
@@ -2325,22 +2319,6 @@ a {
   gap: 0.55rem;
 }
 
-.scene-safety-action-bar {
-  align-items: center;
-  background: #091119;
-  border: 1px solid var(--ops-border);
-  border-radius: 8px;
-  display: flex;
-  gap: 0.55rem;
-  justify-content: flex-end;
-  padding: 0.45rem;
-}
-
-.scene-safety-action-bar span {
-  color: var(--ops-muted);
-  margin-right: auto;
-}
-
 @media (hover: none) {
   .streamer-chat-list li .streamer-chat-actions {
     opacity: 0;
@@ -2378,6 +2356,15 @@ a {
 
   .moderation-context-drawer {
     max-height: 18rem;
+  }
+
+  .scene-editor-shell,
+  .scene-designer-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .slot-editor {
+    position: static;
   }
 }
 
@@ -2438,8 +2425,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .overlay-workflow-strip,
-  .scene-safety-action-bar {
+  .overlay-workflow-strip {
     align-items: stretch;
     display: grid;
   }

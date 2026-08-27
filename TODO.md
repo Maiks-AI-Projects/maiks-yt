@@ -450,6 +450,8 @@ Gate note: moderation needs a domain-first rules/audit design before UI buttons 
 - [x] Add standalone Action Panel route.
 - [x] Add PWA manifest and first shared stream-tools icon set.
 - [x] Make control panel installable.
+- [x] Remove unavailable overlay workflow controls from the production Control PWA.
+  - 2026-08-27 removed the duplicated disabled preview/apply/snapshot/rollback controls and endpoint-status copy from Overlays & Scenes. Duplicate, compatibility save, reload, and the immediate-live-update warning remain. The editor now stacks before its controls clip at half-screen width.
 - [x] Make streamer chat installable.
   - 2026-06-29 added a dedicated `/chat` mode on `control-dev` with its own `chat-manifest.webmanifest`, PWA identity, and focused full-window streamer chat layout. It reuses the existing control-panel token gate and streamer-chat API/live feed, and it does not add provider writes, moderation actions, service-worker private caching, auth changes, migrations, or production behavior.
   - 2026-06-29 follow-up narrowed the normal control-panel PWA manifest to `/control` so the existing control app no longer claims the whole `control-dev` origin and blocks `/chat` from installing as a separate app. Existing old-scope installs may need to be removed once on Ubuntu/Android before reinstalling the separate control/chat PWAs.

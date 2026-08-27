@@ -18,6 +18,7 @@ This is local synthetic verification of the first production implementation of t
 - `moderation-mobile-768x1024.png`
 - `control-overview-1366x768.png`
 - `control-overlay-1366x768.png`
+- `control-overlay-960x1080.png`
 - `notifications-390x844.png`
 
 ## Findings
@@ -26,7 +27,7 @@ This is local synthetic verification of the first production implementation of t
 - Desktop chat actions remain hidden until hover or keyboard focus. Focus reveals Hide, Ban, and Options. Options opens the complete allowed action list.
 - Touch emulation exposes one Options control after selecting a row, then reveals Warn, Hide, Ban, note, provider, and allow actions.
 - Moderation uses its own permission-derived internal navigation and a selected-message context panel without adding cross-PWA navigation.
-- Control separates Overview, Stream Controls, Overlays & Scenes, Actions, Music, and Provider Health. The compatibility scene editor now warns that saving can update connected master-overlay Browser Sources. Future private preview, apply, snapshot, and rollback controls remain visibly unavailable.
+- Control separates Overview, Stream Controls, Overlays & Scenes, Actions, Music, and Provider Health. The compatibility scene editor warns that saving can update connected master-overlay Browser Sources, shows only working controls, and stacks cleanly at half-screen width without horizontal overflow.
 - Notifications has its own compact dark mobile layout and install manifest.
 
 The implementation follows the approved density and hierarchy. Chat retains one extra compact status and attention row because those working production controls need to remain reachable.

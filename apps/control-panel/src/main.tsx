@@ -260,11 +260,6 @@ const App = (): React.ReactNode => {
             <div className="overlay-workflow-step active"><span>1</span> Duplicate</div>
             <div className="overlay-workflow-line" />
             <div className="overlay-workflow-step current"><span>2</span> Edit compatibility layout</div>
-            <div className="overlay-workflow-line" />
-            <button type="button" disabled>Private preview endpoint pending</button>
-            <div className="overlay-workflow-line" />
-            <button type="button" disabled>Apply live + snapshot pending</button>
-            <button type="button" disabled>Rollback endpoint pending</button>
           </section>
           <SceneDesigner apiBaseUrl={apiBaseUrl} />
         </>
@@ -304,7 +299,7 @@ const App = (): React.ReactNode => {
             <article>
               <span>Scene work</span>
               <strong>Overlays & Scenes</strong>
-              <p>Duplicate a layout before editing. Compatibility saves can update the master overlay; the future explicit apply workflow remains disabled until its safety endpoints exist.</p>
+              <p>Duplicate a layout before editing. Compatibility saves can update the connected master overlay immediately.</p>
             </article>
             <article>
               <span>Live controls</span>
