@@ -591,15 +591,6 @@ a {
   margin-bottom: 0.1rem;
 }
 
-.fake-chat-settings {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.fake-chat-settings .status-action {
-  justify-self: start;
-}
-
 .streamer-chat-viewer {
   background: #151d25;
   border: 1px solid #2d3a47;
@@ -865,44 +856,6 @@ a {
   margin-top: 0.9rem;
 }
 
-.preset-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.preset-actions button {
-  background: #25313d;
-}
-
-.preset-actions .selected-action {
-  background: #2f855a;
-}
-
-.replay-summary {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.replay-summary span {
-  background: #25313d;
-  border-radius: 999px;
-  color: #d9e2eb;
-  padding: 0.25rem 0.6rem;
-}
-
-.realtime-probe {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.simulator-panel {
-  display: grid;
-  gap: 0.75rem;
-}
-
 .operations-panel {
   background: #151d25;
   border: 1px solid #2d3a47;
@@ -1145,100 +1098,6 @@ a {
 .slot-visible input {
   min-height: 1.25rem;
   width: 1.25rem;
-}
-
-.realtime-probe h2,
-.simulator-panel h2 {
-  margin: 0;
-}
-
-.probe-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.probe-actions button {
-  background: #25313d;
-}
-
-.probe-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-}
-
-.probe-grid article {
-  background: #0f1419;
-  border: 1px solid #2d3a47;
-  border-radius: 8px;
-  display: grid;
-  gap: 0.5rem;
-  padding: 0.75rem;
-}
-
-.probe-status {
-  border-radius: 999px;
-  color: #071016;
-  justify-self: start;
-  padding: 0.2rem 0.55rem;
-}
-
-.probe-status.idle,
-.probe-status.closed {
-  background: #b8c4cf;
-}
-
-.probe-status.connecting {
-  background: #f2c94c;
-}
-
-.probe-status.open {
-  background: #4ade80;
-}
-
-.probe-status.failed {
-  background: #ff6b6b;
-}
-
-.probe-grid ol {
-  display: grid;
-  gap: 0.45rem;
-  list-style-position: inside;
-  margin: 0;
-  padding: 0;
-}
-
-.probe-grid li {
-  color: #b8c4cf;
-  font-family: Consolas, "Liberation Mono", monospace;
-  font-size: 0.8rem;
-  overflow-wrap: anywhere;
-}
-
-.event-preview-list {
-  display: grid;
-  gap: 0.6rem;
-  list-style-position: inside;
-  margin: 0;
-  max-width: 58rem;
-  padding: 0;
-}
-
-.event-preview-list li {
-  background: #151d25;
-  border: 1px solid #2d3a47;
-  border-radius: 8px;
-  display: grid;
-  gap: 0.35rem;
-  padding: 0.75rem;
-}
-
-.event-preview-list span {
-  color: #b8c4cf;
-  font-family: Consolas, "Liberation Mono", monospace;
-  font-size: 0.85rem;
-  overflow-wrap: anywhere;
 }
 
 .ai-controls-window {

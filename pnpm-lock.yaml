@@ -90,9 +90,6 @@ importers:
       '@maiks-yt/events':
         specifier: workspace:*
         version: link:../../packages/events
-      '@maiks-yt/testing':
-        specifier: workspace:*
-        version: link:../../packages/testing
       '@maiks-yt/themes':
         specifier: workspace:*
         version: link:../../packages/themes

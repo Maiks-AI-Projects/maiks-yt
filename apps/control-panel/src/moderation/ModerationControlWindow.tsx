@@ -8,7 +8,6 @@ import { apiFetch } from "../dev-auth-token.js";
 import { OperationNavIcon, type OperationNavIconName } from "../operations/OperationNavIcon.js";
 import type { OverlayStatusResponse } from "../overlay/SurfaceStatus.types.js";
 import { ModerationAuditWindow } from "./ModerationAuditWindow.js";
-import { ModerationInfoPanel } from "./ModerationInfoPanel.js";
 import { ModerationRulesWindow } from "./ModerationRulesWindow.js";
 import {
   moderationAuditActionLabels,
@@ -29,7 +28,6 @@ const moderationSidebarStorageKey = "maiks.yt.moderation.sidebarCollapsed";
 
 const moderationPagePathSegments: Record<ModerationPanelKey, string> = {
   active: "active",
-  approvals: "approvals",
   audit: "audit",
   chat: "",
   rules: "rules",
@@ -38,7 +36,6 @@ const moderationPagePathSegments: Record<ModerationPanelKey, string> = {
 
 const moderationPageIcons: Record<ModerationPanelKey, OperationNavIconName> = {
   active: "providers",
-  approvals: "approvals",
   audit: "audit",
   chat: "chat",
   rules: "rules",
@@ -62,7 +59,6 @@ const getInitialModerationPanel = (): ModerationPanelKey => {
   const storedPanel = window.localStorage.getItem(moderationPageStorageKey);
 
   return storedPanel === "active"
-    || storedPanel === "approvals"
     || storedPanel === "audit"
     || storedPanel === "chat"
     || storedPanel === "rules"
@@ -90,7 +86,6 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
     ...(access?.panels.chat ? ["chat" as const] : []),
     ...(access?.panels.appliedRules ? ["active" as const] : []),
     ...(access?.panels.appliedRules ? ["rules" as const] : []),
-    ...(access?.panels.pendingApprovals ? ["approvals" as const] : []),
     ...(access?.panels.chat ? ["users" as const] : []),
     ...(access?.panels.auditHistory ? ["audit" as const] : [])
   ];
@@ -371,10 +366,6 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
 
     if (activePanel === "audit") {
       return <ModerationAuditWindow apiBaseUrl={apiBaseUrl} />;
-    }
-
-    if (activePanel === "approvals") {
-      return <ModerationInfoPanel apiBaseUrl={apiBaseUrl} endpoint="/admin/live-helper" title="Approvals & Queues" variant="approvals" />;
     }
 
     return (

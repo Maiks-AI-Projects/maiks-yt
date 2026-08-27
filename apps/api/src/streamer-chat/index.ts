@@ -7,6 +7,7 @@ export {
 export { registerStreamerChatControlRoutes } from "./streamer-chat-control.route.js";
 export { registerStreamerChatModerationRoutes } from "./streamer-chat-moderation.route.js";
 export {
+  canViewStreamerChatModerationWindow,
   StreamerChatModerationAccessService,
   type StreamerChatModerationAction
 } from "./streamer-chat-moderation-access.service.js";

@@ -1,8 +1,7 @@
 import type {
   OverlayActiveGoalState,
   OverlayLayoutKey,
-  OverlayPresentationState,
-  StreamerChatMessage
+  OverlayPresentationState
 } from "@maiks-yt/events";
 
 export const overlayLayoutOptions: Array<{ key: OverlayLayoutKey; label: string }> = [
@@ -83,19 +82,6 @@ export type OverlayRedeemTestResponse = {
   queued: number;
   redeem: RedeemPreset;
   reason?: string;
-  activeOverlayConnections: number;
-} | {
-  ok: false;
-  reason: string;
-};
-
-export type OverlayFakeChatTestResponse = {
-  ok: true;
-  queued: number;
-  reason?: string;
-  mutedUntil?: string;
-  chatVisible: boolean;
-  streamerChatMessage: StreamerChatMessage | null;
   activeOverlayConnections: number;
 } | {
   ok: false;

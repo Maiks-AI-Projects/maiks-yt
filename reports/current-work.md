@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 Control and Moderation production residue cleanup
+
+- Removed two orphaned Control components that implemented an unmounted realtime probe and event simulator, along with their dead styles. No realtime transport, provider intake, Event Routing runtime, or operator health endpoint changed.
+- Removed the unused fake-chat settings export and response contract from Control while retaining the existing fake/local compatibility transport used by legacy master-overlay testing paths.
+- Removed the Moderation `Approvals & Queues` navigation target because it only summarized simulated/test approvals from the retired Live Helper model. Chat, active/applied rules, user context, audit history, emergency clear, real provider moderation, Notifications, and Admin Overview operational evidence remain available in their owning surfaces.
+- Aligned the Moderation access projection with its remaining pages. Owner wildcard, `chat:view`, and `moderation-rules:view` can open it; `moderators:manage` or fake/local test authority alone no longer opens an empty shell, and the API no longer advertises retired Live Helper/approval panels. Focused permission tests cover each boundary.
+- Removed Control's now-unused `@maiks-yt/testing` dependency/reference. The shared review gate passes with 148 domain tests, 511 API tests, 18 Control tests, production builds/typechecks, 16 Local Agent tests, architecture rules, and whitespace checks.
+- GUI/browser verification is intentionally skipped under Michael's active desktop-control stop order. This slice does not change schemas, migrations, credentials, provider behavior, environment, deployment, or server state.
+
 ## 2026-08-27 API public-origin fallback hygiene
 
 - Added one environment-aware API public-base-URL policy and applied it to managed profile-image URL generation, domain-avatar origin validation, and API runtime configuration. Missing production configuration now resolves to `https://api.maiks.yt` instead of localhost.
@@ -225,7 +234,7 @@
 
 - Removed the user-facing `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, and retired `/admin/live-helper` pages from the production web build.
 - Removed the Layout Lab static fallback and dev seed. Public Creator Links now fail closed for old database rows targeting `/dev` or `/gemini-lab`, while similarly named public and external destinations remain valid.
-- Kept the sanitized owner/helper `/admin/live-helper` API because Admin Overview and the Moderation PWA still consume its compact operational summaries. It is no longer a standalone page or navigation destination.
+- Kept the sanitized owner/helper `/admin/live-helper` API because Admin Overview still consumes its real notification/helper summaries. It is no longer a standalone page or Moderation navigation destination, and its simulated/test summaries are not presented in production operator navigation.
 - Made the main Admin application owner-only. Moderators and helpers use the separate Moderation PWA instead of entering a partial admin shell.
 - Focused domain and web checks pass. The production Next build no longer registers the retired routes, and web revision `986a48b` returns the production 404 experience with a real HTTP `404`.
 - This cleanup did not need the image-first design cycle because it removes obsolete routes without adding or materially redesigning a surface.
@@ -234,7 +243,7 @@
 
 - Selectively integrated the approved Chat, Moderation, Control, and Notifications redesign into the reconciled production line. This was a reviewed code port, not a merge from dev or another worktree.
 - Chat is a compact chat-first window with newest-first messages, provider tinting, hover/focus moderation controls, touch-safe Options, Emergency clear, attention controls, and half-screen support.
-- Moderation now opens on Chat and uses permission-derived internal navigation for active moderation, applied rules, approvals, user context, and audit. Control now separates live operations into Overview, Stream Controls, Overlays & Scenes, Actions, Music, and Provider Health. Notifications has a dedicated install manifest and compact mobile layout.
+- Moderation now opens on Chat and uses permission-derived internal navigation for active moderation, applied rules, user context, and audit. A future real approvals page requires a permission-safe action projection; the retired simulated Live Helper summary is not part of production navigation. Control separates live operations into Overview, Stream Controls, Overlays & Scenes, Actions, Music, and Provider Health. Notifications has a dedicated install manifest and compact mobile layout.
 - Preserved provider chat, attention/read-aloud, per-PWA audio output, moderation actions and audit, token/session gates, music controls, and existing overlay behavior.
 - Corrected misleading scene-editor copy during coordinator review. The existing save endpoint can update connected master-overlay Browser Sources, so the UI now calls it a compatibility layout save and requires an explicit warning confirmation. Private preview, apply, snapshot, and rollback remain unavailable rather than being presented as working controls.
 - Removed the duplicated disabled preview/apply/snapshot/rollback controls and backend-status copy from the production overlay workspace. The remaining workflow shows only Duplicate and Edit, keeps working Save/Reload controls and the live-update warning, and stacks the editor cleanly at 960px instead of clipping controls beyond the viewport.

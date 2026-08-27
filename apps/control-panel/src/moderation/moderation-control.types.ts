@@ -74,8 +74,6 @@ export type StreamerChatModerationAccess = {
     appliedRules: boolean;
     auditHistory: boolean;
     chat: boolean;
-    liveHelper: boolean;
-    pendingApprovals: boolean;
   };
 };
 
@@ -91,7 +89,7 @@ export type StreamerChatModerationAccessResponse = {
   providerAction: false;
 };
 
-export type ModerationPanelKey = "chat" | "active" | "rules" | "approvals" | "users" | "audit";
+export type ModerationPanelKey = "chat" | "active" | "rules" | "users" | "audit";
 
 export type ModerationControlWindowProps = {
   apiBaseUrl: string;
@@ -118,7 +116,6 @@ export const moderationAuditActionLabels: Record<StreamerChatModerationAuditEntr
 
 export const moderationPanelLabels: Record<ModerationPanelKey, string> = {
   active: "Active Moderation",
-  approvals: "Approvals & Queues",
   audit: "Audit & History",
   chat: "Chat",
   users: "User Context",

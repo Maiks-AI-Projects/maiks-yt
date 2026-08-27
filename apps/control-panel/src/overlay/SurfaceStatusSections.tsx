@@ -143,47 +143,6 @@ export const OverlayTargetSettings = ({
   </div>
 );
 
-type FakeChatSettingsProps = {
-  fakeChatAuthorName: string;
-  fakeChatMessage: string;
-  sendFakeChatMessage: () => Promise<void>;
-  setFakeChatAuthorName: (value: string) => void;
-  setFakeChatMessage: (value: string) => void;
-};
-
-export const FakeChatSettings = ({
-  fakeChatAuthorName,
-  fakeChatMessage,
-  sendFakeChatMessage,
-  setFakeChatAuthorName,
-  setFakeChatMessage
-}: FakeChatSettingsProps): React.ReactNode => (
-  <div className="notification-settings fake-chat-settings" aria-label="Fake chat test">
-    <strong>Fake chat test</strong>
-    <label>
-      <span>Name</span>
-      <input
-        maxLength={40}
-        type="text"
-        value={fakeChatAuthorName}
-        onChange={(event) => setFakeChatAuthorName(event.currentTarget.value)}
-      />
-    </label>
-    <label>
-      <span>Message</span>
-      <input
-        maxLength={280}
-        type="text"
-        value={fakeChatMessage}
-        onChange={(event) => setFakeChatMessage(event.currentTarget.value)}
-      />
-    </label>
-    <button type="button" className="status-action" onClick={() => void sendFakeChatMessage()}>
-      Send fake chat
-    </button>
-  </div>
-);
-
 type GoalWidgetSettingsProps = {
   activeGoal: OverlayActiveGoalState | null;
   goalDraft: OverlayActiveGoalState;

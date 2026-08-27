@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 
 export type OperationNavIconName =
   | "actions"
-  | "approvals"
   | "audit"
   | "chat"
   | "music"
@@ -15,7 +14,6 @@ export type OperationNavIconName =
 
 const iconPaths: Record<OperationNavIconName, ReactNode> = {
   actions: <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8Z" />,
-  approvals: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M19 8v6m3-3h-6" /></>,
   audit: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 3v6h6" /><path d="M12 7v5l3 2" /></>,
   chat: <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" />,
   music: <><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></>,

@@ -84,8 +84,7 @@ export const canUseStreamerChatModerationAction = (
 export const canViewStreamerChatModerationWindow = (permissions: readonly string[]): boolean =>
   permissions.includes("*")
   || permissions.includes("chat:view")
-  || permissions.includes("moderation-rules:view")
-  || permissions.includes("moderators:manage");
+  || permissions.includes("moderation-rules:view");
 
 export class StreamerChatModerationAccessService {
   public constructor(private readonly dependencies: {

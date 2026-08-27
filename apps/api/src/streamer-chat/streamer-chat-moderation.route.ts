@@ -142,11 +142,7 @@ export const registerStreamerChatModerationRoutes = (
       panels: {
         appliedRules: canUseStreamerChatModerationAction(access.permissions, "view_rules"),
         auditHistory: canUseStreamerChatModerationAction(access.permissions, "view_audit"),
-        chat: access.permissions.includes("*") || access.permissions.includes("chat:view"),
-        liveHelper: access.permissions.includes("*")
-          || access.permissions.includes("moderators:manage")
-          || access.permissions.includes("fake-local-chat:moderate"),
-        pendingApprovals: access.permissions.includes("*") || access.permissions.includes("moderators:manage")
+        chat: access.permissions.includes("*") || access.permissions.includes("chat:view")
       },
       providerAction: false,
       checkedAt: new Date().toISOString()
