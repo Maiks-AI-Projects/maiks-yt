@@ -11,9 +11,10 @@
 
 - Added owner-only `GET /admin/local-agent/status` as a read-only operational projection over the existing Local Agent runtime.
 - The response distinguishes not configured, disconnected, connected, and degraded states using connection freshness and advertised module availability. It reports service/protocol version, last-seen timestamps, module actions, and bounded VLC playback status, position, and volume.
+- Added a compact Local Agent row to the existing Admin Overview Health Summary. It shows connection state, available-module count, and service version without creating a new page or exposing internal identity.
 - The projection deliberately excludes the dedicated credential, device and agent identifiers, expected identities, playback IDs, pending command counts, command and acknowledgement bodies, raw module details, and filesystem paths.
-- Focused service/route tests cover unauthenticated, non-owner, unlinked, connected, stale/degraded, disconnected, and missing-configuration states plus explicit redaction assertions. No UI, schema, migration, environment, service, deployment, or live state changed.
-- Managed credential rotation/revocation and any owner UI remain separate work. A materially new owner surface requires the image-first approval cycle; deployment and real connection verification remain blocked by production reachability.
+- Focused service/route tests cover unauthenticated, non-owner, unlinked, connected, stale/degraded, disconnected, and missing-configuration states plus explicit redaction assertions. A synthetic owner-dashboard proof at 1440x1000 confirms the compact row renders without horizontal overflow.
+- Managed credential rotation/revocation remains separate work. No schema, migration, environment, service, deployment, or live state changed; deployment and real connection verification remain blocked by production reachability.
 
 ## 2026-08-27 production music-to-VLC integration
 

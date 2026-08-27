@@ -40,7 +40,7 @@ type LiveWindowLink = {
 };
 
 type HealthSummaryRow = {
-  key: "core" | "backup" | "access" | "finance";
+  key: "core" | "local-agent" | "backup" | "access" | "finance";
   area: string;
   state: string;
   detail: string;
@@ -89,6 +89,22 @@ type BackupHealthResponse =
         present: boolean;
       }>;
       warnings: string[];
+    }
+  | {
+      ok: false;
+      reason: string;
+    };
+
+type LocalAgentStatusResponse =
+  | {
+      ok: true;
+      connection: {
+        state: "not_configured" | "disconnected" | "connected" | "degraded";
+        serviceVersion: string | null;
+      };
+      modules: Array<{
+        availability: "available" | "degraded" | "unavailable";
+      }>;
     }
   | {
       ok: false;
@@ -262,6 +278,13 @@ const loadingCards = (): readonly DashboardStatusCard[] => [
     tone: "loading"
   },
   {
+    key: "local-agent",
+    label: "Local Agent",
+    value: "Checking",
+    detail: "Reading streaming-PC service health.",
+    tone: "loading"
+  },
+  {
     key: "smoke",
     label: "Recurring Smoke",
     value: "Checking",
@@ -346,7 +369,7 @@ const findStatusCard = (
 ): DashboardStatusCard | undefined => statusCards.find((card) => card.key === key);
 
 const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
-  const [api, database, notifications, intakeHealth, sessions, backupHealth, testingSmokeState, liveHelper, moneyLedger] =
+  const [api, database, notifications, intakeHealth, sessions, backupHealth, localAgent, testingSmokeState, liveHelper, moneyLedger] =
     await Promise.allSettled([
       readJson<{ ok?: boolean; surface?: string }>("/health"),
       readJson<{ ok?: boolean; database?: string }>("/health/database"),
@@ -354,6 +377,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
       readJson<ProviderIntakeHealthResponse>("/admin/connections/intake/health", true),
       readJson<SessionListResponse>("/admin/sessions", true),
       readJson<BackupHealthResponse>("/admin/backup/health", true),
+      readJson<LocalAgentStatusResponse>("/admin/local-agent/status", true),
       readJson<TestingSmokeStateResponse>("/admin/testing/smoke-state", true),
       readJson<LiveHelperDashboardResponse>("/admin/live-helper", true),
       readJson<MoneyLedgerDashboardResponse>("/admin/money/ledger", true)
@@ -368,6 +392,7 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const intakeResult = getFulfilled(intakeHealth);
   const sessionResult = getFulfilled(sessions);
   const backupResult = getFulfilled(backupHealth);
+  const localAgentResult = getFulfilled(localAgent);
   const smokeResult = getFulfilled(testingSmokeState);
   const liveHelperResult = getFulfilled(liveHelper);
   const moneyLedgerResult = getFulfilled(moneyLedger);
@@ -381,6 +406,12 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const databaseTables = backupResult?.payload?.ok ? backupResult.payload.requiredTables : [];
   const missingDatabaseTables = databaseTables.filter((table) => !table.present).length;
   const backupWarnings = backupResult?.payload?.ok ? backupResult.payload.warnings.length : 0;
+
+  const localAgentSnapshot = localAgentResult?.payload?.ok ? localAgentResult.payload : null;
+  const availableLocalAgentModules = localAgentSnapshot?.modules.filter(
+    (module) => module.availability === "available"
+  ).length ?? 0;
+  const localAgentState = localAgentSnapshot?.connection.state ?? null;
 
   const smokeState = smokeResult?.payload?.ok ? smokeResult.payload.state : null;
   const smokeStatus = smokeState?.status ?? "unknown";
@@ -472,6 +503,27 @@ const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
           : backupWarnings > 0
             ? "warn"
             : "ok"
+    },
+    {
+      key: "local-agent",
+      label: "Local Agent",
+      value: localAgentState === "connected"
+        ? "Connected"
+        : localAgentState === "degraded"
+          ? "Degraded"
+          : localAgentState === "disconnected"
+            ? "Disconnected"
+            : localAgentState === "not_configured"
+              ? "Not configured"
+              : "Unavailable",
+      detail: localAgentSnapshot
+        ? `${availableLocalAgentModules}/${localAgentSnapshot.modules.length} modules available${localAgentSnapshot.connection.serviceVersion ? ` · service ${localAgentSnapshot.connection.serviceVersion}` : ""}`
+        : `HTTP ${localAgentResult?.status ?? "failed"}`,
+      tone: localAgentState === "connected"
+        ? "ok"
+        : localAgentState === "degraded"
+          ? "warn"
+          : "bad"
     },
     {
       key: "smoke",
@@ -586,6 +638,7 @@ const getHealthSummaryRows = (statusCards: readonly DashboardStatusCard[]): read
   const api = findStatusCard(statusCards, "api");
   const database = findStatusCard(statusCards, "database");
   const backup = findStatusCard(statusCards, "backup");
+  const localAgent = findStatusCard(statusCards, "local-agent");
   const sessions = findStatusCard(statusCards, "sessions");
   const money = findStatusCard(statusCards, "money");
   const coreTone = getWorstTone([api, database].filter((card): card is DashboardStatusCard => Boolean(card)));
@@ -611,6 +664,13 @@ const getHealthSummaryRows = (statusCards: readonly DashboardStatusCard[]): read
       state: backup?.tone === "loading" ? "Checking" : backup?.tone === "bad" ? "Attention" : "Unverified",
       detail: backupDetail,
       tone: backup?.tone === "loading" ? "loading" : backup?.tone === "bad" ? "bad" : "neutral"
+    },
+    {
+      key: "local-agent",
+      area: "Local agent",
+      state: localAgent?.value ?? "Unknown",
+      detail: localAgent?.detail ?? "Streaming-PC service health unavailable",
+      tone: localAgent?.tone === "warn" ? "bad" : localAgent?.tone ?? "loading"
     },
     {
       key: "access",

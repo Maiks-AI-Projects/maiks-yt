@@ -4,8 +4,8 @@
 
 - `apps/local-agent` now provides the tested single outbound service foundation. Keep local streaming-PC integrations as focused modules in this service instead of creating unrelated background apps.
 - The authenticated outbound-agent WebSocket and production music projection now exist. The agent downloads bounded audio using its dedicated bearer only against the configured API origin, controls VLC on `stream_music`, reports lifecycle state, and releases to `/music/player` on disconnect or play failure.
-- Owner-only `GET /admin/local-agent/status` now exposes sanitized configuration, connection freshness, service version, module capability, and bounded VLC state without device IDs, credentials, command data, raw details, paths, or playback IDs.
-- Next credential work is managed rotation/revocation without exposing the token. Any materially new owner status/rotation UI must first complete the image-first approval cycle.
+- Owner-only `GET /admin/local-agent/status` now exposes sanitized configuration, connection freshness, service version, module capability, and bounded VLC state without device IDs, credentials, command data, raw details, paths, or playback IDs. Admin Overview includes the compact connection/module summary.
+- Next credential work is managed rotation/revocation without exposing the token. Any materially new rotation UI must first complete the image-first approval cycle.
 - Do not install or start the user service while the production host is unreachable. Once reachability returns, configure the dedicated credential/device identity deliberately and run a real proof covering reconnect, restart-safe dedupe, automatic next track, Private-only cue/TTS, Music-only VLC output, browser fallback, temporary-file cleanup, and clean shutdown.
 
 ## OBS Companion Follow-Up
