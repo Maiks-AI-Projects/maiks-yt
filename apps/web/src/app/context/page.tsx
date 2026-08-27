@@ -1,29 +1,53 @@
+import type { Metadata } from "next";
+
+import { contextEntries } from "./context-entry-data";
+import styles from "./context.module.css";
+
+export const metadata: Metadata = {
+  title: "Stream context",
+  description: "Short explanations for recurring references heard on Michael's streams."
+};
+
 const ContextPage = (): React.ReactNode => (
-  <main className="content-page">
-    <header className="links-header">
-      <p className="eyebrow">Creator-provided context</p>
-      <h1>Personal Context</h1>
-      <p>This page is Michael&apos;s place to share selected personal context in his own words. It is not medical or legal guidance.</p>
+  <main className={styles.page}>
+    <header className={styles.intro}>
+      <p className={styles.eyebrow}>Stream context</p>
+      <h1>Things that may need an explanation.</h1>
+      <p>
+        Short background for recurring names, phrases, plans, and references heard on stream. Bot
+        commands can link directly to an entry without interrupting the conversation with the full
+        story.
+      </p>
     </header>
 
-    <aside className="content-notice" aria-label="Draft status">
-      This is a restrained public draft. Michael can revise or remove any detail before release.
-    </aside>
+    <section className={styles.index} aria-labelledby="context-index-heading">
+      <header className={styles.indexHeading}>
+        <h2 id="context-index-heading">Context index</h2>
+        <p>Entries are kept alphabetical. Direct links use the entry name after the # symbol.</p>
+      </header>
 
-    <section>
-      <h2>Context around streaming</h2>
-      <p>Michael has health issues that can affect streaming. Streams may sometimes be irregular, shorter, cancelled, or lower energy.</p>
-      <p>This page does not name conditions, interpret symptoms, or explain individual cancellations.</p>
-    </section>
-
-    <section>
-      <h2>Family and home life</h2>
-      <p>Michael lives next to his ex-wife and has his son half of the time. Those responsibilities are part of the context around his schedule and availability.</p>
-    </section>
-
-    <section>
-      <h2>Boundaries</h2>
-      <p>Sharing broad context does not make every personal detail public. Stream updates can stay brief, and Michael can decide what to explain case by case.</p>
+      <ol className={styles.entryList}>
+        {contextEntries.map((entry, index) => (
+          <li className={styles.entry} id={entry.id} key={entry.id}>
+            <span className={styles.entryNumber} aria-hidden="true">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <a className={styles.entryTitle} href={`#${entry.id}`}>
+              {entry.title}
+            </a>
+            <div className={styles.entryContent}>
+              <p>{entry.description}</p>
+              {entry.relatedLinks ? (
+                <nav className={styles.relatedLinks} aria-label={`Related to ${entry.title}`}>
+                  {entry.relatedLinks.map((link) => (
+                    <a href={link.href} key={link.href}>{link.label} &rarr;</a>
+                  ))}
+                </nav>
+              ) : null}
+            </div>
+          </li>
+        ))}
+      </ol>
     </section>
   </main>
 );
