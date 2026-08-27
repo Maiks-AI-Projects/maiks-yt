@@ -46,6 +46,10 @@ const createRealtimeSpikeEvent = ({
 });
 
 export const registerRealtimeSpikeRoutes = (server: FastifyInstance): void => {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
   server.post<{ Body: RealtimeEvent }>("/events/test", async (request) => ({
     accepted: true,
     eventType: request.body.type

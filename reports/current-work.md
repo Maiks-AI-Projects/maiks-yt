@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-27 production realtime-spike boundary
+
+- Production no longer registers the unauthenticated `/events/test`, `/realtime/spike/sse`, or `/realtime/spike/ws` transport experiments. Development and test environments retain the existing spike harness and `scripts/realtime-spike-test.mjs` workflow.
+- Focused route-table coverage proves all three routes are absent in production, the event echo remains available outside production, and a production request receives Fastify's normal `404`. Real overlay WebSockets, OBS widget transport, provider intake, and Event Routing are unchanged.
+- The API suite passes with 516 tests, API typecheck passes, and architecture/whitespace checks pass. This slice changes no UI, schema, migration, credentials, provider behavior, deployment, or server state. GUI verification remains prohibited by Michael's desktop-control stop order.
+
 ## 2026-08-27 production container provenance reconciliation
 
 - Read-only inspection on exact host `Michael-Server-1` reconciled both container replacements reported by Network Monitor as intended Maiks.yt deployments. Network monitoring neither initiated nor remediated them.
