@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { apiFetch } from "../dev-auth-token.js";
-import { apiBaseUrl, createWebUrl } from "../runtime-config.service.js";
+import { apiBaseUrl } from "../runtime-config.service.js";
 
 type MusicPlaybackStatus = "idle" | "loading" | "playing" | "paused" | "blocked" | "error";
 
@@ -31,12 +31,38 @@ type MusicPlaybackFailure = {
   readonly reason: string;
 };
 
-const readOverlayUrl = (): string => {
-  const url = new URL(createWebUrl("/music/player"));
+const playbackStatusLabels: Record<MusicPlaybackStatus, string> = {
+  blocked: "Blocked",
+  error: "Needs attention",
+  idle: "Idle",
+  loading: "Starting",
+  paused: "Paused",
+  playing: "Playing"
+};
 
-  url.searchParams.set("accessToken", "OVERLAY_ACCESS_TOKEN");
+const playbackReasonLabels: Readonly<Record<string, string>> = {
+  music_audio_failed_before_start: "The selected track could not start.",
+  music_history_write_failed: "Playback history could not be saved.",
+  music_no_playable_tracks: "No eligible playable tracks are available.",
+  music_play_control_forbidden: "Your account cannot control music.",
+  music_play_control_unavailable: "Music control is temporarily unavailable.",
+  music_play_control_user_unlinked: "Link your Maiks.yt account before controlling music."
+};
 
-  return url.toString();
+const readPlaybackMessage = (state: MusicPlaybackState | null, fallback: string): string => {
+  if (state?.reason) {
+    return playbackReasonLabels[state.reason] ?? "Music needs attention.";
+  }
+
+  if (!state) {
+    return fallback;
+  }
+
+  if (state.status === "idle") {
+    return "Ready to select the next eligible track.";
+  }
+
+  return playbackStatusLabels[state.status];
 };
 
 const requestPlayback = async <TResult,>(
@@ -53,23 +79,22 @@ const requestPlayback = async <TResult,>(
 
 export const MusicControlPanel = (): React.ReactNode => {
   const [state, setState] = useState<MusicPlaybackState | null>(null);
-  const [message, setMessage] = useState<string>("Loading music playback");
+  const [message, setMessage] = useState<string>("Loading music playback.");
   const [busyAction, setBusyAction] = useState<"play" | "pause" | "skip" | null>(null);
-  const obsUrl = useMemo(readOverlayUrl, []);
 
   const loadState = async (): Promise<void> => {
     try {
       const payload = await requestPlayback<MusicPlaybackState | MusicPlaybackFailure>("/admin/music/play-control/state");
 
       if (!payload.ok) {
-        setMessage(payload.reason);
+        setMessage(playbackReasonLabels[payload.reason] ?? "Music control is unavailable.");
         return;
       }
 
       setState(payload);
-      setMessage(payload.reason ?? payload.status);
+      setMessage(readPlaybackMessage(payload, "Music control is ready."));
     } catch {
-      setMessage("music_play_control_unavailable");
+      setMessage("Music control is temporarily unavailable.");
     }
   };
 
@@ -95,14 +120,14 @@ export const MusicControlPanel = (): React.ReactNode => {
       });
 
       if (!payload.ok) {
-        setMessage(payload.reason);
+        setMessage(playbackReasonLabels[payload.reason] ?? "Music control is unavailable.");
         return;
       }
 
       setState(payload);
-      setMessage(payload.reason ?? payload.status);
+      setMessage(readPlaybackMessage(payload, "Music control is ready."));
     } catch {
-      setMessage("music_play_control_unavailable");
+      setMessage("Music control is temporarily unavailable.");
     } finally {
       setBusyAction(null);
     }
@@ -115,22 +140,33 @@ export const MusicControlPanel = (): React.ReactNode => {
           <h2>Music</h2>
           <p>{message}</p>
         </div>
-        <span className={`music-status-pill ${state?.status ?? "idle"}`}>{state?.status ?? "idle"}</span>
+        <span className={`music-status-pill ${state?.status ?? "idle"}`}>
+          {playbackStatusLabels[state?.status ?? "idle"]}
+        </span>
       </div>
       <div className="music-now-playing">
         <strong>{state?.currentTrack?.title ?? "No track loaded"}</strong>
         <span>{state?.currentTrack ? `${state.currentTrack.artist} - ${state.currentTrack.providerName}` : "Press play to load the next eligible track."}</span>
         {state?.currentTrack?.attributionText ? <small>{state.currentTrack.attributionText}</small> : null}
       </div>
+      <div className={`music-output-state ${state?.player.connected ? "connected" : "disconnected"}`}>
+        <span aria-hidden="true" />
+        <strong>Playback output</strong>
+        <small>{state?.player.connected ? "Connected" : "Waiting for the VLC agent or browser player"}</small>
+      </div>
       <div className="music-control-actions">
-        <button type="button" disabled={busyAction !== null} onClick={() => void sendControl("play")}>Play</button>
-        <button type="button" disabled={busyAction !== null || !state?.currentTrack} onClick={() => void sendControl("pause")}>Pause</button>
+        <button type="button" disabled={busyAction !== null} onClick={() => void sendControl("play")}>
+          {state?.status === "paused" ? "Resume" : "Play"}
+        </button>
+        <button
+          type="button"
+          disabled={busyAction !== null || (state?.status !== "playing" && state?.status !== "loading")}
+          onClick={() => void sendControl("pause")}
+        >
+          Pause
+        </button>
         <button type="button" disabled={busyAction !== null || !state?.currentTrack} onClick={() => void sendControl("skip")}>Skip</button>
       </div>
-      <label className="music-obs-url">
-        <span>OBS Browser Source URL</span>
-        <input readOnly value={obsUrl} onFocus={(event) => event.currentTarget.select()} />
-      </label>
     </section>
   );
 };

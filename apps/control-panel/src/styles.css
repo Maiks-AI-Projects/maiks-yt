@@ -249,19 +249,30 @@ a {
   min-width: 5.25rem;
 }
 
-.music-obs-url {
+.music-output-state {
+  align-items: center;
+  color: #d9e2eb;
   display: grid;
-  gap: 0.35rem;
+  font-size: 0.86rem;
+  gap: 0.15rem 0.5rem;
+  grid-template-columns: auto auto 1fr;
 }
 
-.music-obs-url input {
-  background: #101820;
-  border: 1px solid #2d3a47;
-  border-radius: 6px;
-  color: #d9e2eb;
-  font: inherit;
-  min-height: 2.35rem;
-  padding: 0.35rem 0.55rem;
+.music-output-state > span {
+  background: #f05d5e;
+  border-radius: 50%;
+  grid-row: 1 / 3;
+  height: 0.55rem;
+  width: 0.55rem;
+}
+
+.music-output-state.connected > span {
+  background: #35d07f;
+}
+
+.music-output-state small {
+  color: #9fb0bd;
+  grid-column: 3;
 }
 
 .chat-service-status {

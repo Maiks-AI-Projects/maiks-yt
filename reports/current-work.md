@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 truthful Control music operations
+
+- Removed the fake `OVERLAY_ACCESS_TOKEN` Browser Source URL from the production Control Music view. The operator surface now shows human-readable playback status and whether an actual playback consumer is connected, without exposing setup placeholders or raw internal reason codes.
+- Play changes to Resume while paused, Pause is enabled only while starting or playing, and Skip still requires a current track. The existing authoritative API, permissions, local VLC handoff, and browser/OBS fallback are unchanged.
+- Control tests, typecheck, build, the shared `pnpm check:review` gate, architecture validation, and whitespace checks pass. Synthetic visual proof at 1366x768 and 720x900 is recorded under `reports/visual-qa/production-pwa-redesign`; both widths have no horizontal overflow.
+- No API, schema, migration, credential, provider, database, deployment, or live server state changed. Installed owner access and real VLC/OBS playback remain open verification gates.
+
 ## 2026-08-27 production roadmap reconciliation
 
 - Corrected three stale implementation claims after tracing the deployed production paths. Twitch live/offline Event Routing now has an authoritative fail-closed resolver, newly inserted normalized Twitch/YouTube/Discord events already execute production routing rules, and the Control PWA already contains authoritative music state plus play, pause/resume, and skip controls.

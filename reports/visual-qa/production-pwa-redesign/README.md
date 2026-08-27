@@ -19,6 +19,8 @@ This is local synthetic verification of the first production implementation of t
 - `control-overview-1366x768.png`
 - `control-overlay-1366x768.png`
 - `control-overlay-960x1080.png`
+- `control-music-1366x768.png`
+- `control-music-720x900.png`
 - `notifications-390x844.png`
 
 ## Findings
@@ -28,10 +30,11 @@ This is local synthetic verification of the first production implementation of t
 - Touch emulation exposes one Options control after selecting a row, then reveals Warn, Hide, Ban, note, provider, and allow actions.
 - Moderation uses its own permission-derived internal navigation and a selected-message context panel without adding cross-PWA navigation.
 - Control separates Overview, Stream Controls, Overlays & Scenes, Actions, Music, and Provider Health. The compatibility scene editor warns that saving can update connected master-overlay Browser Sources, shows only working controls, and stacks cleanly at half-screen width without horizontal overflow.
+- Music uses authoritative playback state, human-readable status copy, and a compact playback-output indicator. It does not expose a placeholder Browser Source URL or token-shaped setup copy. Both captured widths fit without horizontal overflow.
 - Notifications has its own compact dark mobile layout and install manifest.
 
 The implementation follows the approved density and hierarchy. Chat retains one extra compact status and attention row because those working production controls need to remain reachable.
 
 ## Blocked proof
 
-Installed-PWA authentication, provider data, real moderation effects, overlay changes, music output, and notification actions were not verified against production. `codex-server-1` was unreachable and all production origins returned Cloudflare `530` during this pass. These screenshots and interaction checks prove the local implementation only.
+Installed-PWA authentication, provider data, real moderation effects, overlay changes, music output, and notification actions were not verified against production. The initial redesign pass was captured while `codex-server-1` was unreachable and all production origins returned Cloudflare `530`; the later Music captures use local credential-free request interception. These screenshots and interaction checks prove the local implementation only.
