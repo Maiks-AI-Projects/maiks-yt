@@ -173,6 +173,56 @@ describe("GET /overlay/state", () => {
   });
 });
 
+describe("production overlay route registration", () => {
+  it("omits every fake overlay injection route while retaining real overlay reads", async () => {
+    const originalNodeEnvironment = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      const server = Fastify();
+
+      registerOverlayRoutes(server, {
+        fakeLocalModerationRuntime: {
+          isAuthorMuted: () => null
+        },
+        overlayRuntime: new OverlayRuntime(),
+        recordFakeLocalStreamerChatMessage: () => null,
+        requireStreamerChatModerationPermission: async () => ({ ok: true }),
+        requireUrlAccessTokenForRequest: async () => ({
+          ok: false,
+          statusCode: 401,
+          reason: "not_authenticated"
+        }),
+        validateUrlAccessToken: async () => ({ valid: true, requiresLogin: false })
+      });
+      servers.push(server);
+
+      for (const url of [
+        "/overlay/chat/test",
+        "/overlay/live-audience/test",
+        "/overlay/top-bar/test",
+        "/overlay/notification/test",
+        "/overlay/redeem/test"
+      ]) {
+        const response = await server.inject({ method: "POST", url, payload: {} });
+        expect(response.statusCode).toBe(404);
+      }
+
+      const stateResponse = await server.inject({
+        method: "GET",
+        url: `/overlay/state?accessToken=${"a".repeat(24)}`
+      });
+      expect(stateResponse.statusCode).toBe(200);
+    } finally {
+      if (originalNodeEnvironment === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = originalNodeEnvironment;
+      }
+    }
+  });
+});
+
 describe("GET /overlay/status", () => {
   it("uses the request-aware control gate before returning overlay control status", async () => {
     const server = Fastify();

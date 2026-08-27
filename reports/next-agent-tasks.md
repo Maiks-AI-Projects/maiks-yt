@@ -51,6 +51,7 @@
 - The production tree no longer exposes `/dev/test-console`, `/gemini-lab`, `/gemini-lab/[slug]`, or `/admin/live-helper` as web pages.
 - Do not restore those routes. The retired `/admin/live-helper` API aggregate is replaced by owner-only `/admin/overview/activity`, which returns only actionable warning/critical counts and active helper counts. Do not reintroduce simulated/test approval, history, or fake-local summaries into production operator navigation.
 - The orphaned Control realtime probe, event simulator, fake-chat editor contract, and simulation-only Moderation approvals route are removed in the current reviewed patch. Preserve the real chat, rules, audit, notifications, and provider-moderation owners instead of rebuilding an aggregate test panel.
+- Production API registration now omits `/overlay/chat/test`, `/overlay/live-audience/test`, `/overlay/top-bar/test`, `/overlay/notification/test`, `/overlay/redeem/test`, and `/fake-local-chat/moderation/commands`. Keep those harness routes non-production-only; do not use production credentials or overlays as a simulator.
 - After production reachability returns, deploy the reviewed cleanup and verify the retired routes return the normal not-found experience. Confirm `/links` does not publish any surviving Layout Lab database row.
 - Continue the broader hygiene audit separately. Static profile demonstrations and remaining implementation-detail copy still need deliberate product decisions; do not remove them casually.
 

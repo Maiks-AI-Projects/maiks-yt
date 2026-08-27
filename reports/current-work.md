@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 production overlay-test route boundary
+
+- Production no longer registers the fake overlay injection routes for chat, combined audience events, top-bar demos, routed notifications, or redeems. It also omits the fake/local moderation command route, so a production Control token and session cannot inject drill data into a real overlay through those legacy paths.
+- Development and test environments retain the existing harness without changing its behavior. Real overlay state/live/scenes/status routes, OBS widget transport, provider chat intake, Event Routing playback, and provider moderation remain registered in production.
+- Focused API coverage proves all six fake/test routes return the normal Fastify `404` in production without authentication, audit, message, or overlay side effects, while the real overlay state route remains available. No visual change is introduced, so the image-first cycle does not apply; GUI verification remains prohibited by Michael's desktop-control stop order.
+- The full production review gate passes with 148 domain tests, 514 API tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and whitespace checks. Independent GPT-5.5 security/cross-app review found no issues and confirmed the production Docker/compose path sets `NODE_ENV=production`. This slice changes no schema, migration, credentials, provider behavior, environment files, deployment, or server state.
+
 ## 2026-08-27 Admin Overview activity boundary
 
 - Replaced the retired `/admin/live-helper` API aggregate with owner-only `GET /admin/overview/activity`. The production Admin Overview now receives only open warning/critical notification counts and the count of active, safe non-owner helper/moderator grants.

@@ -43,6 +43,10 @@ export const registerFakeLocalModerationRoutes = (
   server: FastifyInstance,
   dependencies: FakeLocalModerationRouteDependencies
 ): void => {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
   const getService = (): Pick<FakeLocalModerationService, "executeCommand" | "recordUnauthenticatedAttempt"> =>
     dependencies.createService?.()
     ?? new FakeLocalModerationService(

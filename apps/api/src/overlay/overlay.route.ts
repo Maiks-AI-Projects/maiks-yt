@@ -53,7 +53,10 @@ export const registerOverlayRoutes = (
 
   registerOverlayLiveRoute(server, dependencies);
   registerOverlaySceneRoutes(server, dependencies);
-  registerOverlayTestRoutes(server, dependencies);
+
+  if (process.env.NODE_ENV !== "production") {
+    registerOverlayTestRoutes(server, dependencies);
+  }
 
   server.get("/overlay/state", async (request, reply) => {
     const parsedRequest = overlayStateRequestSchema.safeParse(request.query);

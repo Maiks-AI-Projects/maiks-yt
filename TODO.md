@@ -298,6 +298,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Delete retired test-console/Live Helper CSS after proving which shared boundary selectors remain in use; rename the Provider Integrations boundary selector to its actual owner.
   - [x] Remove orphaned Control realtime/simulator components, the unused fake-chat editor contract, and the Moderation `Approvals & Queues` route that only summarized simulated/test Live Helper data. Preserve real moderation rules, audit, notifications, and provider actions.
   - [x] Replace the retired `/admin/live-helper` API aggregate with an owner-only `/admin/overview/activity` projection containing only actionable warning/critical counts and active helper counts. Remove simulated approvals/history and fake-local moderation data from this production dashboard boundary.
+  - [x] Omit fake overlay injection and fake/local moderation command routes from production API registration while retaining the development/test harness outside production. Preserve real overlay reads, live transport, scene controls, provider chat, and provider moderation.
   - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API with clearly labelled backend example records.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.

@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { registerFakeLocalModerationRoutes } from "../../src/fake-local-moderation/fake-local-moderation.route.js";
 import { FakeLocalModerationService } from "../../src/fake-local-moderation/fake-local-moderation.service.js";
@@ -106,6 +106,38 @@ const createServer = ({
 };
 
 describe("fake/local moderation commands", () => {
+  it("does not register the fake/local command route in production", async () => {
+    const originalNodeEnvironment = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      const getAuthSession = vi.fn(async () => ({ user: { id: "auth-owner" } }));
+      const repository = new FakeModerationRepository();
+      const runtime = new FakeModerationRuntime();
+      const server = createServer({ getAuthSession, repository, runtime });
+      const response = await server.inject({
+        method: "POST",
+        url: "/fake-local-chat/moderation/commands",
+        payload: {
+          action: "hide_message",
+          targetMessageId: "message-1"
+        }
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(getAuthSession).not.toHaveBeenCalled();
+      expect(repository.auditEntries).toHaveLength(0);
+      expect(runtime.messages.has("message-1")).toBe(true);
+      await server.close();
+    } finally {
+      if (originalNodeEnvironment === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = originalNodeEnvironment;
+      }
+    }
+  });
+
   it("denies unauthenticated command attempts and records a local audit row", async () => {
     const repository = new FakeModerationRepository();
     const runtime = new FakeModerationRuntime();
