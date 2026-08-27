@@ -1,5 +1,11 @@
 # Next Agent Tasks
 
+## Production Active-Grant Authorization
+
+- Reviewed production patches now exclude revoked and expired grants across Project admin, Money, URL Tokens, Sessions, Event Routing administration, Notifications, Content Pages, Stream Schedule, Creator Links, and Game Library. Active owner wildcard and delegated capabilities retain their existing limits.
+- Deploy only in a deliberate verification window. Use disposable delegated grants to prove active access, then revoke or expire them and prove the same signed-in actor receives the existing forbidden response without a protected read or mutation.
+- The repository tests inspect SQL placement and service denial. They do not replace a MariaDB-backed mixed-grant rehearsal.
+
 ## Production Website Event Routing
 
 - The reviewed production patch connects public schedule create/update/cancel mutations to real website Event Routing. It keeps private schedules and game-link-only edits silent and commits history, approval, and cooldown state atomically. It is not deployed or live-verified.

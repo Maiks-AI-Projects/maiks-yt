@@ -1,4 +1,5 @@
 import type { EventRoutingRuleInput } from "@maiks-yt/domain/events";
+import type { DatabasePool } from "@maiks-yt/database";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -204,6 +205,43 @@ class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
 }
 
 describe("event routing admin store boundaries", () => {
+  it("excludes revoked and expired role grants while preserving active delegated access", async () => {
+    let actorSql = "";
+    const repository = createEventRoutingAdminRepository({
+      execute: async (sql: string, parameters: unknown[] = []) => {
+        actorSql = sql;
+        expect(parameters).toEqual(["auth-routing-admin"]);
+        return [[{
+          domainUserId: "domain-routing-admin",
+          rolePermissions: JSON.stringify(["event-routing:manage"])
+        }]];
+      }
+    } as unknown as DatabasePool);
+
+    const actor = await repository.resolveActor("auth-routing-admin");
+
+    expect(actor).toEqual({
+      domainUserId: "domain-routing-admin",
+      rolePermissionValues: [JSON.stringify(["event-routing:manage"])]
+    });
+    expect(actorSql).toContain("user_roles.revoked_at IS NULL");
+    expect(actorSql).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
+  it("preserves active owner wildcard access", async () => {
+    const repository = createEventRoutingAdminRepository({
+      execute: async () => [[{
+        domainUserId: "domain-owner",
+        rolePermissions: JSON.stringify(["*"])
+      }]]
+    } as unknown as DatabasePool);
+
+    await expect(repository.resolveActor("auth-owner")).resolves.toEqual({
+      domainUserId: "domain-owner",
+      rolePermissionValues: [JSON.stringify(["*"])]
+    });
+  });
+
   it("deletes only the selected rule row and leaves history and cooldown tables untouched", async () => {
     const calls: Array<{ sql: string; parameters: unknown[] }> = [];
     const repository = createEventRoutingAdminRepository({
@@ -362,6 +400,33 @@ describe("EventRoutingAdminService", () => {
     });
   });
 
+  it("preserves active delegated event-routing:manage access for bounded rule updates", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.actor = {
+      domainUserId: "routing-manager",
+      rolePermissionValues: [JSON.stringify(["event-routing:manage"])]
+    };
+    const service = new EventRoutingAdminService(repository);
+
+    await expect(service.updateRule({
+      authUserId: "auth-manager",
+      rule: baseRule({
+        destination: "internal_audit",
+        enabled: true
+      })
+    })).resolves.toMatchObject({
+      ok: true,
+      rule: {
+        destination: "internal_audit",
+        enabled: true
+      }
+    });
+    expect(repository.lastUpsert).toMatchObject({
+      actorUserId: "routing-manager",
+      enabled: true
+    });
+  });
+
   it("rejects impossible provider combinations and internal-only public destinations", async () => {
     const repository = new FakeEventRoutingAdminRepository();
     const service = new EventRoutingAdminService(repository);
@@ -414,6 +479,47 @@ describe("EventRoutingAdminService", () => {
       ok: false,
       reason: "event_routing_admin_forbidden"
     });
+  });
+
+  it("denies linked users when no active delegated routing grant remains without rule side effects", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.actor = {
+      domainUserId: "routing-manager",
+      rolePermissionValues: [null]
+    };
+    const service = new EventRoutingAdminService(repository);
+
+    await expect(service.updateRule({
+      authUserId: "auth-manager",
+      rule: baseRule({
+        enabled: true
+      })
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_forbidden"
+    });
+    expect(repository.lastUpsert).toBeNull();
+    expect(repository.rules.size).toBe(0);
+  });
+
+  it("denies linked users when no active owner wildcard remains without owner-only side effects", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-owner",
+      rolePermissionValues: [null]
+    };
+    repository.rules.set("website.signup:any", toRecord(baseRule(), { id: "any-rule" }));
+    const service = new EventRoutingAdminService(repository);
+
+    await expect(service.deleteRule({
+      authUserId: "auth-owner",
+      eventKind: "website.signup",
+      sourcePlatform: "any"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_forbidden"
+    });
+    expect(repository.rules.has("website.signup:any")).toBe(true);
   });
 
   it("lists pending real approval queue items with safe context", async () => {

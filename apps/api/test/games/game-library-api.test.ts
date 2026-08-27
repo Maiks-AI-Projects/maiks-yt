@@ -7,7 +7,7 @@ import type {
   PublicGameSuggestionInput
 } from "@maiks-yt/domain/games";
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { registerGameLibraryRoutes } from "../../src/games/game-library.route.js";
 import { GameLibraryService } from "../../src/games/game-library.service.js";
@@ -392,6 +392,7 @@ describe("GameLibraryService", () => {
       ok: false,
       reason: "game_library_admin_forbidden"
     });
+    expect(repository.games.size).toBe(0);
   });
 
   it("rejects invalid input and duplicate slugs", async () => {
@@ -463,6 +464,71 @@ describe("GameLibraryService", () => {
 });
 
 describe("game library store boundaries", () => {
+  it("loads only active delegated grants while preserving game library access", async () => {
+    const execute = vi.fn().mockResolvedValue([[
+      {
+        domainUserId: "domain-game-editor",
+        rolePermissions: JSON.stringify(["game-library:manage"])
+      }
+    ], []]);
+    const repository = createGameLibraryRepository({ execute } as never);
+
+    await expect(repository.resolveActor("auth-game-editor")).resolves.toEqual({
+      domainUserId: "domain-game-editor",
+      rolePermissionValues: [JSON.stringify(["game-library:manage"])]
+    });
+    const actorQuery = String(execute.mock.calls[0]?.[0]);
+    expect(actorQuery).toContain("user_roles.revoked_at IS NULL");
+    expect(actorQuery).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
+  it("denies linked users when no active game-library grant remains without writing", async () => {
+    const repository = createGameLibraryRepository({
+      execute: vi.fn().mockResolvedValue([[
+        {
+          domainUserId: "domain-game-editor",
+          rolePermissions: null
+        }
+      ], []])
+    } as never);
+    const writeAttempt = vi.fn();
+    const service = new GameLibraryService({
+      ...repository,
+      createGame: async (input) => {
+        writeAttempt(input);
+        throw new Error("inactive grant must not create games");
+      },
+      reviewSuggestion: async (id, input) => {
+        writeAttempt(id, input);
+        throw new Error("inactive grant must not review suggestions");
+      }
+    });
+
+    await expect(service.createGame({
+      authUserId: "auth-game-editor",
+      game: {
+        title: "Hidden Game",
+        ownershipStatus: "owned",
+        interestStatus: "interested",
+        visibility: "private"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "game_library_admin_forbidden"
+    });
+    await expect(service.reviewSuggestion({
+      authUserId: "auth-game-editor",
+      suggestionId: "suggestion-1",
+      review: {
+        status: "accepted"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "game_library_admin_forbidden"
+    });
+    expect(writeAttempt).not.toHaveBeenCalled();
+  });
+
   it("reads schedule summaries from existing link and schedule tables without audit identities", async () => {
     const calls: Array<{ sql: string; parameters: unknown[] }> = [];
     const repository = createGameLibraryRepository({

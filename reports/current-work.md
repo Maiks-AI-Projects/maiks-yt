@@ -1,10 +1,11 @@
 # Current Work
 
-## 2026-08-28 production project-admin active grants
+## 2026-08-28 production active-grant authorization
 
-- Project-admin actor resolution now excludes revoked and expired role grants while preserving owner wildcard and active delegated `project-admin:manage` access. Linked users with no active qualifying grant continue through the existing forbidden response rather than disappearing into an authentication error.
-- Focused coverage proves the active-grant SQL boundary and service-level denial. Independent GPT-5.5 security review is clean, and the API suite passes with 559 tests plus API typecheck and diff checks.
-- No schema, migration, response shape, project CRUD behavior, UI, deployment, live MariaDB predicate rehearsal, or server state changed.
+- Project admin, Money, URL-token administration, Sessions, Event Routing administration, Notifications, Content Pages, Stream Schedule, Creator Links, and Game Library now exclude revoked and expired role grants while preserving active owner wildcard and delegated capabilities.
+- Every corrected resolver keeps the inactivity predicates inside its `LEFT JOIN`, so a linked user with no active qualifying grant still reaches the existing forbidden response instead of being misclassified as unauthenticated. Focused tests also prove denied actors do not reach the protected repository operations.
+- Two independent GPT-5.5 security reviews are clean. The API suite passes with 585 tests plus API typecheck and diff checks before the final production review gate.
+- No schema, migration, response shape, CRUD, publishing, routing, money behavior, UI, deployment, live MariaDB mixed-grant rehearsal, or server state changed.
 
 ## 2026-08-28 production website Event Routing bridge
 

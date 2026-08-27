@@ -247,6 +247,8 @@ const resolveActor = async (
       FROM auth_user_links
       INNER JOIN users ON users.id = auth_user_links.user_id
       LEFT JOIN user_roles ON user_roles.user_id = users.id
+        AND user_roles.revoked_at IS NULL
+        AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
       LEFT JOIN roles ON roles.id = user_roles.role_id
       WHERE auth_user_links.auth_user_id = ?
         AND users.deleted_at IS NULL

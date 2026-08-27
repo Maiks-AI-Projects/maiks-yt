@@ -1,9 +1,11 @@
+import type { DatabasePool } from "@maiks-yt/database";
 import type { NotificationCreateInput, NotificationRecord } from "@maiks-yt/domain/notifications";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
 import { registerNotificationAdminRoutes } from "../../src/notifications/notification-admin.route.js";
 import { NotificationAdminService } from "../../src/notifications/notification-admin.service.js";
+import { createNotificationAdminRepository } from "../../src/notifications/notification-admin-store.service.js";
 import type {
   NotificationAdminActor,
   NotificationAdminRepository,
@@ -235,6 +237,31 @@ describe("NotificationAdminService", () => {
     });
   });
 
+  it("allows active delegated notification admins without owner wildcard", async () => {
+    const repository = new FakeNotificationAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-notification-admin",
+      rolePermissionValues: [JSON.stringify(["notifications:manage"])]
+    };
+    const service = new NotificationAdminService(repository);
+
+    await expect(service.updateNotificationStatus({
+      authUserId: "auth-notification-admin",
+      id: "notification-1",
+      status: "read"
+    })).resolves.toMatchObject({
+      ok: true,
+      notification: {
+        id: "notification-1",
+        status: "read"
+      }
+    });
+    expect(repository.lastStatusUpdate).toEqual({
+      id: "notification-1",
+      status: "read"
+    });
+  });
+
   it("denies unlinked and non-notification admins", async () => {
     const repository = new FakeNotificationAdminRepository();
     const service = new NotificationAdminService(repository);
@@ -397,6 +424,56 @@ describe("NotificationAdminService", () => {
       revoked: true
     });
     expect(await repository.listActivePushSubscriptions()).toHaveLength(0);
+  });
+});
+
+describe("notification admin mysql authorization boundary", () => {
+  it("excludes revoked and expired role grants while preserving active delegated access", async () => {
+    let actorSql = "";
+    const repository = createNotificationAdminRepository({
+      execute: async (sql: string) => {
+        actorSql = sql;
+        return [[{
+          domainUserId: "domain-notification-admin",
+          rolePermissions: JSON.stringify(["notifications:manage"])
+        }]];
+      }
+    } as unknown as DatabasePool);
+
+    const actor = await repository.resolveActor("auth-notification-admin");
+
+    expect(actor).toEqual({
+      domainUserId: "domain-notification-admin",
+      rolePermissionValues: [JSON.stringify(["notifications:manage"])]
+    });
+    expect(actorSql).toContain(`LEFT JOIN user_roles ON user_roles.user_id = users.id
+        AND user_roles.revoked_at IS NULL
+        AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())`);
+  });
+
+  it("denies linked users and skips notification updates when only inactive grants remain", async () => {
+    const repository = createNotificationAdminRepository({
+      execute: async (sql: string) => {
+        if (sql.includes("FROM auth_user_links")) {
+          return [[{
+            domainUserId: "domain-notification-admin",
+            rolePermissions: null
+          }]];
+        }
+
+        throw new Error("inactive grant must not update notifications");
+      }
+    } as unknown as DatabasePool);
+    const service = new NotificationAdminService(repository);
+
+    await expect(service.updateNotificationStatus({
+      authUserId: "auth-notification-admin",
+      id: "notification-1",
+      status: "read"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "notification_admin_forbidden"
+    });
   });
 });
 

@@ -5,12 +5,14 @@ import type {
   MoneyRuleVersion,
   MoneyRuleVersionInput
 } from "@maiks-yt/domain";
+import type { DatabasePool } from "@maiks-yt/database";
 import { rm } from "node:fs/promises";
 import Fastify from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { registerMoneyAdminRoutes } from "../../src/money/money-admin.route.js";
 import { MoneyAdminService } from "../../src/money/money-admin.service.js";
+import { createMoneyAdminRepository } from "../../src/money/money-admin-store.service.js";
 import type {
   MoneyAdminActor,
   MoneyAdminLedgerFilters,
@@ -90,6 +92,34 @@ const createDraftTransaction = (
     ],
     ...overrides
   });
+
+const createManualTransactionInput = (): MoneyLedgerTransactionInput => ({
+  transactionType: "cost",
+  moneyMode: "real",
+  sourceKind: "manual",
+  sourceProvider: "manual",
+  postingStatus: "draft",
+  occurredAt: "2026-07-09T12:00:00.000Z",
+  accountingAt: "2026-07-09T12:00:00.000Z",
+  correctsTransactionId: null,
+  correctionReason: null,
+  notesPrivate: null,
+  lines: [
+    {
+      lineKind: "cost",
+      direction: "out",
+      amountMinor: 999,
+      currency: "EUR",
+      valueSource: "eur",
+      isEstimate: false,
+      categoryKey: "hosting",
+      projectId: null,
+      projectItemId: null,
+      receiptReference: null,
+      notesPrivate: null
+    }
+  ]
+});
 
 class FakeMoneyAdminRepository implements MoneyAdminRepository {
   public actor: MoneyAdminActor | null = {
@@ -284,6 +314,82 @@ class FakeMoneyAdminRepository implements MoneyAdminRepository {
     this.lastExportAudit = structuredClone(input);
   }
 }
+
+describe("money admin mysql authorization boundary", () => {
+  it("excludes revoked and expired role grants while preserving active delegated access", async () => {
+    let actorSql = "";
+    const repository = createMoneyAdminRepository({
+      execute: async (sql: string, parameters: unknown[] = []) => {
+        actorSql = sql;
+        expect(parameters).toEqual(["auth-money-admin"]);
+        return [[{
+          domainUserId: "domain-money-admin",
+          rolePermissions: JSON.stringify(["money:manage"])
+        }]];
+      }
+    } as unknown as DatabasePool);
+
+    const actor = await repository.resolveActor("auth-money-admin");
+
+    expect(actor).toEqual({
+      domainUserId: "domain-money-admin",
+      rolePermissionValues: [JSON.stringify(["money:manage"])]
+    });
+    expect(actorSql).toContain("user_roles.revoked_at IS NULL");
+    expect(actorSql).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
+  it("preserves active owner wildcard access", async () => {
+    const repository = createMoneyAdminRepository({
+      execute: async () => [[{
+        domainUserId: "domain-owner",
+        rolePermissions: JSON.stringify(["*"])
+      }]]
+    } as unknown as DatabasePool);
+
+    await expect(repository.resolveActor("auth-owner")).resolves.toEqual({
+      domainUserId: "domain-owner",
+      rolePermissionValues: [JSON.stringify(["*"])]
+    });
+  });
+
+  it("denies linked users when no active delegated money grant remains without ledger side effects", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-money-admin",
+      rolePermissionValues: [null]
+    };
+    const transactionCount = repository.transactions.length;
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.createTransaction({
+      authUserId: "auth-money-admin",
+      transaction: createManualTransactionInput()
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_forbidden"
+    });
+    expect(repository.transactions).toHaveLength(transactionCount);
+  });
+
+  it("denies linked users when no active owner wildcard remains without export audit side effects", async () => {
+    const repository = new FakeMoneyAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-owner",
+      rolePermissionValues: [null]
+    };
+    const service = new MoneyAdminService(repository);
+
+    await expect(service.exportLedgerCsv({
+      authUserId: "auth-owner"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "money_admin_forbidden"
+    });
+    expect(repository.exportAuditCount).toBe(0);
+    expect(repository.lastExportAudit).toBeNull();
+  });
+});
 
 describe("MoneyAdminService", () => {
   it("filters ledger list and exports by accounting date", async () => {

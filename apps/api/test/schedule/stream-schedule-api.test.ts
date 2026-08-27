@@ -357,6 +357,8 @@ describe("StreamScheduleService", () => {
       ok: false,
       reason: "stream_schedule_admin_forbidden"
     });
+    expect(repository.lastCreated).toBeNull();
+    expect(repository.streams.has("created-stream")).toBe(false);
   });
 
   it("cancels with constrained reason fields", async () => {
@@ -385,6 +387,69 @@ describe("StreamScheduleService", () => {
 });
 
 describe("stream schedule store boundaries", () => {
+  it("loads only active delegated grants while preserving schedule access", async () => {
+    const execute = vi.fn().mockResolvedValue([[
+      {
+        domainUserId: "domain-scheduler",
+        rolePermissions: JSON.stringify(["schedule:manage"])
+      }
+    ], []]);
+    const repository = createStreamScheduleRepository({ execute } as never);
+
+    await expect(repository.resolveActor("auth-scheduler")).resolves.toEqual({
+      domainUserId: "domain-scheduler",
+      rolePermissionValues: [JSON.stringify(["schedule:manage"])]
+    });
+    const actorQuery = String(execute.mock.calls[0]?.[0]);
+    expect(actorQuery).toContain("user_roles.revoked_at IS NULL");
+    expect(actorQuery).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
+  it("denies linked users when no active schedule grant remains without writing", async () => {
+    const repository = createStreamScheduleRepository({
+      execute: vi.fn().mockResolvedValue([[
+        {
+          domainUserId: "domain-scheduler",
+          rolePermissions: null
+        }
+      ], []])
+    } as never);
+    const writeAttempt = vi.fn();
+    const service = new StreamScheduleService({
+      ...repository,
+      createStream: async (input) => {
+        writeAttempt(input);
+        throw new Error("inactive grant must not create streams");
+      },
+      replaceGameLinks: async (input) => {
+        writeAttempt(input);
+        throw new Error("inactive grant must not replace game links");
+      }
+    });
+
+    await expect(service.createStream({
+      authUserId: "auth-scheduler",
+      ...createPayload()
+    })).resolves.toEqual({
+      ok: false,
+      reason: "stream_schedule_admin_forbidden"
+    });
+    await expect(service.replaceStreamGameLinks({
+      authUserId: "auth-scheduler",
+      id: "stream-1",
+      links: [
+        {
+          gameId: "game-1",
+          relationship: "planned"
+        }
+      ]
+    })).resolves.toEqual({
+      ok: false,
+      reason: "stream_schedule_admin_forbidden"
+    });
+    expect(writeAttempt).not.toHaveBeenCalled();
+  });
+
   it("keeps public live streams visible while preserving future-only planned and cancelled reads", async () => {
     const now = new Date("2026-08-27T12:00:00.000Z");
     const calls: Array<{ sql: string; parameters: unknown[] }> = [];

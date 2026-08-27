@@ -1,8 +1,10 @@
+import type { DatabasePool } from "@maiks-yt/database";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
 import { registerSessionAdminRoutes } from "../../src/sessions/session-admin.route.js";
 import { SessionAdminService } from "../../src/sessions/session-admin.service.js";
+import { createSessionAdminRepository } from "../../src/sessions/session-admin-store.service.js";
 import type {
   SessionAdminActor,
   SessionAdminRecord,
@@ -97,6 +99,32 @@ describe("SessionAdminService", () => {
     });
   });
 
+  it("allows active delegated session admins without owner wildcard", async () => {
+    const repository = new FakeSessionAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-session-admin",
+      rolePermissionValues: [JSON.stringify(["sessions:manage"])]
+    };
+    const service = new SessionAdminService(repository);
+
+    await expect(service.listSessions({
+      authUserId: "auth-session-admin",
+      currentSessionId: "session-current"
+    })).resolves.toMatchObject({
+      ok: true,
+      sessions: [
+        {
+          id: "session-current",
+          isCurrent: true
+        },
+        {
+          id: "session-other",
+          isCurrent: false
+        }
+      ]
+    });
+  });
+
   it("denies users without session permissions", async () => {
     const repository = new FakeSessionAdminRepository();
     repository.actor = {
@@ -171,6 +199,55 @@ describe("SessionAdminService", () => {
     })).resolves.toEqual({
       ok: false,
       reason: "session_admin_invalid_input"
+    });
+  });
+});
+
+describe("session admin mysql authorization boundary", () => {
+  it("excludes revoked and expired role grants while preserving active delegated access", async () => {
+    let actorSql = "";
+    const repository = createSessionAdminRepository({
+      execute: async (sql: string) => {
+        actorSql = sql;
+        return [[{
+          domainUserId: "domain-session-admin",
+          rolePermissions: JSON.stringify(["sessions:manage"])
+        }]];
+      }
+    } as unknown as DatabasePool);
+
+    const actor = await repository.resolveActor("auth-session-admin");
+
+    expect(actor).toEqual({
+      domainUserId: "domain-session-admin",
+      rolePermissionValues: [JSON.stringify(["sessions:manage"])]
+    });
+    expect(actorSql).toContain(`LEFT JOIN user_roles ON user_roles.user_id = users.id
+        AND user_roles.revoked_at IS NULL
+        AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())`);
+  });
+
+  it("denies linked users and skips session revocation when only inactive grants remain", async () => {
+    const repository = createSessionAdminRepository({
+      execute: async (sql: string) => {
+        if (sql.includes("FROM auth_user_links")) {
+          return [[{
+            domainUserId: "domain-session-admin",
+            rolePermissions: null
+          }]];
+        }
+
+        throw new Error("inactive grant must not revoke sessions");
+      }
+    } as unknown as DatabasePool);
+    const service = new SessionAdminService(repository);
+
+    await expect(service.revokeSession({
+      authUserId: "auth-session-admin",
+      id: "session-other"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "session_admin_forbidden"
     });
   });
 });

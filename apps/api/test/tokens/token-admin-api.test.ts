@@ -1,3 +1,4 @@
+import type { DatabasePool } from "@maiks-yt/database";
 import type {
   UrlAccessTokenAdminLaunchEnvironment,
   UrlAccessTokenAdminTarget
@@ -7,6 +8,7 @@ import { describe, expect, it } from "vitest";
 
 import { registerUrlAccessTokenAdminRoutes } from "../../src/tokens/token-admin.route.js";
 import { UrlAccessTokenAdminService } from "../../src/tokens/token-admin.service.js";
+import { createUrlAccessTokenAdminRepository } from "../../src/tokens/token-admin-store.service.js";
 import type {
   UrlAccessTokenAdminActor,
   UrlAccessTokenAdminInsertInput,
@@ -207,6 +209,33 @@ describe("UrlAccessTokenAdminService", () => {
     });
   });
 
+  it("allows active delegated token admins without owner wildcard", async () => {
+    const repository = new FakeUrlAccessTokenAdminRepository("production");
+    repository.actor = {
+      domainUserId: "domain-token-admin",
+      rolePermissionValues: [JSON.stringify(["tokens:manage"])]
+    };
+    const service = new UrlAccessTokenAdminService(repository, {
+      launchEnvironment: "production"
+    });
+
+    await expect(service.createToken({
+      authUserId: "auth-token-admin",
+      target: "overlay",
+      label: "OBS"
+    })).resolves.toMatchObject({
+      ok: true,
+      token: {
+        label: "OBS",
+        baseUrl: "https://overlay.maiks.yt/"
+      }
+    });
+    expect(repository.lastInsert).toMatchObject({
+      surface: "overlay",
+      scopes: ["overlay:connect"]
+    });
+  });
+
   it("keeps dev launch URLs when the public API host is dev under a production Node process", async () => {
     const previousNodeEnv = process.env.NODE_ENV;
     const previousApiPublicBaseUrl = process.env.API_PUBLIC_BASE_URL;
@@ -293,6 +322,62 @@ describe("UrlAccessTokenAdminService", () => {
     };
     await expect(service.createToken({
       authUserId: "auth-user",
+      target: "overlay",
+      label: "OBS"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "url_token_admin_forbidden"
+    });
+  });
+});
+
+describe("URL access token admin mysql authorization boundary", () => {
+  it("excludes revoked and expired role grants while preserving active delegated access", async () => {
+    let actorSql = "";
+    const repository = createUrlAccessTokenAdminRepository({
+      execute: async (sql: string) => {
+        actorSql = sql;
+        return [[{
+          domainUserId: "domain-token-admin",
+          rolePermissions: JSON.stringify(["tokens:manage"])
+        }]];
+      }
+    } as unknown as DatabasePool, {
+      launchEnvironment: "production"
+    });
+
+    const actor = await repository.resolveActor("auth-token-admin");
+
+    expect(actor).toEqual({
+      domainUserId: "domain-token-admin",
+      rolePermissionValues: [JSON.stringify(["tokens:manage"])]
+    });
+    expect(actorSql).toContain(`LEFT JOIN user_roles ON user_roles.user_id = users.id
+        AND user_roles.revoked_at IS NULL
+        AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())`);
+  });
+
+  it("denies linked users and skips token writes when only inactive grants remain", async () => {
+    const repository = createUrlAccessTokenAdminRepository({
+      execute: async (sql: string) => {
+        if (sql.includes("FROM auth_user_links")) {
+          return [[{
+            domainUserId: "domain-token-admin",
+            rolePermissions: null
+          }]];
+        }
+
+        throw new Error("inactive grant must not touch url tokens");
+      }
+    } as unknown as DatabasePool, {
+      launchEnvironment: "production"
+    });
+    const service = new UrlAccessTokenAdminService(repository, {
+      launchEnvironment: "production"
+    });
+
+    await expect(service.createToken({
+      authUserId: "auth-token-admin",
       target: "overlay",
       label: "OBS"
     })).resolves.toEqual({

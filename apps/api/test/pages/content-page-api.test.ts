@@ -1,9 +1,10 @@
 import type { ContentPageSource } from "@maiks-yt/domain/pages";
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { registerContentPageRoutes } from "../../src/pages/content-page.route.js";
 import { ContentPageService } from "../../src/pages/content-page.service.js";
+import { createContentPageRepository } from "../../src/pages/content-page-store.service.js";
 import type {
   ContentPageAdminActor,
   ContentPageCreateInput,
@@ -228,6 +229,7 @@ describe("ContentPageService", () => {
       ok: false,
       reason: "content_page_admin_forbidden"
     });
+    expect(repository.pages.size).toBe(0);
   });
 
   it("rejects reserved paths and path conflicts before publish", async () => {
@@ -355,6 +357,58 @@ describe("ContentPageService", () => {
       ok: false,
       reason: "content_page_ambiguous"
     });
+  });
+});
+
+describe("content page store authorization boundary", () => {
+  it("loads only active delegated grants while preserving page creator access", async () => {
+    const execute = vi.fn().mockResolvedValue([[
+      {
+        domainUserId: "domain-page-editor",
+        rolePermissions: JSON.stringify(["page-creator:manage"])
+      }
+    ], []]);
+    const repository = createContentPageRepository({ execute } as never);
+
+    await expect(repository.resolveActor("auth-page-editor")).resolves.toEqual({
+      domainUserId: "domain-page-editor",
+      rolePermissionValues: [JSON.stringify(["page-creator:manage"])]
+    });
+    const actorQuery = String(execute.mock.calls[0]?.[0]);
+    expect(actorQuery).toContain("user_roles.revoked_at IS NULL");
+    expect(actorQuery).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
+  it("denies linked users when no active page creator grant remains without writing", async () => {
+    const repository = createContentPageRepository({
+      execute: vi.fn().mockResolvedValue([[
+        {
+          domainUserId: "domain-page-editor",
+          rolePermissions: null
+        }
+      ], []])
+    } as never);
+    const writeAttempt = vi.fn();
+    const service = new ContentPageService({
+      ...repository,
+      createPage: async (input) => {
+        writeAttempt(input);
+        throw new Error("inactive grant must not create pages");
+      }
+    });
+
+    await expect(service.createPage({
+      authUserId: "auth-page-editor",
+      page: {
+        title: "Hidden draft",
+        path: "/hidden-draft",
+        body: "Should not be written."
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "content_page_admin_forbidden"
+    });
+    expect(writeAttempt).not.toHaveBeenCalled();
   });
 });
 

@@ -165,6 +165,8 @@ describe("CreatorLinkAdminService", () => {
       ok: false,
       reason: "creator_link_admin_forbidden"
     });
+    expect(repository.lastCreatedLink).toBeNull();
+    expect(repository.links.has("new-link")).toBe(false);
   });
 
   it("creates drafts, publishes valid links, and unpublishes links", async () => {
@@ -300,6 +302,67 @@ describe("CreatorLinkAdminService", () => {
       ok: false,
       reason: "creator_link_not_found"
     });
+  });
+});
+
+describe("Creator link admin authorization boundary", () => {
+  it("loads only active delegated grants while preserving creator links access", async () => {
+    const execute = vi.fn().mockResolvedValue([[
+      {
+        domainUserId: "domain-link-editor",
+        rolePermissions: JSON.stringify(["creator-links:manage"])
+      }
+    ], []]);
+    const repository = createCreatorLinkAdminRepository({ execute } satisfies CreatorLinkAdminQueryExecutor);
+
+    await expect(repository.resolveActor("auth-link-editor")).resolves.toEqual({
+      domainUserId: "domain-link-editor",
+      rolePermissionValues: [JSON.stringify(["creator-links:manage"])]
+    });
+    const actorQuery = String(execute.mock.calls[0]?.[0]);
+    expect(actorQuery).toContain("user_roles.revoked_at IS NULL");
+    expect(actorQuery).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
+  it("denies linked users when no active creator-links grant remains without writing", async () => {
+    const repository = createCreatorLinkAdminRepository({
+      execute: vi.fn().mockResolvedValue([[
+        {
+          domainUserId: "domain-link-editor",
+          rolePermissions: null
+        }
+      ], []])
+    } satisfies CreatorLinkAdminQueryExecutor);
+    const writeAttempt = vi.fn();
+    const service = new CreatorLinkAdminService({
+      ...repository,
+      createLink: async (input) => {
+        writeAttempt(input);
+        throw new Error("inactive grant must not create links");
+      },
+      reorderLinks: async (input) => {
+        writeAttempt(input);
+        throw new Error("inactive grant must not reorder links");
+      }
+    });
+
+    await expect(service.createLink({
+      authUserId: "auth-link-editor",
+      link: createPayload()
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_admin_forbidden"
+    });
+    await expect(service.reorderLinks({
+      authUserId: "auth-link-editor",
+      reorder: {
+        orderedKeys: ["support", "draft"]
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_admin_forbidden"
+    });
+    expect(writeAttempt).not.toHaveBeenCalled();
   });
 });
 
