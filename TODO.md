@@ -258,6 +258,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - Twitch, YouTube, and Discord/community destinations are linked for the dev site; support destination is still unavailable.
 - [x] Add RSS feed for blog posts.
 - [x] Add basic blog/update post model.
+- [x] Add an owner/delegated `updates:manage` API workflow for listing, draft creation/editing, saved preview, publishing, and unpublishing without exposing audit identifiers.
+- [ ] Generate and approve an image-first `/admin/updates` editor, then connect it to the production Updates API.
 - [ ] Add AI-assisted draft workflow.
 - [ ] Require approval before publishing AI-generated posts.
 - [x] Add public personal context page.

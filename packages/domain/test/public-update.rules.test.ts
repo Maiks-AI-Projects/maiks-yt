@@ -1,6 +1,9 @@
 import {
+  buildPublicUpdateAdminPreview,
   buildPublicUpdateDetail,
   buildPublicUpdateSummaryList,
+  canManagePublicUpdates,
+  normalizePublicUpdateAdminInput,
   type PublicUpdateSource
 } from "../src/updates/index.js";
 import { describe, expect, it } from "vitest";
@@ -54,5 +57,56 @@ describe("public update rules", () => {
 
     expect(detail).toMatchObject({ body: "Body detail", isExample: true, kind: "announcement" });
     expect(summary).not.toHaveProperty("body");
+  });
+
+  it("normalizes valid owner input and rejects malformed content", () => {
+    expect(normalizePublicUpdateAdminInput({
+      slug: "  Launch-Note ",
+      title: " Launch note ",
+      summary: " What changed ",
+      body: " The full update. ",
+      kind: "announcement",
+      isPinned: true
+    })).toEqual({
+      ok: true,
+      update: {
+        slug: "launch-note",
+        title: "Launch note",
+        summary: "What changed",
+        body: "The full update.",
+        kind: "announcement",
+        isPinned: true
+      }
+    });
+
+    expect(normalizePublicUpdateAdminInput({
+      slug: "Bad slug",
+      title: "",
+      summary: "Summary",
+      body: "Body",
+      kind: "post",
+      isPinned: false
+    })).toEqual({ ok: false, reason: "public_update_invalid_input" });
+  });
+
+  it("builds a saved draft preview without making the source public", () => {
+    const draft = createUpdate("draft-preview", {
+      status: "draft",
+      visibility: "hidden",
+      publishedAt: null
+    });
+
+    expect(buildPublicUpdateAdminPreview(draft)).toMatchObject({
+      slug: "draft-preview",
+      body: "Body draft-preview",
+      publishedAt: draft.updatedAt
+    });
+    expect(buildPublicUpdateDetail(draft)).toBeNull();
+  });
+
+  it("recognizes owner wildcard and delegated update management", () => {
+    expect(canManagePublicUpdates(["*"])).toBe(true);
+    expect(canManagePublicUpdates(["updates:manage"])).toBe(true);
+    expect(canManagePublicUpdates(["page-creator:manage"])).toBe(false);
   });
 });

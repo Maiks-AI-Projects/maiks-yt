@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-27 production manual Updates API
+
+- Added a production-native manual Updates backend over the existing `public_updates` schema. Authenticated owner-wildcard or delegated `updates:manage` actors can list records, create and edit drafts, preview the saved public projection, publish valid records, and unpublish them through `/admin/updates` routes.
+- New records are always non-example hidden drafts. Publishing applies the public projection rules; unpublishing removes the record from public reads and clears `publishedAt`. Existing example rows remain protected from editing or republishing but can be unpublished so they are removable from public state.
+- Admin responses omit creator/updater account identifiers. Focused domain and API coverage proves active-grant authorization, draft/public separation, preview behavior, lifecycle transitions, example protection, idempotent publish/unpublish retries, and delegated capability access. Published records must be unpublished before editing so changes cannot bypass the saved-preview/publish workflow.
+- `pnpm check:review` passes after independent GPT-5.5 review and follow-up fixes: 151 domain tests, 524 API tests, production Web build, Database/API/Overlay/Control/Local Agent typechecks, 16 Local Agent tests, architecture rules, and whitespace checks. The final reviewer found no remaining issue.
+- No schema, migration, UI, social syndication, AI drafting, deployment, or server state changed. The material `/admin/updates` editor remains behind the required image-first approval cycle, and GUI verification remains prohibited by Michael's desktop-control stop order.
+
 ## 2026-08-27 production update-example boundary
 
 - Production public update responses now omit records explicitly marked `isExample` from the list and return `update_not_found` for direct example slugs. The RSS route also filters example rows defensively, with focused coverage proving a stale upstream example cannot enter feed XML.

@@ -65,7 +65,10 @@ import {
   type StreamerChatModerationAction
 } from "./streamer-chat/index.js";
 import { registerUrlAccessTokenAdminRoutes } from "./tokens/index.js";
-import { registerPublicUpdateReadRoutes } from "./updates/index.js";
+import {
+  registerPublicUpdateAdminRoutes,
+  registerPublicUpdateReadRoutes
+} from "./updates/index.js";
 import type {
   DiscordChatReadOnlyIntakeService,
   TwitchChatReadOnlyIntakeService,
@@ -183,6 +186,10 @@ export const registerApplicationRoutes = ({
     getDatabasePool
   });
   registerContentPageRoutes(server, {
+    getAuthSession,
+    getDatabasePool
+  });
+  registerPublicUpdateAdminRoutes(server, {
     getAuthSession,
     getDatabasePool
   });
