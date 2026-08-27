@@ -56,11 +56,18 @@ describe("StreamerChatRuntime", () => {
     runtime.appendMessage(createMessage({ id: "next-visible-message" }));
     runtime.appendMessage(createMessage({ id: "next-hidden-message" }));
 
-    const parsedMessages = socket.sentMessages.map((message) => JSON.parse(message) as { type: string; payload: unknown });
+    const parsedMessages = socket.sentMessages.map((message) => JSON.parse(message) as {
+      payload: unknown;
+      revision: number;
+      sessionId: string;
+      type: string;
+    });
 
     expect(parsedMessages).toHaveLength(2);
     expect(parsedMessages[0]).toMatchObject({
       type: "streamer-chat.snapshot",
+      revision: 2,
+      sessionId: expect.any(String),
       payload: {
         messages: [
           { id: "visible-message" }
@@ -69,6 +76,8 @@ describe("StreamerChatRuntime", () => {
     });
     expect(parsedMessages[1]).toMatchObject({
       type: "streamer-chat.message.received",
+      revision: 3,
+      sessionId: parsedMessages[0]?.sessionId,
       payload: {
         id: "next-visible-message"
       }
@@ -85,7 +94,11 @@ describe("StreamerChatRuntime", () => {
     expect(runtime.removeMessage("message-1")).toMatchObject({ id: "message-1" });
     expect(runtime.findMessage("message-1")).toBeNull();
 
-    const lastMessage = JSON.parse(socket.sentMessages.at(-1) ?? "{}") as { payload?: { messages?: StreamerChatMessage[] } };
+    const lastMessage = JSON.parse(socket.sentMessages.at(-1) ?? "{}") as {
+      payload?: { messages?: StreamerChatMessage[] };
+      revision?: number;
+    };
     expect(lastMessage.payload?.messages?.map((message) => message.id)).toEqual(["message-2"]);
+    expect(lastMessage.revision).toBe(3);
   });
 });

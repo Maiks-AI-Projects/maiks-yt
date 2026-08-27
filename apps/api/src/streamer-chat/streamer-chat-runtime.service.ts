@@ -1,4 +1,10 @@
-import type { StreamerChatLiveMessage, StreamerChatMessage } from "@maiks-yt/events";
+import { randomUUID } from "node:crypto";
+
+import type {
+  StreamerChatLiveMessage,
+  StreamerChatMessage,
+  StreamerChatSnapshotEvent
+} from "@maiks-yt/events";
 
 export interface StreamerChatLiveSocket {
   close(code?: number, reason?: string): void;
@@ -12,7 +18,9 @@ export type StreamerChatStateListener = () => void;
 export class StreamerChatRuntime {
   private readonly liveClients = new Map<string, StreamerChatLiveSocket>();
   private readonly messages: StreamerChatMessage[] = [];
+  private readonly sessionId = randomUUID();
   private readonly stateListeners = new Set<StreamerChatStateListener>();
+  private revision = 0;
   private visibilityFilter: StreamerChatVisibilityFilter = () => true;
 
   public constructor(private readonly options: {
@@ -34,6 +42,7 @@ export class StreamerChatRuntime {
   public appendMessage(message: StreamerChatMessage): StreamerChatMessage {
     this.messages.unshift(message);
     this.messages.splice(this.options.maxHistory);
+    this.revision += 1;
 
     if (this.isVisible(message)) {
       this.broadcastMessage(message);
@@ -69,14 +78,17 @@ export class StreamerChatRuntime {
     }
 
     this.messages.splice(messageIndex, 1);
-    this.broadcastSnapshot();
+    this.revision += 1;
+    this.broadcastSnapshot(false);
 
     return { ...message };
   }
 
-  public createSnapshot(): StreamerChatLiveMessage {
+  public createSnapshot(): StreamerChatSnapshotEvent {
     return {
       type: "streamer-chat.snapshot",
+      revision: this.revision,
+      sessionId: this.sessionId,
       payload: {
         messages: this.listVisibleMessages(),
         sentAt: new Date().toISOString()
@@ -84,7 +96,10 @@ export class StreamerChatRuntime {
     };
   }
 
-  public broadcastSnapshot(): void {
+  public broadcastSnapshot(advanceRevision = true): void {
+    if (advanceRevision) {
+      this.revision += 1;
+    }
     const serializedMessage = JSON.stringify(this.createSnapshot());
 
     for (const client of this.liveClients.values()) {
@@ -105,6 +120,8 @@ export class StreamerChatRuntime {
   private broadcastMessage(message: StreamerChatMessage): void {
     const serializedMessage = JSON.stringify({
       type: "streamer-chat.message.received",
+      revision: this.revision,
+      sessionId: this.sessionId,
       payload: message
     } satisfies StreamerChatLiveMessage);
 

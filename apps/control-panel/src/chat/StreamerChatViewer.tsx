@@ -1,9 +1,16 @@
-import type { StreamerChatLiveMessage, StreamerChatMessage } from "@maiks-yt/events";
+import type { StreamerChatMessage } from "@maiks-yt/events";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { apiFetch } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
+import { connectStreamerChatLiveFeed } from "./streamer-chat-live-connection.service.js";
+import {
+  applyStreamerChatMessage,
+  applyStreamerChatSnapshot,
+  createEmptyStreamerChatState,
+  parseStreamerChatLiveMessage
+} from "./streamer-chat-state.service.js";
 import {
   canOpenStreamerChatOptions,
   createAuthenticatedWebSocketUrl,
@@ -121,6 +128,7 @@ export const StreamerChatViewer = ({
   const [newWhilePausedCount, setNewWhilePausedCount] = useState(0);
   const messageListRef = useRef<HTMLOListElement | null>(null);
   const liveFollowPausedRef = useRef(false);
+  const attentionBaselineEstablishedRef = useRef(false);
   const chatAttention = useChatAttention(variant === "standalone");
   const visibleMessages = newestOnTop
     ? messages.slice(0, maxMessages)
@@ -302,7 +310,8 @@ export const StreamerChatViewer = ({
 
   useEffect(() => {
     let disposed = false;
-    let webSocket: WebSocket | null = null;
+    let liveStateReceived = false;
+    let versionedState = createEmptyStreamerChatState();
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
     const loadMessages = async (): Promise<void> => {
@@ -326,13 +335,15 @@ export const StreamerChatViewer = ({
           throw new Error(result.reason);
         }
 
-        if (!disposed) {
+        if (!disposed && !liveStateReceived) {
           chatAttention.baselineMessages(result.messages);
-          setMessages(result.messages);
+          attentionBaselineEstablishedRef.current = true;
+          versionedState = applyStreamerChatSnapshot(versionedState, result);
+          setMessages(versionedState.messages);
           setStatus(`Streamer chat ready. ${result.messages.length} message(s) loaded.`);
         }
       } catch (error) {
-        if (!disposed) {
+        if (!disposed && !liveStateReceived) {
           setStatus(error instanceof Error ? error.message : "Streamer chat unavailable.");
         }
       }
@@ -340,51 +351,76 @@ export const StreamerChatViewer = ({
 
     void loadMessages();
 
-    if (token) {
-      webSocket = new WebSocket(createAuthenticatedWebSocketUrl(apiBaseUrl, "/streamer-chat/live", token));
-      webSocket.addEventListener("open", () => {
-        if (!disposed) {
-          setStatus("Streamer chat live.");
-        }
-      });
-      webSocket.addEventListener("message", (event) => {
-        const liveMessage = JSON.parse(String(event.data)) as StreamerChatLiveMessage;
+    const disconnectLiveFeed = token ? connectStreamerChatLiveFeed({
+      onAccessDenied: () => setStatus("Streamer chat access denied. Reopen after signing in again."),
+      onConnected: () => setStatus("Streamer chat live."),
+      onConnecting: (isReconnect) => setStatus(isReconnect ? "Reconnecting streamer chat." : "Connecting streamer chat."),
+      onDisconnected: (retryDelayMs) => setStatus(
+        `Streamer chat disconnected. Reconnecting in ${Math.ceil(retryDelayMs / 1_000)}s.`
+      ),
+      onError: () => setStatus("Streamer chat live feed unavailable. Waiting to reconnect."),
+      onMessage: (data) => {
+        try {
+          const liveMessage = parseStreamerChatLiveMessage(JSON.parse(String(data)));
 
-        if (liveMessage.type === "streamer-chat.snapshot") {
-          chatAttention.baselineMessages(liveMessage.payload.messages);
-          setMessages(liveMessage.payload.messages);
-          return;
-        }
-
-        chatAttention.notifyMessage(liveMessage.payload);
-        if (variant === "standalone" && liveFollowPausedRef.current) {
-          setNewWhilePausedCount((currentCount) => currentCount + 1);
-        }
-        setMessages((currentMessages) => [
-          liveMessage.payload,
-          ...currentMessages.filter((message) => message.id !== liveMessage.payload.id)
-        ].slice(0, 75));
-        window.requestAnimationFrame(() => {
-          if (!disposed && variant === "standalone" && !liveFollowPausedRef.current) {
-            messageListRef.current?.scrollTo({ top: 0 });
+          if (!liveMessage) {
+            setStatus("Streamer chat received an unreadable live update.");
+            return;
           }
-        });
-      });
-      webSocket.addEventListener("close", () => {
-        if (!disposed) {
-          setStatus("Streamer chat live feed closed.");
+
+          if (liveMessage.type === "streamer-chat.snapshot") {
+            const nextState = applyStreamerChatSnapshot(versionedState, {
+              messages: liveMessage.payload.messages,
+              revision: liveMessage.revision,
+              sessionId: liveMessage.sessionId
+            });
+            if (nextState === versionedState) {
+              return;
+            }
+            liveStateReceived = true;
+            if (attentionBaselineEstablishedRef.current) {
+              for (const message of [...nextState.messages].reverse()) {
+                chatAttention.notifyMessage(message);
+              }
+            } else {
+              chatAttention.baselineMessages(liveMessage.payload.messages);
+              attentionBaselineEstablishedRef.current = true;
+            }
+            versionedState = nextState;
+            setMessages(versionedState.messages);
+            return;
+          }
+
+          const nextState = applyStreamerChatMessage(versionedState, {
+            message: liveMessage.payload,
+            revision: liveMessage.revision,
+            sessionId: liveMessage.sessionId
+          });
+          if (nextState === versionedState) {
+            return;
+          }
+          liveStateReceived = true;
+          chatAttention.notifyMessage(liveMessage.payload);
+          if (variant === "standalone" && liveFollowPausedRef.current) {
+            setNewWhilePausedCount((currentCount) => currentCount + 1);
+          }
+          versionedState = nextState;
+          setMessages(versionedState.messages);
+          window.requestAnimationFrame(() => {
+            if (!disposed && variant === "standalone" && !liveFollowPausedRef.current) {
+              messageListRef.current?.scrollTo({ top: 0 });
+            }
+          });
+        } catch {
+          setStatus("Streamer chat received an unreadable live update.");
         }
-      });
-      webSocket.addEventListener("error", () => {
-        if (!disposed) {
-          setStatus("Streamer chat live feed unavailable.");
-        }
-      });
-    }
+      },
+      url: createAuthenticatedWebSocketUrl(apiBaseUrl, "/streamer-chat/live", token)
+    }) : null;
 
     return () => {
       disposed = true;
-      webSocket?.close();
+      disconnectLiveFeed?.();
     };
   }, [apiBaseUrl, chatAttention.baselineMessages, chatAttention.notifyMessage, variant]);
 

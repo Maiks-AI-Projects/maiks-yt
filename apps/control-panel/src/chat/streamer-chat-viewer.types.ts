@@ -5,6 +5,8 @@ export type StreamerChatMessagesResponse = {
   source: "mixed";
   messages: StreamerChatMessage[];
   checkedAt: string;
+  revision: number;
+  sessionId: string;
 } | {
   ok: false;
   reason: string;

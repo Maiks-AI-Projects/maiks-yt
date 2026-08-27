@@ -54,11 +54,15 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
+    const snapshot = dependencies.streamerChatRuntime.createSnapshot();
+
     return {
       ok: true,
       source: "mixed",
-      messages: dependencies.streamerChatRuntime.listVisibleMessages(),
-      checkedAt: new Date().toISOString()
+      messages: snapshot.payload.messages,
+      checkedAt: snapshot.payload.sentAt,
+      revision: snapshot.revision,
+      sessionId: snapshot.sessionId
     };
   });
 

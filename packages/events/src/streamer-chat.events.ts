@@ -16,10 +16,14 @@ export type StreamerChatMessage = Omit<OverlayFakeChatMessage, "source"> & {
 export type StreamerChatMessageReceivedEvent = {
   type: "streamer-chat.message.received";
   payload: StreamerChatMessage;
+  revision: number;
+  sessionId: string;
 };
 
 export type StreamerChatSnapshotEvent = {
   type: "streamer-chat.snapshot";
+  revision: number;
+  sessionId: string;
   payload: {
     messages: StreamerChatMessage[];
     sentAt: string;

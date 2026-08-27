@@ -167,6 +167,8 @@ describe("streamer chat control API", () => {
     expect(response.json()).toMatchObject({
       ok: true,
       source: "mixed",
+      revision: 1,
+      sessionId: expect.any(String),
       messages: [
         {
           id: "message-1",
