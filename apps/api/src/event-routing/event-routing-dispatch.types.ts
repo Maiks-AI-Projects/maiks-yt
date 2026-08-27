@@ -96,6 +96,30 @@ export type EventRoutingCooldownInsert = EventRoutingCooldownCheck & {
   lastEventHistoryId: string;
 };
 
+export type EventRoutingProductionDecisionCommitInput = {
+  history: EventRoutingHistoryInsert;
+  cooldowns: readonly Omit<EventRoutingCooldownInsert, "lastEventHistoryId">[];
+  approval: {
+    routingRuleId: string | null;
+    destination: EventRoutingDestination;
+  } | null;
+  now: Date;
+};
+
+export type EventRoutingProductionDecisionCommitResult =
+  | {
+    status: "committed";
+    history: EventRoutingHistoryRecord;
+    approvalQueue: EventRoutingApprovalQueueRecord | null;
+    cooldownsRecorded: number;
+  }
+  | {
+    status: "blocked_cooldown";
+    history: EventRoutingHistoryRecord;
+    approvalQueue: null;
+    cooldownsRecorded: 0;
+  };
+
 export type EventRoutingActiveCooldown = {
   id: string;
   cooldownKey: string;
@@ -135,4 +159,10 @@ export interface EventRoutingDispatchRepository {
     destination: EventRoutingDestination;
   }): Promise<EventRoutingApprovalQueueRecord>;
   recordCooldown(input: EventRoutingCooldownInsert): Promise<void>;
+}
+
+export interface EventRoutingProductionDecisionRepository extends EventRoutingDispatchRepository {
+  commitProductionDecision(
+    input: EventRoutingProductionDecisionCommitInput
+  ): Promise<EventRoutingProductionDecisionCommitResult>;
 }

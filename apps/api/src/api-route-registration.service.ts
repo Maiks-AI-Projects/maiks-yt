@@ -16,7 +16,8 @@ import { registerControlPanelNavigationRoutes } from "./control-panel/index.js";
 import {
   registerEventRoutingAdminRoutes,
   registerEventRoutingDispatchRoutes,
-  type EventRoutingPlaybackPublisher
+  type EventRoutingPlaybackPublisher,
+  type WebsiteEventRoutingProductionPublisher
 } from "./event-routing/index.js";
 import { registerDevOwnerTokenRoutes } from "./dev-testing/index.js";
 import { registerFakeLocalModerationRoutes } from "./fake-local-moderation/index.js";
@@ -102,6 +103,7 @@ type RegisterApplicationRoutesInput = {
   obsWidgetBridgeRuntime: ObsWidgetBridgeRuntime;
   overlayRuntime: OverlayRuntime;
   publishEventRoutingPlayback: EventRoutingPlaybackPublisher;
+  routeWebsiteEvent: WebsiteEventRoutingProductionPublisher;
   providerEventIntakeLogService: ProviderEventIntakeLogService;
   recordFakeLocalStreamerChatMessage: (event: OverlayFakeChatMessageReceivedEvent) => StreamerChatMessage | null;
   requireStreamerChatModerationPermission: RequireStreamerChatModerationPermission;
@@ -131,6 +133,7 @@ export const registerApplicationRoutes = ({
   obsWidgetBridgeRuntime,
   overlayRuntime,
   publishEventRoutingPlayback,
+  routeWebsiteEvent,
   providerEventIntakeLogService,
   recordFakeLocalStreamerChatMessage,
   requireStreamerChatModerationPermission,
@@ -199,7 +202,8 @@ export const registerApplicationRoutes = ({
   });
   registerStreamScheduleRoutes(server, {
     getAuthSession,
-    getDatabasePool
+    getDatabasePool,
+    routeWebsiteEvent
   });
   registerUrlAccessTokenAdminRoutes(server, {
     getAuthSession,

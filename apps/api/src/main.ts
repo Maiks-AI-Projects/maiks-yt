@@ -42,6 +42,7 @@ import { ChatCommandRuntime, type ChatCommandRuntimeMessage } from "./chat-comma
 import {
   createEventRoutingDispatchRepository,
   EventRoutingProductionService,
+  WebsiteEventRoutingProductionService,
   type EventRoutingPlaybackPublisher,
   type EventRoutingStreamStateResolver
 } from "./event-routing/index.js";
@@ -205,6 +206,10 @@ const productionEventRoutingService = new EventRoutingProductionService(
   createEventRoutingDispatchRepository(getDatabasePool()),
   publishEventRoutingPlayback,
   { streamStateResolver: productionStreamStateResolver }
+);
+const websiteEventRoutingProductionService = new WebsiteEventRoutingProductionService(
+  createEventRoutingDispatchRepository(getDatabasePool()),
+  publishEventRoutingPlayback
 );
 
 const providerEventIntakeLogService = new ProviderEventIntakeLogService({
@@ -503,6 +508,7 @@ registerApplicationRoutes({
   obsWidgetBridgeRuntime,
   overlayRuntime,
   publishEventRoutingPlayback,
+  routeWebsiteEvent: (event) => websiteEventRoutingProductionService.route(event),
   providerEventIntakeLogService,
   recordFakeLocalStreamerChatMessage,
   requireStreamerChatModerationPermission,

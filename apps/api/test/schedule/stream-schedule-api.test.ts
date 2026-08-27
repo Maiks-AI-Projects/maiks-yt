@@ -6,7 +6,7 @@ import type {
   StreamScheduleUpdateInput
 } from "@maiks-yt/domain/schedule";
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { registerStreamScheduleRoutes } from "../../src/schedule/stream-schedule.route.js";
 import { StreamScheduleService } from "../../src/schedule/stream-schedule.service.js";
@@ -562,6 +562,161 @@ describe("stream schedule route boundary", () => {
     await forbiddenServer.close();
   });
 
+  it("routes successful public schedule changes and cancellations through real website events", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const routeWebsiteEvent = vi.fn(async () => ({
+      playbackEmitted: false,
+      status: "ignored" as const
+    }));
+    const server = Fastify();
+    registerStreamScheduleRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new StreamScheduleService(repository),
+      routeWebsiteEvent
+    });
+
+    const updateResponse = await server.inject({
+      method: "PATCH",
+      url: "/admin/schedule/stream-1",
+      payload: {
+        title: "Updated public stream"
+      }
+    });
+    const cancelResponse = await server.inject({
+      method: "POST",
+      url: "/admin/schedule/stream-1/cancel",
+      payload: {
+        cancellationReasonCode: "energy",
+        cancellationReason: "Rest needed."
+      }
+    });
+
+    expect(updateResponse.statusCode).toBe(200);
+    expect(cancelResponse.statusCode).toBe(200);
+    expect(routeWebsiteEvent).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      eventKind: "website.schedule-changed",
+      sourceEventId: expect.stringMatching(
+        /^schedule:stream-1:\d{13}:[a-f0-9-]{36}:website\.schedule-changed$/
+      ),
+      streamScheduleEntryId: "stream-1",
+      actorExternalId: "maiks-yt:schedule",
+      userId: null,
+      redactedPayload: {
+        displayText: "Updated public stream schedule updated",
+        event: {
+          title: "Updated public stream",
+          startsAt: "2026-06-20T18:00:00.000Z",
+          channelKey: "coding",
+          status: "planned"
+        }
+      }
+    }));
+    expect(routeWebsiteEvent).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      eventKind: "website.schedule-cancelled",
+      streamScheduleEntryId: "stream-1",
+      redactedPayload: expect.objectContaining({
+        displayText: "Updated public stream was cancelled"
+      })
+    }));
+    expect(JSON.stringify(routeWebsiteEvent.mock.calls)).not.toContain("Rest needed");
+    await server.close();
+  });
+
+  it("routes a newly created public schedule entry", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const routeWebsiteEvent = vi.fn(async () => ({
+      playbackEmitted: false,
+      status: "ignored" as const
+    }));
+    const server = Fastify();
+    registerStreamScheduleRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new StreamScheduleService(repository),
+      routeWebsiteEvent
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/schedule",
+      payload: createPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(routeWebsiteEvent).toHaveBeenCalledWith(expect.objectContaining({
+      eventKind: "website.schedule-changed",
+      streamScheduleEntryId: "created-stream",
+      actorExternalId: "maiks-yt:schedule"
+    }));
+    await server.close();
+  });
+
+  it("does not route private schedule mutations", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const routeWebsiteEvent = vi.fn(async () => ({
+      playbackEmitted: false,
+      status: "ignored" as const
+    }));
+    const server = Fastify();
+    registerStreamScheduleRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new StreamScheduleService(repository),
+      routeWebsiteEvent
+    });
+
+    const response = await server.inject({
+      method: "PATCH",
+      url: "/admin/schedule/private-stream",
+      payload: {
+        title: "Private planning note"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(routeWebsiteEvent).not.toHaveBeenCalled();
+    await server.close();
+  });
+
+  it("keeps a successful schedule mutation successful when website routing fails", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const server = Fastify({ logger: false });
+    registerStreamScheduleRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new StreamScheduleService(repository),
+      routeWebsiteEvent: async () => {
+        throw new Error("routing unavailable");
+      }
+    });
+
+    const response = await server.inject({
+      method: "PATCH",
+      url: "/admin/schedule/stream-1",
+      payload: {
+        title: "Persist even when routing is down"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      stream: {
+        title: "Persist even when routing is down"
+      }
+    });
+    await server.close();
+  });
+
   it("maps invalid input and missing records to stable status codes", async () => {
     const repository = new FakeStreamScheduleRepository();
     const server = Fastify();
@@ -600,13 +755,18 @@ describe("stream schedule route boundary", () => {
 
   it("updates schedule game links through the admin route", async () => {
     const repository = new FakeStreamScheduleRepository();
+    const routeWebsiteEvent = vi.fn(async () => ({
+      playbackEmitted: false,
+      status: "ignored" as const
+    }));
     const server = Fastify();
     registerStreamScheduleRoutes(server, {
       getAuthSession: async () => ({ user: { id: "auth-user" } }),
       getDatabasePool: () => {
         throw new Error("pool should not be used");
       },
-      createService: () => new StreamScheduleService(repository)
+      createService: () => new StreamScheduleService(repository),
+      routeWebsiteEvent
     });
 
     const response = await server.inject({
@@ -636,6 +796,7 @@ describe("stream schedule route boundary", () => {
         ]
       }
     });
+    expect(routeWebsiteEvent).not.toHaveBeenCalled();
     await server.close();
   });
 

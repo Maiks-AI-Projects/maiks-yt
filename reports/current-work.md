@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 production website Event Routing bridge
+
+- Public schedule create, update, and cancel mutations now submit real `website.schedule-changed` or `website.schedule-cancelled` events after persistence. Private schedules and game-link-only edits remain silent, and routing failures are isolated from the successful schedule write.
+- The production executor resolves website-specific rules with `any` fallback, rejects simulated or money-shaped kinds, enforces internal-only and opt-out boundaries, fails closed when live/offline state is unavailable, and requires stable actor or schedule identity before configured cooldowns can run. Cooldown keys are SHA-256 hashes rather than raw identities.
+- History, approval-queue insertion, and cooldown updates now commit as one database transaction. Cooldown rows are locked in a stable order before evaluation, active cooldowns write a real blocked-history outcome, and dependent-write failures roll back the decision. Only top and center notification destinations publish in this slice.
+- Independent GPT-5.5 review is clean after corrections for stable system identity, unique source event ids, simulated/money blocking, transactionality, and playback failure handling. `pnpm check:review` passes with 151 domain tests, 557 API tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- No migration, UI, deployment, live MariaDB concurrency rehearsal, signed-in owner schedule workflow, or real overlay delivery check was performed. Account signup/name/avatar events and project-update publication remain separate producer slices.
+
 ## 2026-08-27 production stream-path reliability
 
 - Private streamer chat now reconnects with one active socket and bounded 1/2/4/8/15-second retries, stops on an authorization close, and ignores stale socket callbacks after cleanup. API snapshots and messages carry a process session id plus monotonic revision, so late HTTP responses and stale same-process WebSocket frames cannot replace newer messages while an API restart can establish a new baseline.

@@ -1,7 +1,14 @@
+import { randomUUID } from "node:crypto";
+
 import type { DatabasePool } from "@maiks-yt/database";
+import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
+import type {
+  WebsiteEventRoutingProductionInput,
+  WebsiteEventRoutingProductionPublisher
+} from "../event-routing/index.js";
 import { StreamScheduleService } from "./stream-schedule.service.js";
 import { createStreamScheduleRepository } from "./stream-schedule-store.service.js";
 import type { StreamScheduleMutationResult } from "./stream-schedule.types.js";
@@ -23,7 +30,42 @@ type StreamScheduleRouteDependencies = {
     | "cancelStream"
     | "replaceStreamGameLinks"
   >;
+  routeWebsiteEvent?: WebsiteEventRoutingProductionPublisher;
 };
+
+type StreamScheduleWebsiteEventKind = Extract<
+  WebsiteEventRoutingProductionInput["eventKind"],
+  "website.schedule-changed" | "website.schedule-cancelled"
+>;
+
+const buildScheduleWebsiteEvent = (
+  stream: StreamScheduleEntry,
+  eventKind: StreamScheduleWebsiteEventKind,
+  receivedAt: Date
+): WebsiteEventRoutingProductionInput => ({
+  eventKind,
+  sourceEventId: `schedule:${stream.id}:${receivedAt.getTime()}:${randomUUID()}:${eventKind}`,
+  actorUserId: null,
+  actorExternalId: "maiks-yt:schedule",
+  actorDisplayName: "Maiks.yt Schedule",
+  userId: null,
+  streamSessionId: null,
+  streamScheduleEntryId: stream.id,
+  sessionId: null,
+  redactedPayload: {
+    displayText: eventKind === "website.schedule-cancelled"
+      ? `${stream.title} was cancelled`
+      : `${stream.title} schedule updated`,
+    event: {
+      title: stream.title,
+      startsAt: stream.startsAt,
+      channelKey: stream.channelKey,
+      status: stream.status
+    }
+  },
+  occurredAt: receivedAt,
+  receivedAt
+});
 
 const streamIdParamsSchema = z.object({
   id: z.string().trim().min(1).max(191)
@@ -116,6 +158,29 @@ export const registerStreamScheduleRoutes = (
     }
   };
 
+  const routePublicMutation = async (
+    result: StreamScheduleMutationResult,
+    eventKind: StreamScheduleWebsiteEventKind
+  ): Promise<void> => {
+    if (!result.ok || result.stream.visibility !== "public" || !dependencies.routeWebsiteEvent) {
+      return;
+    }
+
+    try {
+      await dependencies.routeWebsiteEvent(buildScheduleWebsiteEvent(
+        result.stream,
+        eventKind,
+        new Date()
+      ));
+    } catch (error) {
+      server.log.warn({
+        err: error,
+        eventKind,
+        streamScheduleEntryId: result.stream.id
+      }, "Public schedule event routing failed after schedule persistence.");
+    }
+  };
+
   server.get("/schedule", async () => {
     try {
       return await getService().listPublicStreams();
@@ -177,10 +242,14 @@ export const registerStreamScheduleRoutes = (
     }
 
     try {
-      return sendMutationResult(await getService().createStream({
+      const result = await getService().createStream({
         authUserId: session.user.id,
         ...parsedBody.data
-      }), reply);
+      });
+      await routePublicMutation(result, result.ok && result.stream.status === "cancelled"
+        ? "website.schedule-cancelled"
+        : "website.schedule-changed");
+      return sendMutationResult(result, reply);
     } catch (error) {
       server.log.warn({ err: error }, "Stream schedule create failed.");
       reply.code(503);
@@ -213,11 +282,15 @@ export const registerStreamScheduleRoutes = (
     }
 
     try {
-      return sendMutationResult(await getService().updateStream({
+      const result = await getService().updateStream({
         authUserId: session.user.id,
         id: parsedParams.data.id,
         stream: parsedBody.data
-      }), reply);
+      });
+      await routePublicMutation(result, parsedBody.data.status === "cancelled"
+        ? "website.schedule-cancelled"
+        : "website.schedule-changed");
+      return sendMutationResult(result, reply);
     } catch (error) {
       server.log.warn({ err: error }, "Stream schedule update failed.");
       reply.code(503);
@@ -250,17 +323,19 @@ export const registerStreamScheduleRoutes = (
     }
 
     try {
-      return sendMutationResult(await getService().cancelStream({
+      const result = await getService().cancelStream({
         authUserId: session.user.id,
         id: parsedParams.data.id,
         cancellation: parsedBody.data
-      }), reply);
+      });
+      await routePublicMutation(result, "website.schedule-cancelled");
+      return sendMutationResult(result, reply);
     } catch (error) {
       server.log.warn({ err: error }, "Stream schedule cancellation failed.");
       reply.code(503);
       return {
         ok: false,
-      reason: "stream_schedule_unavailable"
+        reason: "stream_schedule_unavailable"
       };
     }
   });
@@ -287,11 +362,12 @@ export const registerStreamScheduleRoutes = (
     }
 
     try {
-      return sendMutationResult(await getService().replaceStreamGameLinks({
+      const result = await getService().replaceStreamGameLinks({
         authUserId: session.user.id,
         id: parsedParams.data.id,
         links: parsedBody.data.links
-      }), reply);
+      });
+      return sendMutationResult(result, reply);
     } catch (error) {
       server.log.warn({ err: error }, "Stream schedule game link update failed.");
       reply.code(503);

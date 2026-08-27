@@ -1,5 +1,12 @@
 # Next Agent Tasks
 
+## Production Website Event Routing
+
+- The reviewed production patch connects public schedule create/update/cancel mutations to real website Event Routing. It keeps private schedules and game-link-only edits silent and commits history, approval, and cooldown state atomically. It is not deployed or live-verified.
+- Next safe producer: project-update publication, after the project path can distinguish initial publication from later edits and assign a stable source event identity.
+- Keep account signup, public-name, and avatar producers out until signup/profile disclosure, actor identity, and persisted opt-out behavior are proven through their real user paths.
+- Deployment verification must cover a signed-in owner schedule mutation, persisted real history, configured rule outcome, top/center delivery when selected, cooldown blocking, and a MariaDB-backed failure/concurrency case. Do not represent the passing unit/store tests as live database proof.
+
 ## Production Stream-Path Reliability
 
 - Review and deploy the reconnect-safe streamer-chat slice only in a deliberate verification window. Prove installed Chat/Moderation sleep-wake recovery, API restart recovery, malformed-frame HTTP fallback, newest-first ordering, missed-message attention, and authorization-close behavior with real provider traffic.
