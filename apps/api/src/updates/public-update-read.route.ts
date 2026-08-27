@@ -48,14 +48,11 @@ export const registerPublicUpdateReadRoutes = (
     reason: "updates_unavailable";
   }> => {
     try {
-      const result = await getService().listUpdates();
+      const result = await getService().listUpdates({
+        includeExampleRecords: publishExampleRecords()
+      });
 
-      return publishExampleRecords()
-        ? result
-        : {
-          ...result,
-          updates: result.updates.filter((update) => !update.isExample)
-        };
+      return result;
     } catch (error) {
       server.log.warn({ err: error }, "Public update list failed.");
       reply.code(503);
@@ -72,11 +69,9 @@ export const registerPublicUpdateReadRoutes = (
     }
 
     try {
-      const result = await getService().getUpdate(parsedParams.data.slug);
-
-      if (result.ok && result.update.isExample && !publishExampleRecords()) {
-        return sendDetailResult({ ok: false, reason: "update_not_found" }, reply);
-      }
+      const result = await getService().getUpdate(parsedParams.data.slug, {
+        includeExampleRecords: publishExampleRecords()
+      });
 
       return sendDetailResult(result, reply);
     } catch (error) {

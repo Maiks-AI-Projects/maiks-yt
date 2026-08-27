@@ -69,10 +69,12 @@ describe("public update read API", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       ok: true,
-      updates: [{ slug: "visible", kind: "announcement", isExample: true }]
+      updates: [{ slug: "visible", kind: "announcement" }]
     });
     expect(response.body).not.toContain("Body visible");
     expect(response.body).not.toContain("Body draft");
+    expect(response.body).not.toContain("\"id\"");
+    expect(response.body).not.toContain("isExample");
     await server.close();
   });
 
@@ -90,6 +92,8 @@ describe("public update read API", () => {
       ok: true,
       update: { slug: "visible", body: "Body visible" }
     });
+    expect(visibleResponse.body).not.toContain("\"id\"");
+    expect(visibleResponse.body).not.toContain("isExample");
     expect(draftResponse.statusCode).toBe(404);
     expect(draftResponse.json()).toEqual({ ok: false, reason: "update_not_found" });
     await server.close();
@@ -108,13 +112,17 @@ describe("public update read API", () => {
     expect(listResponse.statusCode).toBe(200);
     expect(listResponse.json()).toMatchObject({
       ok: true,
-      updates: [{ slug: "real", isExample: false }]
+      updates: [{ slug: "real" }]
     });
+    expect(listResponse.body).not.toContain("\"id\"");
+    expect(listResponse.body).not.toContain("isExample");
     expect(listResponse.body).not.toContain("example");
     expect(exampleResponse.statusCode).toBe(404);
     expect(exampleResponse.json()).toEqual({ ok: false, reason: "update_not_found" });
     expect(realResponse.statusCode).toBe(200);
     expect(realResponse.json()).toMatchObject({ ok: true, update: { slug: "real" } });
+    expect(realResponse.body).not.toContain("\"id\"");
+    expect(realResponse.body).not.toContain("isExample");
 
     await server.close();
   });

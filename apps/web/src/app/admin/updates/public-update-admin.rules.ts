@@ -6,7 +6,7 @@ import {
   publicUpdateTitleMaxLength
 } from "@maiks-yt/domain/updates";
 import type {
-  PublicUpdateDetail,
+  PublicUpdateAdminPreview,
   PublicUpdateKind,
   PublicUpdateSource
 } from "@maiks-yt/domain/updates";
@@ -26,12 +26,12 @@ export type UpdateFormState = {
 export type PreviewAcknowledgement = {
   updateId: string;
   revision: string;
-  preview: PublicUpdateDetail;
+  preview: PublicUpdateAdminPreview;
 };
 
 export const createPreviewAcknowledgement = (
   updateId: string,
-  response: { revision: string; update: PublicUpdateDetail }
+  response: { revision: string; update: PublicUpdateAdminPreview }
 ): PreviewAcknowledgement => ({
   updateId,
   revision: response.revision,

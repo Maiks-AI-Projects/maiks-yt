@@ -49,7 +49,7 @@ const UpdatesPage = async (): Promise<React.ReactNode> => {
         ) : (
           <div className={styles.updateList}>
             {result.updates.map((update, index) => (
-              <article className={styles.updateRow} key={update.id}>
+              <article className={styles.updateRow} key={update.slug}>
                 <span className={styles.number} aria-hidden="true">
                   {String(index + 1).padStart(2, "0")}
                 </span>
@@ -65,7 +65,6 @@ const UpdatesPage = async (): Promise<React.ReactNode> => {
                     {dateFormatter.format(new Date(update.publishedAt))}
                   </time>
                   {update.isPinned ? <span className={styles.pinned}>Pinned</span> : null}
-                  {update.isExample ? <span className={styles.example}>Example</span> : null}
                 </div>
               </article>
             ))}

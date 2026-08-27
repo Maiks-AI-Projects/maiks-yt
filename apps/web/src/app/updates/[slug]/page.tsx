@@ -55,18 +55,13 @@ const UpdatePage = async ({ params }: UpdatePageProps): Promise<React.ReactNode>
               {dateFormatter.format(new Date(update.publishedAt))}
             </time>
             {update.isPinned ? <span className={styles.pinned}>Pinned</span> : null}
-            {update.isExample ? <span className={styles.example}>Example record</span> : null}
           </div>
         </header>
 
         <div className={styles.detailBody}>
           <aside className={styles.bodyLabel} aria-label="Publication note">
             <p className={styles.sectionLabel}>The update</p>
-            <p>
-              {update.isExample
-                ? "This is example content used to build and test the public update system."
-                : "Published as part of the permanent Maiks.yt update archive."}
-            </p>
+            <p>Published as part of the permanent Maiks.yt update archive.</p>
           </aside>
           <div className={styles.articleBody}>
             <PageMarkdown body={update.body} />

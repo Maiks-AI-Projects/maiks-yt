@@ -9,6 +9,10 @@ export interface PublicUpdateReadRepository {
   findUpdateBySlug(slug: string): Promise<PublicUpdateSource | null>;
 }
 
+export type PublicUpdateReadOptions = {
+  includeExampleRecords?: boolean;
+};
+
 export type PublicUpdateListResult = {
   ok: true;
   updates: readonly PublicUpdateSummary[];

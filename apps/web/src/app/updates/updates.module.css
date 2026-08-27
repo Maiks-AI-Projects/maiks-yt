@@ -204,7 +204,6 @@
   text-transform: uppercase;
 }
 
-.example,
 .pinned {
   color: var(--yellow);
   font-weight: 800;

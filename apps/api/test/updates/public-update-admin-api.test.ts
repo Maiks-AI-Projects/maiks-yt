@@ -292,6 +292,8 @@ describe("public update admin API", () => {
     });
     expect(publishResponse.statusCode).toBe(200);
     expect(publicResponse.statusCode).toBe(200);
+    expect(publicResponse.body).not.toContain("\"id\"");
+    expect(publicResponse.body).not.toContain("isExample");
     expect(repeatedPublishResponse.statusCode).toBe(200);
     expect(repeatedPublishResponse.json()).toMatchObject({
       ok: true,

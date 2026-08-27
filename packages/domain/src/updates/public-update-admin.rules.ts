@@ -9,7 +9,7 @@ import type {
   PublicUpdateAdminValidationResult
 } from "./public-update-admin.types.js";
 import type {
-  PublicUpdateDetail,
+  PublicUpdateAdminPreview,
   PublicUpdateSource
 } from "./public-update.types.js";
 
@@ -52,10 +52,19 @@ export const normalizePublicUpdateAdminInput = (
 
 export const buildPublicUpdateAdminPreview = (
   update: PublicUpdateSource
-): PublicUpdateDetail | null =>
-  buildPublicUpdateDetail({
+): PublicUpdateAdminPreview | null => {
+  const preview = buildPublicUpdateDetail({
     ...update,
     status: "published",
     visibility: "public",
     publishedAt: update.publishedAt ?? update.updatedAt
   });
+
+  return preview
+    ? {
+      ...preview,
+      id: update.id,
+      isExample: update.isExample
+    }
+    : null;
+};

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
-  PublicUpdateDetail,
+  PublicUpdateAdminPreview,
   PublicUpdateSource
 } from "@maiks-yt/domain/updates";
 
@@ -40,7 +40,7 @@ type AdminUpdateMutationResponse =
   | { ok: false; reason: string };
 
 type AdminUpdatePreviewResponse =
-  | { ok: true; revision: string; update: PublicUpdateDetail }
+  | { ok: true; revision: string; update: PublicUpdateAdminPreview }
   | { ok: false; reason: string };
 
 export type PublicUpdateAdminWorkspaceController = {
@@ -57,7 +57,7 @@ export type PublicUpdateAdminWorkspaceController = {
   loadPreview: () => Promise<void>;
   loadState: LoadState;
   message: string;
-  preview: PublicUpdateDetail | null;
+  preview: PublicUpdateAdminPreview | null;
   previewIsAvailable: boolean;
   previewIsCurrent: boolean;
   publishIsAvailable: boolean;

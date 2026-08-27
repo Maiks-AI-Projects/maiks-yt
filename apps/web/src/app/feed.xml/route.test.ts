@@ -10,15 +10,13 @@ vi.mock("../updates/public-update-data", () => ({
 
 import { GET } from "./route";
 
-const createUpdate = (slug: string, isExample: boolean) => ({
-  id: slug,
+const createUpdate = (slug: string) => ({
   slug,
   title: `${slug} title`,
   summary: `${slug} summary`,
   kind: "post" as const,
   publishedAt: "2026-08-27T12:00:00.000Z",
   isPinned: false,
-  isExample,
   updatedAt: "2026-08-27T12:00:00.000Z"
 });
 
@@ -27,10 +25,10 @@ describe("updates RSS feed", () => {
     getPublicUpdates.mockReset();
   });
 
-  it("omits example records even when an upstream response contains one", async () => {
+  it("renders the public updates data path without fixture fields", async () => {
     getPublicUpdates.mockResolvedValue({
       status: "loaded",
-      updates: [createUpdate("real-update", false), createUpdate("example-update", true)]
+      updates: [createUpdate("real-update")]
     });
 
     const response = await GET();
@@ -38,6 +36,7 @@ describe("updates RSS feed", () => {
 
     expect(response.status).toBe(200);
     expect(xml).toContain("real-update title");
-    expect(xml).not.toContain("example-update");
+    expect(xml).not.toContain("isExample");
+    expect(xml).not.toContain("<id>");
   });
 });

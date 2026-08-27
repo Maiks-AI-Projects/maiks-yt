@@ -1,7 +1,7 @@
 import type {
   PublicUpdateAdminInput,
   PublicUpdateAdminUpdateInput,
-  PublicUpdateDetail,
+  PublicUpdateAdminPreview,
   PublicUpdateSource
 } from "@maiks-yt/domain/updates";
 
@@ -32,7 +32,7 @@ export type PublicUpdateAdminMutationResult =
   };
 
 export type PublicUpdateAdminPreviewResult =
-  | { ok: true; revision: PublicUpdateAdminRevision; update: PublicUpdateDetail }
+  | { ok: true; revision: PublicUpdateAdminRevision; update: PublicUpdateAdminPreview }
   | {
     ok: false;
     reason:

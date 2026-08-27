@@ -49,8 +49,7 @@ export const GET = async (): Promise<Response> => {
     );
   }
 
-  const publishedUpdates = result.updates.filter((update) => !update.isExample);
-  const items = publishedUpdates.map((update) => {
+  const items = result.updates.map((update) => {
     const link = createAbsoluteUrl(getPublicUpdateUrl(update));
 
     return [
@@ -65,7 +64,7 @@ export const GET = async (): Promise<Response> => {
     ].join("\n");
   }).join("\n");
 
-  const newestPublishedAt = publishedUpdates[0]?.publishedAt;
+  const newestPublishedAt = result.updates[0]?.publishedAt;
   const xml = createChannelXml({
     items,
     lastBuildDate: newestPublishedAt

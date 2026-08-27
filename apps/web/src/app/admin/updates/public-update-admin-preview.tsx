@@ -1,4 +1,4 @@
-import type { PublicUpdateDetail } from "@maiks-yt/domain/updates";
+import type { PublicUpdateAdminPreview } from "@maiks-yt/domain/updates";
 
 import { PageMarkdown } from "../../page-markdown";
 import {
@@ -8,7 +8,7 @@ import {
 import styles from "./public-update-admin.module.css";
 
 type PublicUpdateAdminPreviewProps = {
-  preview: PublicUpdateDetail;
+  preview: PublicUpdateAdminPreview;
   previewIsCurrent: boolean;
 };
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PublicUpdateDetail, PublicUpdateSource } from "@maiks-yt/domain/updates";
+import type { PublicUpdateAdminPreview, PublicUpdateSource } from "@maiks-yt/domain/updates";
 
 import {
   canEditUpdate,
@@ -50,7 +50,7 @@ const createPreview = (update: PublicUpdateSource): PreviewAcknowledgement => ({
     isExample: update.isExample,
     publishedAt: update.publishedAt ?? update.updatedAt,
     updatedAt: update.updatedAt
-  } satisfies PublicUpdateDetail
+  } satisfies PublicUpdateAdminPreview
 });
 
 describe("public update admin rules", () => {

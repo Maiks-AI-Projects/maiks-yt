@@ -50,13 +50,29 @@ describe("public update rules", () => {
     expect(updates.map(({ slug }) => slug)).toEqual(["pinned", "newer", "older"]);
   });
 
-  it("keeps the body only in the detail projection", () => {
+  it("keeps raw identity and fixture markers out of public projections", () => {
     const source = createUpdate("detail", { isExample: true, kind: "announcement" });
     const detail = buildPublicUpdateDetail(source);
     const [summary] = buildPublicUpdateSummaryList([source]);
 
-    expect(detail).toMatchObject({ body: "Body detail", isExample: true, kind: "announcement" });
+    expect(detail).toMatchObject({ body: "Body detail", kind: "announcement" });
+    expect(detail).not.toHaveProperty("id");
+    expect(detail).not.toHaveProperty("isExample");
     expect(summary).not.toHaveProperty("body");
+    expect(summary).not.toHaveProperty("id");
+    expect(summary).not.toHaveProperty("isExample");
+  });
+
+  it("keeps the admin preview tied to its private update source", () => {
+    const source = createUpdate("detail", { isExample: true, kind: "announcement" });
+    const preview = buildPublicUpdateAdminPreview(source);
+
+    expect(preview).toMatchObject({
+      id: "detail",
+      isExample: true,
+      body: "Body detail",
+      kind: "announcement"
+    });
   });
 
   it("normalizes valid owner input and rejects malformed content", () => {
