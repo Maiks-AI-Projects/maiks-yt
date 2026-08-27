@@ -39,7 +39,7 @@
 - The authenticated outbound-agent WebSocket and production music projection now exist. The agent downloads bounded audio using its dedicated bearer only against the configured API origin, controls VLC on `stream_music`, reports lifecycle state, and releases to `/music/player` on disconnect or play failure.
 - Owner-only `GET /admin/local-agent/status` now exposes sanitized configuration, connection freshness, service version, module capability, and bounded VLC state without device IDs, credentials, command data, raw details, paths, or playback IDs. Admin Overview includes the compact connection/module summary.
 - Next credential work is managed rotation/revocation without exposing the token. Any materially new rotation UI must first complete the image-first approval cycle.
-- Do not install or start the user service while the production host is unreachable. Once reachability returns, configure the dedicated credential/device identity deliberately and run a real proof covering reconnect, restart-safe dedupe, automatic next track, Private-only cue/TTS, Music-only VLC output, browser fallback, temporary-file cleanup, and clean shutdown.
+- Production Web/API/Control/Overlay reachability is restored. Configure or start the streaming-PC user service only in a deliberate verification window with the dedicated credential/device identity, then prove reconnect, restart-safe dedupe, automatic next track, Private-only cue/TTS, Music-only VLC output, browser fallback, temporary-file cleanup, and clean shutdown.
 
 ## OBS Companion Follow-Up
 
@@ -57,7 +57,7 @@
 - The remaining `/dev/testing/owner-token`, `/dev/event-routing/dispatch`, and `/dev/notifications` routes are now absent from the production route table rather than returning distinctive handler-level 404 responses. Keep their non-production workflows available; preserve real notification reads, subscriptions, and status updates in production.
 - Public Updates now omit rows explicitly marked `isExample` in production, including direct slug reads and the shared RSS data path. Development retains labelled fixtures. The next Updates work is a real owner publishing/admin workflow or real authored records, not disguising seed content.
 - The manual Updates backend is now implemented over the existing schema: `/admin/updates` supports owner/delegated listing, draft create/edit, saved preview, publish, and unpublish without returning audit identifiers. The next Updates slice is an image-first `/admin/updates` editor; do not improvise or port the old dev UI before Michael approves a representative image.
-- After production reachability returns, deploy the reviewed cleanup and verify the retired routes return the normal not-found experience. Confirm `/links` does not publish any surviving Layout Lab database row.
+- In a deliberate deployment window, deploy the reviewed cleanup and verify the retired routes return the normal not-found experience. Confirm `/links` does not publish any surviving Layout Lab database row.
 - Continue the broader hygiene audit separately. Static profile demonstrations and remaining implementation-detail copy still need deliberate product decisions; do not remove them casually.
 
 ## Production-Only Direction
@@ -67,9 +67,9 @@
 - Treat the damaged Windows-era Codex project/path `Stream overlay & Website maiks.yt` as a non-authoritative legacy recovery source. Never merge or sync it wholesale. Its recurring `Check project rule violations` tasks do not describe production delivery state.
 - Do not use `/home/michael/Documents/UI Skill` or its catalogs as design authority. Generate and obtain approval for a representative image before implementing a new or materially redesigned production page, then verify the real responsive or OBS result against that image.
 - Start from `reports/production-capability-ledger.md`. Keep design, approval, implementation, integration, deployment, and real verification separate.
-- The approved operational PWA redesign is now integrated and locally verified. Its next gate is deployment plus installed Chat, Moderation, Control, and Notifications verification after production reachability returns.
+- The approved operational PWA redesign is now integrated and locally verified. Its next gate is deployment plus installed Chat, Moderation, Control, and Notifications verification in a deliberate signed-in window.
 - The PWA access checker now has bounded transient retry plus online/foreground/manual recovery. The next recovery slice is the dedicated main-site OAuth return page, pending approval of the candidate image recorded in `reports/current-work.md`. Preserve the existing URL-token plus signed-in-session boundary. Do not weaken Control tokens to token-only access or copy launch tokens across origins.
-- Do not deploy while the production origin is unreachable. Current evidence is SSH `No route to host` and Cloudflare `530` on the public web/API/overlay/control origins.
+- Public reachability was restored on 2026-08-27: Web, API health, Control, and Overlay returned `200` through Cloudflare. This removes the reachability blocker but does not authorize automatic deployment; retain a concrete verification and rollback path for each slice.
 
 Updated: 2026-08-27
 

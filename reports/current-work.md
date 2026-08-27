@@ -1,5 +1,10 @@
 # Current Work
 
+## 2026-08-27 production reachability reconciliation
+
+- Read-only public probes confirmed `https://maiks.yt/`, `https://api.maiks.yt/health`, `https://control.maiks.yt/`, and `https://overlay.maiks.yt/` all return `200` through Cloudflare. The earlier `No route to host`/Cloudflare `530` condition is no longer current.
+- This only proves origin reachability. It does not prove signed-in admin/PWA workflows, provider intake, OBS widget clients, music output, or installed-window recovery. No deployment, container, tunnel, DNS, Cloudflare, server, or repository runtime state changed during the check.
+
 ## 2026-08-27 standalone Chat permission truth
 
 - The standalone Chat PWA now loads the existing token-and-session-gated `/streamer-chat/moderation/access` projection before showing quick moderation actions. Action controls fail closed while access is loading or unavailable, then expose only the signed-in user's active rank capabilities instead of assuming every signed-in Chat viewer has all moderation rights.
