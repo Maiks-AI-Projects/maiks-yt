@@ -342,8 +342,11 @@ export const createStreamScheduleRepository = (
           AND projects.is_public = 1
           AND projects.status IN ('planning', 'active', 'completed')
         WHERE visibility = 'public'
-          AND stream_schedule_entries.status IN ('planned', 'cancelled')
-          AND stream_schedule_entries.starts_at >= ?
+          AND stream_schedule_entries.status IN ('planned', 'live', 'cancelled')
+          AND (
+            stream_schedule_entries.status = 'live'
+            OR stream_schedule_entries.starts_at >= ?
+          )
         ORDER BY stream_schedule_entries.starts_at, stream_schedule_entries.title
       `,
       [now]

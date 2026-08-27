@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { registerStreamScheduleRoutes } from "../../src/schedule/stream-schedule.route.js";
 import { StreamScheduleService } from "../../src/schedule/stream-schedule.service.js";
+import { createStreamScheduleRepository } from "../../src/schedule/stream-schedule-store.service.js";
 import type {
   StreamScheduleAdminActor,
   StreamScheduleRepository
@@ -380,6 +381,91 @@ describe("StreamScheduleService", () => {
       cancellationReasonCode: "energy",
       cancellationReason: "I need to recover before streaming."
     });
+  });
+});
+
+describe("stream schedule store boundaries", () => {
+  it("keeps public live streams visible while preserving future-only planned and cancelled reads", async () => {
+    const now = new Date("2026-08-27T12:00:00.000Z");
+    const calls: Array<{ sql: string; parameters: unknown[] }> = [];
+    const repository = createStreamScheduleRepository({
+      execute: async (sql: string, parameters: unknown[] = []) => {
+        calls.push({ sql, parameters });
+
+        if (calls.length === 1) {
+          return [[
+            {
+              id: "live-stream",
+              title: "Current stream",
+              description: null,
+              startsAt: new Date("2026-08-27T10:00:00.000Z"),
+              endsAt: null,
+              channelKey: "coding",
+              topicKey: null,
+              themeKey: null,
+              projectId: null,
+              focusLabel: null,
+              focusNote: null,
+              visibility: "public",
+              status: "live",
+              cancellationReasonCode: null,
+              cancellationReason: null,
+              createdAt: new Date("2026-08-27T09:00:00.000Z"),
+              updatedAt: new Date("2026-08-27T09:30:00.000Z"),
+              focusProjectId: null,
+              focusProjectSlug: null,
+              focusProjectTitle: null
+            },
+            {
+              id: "cancelled-stream",
+              title: "Future cancelled stream",
+              description: null,
+              startsAt: new Date("2026-08-28T20:00:00.000Z"),
+              endsAt: null,
+              channelKey: "coding",
+              topicKey: null,
+              themeKey: null,
+              projectId: null,
+              focusLabel: null,
+              focusNote: null,
+              visibility: "public",
+              status: "cancelled",
+              cancellationReasonCode: "technical",
+              cancellationReason: "Equipment repair.",
+              createdAt: new Date("2026-08-27T09:00:00.000Z"),
+              updatedAt: new Date("2026-08-27T09:30:00.000Z"),
+              focusProjectId: null,
+              focusProjectSlug: null,
+              focusProjectTitle: null
+            }
+          ], []];
+        }
+
+        return [[], []];
+      }
+    } as never);
+
+    await expect(repository.listPublicStreams({ now })).resolves.toMatchObject([
+      {
+        id: "live-stream",
+        status: "live",
+        startsAt: "2026-08-27T10:00:00.000Z"
+      },
+      {
+        id: "cancelled-stream",
+        status: "cancelled",
+        cancellationReasonCode: "technical"
+      }
+    ]);
+
+    expect(calls[0]?.sql).toContain("stream_schedule_entries.status IN ('planned', 'live', 'cancelled')");
+    expect(calls[0]?.sql).toContain("WHERE visibility = 'public'");
+    expect(calls[0]?.sql).toContain("stream_schedule_entries.status = 'live'");
+    expect(calls[0]?.sql).toContain("OR stream_schedule_entries.starts_at >= ?");
+    expect(calls[0]?.sql).not.toContain("stream_schedule_entries.status IN ('planned', 'live', 'cancelled', 'completed')");
+    expect(calls[0]?.parameters).toEqual([now]);
+    expect(calls[1]?.sql).toContain("AND game_library_entries.visibility = 'public'");
+    expect(calls[1]?.parameters).toEqual(["live-stream", "cancelled-stream"]);
   });
 });
 
