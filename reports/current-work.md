@@ -1,5 +1,19 @@
 # Current Work
 
+## 2026-08-27 production readiness audit reconciliation
+
+- Current live-stream readiness is NOT READY.
+- Production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen; provider and tunnel runtime telemetry is still insufficient.
+- Twitch `maiksmc` primary and `maiksplays` secondary are configured, but the bot token still validates `401`, so replies and `!commands` are not ready; three EventSub subscriptions still target old `maiksmc`, and the intake ledger has no rows.
+- YouTube has no active production credential or selected channel, and auto-start is off.
+- Discord bot, app, and guild read checks pass, but auto-start is off and the webhook public key is absent.
+- PWA routes and manifests are deployed, but installed-window and owner-session proof is still missing; the dedicated recovery page still awaits visual approval.
+- Direct Chat and Control HTTP and WebSocket paths now enforce each URL token's `requiresLogin` session contract through one shared request-aware gate. All Control PWA API requests include credentials, while `overlay:connect` Browser Sources remain token-only. The reviewed patch is not yet deployed or live-session verified.
+- OBS was closed during the audit; the companion connected remotely but had zero widget clients and could not reach OBS, with no output running. Project Zomboid assets exist, while Sandustry remains a stale duplicate and is not approved.
+- Local Agent and VLC real playback remain unverified.
+- Next prerequisites: restore bot credential and channel targets; activate YouTube and Discord only if needed; launch OBS with MaiksPlays and Project Zomboid; establish widget clients; verify master-overlay fallback; prove installed PWA access and session recovery; verify chat attention, commands, moderation, alerts, and music without output; then run one explicitly authorized rehearsal.
+- Keep the production-only direction and image-first production rule intact.
+
 ## 2026-08-27 production not-found status correction
 
 - Confirmed that the approved not-found UI was rendered with HTTP `200` because the root App Router `loading.tsx` started streaming before dynamic routes could call `notFound()`.
