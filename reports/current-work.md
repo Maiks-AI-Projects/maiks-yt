@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 reviewed Games history filtering
+
+- Corrected `/admin/games` so a text or status match remains visible when reviewed suggestion history is collapsed to eight rows. The collapsed limit now applies after filtering instead of before it.
+- Added focused regression coverage for a match outside the newest eight and preserved the existing newest-eight default when no filter is active.
+- Focused web tests, web typecheck, production web build, architecture validation, and whitespace checks pass. Independent senior review found no blocker in this slice.
+- This is a behavior-only correction with no material visual redesign, API, schema, migration, provider, auth, secret, or deployment change. Real signed-in owner verification remains open.
+
 ## 2026-08-27 production request-log redaction
 
 - Added one API request-log policy that preserves operational request metadata while reducing every logged request target to a path. Query strings, fragments, absolute-form authority/userinfo, malformed absolute targets, and authority-form targets are excluded from logs.

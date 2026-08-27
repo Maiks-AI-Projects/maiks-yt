@@ -31,6 +31,11 @@ import type {
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { getSteamAppUrl } from "../../games/steam-store-url-data";
 import styles from "./game-library-admin.module.css";
+import {
+  createReviewedSuggestionView,
+  type ReviewedStatusFilter,
+  type ReviewedSuggestionStatus
+} from "./reviewed-suggestion-view.rules";
 
 type AdminGamesResponse =
   | {
@@ -68,9 +73,6 @@ type ActiveView = "library" | "suggestions";
 type GameFilter = "all" | "owned" | "not-owned" | "gifted" | "private";
 type OwnershipFilter = "all" | GameOwnershipStatus;
 type InterestFilter = "all" | GameInterestStatus;
-type ReviewedSuggestionStatus = Exclude<GameSuggestionStatus, "pending">;
-type ReviewedStatusFilter = "all" | ReviewedSuggestionStatus;
-
 type GameFormState = {
   title: string;
   slug: string;
@@ -238,12 +240,6 @@ const getLoadStateForFailure = (response: Response, reason?: string): LoadState 
   }
 
   return "failed";
-};
-
-const getReviewedSortValue = (suggestion: GameSuggestionSource): number => {
-  const timestamp = Date.parse(suggestion.reviewedAt ?? suggestion.updatedAt);
-
-  return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
 const formatReviewedDate = (value: string | null): string => {
@@ -556,23 +552,13 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   const visibleGames = sortGames(games);
   const gameTitleById = new Map(visibleGames.map((game) => [game.id, game.title]));
   const pendingSuggestions = suggestions.filter((suggestion) => suggestion.status === "pending");
-  const reviewedSuggestions = suggestions
-    .filter((suggestion) => suggestion.status !== "pending")
-    .slice()
-    .sort((left, right) => getReviewedSortValue(right) - getReviewedSortValue(left));
-  const normalizedReviewedSearch = reviewedSearchQuery.trim().toLocaleLowerCase();
-  const filteredReviewedSuggestions = reviewedSuggestions.filter((suggestion) => {
-    const matchesStatus = reviewedStatusFilter === "all" || suggestion.status === reviewedStatusFilter;
-    const matchesSearch = normalizedReviewedSearch.length === 0
-      || [suggestion.title, suggestion.platformLabel, suggestion.suggestedByName, suggestion.reviewerNote]
-        .filter((value): value is string => Boolean(value))
-        .some((value) => value.toLocaleLowerCase().includes(normalizedReviewedSearch));
-
-    return matchesStatus && matchesSearch;
+  const reviewedSuggestionView = createReviewedSuggestionView(suggestions, {
+    searchQuery: reviewedSearchQuery,
+    statusFilter: reviewedStatusFilter,
+    showAll: showAllReviewed
   });
-  const displayedReviewedSuggestions = showAllReviewed
-    ? filteredReviewedSuggestions
-    : reviewedSuggestions.slice(0, 8);
+  const reviewedSuggestions = reviewedSuggestionView.reviewed;
+  const displayedReviewedSuggestions = reviewedSuggestionView.displayed;
   const normalizedSearch = searchQuery.trim().toLocaleLowerCase();
   const filteredGames = visibleGames.filter((game) => {
     const matchesQuickFilter = gameFilter === "all"
