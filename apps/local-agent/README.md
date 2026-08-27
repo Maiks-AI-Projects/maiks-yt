@@ -22,7 +22,7 @@ Reconnect uses capped exponential backoff with jitter. Module startup is ordered
 - `cue.play` synthesizes a bounded WAV cue locally and sends it to `pw-play --target stream_private`.
 - `tts.speak` validates bounded text/voice/rate input, runs `espeak-ng` without a shell, and pipes its WAV output to the same stable sink.
 
-VLC music and Countdown are typed module/command contracts only. They are deliberately not instantiated or registered yet.
+VLC music is an executable module when `cvlc` or `vlc` is installed. It accepts bounded play, pause, resume, stop, seek, volume, and status commands, launches VLC without a shell, and pins playback to PipeWire sink `stream_music`. Countdown remains a typed module/command contract only.
 
 ## Dedicated credential design
 

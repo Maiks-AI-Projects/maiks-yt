@@ -4,12 +4,13 @@
 
 - Added `@maiks-yt/local-agent` as the production foundation for one outbound streaming-PC service instead of separate unmanaged helpers.
 - The agent has a durable device identity, disk-backed terminal acknowledgement replay, event-ID collision protection, bounded reconnect jitter, heartbeat/status reporting, strict inbound schema and payload bounds, module lifecycle rollback, and secure credential-file handling.
-- The first executable module sends private cues to PipeWire sink `stream_private` and can use `espeak-ng` for private TTS when installed. VLC music and countdown are typed extension points only in this slice.
+- The first executable module sends private cues to PipeWire sink `stream_private` and can use `espeak-ng` for private TTS when installed.
+- Added executable VLC music control for play, pause, resume, stop, seek, volume, and status. It launches VLC without a shell, sends media URLs through VLC's stdin control channel instead of process arguments, accepts only HTTPS or loopback HTTP sources without embedded credentials, and pins playback to PipeWire sink `stream_music`. Countdown remains a typed extension point only.
 - Added the first production server connection path at `/local-agent/live`. The API and agent share protocol-v1 types, accept one configured device, replace stale sockets on reconnect, validate bounded messages, track heartbeats and acknowledgements, and expose an internal command dispatcher for later modules.
 - The server path stays closed unless `MAIKS_LOCAL_AGENT_TOKEN`, `MAIKS_LOCAL_AGENT_ID`, and `MAIKS_LOCAL_AGENT_DEVICE_ID` are configured. It does not accept owner sessions, dev-auth tokens, provider credentials, or overlay tokens. `--print-device-id` provides the durable local identity before server configuration without requiring a remote URL or credential.
 - Added conservative user-systemd installation helpers. They do not enable or start the service, provision credentials, or alter live audio routing.
 - Focused tests, build, typecheck, architecture validation, and whitespace checks pass. Coordinator review also fixed post-connect WebSocket errors so they are reported rather than becoming unhandled process errors.
-- Owner-visible device status, managed credential rotation, VLC execution, countdown execution, service installation, and live audio proof remain separate gates. Browser/PWA private audio and `/music/player` remain the active fallbacks.
+- Owner-visible device status, managed credential rotation, Maiks.yt music-command mapping, authenticated media retrieval, countdown execution, service installation, and live audio proof remain separate gates. Browser/PWA private audio and `/music/player` remain the active fallbacks.
 
 ## 2026-08-27 OBS companion recovery
 
