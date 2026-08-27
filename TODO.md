@@ -308,6 +308,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Remove the dev owner-token mint, simulated Event Routing dispatch, and dev notification-post routes from the production route table while preserving their non-production testing workflows and real owner notification routes.
   - [x] Remove `/admin/testing/smoke-state` and its development state-file card from production while retaining non-production smoke tooling.
   - [x] Minimize public game-suggestion creation responses to an acceptance acknowledgement while retaining the private pending owner-review record.
+  - [x] Remove raw update ids and example-fixture markers from public Updates list/detail/RSS contracts while preserving the private admin editor and revision workflow.
+  - [x] Remove simulated/test-only Event Routing catalogue entries and test wording from production, and reject production save/reset/delete attempts for those rules before persistence. Preserve the non-production simulation catalogue and all real provider/website kinds.
   - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API; keep labelled fixtures outside production and publish only real records on production.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.

@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-28 production public contract and routing catalogue boundaries
+
+- Public Updates list, detail, RSS, and Web projections no longer expose raw database `id` or the internal `isExample` fixture marker. Production example filtering happens before public projection, while the owner editor keeps its explicit private preview/source types and revision-safe workflow.
+- Production Event Routing catalogue reads omit simulated/test-only kinds and development copy. Production save, reset, and delete attempts for simulated kinds or `test/system` overrides fail closed before persistence; non-production keeps the simulation catalogue, and real provider/website kinds remain visible even when their runtime consumer is not implemented yet.
+- Independent GPT-5.5 review reports zero standards and zero specification findings. `pnpm check:review` passes with 153 domain tests, 591 API tests, 55 Web tests plus the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- No schema, migration, auth, provider runtime, environment, deployment, GUI, or server state changed. Deployment and real production-route verification remain separate gates.
+
 ## 2026-08-28 production response and operator-surface boundaries
 
 - Production no longer registers `/admin/testing/smoke-state`, and Admin Overview no longer requests or renders the development smoke-state card. The non-production route and recurring development tooling remain available outside production.

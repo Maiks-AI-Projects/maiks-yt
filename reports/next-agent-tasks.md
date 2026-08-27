@@ -9,6 +9,7 @@
 ## Production Website Event Routing
 
 - The reviewed production patch connects public schedule create/update/cancel mutations to real website Event Routing. It keeps private schedules and game-link-only edits silent and commits history, approval, and cooldown state atomically. It is not deployed or live-verified.
+- The production admin catalogue now omits simulated/test-only entries and development wording. Production save/reset/delete attempts for simulated kinds or `test/system` overrides fail closed before persistence, while non-production retains its simulation catalogue and real provider/website kinds remain available. Deploy and verify this boundary separately from runtime rule execution.
 - Next safe producer: project-update publication, after the project path can distinguish initial publication from later edits and assign a stable source event identity.
 - Keep account signup, public-name, and avatar producers out until signup/profile disclosure, actor identity, and persisted opt-out behavior are proven through their real user paths.
 - Deployment verification must cover a signed-in owner schedule mutation, persisted real history, configured rule outcome, top/center delivery when selected, cooldown blocking, and a MariaDB-backed failure/concurrency case. Do not represent the passing unit/store tests as live database proof.
@@ -31,6 +32,7 @@
 
 - Deploy and verify the Connections/copy cleanup with the other reviewed Web hygiene slices. Confirm Connections lists only real production sources and its Event catalogue still includes Website plus Twitch/YouTube/Discord entries.
 - Production public Updates omit records explicitly marked as examples from list, detail, and RSS output while non-production keeps labelled fixtures. The owner-only `/admin/updates` editor also omits them from its ordinary inventory without deleting provenance rows.
+- Public Updates list/detail/RSS contracts now also omit raw database ids and the internal example marker. After deployment, verify the public API and feed remain minimal while the private owner editor still previews and publishes through its opaque revision contract.
 - The approved `/admin/updates` editor and manual Updates API are complete in the reviewed production patch. In-flight interactions are locked and covered by a delayed-response real-hook regression test, and Web tests now run in `pnpm check:review`. Deploy only in a deliberate verification window, then prove signed-in owner create, edit, saved preview, revision-safe publish, public detail/RSS visibility, unpublish, stale-preview rejection, and exact MySQL predicate behavior. GUI/visual verification remains blocked by Michael's desktop-control stop order.
 - Public game suggestion submission now returns only an acceptance acknowledgement while keeping the private pending record for owner review. After deployment, verify anonymous submission, exact minimal response, and owner review without exposing private workflow fields.
 - The Admin Overview development smoke-state card and proven-dead CSS are removed in reviewed production patches. Continue with the next evidence-backed operator-surface audit.
