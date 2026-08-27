@@ -10,21 +10,6 @@ export type StreamerChatMessagesResponse = {
   reason: string;
 };
 
-export type FakeLocalModerationResponse = {
-  ok: true;
-  source: "fake-local";
-  providerAction: false;
-  auditEntry: {
-    outcome: string;
-    mutedUntil: string | null;
-  };
-} | {
-  ok: false;
-  reason: string;
-  source: "fake-local";
-  providerAction: false;
-};
-
 export type StreamerChatModerationResponse = {
   ok: true;
   action: "hide" | "ban" | "warn" | "allow";

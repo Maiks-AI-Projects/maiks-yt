@@ -30,6 +30,7 @@
 
 - The production patch derives optional Control pages from active role permissions behind the existing Control URL-token and linked-session gates. It does not weaken token/session requirements or expose raw role data.
 - Owner wildcard sees all six pages. Actions, Music, and the chat-intake Provider Health view use `action-panel:view`, `music:play-control`, and `chat:view`; an unavailable direct link fails closed to Overview. The three core pages remain governed by outer Control access until dedicated stream/overlay capabilities are explicitly designed and enforced.
+- Standalone Chat now resolves the existing moderation access projection and defaults all quick actions to denied while that projection is unavailable. It no longer assumes a signed-in `chat:view` user can hide, ban, warn, allow, or perform provider moderation. Verify owner and helper action visibility plus live permission loss after deployment.
 - Local owner/helper visual proof is recorded under `reports/visual-qa/production-pwa-redesign`. Production deployment plus signed-in installed owner/helper proof remain the next integration gates.
 
 ## Production Local Agent Follow-Up

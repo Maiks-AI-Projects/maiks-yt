@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-27 standalone Chat permission truth
+
+- The standalone Chat PWA now loads the existing token-and-session-gated `/streamer-chat/moderation/access` projection before showing quick moderation actions. Action controls fail closed while access is loading or unavailable, then expose only the signed-in user's active rank capabilities instead of assuming every signed-in Chat viewer has all moderation rights.
+- The shared chat viewer also defaults to no actions when a caller omits an access projection. The retired fake/local `Note` and `Mute` drill path is removed from the PWA instead of bypassing the permission projection; the non-production API harness remains separate.
+- The full production review gate passes with 151 domain tests, 524 API tests, 26 Control tests, production Web build, Database/API/Overlay/Control/Local Agent typechecks, 16 Local Agent tests, architecture rules, and whitespace checks. Independent GPT-5.5 security/cross-app review is clean after the fake/local bypass was removed. This is an authorization-truthfulness correction using the existing UI and API contract, not a material redesign; no schema, migration, provider behavior, token/session gate, deployment, or server state changed. Installed owner/helper permission-loss verification remains a deployment gate, and GUI verification remains prohibited by Michael's desktop-control stop order.
+
 ## 2026-08-27 production manual Updates API
 
 - Added a production-native manual Updates backend over the existing `public_updates` schema. Authenticated owner-wildcard or delegated `updates:manage` actors can list records, create and edit drafts, preview the saved public projection, publish valid records, and unpublish them through `/admin/updates` routes.

@@ -4,10 +4,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { apiFetch } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
-import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
+import {
+  canOpenStreamerChatOptions,
+  createAuthenticatedWebSocketUrl,
+  defaultProviderTimeoutDurationSeconds,
+  noStreamerChatActionAccess
+} from "./streamer-chat-viewer.service.js";
 import { useChatAttention } from "./useChatAttention.js";
 import type {
-  FakeLocalModerationResponse,
   StreamerChatMessagesResponse,
   StreamerChatModerationResponse,
   StreamerChatProviderModerationResponse,
@@ -43,7 +47,6 @@ const getOptionUnavailableReasons = (
     !actionAccess.canProviderModerate && (message.source === "discord" || message.source === "twitch")
       ? "Provider actions need chat:provider-moderate."
       : null,
-    message.source !== "fake-local" ? "Note is a fake/local drill." : null,
     message.source === "discord" || message.source === "twitch" || message.source === "youtube"
       ? `${chatSourceLabels[message.source]} provider warning is attempted by the Warn action.`
       : "Provider warning messages are gated until provider-write clients and permission checks exist.",
@@ -101,7 +104,7 @@ const sourceGlyphs: Record<StreamerChatMessage["source"], string> = {
 };
 
 export const StreamerChatViewer = ({
-  actionAccess = defaultActionAccess,
+  actionAccess = noStreamerChatActionAccess,
   apiBaseUrl,
   maxMessages = 12,
   newestOnTop,
@@ -217,57 +220,6 @@ export const StreamerChatViewer = ({
     }
   };
 
-  const executeFakeLocalModeration = async (
-    message: StreamerChatMessage,
-    action: "hide_message" | "temporary_mute_author" | "warn_author" | "note_author",
-    note: string
-  ): Promise<void> => {
-    if (message.source !== "fake-local") {
-      setActionStatus(`${chatSourceLabels[message.source]} provider moderation is not wired yet.`);
-      return;
-    }
-
-    setActionStatus("Sending local moderation command.");
-
-    try {
-      const response = await apiFetch(`${apiBaseUrl}/fake-local-chat/moderation/commands`, {
-        body: JSON.stringify({
-          action,
-          targetMessageId: action === "hide_message" ? message.id : null,
-          targetAuthorName: action === "hide_message" ? null : message.authorName,
-          durationSeconds: action === "temporary_mute_author" ? defaultTemporaryMuteDurationSeconds : null,
-          note
-        }),
-        headers: {
-          "Content-Type": "application/json"
-        },
-        method: "POST"
-      });
-      const result = await response.json() as FakeLocalModerationResponse;
-
-      if (!response.ok) {
-        throw new Error("Local moderation request failed.");
-      }
-
-      if (!result.ok) {
-        throw new Error(result.reason);
-      }
-
-      if (action === "hide_message") {
-        setMessages((currentMessages) => currentMessages.filter((currentMessage) => currentMessage.id !== message.id));
-      }
-
-      setOpenOptionsMessageId(null);
-      setActionStatus(
-        action === "temporary_mute_author" && result.auditEntry.mutedUntil
-          ? `${message.authorName} muted locally until ${formatChatTime(result.auditEntry.mutedUntil)}.`
-          : `Local moderation command applied to ${message.authorName}.`
-      );
-    } catch (error) {
-      setActionStatus(error instanceof Error ? error.message : "Local moderation command failed.");
-    }
-  };
-
   const executeProviderModeration = async (
     message: StreamerChatMessage,
     action: "delete_message" | "timeout_author" | "ban_author"
@@ -301,7 +253,7 @@ export const StreamerChatViewer = ({
         body: JSON.stringify({
           accessToken: token,
           action,
-          durationSeconds: action === "timeout_author" ? defaultTemporaryMuteDurationSeconds : null,
+          durationSeconds: action === "timeout_author" ? defaultProviderTimeoutDurationSeconds : null,
           targetMessageId: message.id
         }),
         headers: {
@@ -549,7 +501,7 @@ export const StreamerChatViewer = ({
                       Ban
                     </button>
                   ) : null}
-                  {actionAccess.canWarn || showUnavailableActions || message.source === "fake-local" ? (
+                  {canOpenStreamerChatOptions(actionAccess, message.source) || showUnavailableActions ? (
                     <button
                       type="button"
                       aria-expanded={optionsOpen}
@@ -599,23 +551,6 @@ export const StreamerChatViewer = ({
                           : "Missing chat:ban-user-local permission."}
                       >
                         Ban
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => void executeFakeLocalModeration(message, "note_author", "Noted from streamer chat options.")}
-                      disabled={message.source !== "fake-local"}
-                      title={message.source !== "fake-local" ? "Provider notes need the provider moderation phase." : "Add a local note drill."}
-                    >
-                      Note
-                    </button>
-                    {message.source === "fake-local" ? (
-                      <button
-                        type="button"
-                        onClick={() => void executeFakeLocalModeration(message, "temporary_mute_author", "Muted for 10 minutes from streamer chat options.")}
-                        title="Mute this fake/local author for 10 minutes."
-                      >
-                        Mute 10m
                       </button>
                     ) : null}
                     {message.source === "discord" || message.source === "twitch" || showUnavailableActions ? (

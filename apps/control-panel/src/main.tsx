@@ -11,7 +11,7 @@ import {
 import { ControlActionsPanel } from "./actions/ControlActionsPanel.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
-import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
+import { StandaloneStreamerChatViewer } from "./chat/StandaloneStreamerChatViewer.js";
 import { captureDevAuthTokenFromUrl, withDevAuthToken } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
 import { MusicControlPanel } from "./music/MusicControlPanel.js";
@@ -282,7 +282,7 @@ const App = (): React.ReactNode => {
           <button type="button" onClick={() => updateUiScale(5)}>+</button>
         </div>
       </div>
-      <StreamerChatViewer apiBaseUrl={apiBaseUrl} newestOnTop maxMessages={80} variant="standalone" />
+      <StandaloneStreamerChatViewer apiBaseUrl={apiBaseUrl} />
     </main>
   );
   }
