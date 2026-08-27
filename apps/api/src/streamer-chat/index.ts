@@ -1,4 +1,9 @@
 export { InMemoryFakeLocalModerationRuntime } from "./fake-local-moderation-runtime.service.js";
+export {
+  canViewPrivateStreamerChat,
+  createRequireStreamerChatControlAccess,
+  type StreamerChatControlAccess
+} from "./streamer-chat-control-access.service.js";
 export { registerStreamerChatControlRoutes } from "./streamer-chat-control.route.js";
 export { registerStreamerChatModerationRoutes } from "./streamer-chat-moderation.route.js";
 export {

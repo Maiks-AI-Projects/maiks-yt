@@ -240,7 +240,19 @@ describe("Provider integration status routes", () => {
           },
           now: () => new Date("2026-06-29T12:00:00.000Z"),
           runtimeState: () => ({
-            twitchChatIntakeState: "connected"
+            twitchChatIntake: {
+              channelName: "maiksmc",
+              channelNames: ["maiksmc"],
+              connectedAt: "2026-06-29T12:00:00.000Z",
+              disconnectsInWindow: 0,
+              lastDisconnectAt: null,
+              lastError: null,
+              lastMessageAt: "2026-06-29T12:05:00.000Z",
+              nextReconnectAt: null,
+              recentMessages: [],
+              reconnectSuppressed: false,
+              state: "connected"
+            }
           })
         }
       )
@@ -257,8 +269,120 @@ describe("Provider integration status routes", () => {
     expect(twitch.capabilities).toEqual(expect.arrayContaining([
       expect.objectContaining({
         key: "twitch-chat-runtime",
+        runtime: expect.objectContaining({
+          accountSummary: "maiksmc",
+          connectionState: "connected",
+          lastMessageAt: "2026-06-29T12:05:00.000Z"
+        }),
         state: "configured"
       })
     ]));
+  });
+
+  it("returns stopped and reconnect telemetry without leaking secrets or provider ids", async () => {
+    const server = Fastify();
+
+    registerProviderIntegrationStatusRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new ProviderIntegrationStatusService(
+        new FakeProviderIntegrationStatusRepository(),
+        {
+          env: {
+            DISCORD_BOT_TOKEN: "secret-discord-value",
+            DISCORD_CHAT_AUTO_START: "false",
+            DISCORD_GUILD_ID: "987654321098765432",
+            TWITCH_CHAT_AUTO_START: "false",
+            TWITCH_CLIENT_ID: "twitch-client",
+            TWITCH_CLIENT_SECRET: "secret-twitch-value"
+          },
+          now: () => new Date("2026-06-29T12:00:00.000Z"),
+          runtimeState: () => ({
+            discordChatIntake: {
+              channelIds: ["123456789012345678"],
+              connectedAt: null,
+              disconnectsInWindow: 10,
+              guildId: "987654321098765432",
+              lastDisconnectAt: "2026-06-29T11:59:00.000Z",
+              lastError: "Authorization: Bearer secret-discord-value failed for guildId=987654321098765432 payload={raw}",
+              lastMessageAt: "2026-06-29T11:58:00.000Z",
+              nextReconnectAt: null,
+              recentMessages: [],
+              reconnectSuppressed: true,
+              state: "stopped"
+            },
+            twitchChatIntake: {
+              channelName: "maiksmc",
+              channelNames: ["maiksmc"],
+              connectedAt: null,
+              disconnectsInWindow: 0,
+              lastDisconnectAt: null,
+              lastError: null,
+              lastMessageAt: null,
+              nextReconnectAt: null,
+              recentMessages: [],
+              reconnectSuppressed: false,
+              state: "stopped"
+            },
+            youtubeLiveChatIntake: {
+              activeLiveChatId: null,
+              channelId: "UC1234567890123456789012",
+              channelName: "MaiksMC",
+              connectedAt: null,
+              lastError: null,
+              lastMessageAt: null,
+              nextPollAt: null,
+              recentMessages: [],
+              state: "stopped"
+            }
+          })
+        }
+      )
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/status"
+    });
+    const body = response.json();
+    const serialized = JSON.stringify(body);
+    const twitch = body.providers.find((provider: { id: string }) => provider.id === "twitch");
+    const discord = body.providers.find((provider: { id: string }) => provider.id === "discord");
+
+    expect(response.statusCode).toBe(200);
+    expect(twitch.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "twitch-chat-runtime",
+        runtime: expect.objectContaining({
+          accountSummary: "maiksmc",
+          autoStartEnabled: false,
+          connectionState: "stopped"
+        }),
+        state: "available"
+      })
+    ]));
+    expect(discord.capabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        key: "discord-chat-runtime",
+        runtime: expect.objectContaining({
+          accountSummary: "1 configured channels",
+          autoStartEnabled: false,
+          connectionState: "stopped",
+          lastDisconnectAt: "2026-06-29T11:59:00.000Z",
+          reconnectCount: 10,
+          reconnectSuppressed: true
+        }),
+        state: "available"
+      })
+    ]));
+    expect(serialized).not.toContain("\"state\":\"not_enabled\"");
+    expect(serialized).not.toContain("secret-discord-value");
+    expect(serialized).not.toContain("secret-twitch-value");
+    expect(serialized).not.toContain("987654321098765432");
+    expect(serialized).not.toContain("123456789012345678");
+    expect(serialized).not.toContain("UC1234567890123456789012");
+    expect(serialized).not.toContain("payload={raw}");
   });
 });

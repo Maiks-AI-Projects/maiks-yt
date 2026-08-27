@@ -221,6 +221,197 @@ describe("provider integration status", () => {
     ]));
   });
 
+  it("reports configured but stopped runtimes as available and stopped", () => {
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      DISCORD_BOT_TOKEN: "super-secret-discord-bot",
+      DISCORD_CHAT_AUTO_START: "false",
+      TWITCH_CHAT_AUTO_START: "false",
+      TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CLIENT_SECRET: "super-secret-twitch",
+      YOUTUBE_LIVE_CHAT_AUTO_START: "false"
+    }, new Date("2026-07-04T10:00:00.000Z"), {
+      discordChatIntake: {
+        channelIds: ["123456789012345678"],
+        connectedAt: null,
+        disconnectsInWindow: 0,
+        guildId: "987654321098765432",
+        lastError: null,
+        lastDisconnectAt: null,
+        lastMessageAt: null,
+        nextReconnectAt: null,
+        recentMessages: [],
+        reconnectSuppressed: false,
+        state: "stopped"
+      },
+      twitchChatIntake: {
+        channelName: "maiksmc",
+        channelNames: ["maiksmc"],
+        connectedAt: null,
+        disconnectsInWindow: 0,
+        lastError: null,
+        lastDisconnectAt: null,
+        lastMessageAt: null,
+        nextReconnectAt: null,
+        recentMessages: [],
+        reconnectSuppressed: false,
+        state: "stopped"
+      },
+      youtubeLiveChatIntake: {
+        activeLiveChatId: null,
+        channelId: "UC1234567890123456789012",
+        channelName: "MaiksMC",
+        connectedAt: null,
+        lastError: null,
+        lastMessageAt: null,
+        nextPollAt: null,
+        recentMessages: [],
+        state: "stopped"
+      }
+    });
+    const serialized = JSON.stringify(snapshot);
+    const twitchRuntime = snapshot.providers
+      .find((provider) => provider.id === "twitch")
+      ?.capabilities.find((capability) => capability.key === "twitch-chat-runtime");
+    const youtubeRuntime = snapshot.providers
+      .find((provider) => provider.id === "youtube")
+      ?.capabilities.find((capability) => capability.key === "youtube-live-chat-runtime");
+    const discordRuntime = snapshot.providers
+      .find((provider) => provider.id === "discord")
+      ?.capabilities.find((capability) => capability.key === "discord-chat-runtime");
+
+    expect(twitchRuntime).toMatchObject({
+      state: "available",
+      runtime: {
+        accountSummary: "maiksmc",
+        autoStartEnabled: false,
+        connectionState: "stopped"
+      }
+    });
+    expect(youtubeRuntime).toMatchObject({
+      state: "available",
+      runtime: {
+        accountSummary: "MaiksMC",
+        autoStartEnabled: false,
+        connectionState: "stopped"
+      }
+    });
+    expect(discordRuntime).toMatchObject({
+      state: "available",
+      runtime: {
+        accountSummary: "1 configured channels",
+        autoStartEnabled: false,
+        connectionState: "stopped"
+      }
+    });
+    expect(serialized).not.toContain("\"state\":\"not_enabled\"");
+    expect(serialized).not.toContain("123456789012345678");
+    expect(serialized).not.toContain("987654321098765432");
+    expect(serialized).not.toContain("UC1234567890123456789012");
+  });
+
+  it("redacts reconnect-degraded runtime telemetry before returning status", () => {
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      DISCORD_BOT_TOKEN: "secret-discord-token-value",
+      DISCORD_GUILD_ID: "987654321098765432",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "unlisted-bot-token-value",
+      TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CLIENT_SECRET: "secret-twitch-value"
+    }, new Date("2026-07-04T10:00:00.000Z"), {
+      discordChatIntake: {
+        channelIds: ["123456789012345678", "234567890123456789"],
+        connectedAt: null,
+        disconnectsInWindow: 10,
+        guildId: "987654321098765432",
+        lastDisconnectAt: "2026-07-04T09:59:00.000Z",
+        lastError: "Authorization: Bearer secret-discord-token-value failed for guildId=987654321098765432 payload={raw}",
+        lastMessageAt: "2026-07-04T09:58:00.000Z",
+        nextReconnectAt: null,
+        recentMessages: [],
+        reconnectSuppressed: true,
+        state: "stopped"
+      },
+      twitchChatIntake: {
+        channelName: "maiksmc",
+        channelNames: ["maiksmc"],
+        connectedAt: null,
+        disconnectsInWindow: 4,
+        lastDisconnectAt: "2026-07-04T09:55:00.000Z",
+        lastError: "GET https://example.test/chat/123456?access_token=secret-twitch-value failed with unlisted-bot-token-value broadcasterId=123456",
+        lastMessageAt: "2026-07-04T09:50:00.000Z",
+        nextReconnectAt: "2026-07-04T10:00:05.000Z",
+        recentMessages: [],
+        reconnectSuppressed: false,
+        state: "connecting"
+      }
+    });
+    const serialized = JSON.stringify(snapshot);
+    const discordRuntime = snapshot.providers
+      .find((provider) => provider.id === "discord")
+      ?.capabilities.find((capability) => capability.key === "discord-chat-runtime")?.runtime;
+    const twitchRuntime = snapshot.providers
+      .find((provider) => provider.id === "twitch")
+      ?.capabilities.find((capability) => capability.key === "twitch-chat-runtime")?.runtime;
+
+    expect(discordRuntime).toMatchObject({
+      accountSummary: "2 configured channels",
+      connectionState: "stopped",
+      lastDisconnectAt: "2026-07-04T09:59:00.000Z",
+      lastMessageAt: "2026-07-04T09:58:00.000Z",
+      reconnectCount: 10,
+      reconnectSuppressed: true
+    });
+    expect(twitchRuntime).toMatchObject({
+      accountSummary: "maiksmc",
+      connectionState: "connecting",
+      nextRetryAt: "2026-07-04T10:00:05.000Z",
+      reconnectCount: 4,
+      reconnectSuppressed: false
+    });
+    expect(discordRuntime?.lastError).toContain("[redacted]");
+    expect(discordRuntime?.lastError).toContain("[redacted-id]");
+    expect(twitchRuntime?.lastError).toContain("[redacted]");
+    expect(serialized).not.toContain("secret-discord-token-value");
+    expect(serialized).not.toContain("secret-twitch-value");
+    expect(serialized).not.toContain("unlisted-bot-token-value");
+    expect(serialized).not.toContain("987654321098765432");
+    expect(serialized).not.toContain("123456789012345678");
+    expect(serialized).not.toContain("234567890123456789");
+    expect(serialized).not.toContain("broadcasterId=123456");
+    expect(serialized).not.toContain("/chat/123456");
+    expect(serialized).not.toContain("access_token=secret-twitch-value");
+    expect(serialized).not.toContain("payload={raw}");
+  });
+
+  it("redacts configured secrets before truncating runtime errors", () => {
+    const boundarySecret = "boundary-secret-value";
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CLIENT_SECRET: boundarySecret
+    }, new Date("2026-07-04T10:00:00.000Z"), {
+      twitchChatIntake: {
+        channelName: "maiksmc",
+        channelNames: ["maiksmc"],
+        connectedAt: null,
+        disconnectsInWindow: 1,
+        lastDisconnectAt: "2026-07-04T09:59:00.000Z",
+        lastError: `${"x".repeat(168)} ${boundarySecret} after boundary`,
+        lastMessageAt: null,
+        nextReconnectAt: "2026-07-04T10:00:05.000Z",
+        recentMessages: [],
+        reconnectSuppressed: false,
+        state: "connecting"
+      }
+    });
+    const lastError = snapshot.providers
+      .find((provider) => provider.id === "twitch")
+      ?.capabilities.find((capability) => capability.key === "twitch-chat-runtime")?.runtime?.lastError;
+
+    expect(lastError).toContain("[redacted]");
+    expect(lastError).not.toContain(boundarySecret);
+    expect(lastError).not.toContain("boundary");
+    expect(lastError).toHaveLength(180);
+  });
+
   it("reports configured Twitch EventSub webhook receiver separately from subscription creation", () => {
     const snapshot = getProviderIntegrationStatusSnapshot({
       TWITCH_CLIENT_ID: "twitch-client",

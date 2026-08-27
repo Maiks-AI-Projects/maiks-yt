@@ -247,9 +247,9 @@ export const registerApplicationRoutes = ({
     getAuthSession,
     getDatabasePool,
     getRuntimeState: () => ({
-      discordChatIntakeState: discordChatIntakeRuntime.getStatus().state,
-      twitchChatIntakeState: twitchChatIntakeRuntime.getStatus().state,
-      youtubeLiveChatIntakeState: youtubeLiveChatIntakeRuntime.getStatus().state
+      discordChatIntake: discordChatIntakeRuntime.getStatus(),
+      twitchChatIntake: twitchChatIntakeRuntime.getStatus(),
+      youtubeLiveChatIntake: youtubeLiveChatIntakeRuntime.getStatus()
     })
   });
   registerProviderEventIntakeAdminRoutes(server, {
@@ -303,10 +303,11 @@ export const registerApplicationRoutes = ({
   });
   registerStreamerChatControlRoutes(server, {
     discordChatIntakeRuntime,
+    getDatabasePool,
     requireUrlAccessTokenForRequest,
     streamerChatRuntime,
     twitchChatIntakeRuntime,
-    youtubeLiveChatIntakeRuntime,
+    youtubeLiveChatIntakeRuntime
   });
   registerStreamerChatModerationRoutes(server, {
     accessService: streamerChatModerationAccessService,

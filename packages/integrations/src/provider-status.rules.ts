@@ -5,6 +5,10 @@ import type { ChatClient } from "@twurple/chat";
 import type { Client as DiscordClient } from "discord.js";
 import type { youtube_v3 } from "googleapis";
 
+import type { DiscordChatIntakeStatus } from "./discord-chat-intake.types.js";
+import type { TwitchChatIntakeStatus } from "./twitch-chat-intake.types.js";
+import type { YouTubeLiveChatIntakeStatus } from "./youtube-live-chat-intake.types.js";
+
 export type ProviderIntegrationId = "twitch" | "youtube" | "discord";
 
 export type ProviderIntegrationState = "configured" | "missing" | "invalid" | "disabled" | "error";
@@ -26,6 +30,7 @@ export type ProviderCapabilityStatus = {
   label: string;
   state: ProviderCapabilityState;
   detail: string;
+  runtime?: ProviderRuntimeTelemetry;
 };
 
 export type ProviderIntegrationStatus = {
@@ -50,9 +55,32 @@ export type ProviderIntegrationStatusSnapshot = {
 export type ProviderIntegrationEnvironment = Record<string, string | undefined>;
 
 export type ProviderIntegrationRuntimeState = {
+  discordChatIntake?: DiscordChatIntakeStatus;
   discordChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
+  twitchChatIntake?: TwitchChatIntakeStatus;
   twitchChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
+  youtubeLiveChatIntake?: YouTubeLiveChatIntakeStatus;
   youtubeLiveChatIntakeState?: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+};
+
+export type ProviderRuntimeConnectionState =
+  | "stopped"
+  | "connecting"
+  | "waiting"
+  | "connected"
+  | "unconfigured";
+
+export type ProviderRuntimeTelemetry = {
+  connectionState: ProviderRuntimeConnectionState;
+  accountSummary: string | null;
+  connectedAt: string | null;
+  lastDisconnectAt: string | null;
+  lastMessageAt: string | null;
+  reconnectCount: number | null;
+  nextRetryAt: string | null;
+  reconnectSuppressed: boolean | null;
+  lastError: string | null;
+  autoStartEnabled: boolean;
 };
 
 export type TwitchProviderSdkFoundation = {
@@ -84,6 +112,7 @@ const statusBoundaries = [
   "Read-only provider integration configuration snapshot.",
   "YouTube owner OAuth can store a read-only live-chat credential; no webhook receiver, provider write, moderation action, or provider mutation is enabled.",
   "Secret values are never returned; only environment variable names, configured booleans, and sanitized validation issues are exposed.",
+  "Runtime telemetry is allowlisted to connection state, safe account/channel summaries, timestamps, reconnect counters, retry policy, sanitized error text, and auto-start policy.",
   "Missing provider environment variables produce safe missing status instead of crashing startup."
 ] as const;
 
@@ -143,6 +172,202 @@ const hasDisabledFlag = (
   isTruthyFlag(env.PROVIDER_INTEGRATIONS_DISABLED)
   || isTruthyFlag(env[`${providerId.toUpperCase()}_INTEGRATION_DISABLED`]);
 
+const isAutoStartEnabled = (env: ProviderIntegrationEnvironment, name: string): boolean =>
+  env[name]?.trim().toLowerCase() !== "false";
+
+const normalizeTimestamp = (value: string | null | undefined): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+};
+
+const boundedCount = (value: number | null | undefined): number | null => {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    return null;
+  }
+
+  return Math.min(value, 999);
+};
+
+const sanitizeSummaryText = (value: string | null | undefined): string | null => {
+  const compact = value?.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim() ?? "";
+
+  return compact.length > 0 ? compact.slice(0, 80) : null;
+};
+
+const safeTwitchChannelName = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim().replace(/^#/, "").toLowerCase() ?? "";
+
+  return /^[a-z0-9_]{1,25}$/.test(normalized) ? normalized : null;
+};
+
+const joinSafeNames = (names: readonly string[]): string | null => {
+  const visibleNames = names.slice(0, 3);
+  const suffix = names.length > visibleNames.length ? ` + ${names.length - visibleNames.length} more` : "";
+
+  return visibleNames.length > 0 ? `${visibleNames.join(" + ")}${suffix}` : null;
+};
+
+const createSensitiveValuePatterns = (
+  env: ProviderIntegrationEnvironment,
+  variables: readonly ProviderEnvironmentVariableStatus[]
+): readonly RegExp[] => {
+  const values = [
+    ...variables.map((variable) => env[variable.name]?.trim() ?? ""),
+    ...Object.entries(env)
+      .filter(([name]) => /(?:TOKEN|SECRET|PASSWORD|API_KEY|AUTHORIZATION|COOKIE)/i.test(name))
+      .map(([, value]) => value?.trim() ?? "")
+  ];
+
+  return values
+    .filter((value, index, values) => value.length >= 3 && values.indexOf(value) === index)
+    .map((value) => new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"));
+};
+
+const sanitizeRuntimeError = (
+  value: string | null | undefined,
+  sensitiveValuePatterns: readonly RegExp[]
+): string | null => {
+  const compact = value?.replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim() ?? "";
+
+  if (compact.length === 0) {
+    return null;
+  }
+
+  let sanitized = compact;
+  for (const pattern of sensitiveValuePatterns) {
+    sanitized = sanitized.replace(pattern, "[redacted]");
+  }
+
+  sanitized = sanitized
+    .replace(/\b(authorization|cookie|set-cookie)\s*:\s*[^,\s)]+/gi, "$1: [redacted]")
+    .replace(/\b(bearer|basic)\s+[a-z0-9._~+/=-]+/gi, "$1 [redacted]")
+    .replace(/\b(access[_-]?token|refresh[_-]?token|api[_-]?key|client[_-]?secret|secret|token|password)\s*[:=]\s*["']?[^"',\s)]+/gi, "$1=[redacted]")
+    .replace(/\b(guild[_-]?id|channel[_-]?id|user[_-]?id|message[_-]?id|client[_-]?id|provider[_-]?id|broadcaster[_-]?id|account[_-]?id|live[_-]?chat[_-]?id|video[_-]?id|subscription[_-]?id)\s*[:=]\s*["']?[^"',\s)]+/gi, "$1=[redacted-id]")
+    .replace(/\b(raw[_-]?payload|payload|body|headers?)\s*[:=]\s*["']?[^"',\s)]+/gi, "$1=[redacted]")
+    .replace(/\b\d{17,20}\b/g, "[redacted-id]")
+    .replace(/\bUC[a-z0-9_-]{22}\b/gi, "[redacted-id]")
+    .replace(/https?:\/\/[^\s?#]+[^\s]*/gi, (match) => {
+      try {
+        const url = new URL(match);
+        return `${url.origin}${url.pathname === "/" ? "/" : "/[redacted-path]"}${url.search || url.hash ? "[redacted]" : ""}`;
+      } catch {
+        return "[redacted-url]";
+      }
+    });
+
+  return sanitized.slice(0, 180);
+};
+
+const runtimeCapabilityState = (
+  state: ProviderRuntimeConnectionState | undefined
+): ProviderCapabilityState => {
+  if (state === "connected") {
+    return "configured";
+  }
+
+  if (state === "connecting" || state === "waiting" || state === "stopped") {
+    return "available";
+  }
+
+  if (state === "unconfigured") {
+    return "missing";
+  }
+
+  return "not_enabled";
+};
+
+const twitchRuntimeTelemetry = (
+  env: ProviderIntegrationEnvironment,
+  variables: readonly ProviderEnvironmentVariableStatus[],
+  runtimeState: ProviderIntegrationRuntimeState
+): ProviderRuntimeTelemetry | undefined => {
+  const status = runtimeState.twitchChatIntake;
+  const state = status?.state ?? runtimeState.twitchChatIntakeState;
+
+  if (!state) {
+    return undefined;
+  }
+
+  const names = status?.channelNames
+    .map((name) => safeTwitchChannelName(name))
+    .filter((name): name is string => name !== null) ?? [];
+
+  return {
+    connectionState: state,
+    accountSummary: joinSafeNames(names) ?? safeTwitchChannelName(status?.channelName) ?? null,
+    connectedAt: normalizeTimestamp(status?.connectedAt),
+    lastDisconnectAt: normalizeTimestamp(status?.lastDisconnectAt),
+    lastMessageAt: normalizeTimestamp(status?.lastMessageAt),
+    reconnectCount: boundedCount(status?.disconnectsInWindow),
+    nextRetryAt: normalizeTimestamp(status?.nextReconnectAt),
+    reconnectSuppressed: typeof status?.reconnectSuppressed === "boolean" ? status.reconnectSuppressed : null,
+    lastError: sanitizeRuntimeError(status?.lastError, createSensitiveValuePatterns(env, variables)),
+    autoStartEnabled: isAutoStartEnabled(env, "TWITCH_CHAT_AUTO_START")
+  };
+};
+
+const youtubeRuntimeTelemetry = (
+  env: ProviderIntegrationEnvironment,
+  variables: readonly ProviderEnvironmentVariableStatus[],
+  runtimeState: ProviderIntegrationRuntimeState
+): ProviderRuntimeTelemetry | undefined => {
+  const status = runtimeState.youtubeLiveChatIntake;
+  const state = status?.state ?? runtimeState.youtubeLiveChatIntakeState;
+
+  if (!state) {
+    return undefined;
+  }
+
+  return {
+    connectionState: state,
+    accountSummary: sanitizeSummaryText(status?.channelName),
+    connectedAt: normalizeTimestamp(status?.connectedAt),
+    lastDisconnectAt: null,
+    lastMessageAt: normalizeTimestamp(status?.lastMessageAt),
+    reconnectCount: null,
+    nextRetryAt: normalizeTimestamp(status?.nextPollAt),
+    reconnectSuppressed: null,
+    lastError: sanitizeRuntimeError(status?.lastError, createSensitiveValuePatterns(env, variables)),
+    autoStartEnabled: isAutoStartEnabled(env, "YOUTUBE_LIVE_CHAT_AUTO_START")
+  };
+};
+
+const discordRuntimeTelemetry = (
+  env: ProviderIntegrationEnvironment,
+  variables: readonly ProviderEnvironmentVariableStatus[],
+  runtimeState: ProviderIntegrationRuntimeState
+): ProviderRuntimeTelemetry | undefined => {
+  const status = runtimeState.discordChatIntake;
+  const state = status?.state ?? runtimeState.discordChatIntakeState;
+
+  if (!state) {
+    return undefined;
+  }
+
+  const configuredChannelCount = status?.channelIds.length ?? 0;
+
+  return {
+    connectionState: state,
+    accountSummary: configuredChannelCount > 0
+      ? `${Math.min(configuredChannelCount, 999)} configured channels`
+      : status?.guildId
+        ? "Guild-wide intake"
+        : null,
+    connectedAt: normalizeTimestamp(status?.connectedAt),
+    lastDisconnectAt: normalizeTimestamp(status?.lastDisconnectAt),
+    lastMessageAt: normalizeTimestamp(status?.lastMessageAt),
+    reconnectCount: boundedCount(status?.disconnectsInWindow),
+    nextRetryAt: normalizeTimestamp(status?.nextReconnectAt),
+    reconnectSuppressed: typeof status?.reconnectSuppressed === "boolean" ? status.reconnectSuppressed : null,
+    lastError: sanitizeRuntimeError(status?.lastError, createSensitiveValuePatterns(env, variables)),
+    autoStartEnabled: isAutoStartEnabled(env, "DISCORD_CHAT_AUTO_START")
+  };
+};
+
 const stateFrom = ({
   disabled,
   configured,
@@ -177,6 +402,7 @@ const buildTwitchStatus = (
     .map((variable) => issueForEnv(env, variable))
     .filter((issue): issue is string => issue !== null);
   const disabled = hasDisabledFlag(env, "twitch");
+  const runtime = twitchRuntimeTelemetry(env, variables, runtimeState);
 
   return {
     id: "twitch",
@@ -206,20 +432,17 @@ const buildTwitchStatus = (
       {
         key: "twitch-chat-runtime",
         label: "Twitch chat runtime",
-        state: runtimeState.twitchChatIntakeState === "connected"
-          ? "configured"
-          : runtimeState.twitchChatIntakeState === "connecting"
-            ? "available"
-            : runtimeState.twitchChatIntakeState === "unconfigured"
-              ? "missing"
-              : "not_enabled",
-        detail: runtimeState.twitchChatIntakeState === "connected"
+        state: runtimeCapabilityState(runtime?.connectionState),
+        detail: runtime?.connectionState === "connected"
           ? "Read-only Twitch chat intake is connected on this API runtime."
-          : runtimeState.twitchChatIntakeState === "connecting"
+          : runtime?.connectionState === "connecting"
             ? "Read-only Twitch chat intake is currently connecting."
-            : runtimeState.twitchChatIntakeState === "unconfigured"
+            : runtime?.connectionState === "unconfigured"
               ? "Twitch chat intake has no usable channel configuration."
-              : "Read-only Twitch chat intake is installed but stopped."
+              : runtime?.connectionState === "stopped"
+                ? "Read-only Twitch chat intake is available and stopped."
+                : "Read-only Twitch chat intake runtime telemetry is unavailable.",
+        ...(runtime ? { runtime } : {})
       },
       {
         key: "twitch-eventsub",
@@ -262,6 +485,7 @@ const buildYouTubeStatus = (
   }
 
   const disabled = hasDisabledFlag(env, "youtube");
+  const runtime = youtubeRuntimeTelemetry(env, variables, runtimeState);
 
   return {
     id: "youtube",
@@ -305,22 +529,19 @@ const buildYouTubeStatus = (
       {
         key: "youtube-live-chat-runtime",
         label: "YouTube live chat runtime",
-        state: runtimeState.youtubeLiveChatIntakeState === "connected"
-          ? "configured"
-          : runtimeState.youtubeLiveChatIntakeState === "connecting" || runtimeState.youtubeLiveChatIntakeState === "waiting"
-            ? "available"
-            : runtimeState.youtubeLiveChatIntakeState === "unconfigured"
-              ? "missing"
-              : "not_enabled",
-        detail: runtimeState.youtubeLiveChatIntakeState === "connected"
+        state: runtimeCapabilityState(runtime?.connectionState),
+        detail: runtime?.connectionState === "connected"
           ? "Read-only YouTube live-chat polling is connected on this API runtime."
-          : runtimeState.youtubeLiveChatIntakeState === "waiting"
+          : runtime?.connectionState === "waiting"
             ? "Read-only YouTube live-chat polling is waiting for an active live chat."
-            : runtimeState.youtubeLiveChatIntakeState === "connecting"
+            : runtime?.connectionState === "connecting"
               ? "Read-only YouTube live-chat polling is checking for an active live chat."
-              : runtimeState.youtubeLiveChatIntakeState === "unconfigured"
+              : runtime?.connectionState === "unconfigured"
                 ? "YouTube live-chat polling needs an active owner credential and selected channel."
-                : "Read-only YouTube live-chat polling is installed but stopped."
+                : runtime?.connectionState === "stopped"
+                  ? "Read-only YouTube live-chat polling is available and stopped."
+                  : "Read-only YouTube live-chat polling runtime telemetry is unavailable.",
+        ...(runtime ? { runtime } : {})
       }
     ]
   };
@@ -343,6 +564,7 @@ const buildDiscordStatus = (
     .map((variable) => issueForEnv(env, variable))
     .filter((issue): issue is string => issue !== null);
   const disabled = hasDisabledFlag(env, "discord");
+  const runtime = discordRuntimeTelemetry(env, variables, runtimeState);
 
   return {
     id: "discord",
@@ -390,20 +612,17 @@ const buildDiscordStatus = (
       {
         key: "discord-chat-runtime",
         label: "Discord chat runtime",
-        state: runtimeState.discordChatIntakeState === "connected"
-          ? "configured"
-          : runtimeState.discordChatIntakeState === "connecting"
-            ? "available"
-            : runtimeState.discordChatIntakeState === "unconfigured"
-              ? "missing"
-              : "not_enabled",
-        detail: runtimeState.discordChatIntakeState === "connected"
+        state: runtimeCapabilityState(runtime?.connectionState),
+        detail: runtime?.connectionState === "connected"
           ? "Read-only Discord Gateway chat intake is connected on this API runtime."
-          : runtimeState.discordChatIntakeState === "connecting"
+          : runtime?.connectionState === "connecting"
             ? "Read-only Discord Gateway chat intake is currently connecting."
-            : runtimeState.discordChatIntakeState === "unconfigured"
+            : runtime?.connectionState === "unconfigured"
               ? "Discord chat intake is missing a bot token or guild target."
-              : "Read-only Discord Gateway chat intake is installed but stopped."
+              : runtime?.connectionState === "stopped"
+                ? "Read-only Discord Gateway chat intake is available and stopped."
+                : "Read-only Discord Gateway chat intake runtime telemetry is unavailable.",
+        ...(runtime ? { runtime } : {})
       }
     ]
   };

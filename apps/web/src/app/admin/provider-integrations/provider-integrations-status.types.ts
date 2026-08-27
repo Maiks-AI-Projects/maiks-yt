@@ -1,6 +1,26 @@
 export type ProviderIntegrationState = "configured" | "missing" | "invalid" | "disabled" | "error";
 export type ProviderCapabilityState = "available" | "configured" | "missing" | "not_enabled" | "gated";
 
+export type ProviderRuntimeConnectionState =
+  | "stopped"
+  | "connecting"
+  | "waiting"
+  | "connected"
+  | "unconfigured";
+
+export type ProviderRuntimeTelemetry = {
+  connectionState: ProviderRuntimeConnectionState;
+  accountSummary: string | null;
+  connectedAt: string | null;
+  lastDisconnectAt: string | null;
+  lastMessageAt: string | null;
+  reconnectCount: number | null;
+  nextRetryAt: string | null;
+  reconnectSuppressed: boolean | null;
+  lastError: string | null;
+  autoStartEnabled: boolean;
+};
+
 export type ProviderEnvironmentVariableStatus = {
   name: string;
   kind: "identifier" | "secret";
@@ -14,6 +34,7 @@ export type ProviderCapabilityStatus = {
   label: string;
   state: ProviderCapabilityState;
   detail: string;
+  runtime?: ProviderRuntimeTelemetry;
 };
 
 export type ProviderIntegrationStatus = {

@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 provider operations hardening
+
+- Added truthful sanitized runtime telemetry to the routed `/admin/provider-integrations` workspace. Configured-but-stopped Twitch, YouTube, and Discord runtimes remain available and report their actual state, safe account summary, timestamps, reconnect policy, bounded reconnect details, and sanitized errors.
+- Removed provider chat bodies and visible raw provider/channel identifiers from the routine provider workspace. Initial load now requests only the sanitized provider status projection plus the identifier-free YouTube credential summary; identifier-bearing setup reads happen only after an explicit operator action.
+- Runtime errors are fully normalized and redacted before the final length bound, including a regression case where a configured secret crosses the old truncation boundary.
+- Added one shared private streamer-chat access gate for messages, provider status/reconnect routes, and the live WebSocket. Access now requires a valid `control:open` URL token, a signed-in linked user, and either owner wildcard or `chat:view`; token-only and unprivileged linked users fail closed.
+- Independent senior reviews are clean after two telemetry privacy corrections. The combined `pnpm check:review` gate passes with 468 API tests, 144 domain tests, the production web build, Overlay/Control checks, Local Agent checks, architecture validation, and whitespace validation.
+- No schema, migration, provider write, secret, environment, deployment, or live provider state changed. Signed-in installed-PWA and owner provider-workspace verification remain open.
+
 ## 2026-08-27 real provider chat Event Routing
 
 - Completed the existing real-provider routing path for durable Twitch, Discord, and YouTube chat intake. Newly inserted chat ledger rows now invoke the same production Event Routing callback as other provider events; duplicate and failed writes do not route.

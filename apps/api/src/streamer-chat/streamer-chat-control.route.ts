@@ -1,43 +1,37 @@
 import { randomUUID } from "node:crypto";
 
+import type { DatabasePool } from "@maiks-yt/database";
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+
 import type {
   DiscordChatIntakeRuntime,
   TwitchChatIntakeRuntime,
   YouTubeLiveChatIntakeRuntime
 } from "../provider-integrations/index.js";
-import type { FastifyInstance } from "fastify";
-import { z } from "zod";
-
 import type { RequireUrlAccessTokenForRequest } from "../url-access-token-request-access.service.js";
+import { createRequireStreamerChatControlAccess } from "./streamer-chat-control-access.service.js";
 import type { StreamerChatLiveSocket, StreamerChatRuntime } from "./index.js";
 
 const streamerChatAccessRequestSchema = z.object({
   accessToken: z.string().min(24)
 });
 
-type UrlAccessTokenRequestAccess = Awaited<ReturnType<RequireUrlAccessTokenForRequest>>;
-
 export const registerStreamerChatControlRoutes = (
   server: FastifyInstance,
   dependencies: {
     discordChatIntakeRuntime: DiscordChatIntakeRuntime;
+    getDatabasePool: () => DatabasePool;
     requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest;
     streamerChatRuntime: StreamerChatRuntime;
     twitchChatIntakeRuntime: TwitchChatIntakeRuntime;
     youtubeLiveChatIntakeRuntime: YouTubeLiveChatIntakeRuntime;
   }
 ): void => {
-  const validateControlPanelAccess = async (
-    request: Parameters<RequireUrlAccessTokenForRequest>[0],
-    accessToken: string
-  ): Promise<UrlAccessTokenRequestAccess> =>
-    dependencies.requireUrlAccessTokenForRequest(request, {
-      deniedReason: "control_panel_access_denied",
-      token: accessToken,
-      surface: "control-panel",
-      scope: "control:open",
-      userUnlinkedReason: "control_panel_user_unlinked"
-    });
+  const requireControlChatAccess = createRequireStreamerChatControlAccess({
+    getDatabasePool: dependencies.getDatabasePool,
+    requireUrlAccessTokenForRequest: dependencies.requireUrlAccessTokenForRequest
+  });
 
   server.get("/streamer-chat/messages", async (request, reply) => {
     const parsedRequest = streamerChatAccessRequestSchema.safeParse(request.query);
@@ -50,13 +44,13 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
-      reply.code(tokenValidation.statusCode);
+    if (!access.ok) {
+      reply.code(access.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: access.reason
       };
     }
 
@@ -79,13 +73,13 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
-      reply.code(tokenValidation.statusCode);
+    if (!access.ok) {
+      reply.code(access.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: access.reason
       };
     }
 
@@ -108,13 +102,13 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
-      reply.code(tokenValidation.statusCode);
+    if (!access.ok) {
+      reply.code(access.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: access.reason
       };
     }
 
@@ -137,13 +131,13 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
-      reply.code(tokenValidation.statusCode);
+    if (!access.ok) {
+      reply.code(access.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: access.reason
       };
     }
 
@@ -166,13 +160,13 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
-      reply.code(tokenValidation.statusCode);
+    if (!access.ok) {
+      reply.code(access.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: access.reason
       };
     }
 
@@ -195,13 +189,13 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
-      reply.code(tokenValidation.statusCode);
+    if (!access.ok) {
+      reply.code(access.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: access.reason
       };
     }
 
@@ -224,13 +218,13 @@ export const registerStreamerChatControlRoutes = (
       };
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
-      reply.code(tokenValidation.statusCode);
+    if (!access.ok) {
+      reply.code(access.statusCode);
       return {
         ok: false,
-        reason: tokenValidation.reason ?? "control_panel_access_denied"
+        reason: access.reason
       };
     }
 
@@ -250,9 +244,9 @@ export const registerStreamerChatControlRoutes = (
       return;
     }
 
-    const tokenValidation = await validateControlPanelAccess(request, parsedRequest.data.accessToken);
+    const access = await requireControlChatAccess(request, parsedRequest.data.accessToken);
 
-    if (!tokenValidation.ok) {
+    if (!access.ok) {
       socket.close(1008, "control_panel_access_denied");
       return;
     }

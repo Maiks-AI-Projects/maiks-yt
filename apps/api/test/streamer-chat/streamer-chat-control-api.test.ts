@@ -58,6 +58,21 @@ const createSuccessfulAccessResult = (): Awaited<ReturnType<RequireUrlAccessToke
   }
 });
 
+const createTokenOnlyAccessResult = (): Awaited<ReturnType<RequireUrlAccessTokenForRequest>> => ({
+  ok: true,
+  requiresLogin: false,
+  session: null,
+  user: null
+});
+
+const createDatabasePool = (rolePermissionValues: readonly unknown[] = [["*"]]) => ({
+  execute: vi.fn(async () => [
+    rolePermissionValues.map((permissions) => ({
+      permissions
+    }))
+  ])
+});
+
 const servers: ReturnType<typeof Fastify>[] = [];
 
 afterEach(async () => {
@@ -65,9 +80,11 @@ afterEach(async () => {
 });
 
 const createServer = async (
-  requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest
+  requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest,
+  rolePermissionValues: readonly unknown[] = [["*"]]
 ) => {
   const server = Fastify();
+  const databasePool = createDatabasePool(rolePermissionValues);
   const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: 10 });
   const twitchRuntime = createStatusRuntime();
   const discordRuntime = createStatusRuntime();
@@ -76,6 +93,7 @@ const createServer = async (
   await server.register(fastifyWebsocket);
   registerStreamerChatControlRoutes(server, {
     discordChatIntakeRuntime: discordRuntime as never,
+    getDatabasePool: () => databasePool as never,
     requireUrlAccessTokenForRequest,
     streamerChatRuntime,
     twitchChatIntakeRuntime: twitchRuntime as never,
@@ -85,6 +103,7 @@ const createServer = async (
   servers.push(server);
 
   return {
+    databasePool,
     discordRuntime,
     server,
     streamerChatRuntime,
@@ -118,7 +137,24 @@ describe("streamer chat control API", () => {
     );
   });
 
-  it("returns private chat messages with a valid control token and signed-in linked owner", async () => {
+  it("rejects a valid token-only control token because private chat requires a signed-in linked user", async () => {
+    const requireUrlAccessTokenForRequest = vi.fn(async () => createTokenOnlyAccessResult());
+    const { databasePool, server } = await createServer(requireUrlAccessTokenForRequest);
+
+    const response = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/messages?accessToken=${validAccessToken}`
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+    expect(databasePool.execute).not.toHaveBeenCalled();
+  });
+
+  it("returns private chat messages with a valid control token and signed-in linked owner wildcard", async () => {
     const { server, streamerChatRuntime } = await createServer(async () => createSuccessfulAccessResult());
     streamerChatRuntime.appendMessage(createMessage());
 
@@ -140,6 +176,193 @@ describe("streamer chat control API", () => {
     });
   });
 
+  it("allows chat:view helpers to read messages, status, reconnect, and live websocket snapshots", async () => {
+    const requireUrlAccessTokenForRequest = vi.fn(async () => createSuccessfulAccessResult());
+    const { discordRuntime, server, streamerChatRuntime, twitchRuntime, youtubeRuntime } = await createServer(
+      requireUrlAccessTokenForRequest,
+      [["chat:view"]]
+    );
+    streamerChatRuntime.appendMessage(createMessage());
+
+    const messagesResponse = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/messages?accessToken=${validAccessToken}`
+    });
+    const statusResponse = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/twitch-status?accessToken=${validAccessToken}`
+    });
+    const discordStatusResponse = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/discord-status?accessToken=${validAccessToken}`
+    });
+    const youtubeStatusResponse = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/youtube-status?accessToken=${validAccessToken}`
+    });
+    const reconnectResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/twitch-reconnect",
+      payload: {
+        accessToken: validAccessToken
+      }
+    });
+    const discordReconnectResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/discord-reconnect",
+      payload: {
+        accessToken: validAccessToken
+      }
+    });
+    const youtubeReconnectResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/youtube-reconnect",
+      payload: {
+        accessToken: validAccessToken
+      }
+    });
+    const address = await server.listen({ host: "127.0.0.1", port: 0 });
+    const socket = new WebSocket(`${address.replace("http://", "ws://")}/streamer-chat/live?accessToken=${validAccessToken}`);
+
+    const initialSnapshot = new Promise<Record<string, unknown>>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Timed out waiting for websocket snapshot")), 2_000);
+      socket.once("message", (rawMessage) => {
+        clearTimeout(timeout);
+        resolve(JSON.parse(rawMessage.toString()) as Record<string, unknown>);
+      });
+      socket.once("error", reject);
+    });
+
+    expect(messagesResponse.statusCode).toBe(200);
+    expect(messagesResponse.json()).toMatchObject({
+      ok: true,
+      messages: [
+        {
+          id: "message-1"
+        }
+      ]
+    });
+    expect(statusResponse.statusCode).toBe(200);
+    expect(statusResponse.json()).toMatchObject({
+      ok: true,
+      readOnly: true,
+      status: {
+        state: "stopped"
+      }
+    });
+    expect(discordStatusResponse.statusCode).toBe(200);
+    expect(discordStatusResponse.json()).toMatchObject({
+      ok: true,
+      readOnly: true,
+      status: {
+        state: "stopped"
+      }
+    });
+    expect(youtubeStatusResponse.statusCode).toBe(200);
+    expect(youtubeStatusResponse.json()).toMatchObject({
+      ok: true,
+      readOnly: true,
+      status: {
+        state: "stopped"
+      }
+    });
+    expect(reconnectResponse.statusCode).toBe(200);
+    expect(reconnectResponse.json()).toMatchObject({
+      ok: true,
+      readOnly: true,
+      status: {
+        state: "connected"
+      }
+    });
+    expect(discordReconnectResponse.statusCode).toBe(200);
+    expect(discordReconnectResponse.json()).toMatchObject({
+      ok: true,
+      readOnly: true,
+      status: {
+        state: "connected"
+      }
+    });
+    expect(youtubeReconnectResponse.statusCode).toBe(200);
+    expect(youtubeReconnectResponse.json()).toMatchObject({
+      ok: true,
+      readOnly: true,
+      status: {
+        state: "connected"
+      }
+    });
+    await expect(initialSnapshot).resolves.toMatchObject({
+      type: "streamer-chat.snapshot",
+      payload: {
+        messages: [
+          {
+            id: "message-1"
+          }
+        ]
+      }
+    });
+    expect(discordRuntime.start).toHaveBeenCalledTimes(1);
+    expect(twitchRuntime.start).toHaveBeenCalledTimes(1);
+    expect(youtubeRuntime.start).toHaveBeenCalledTimes(1);
+
+    socket.close();
+    await new Promise<void>((resolve) => socket.once("close", () => resolve()));
+  });
+
+  it("denies linked users without owner wildcard or chat:view and does not reconnect providers", async () => {
+    const { discordRuntime, server, twitchRuntime, youtubeRuntime } = await createServer(
+      async () => createSuccessfulAccessResult(),
+      [["moderators:manage"]]
+    );
+
+    const privateRequests = [
+      {
+        method: "GET" as const,
+        url: `/streamer-chat/messages?accessToken=${validAccessToken}`
+      },
+      {
+        method: "GET" as const,
+        url: `/streamer-chat/twitch-status?accessToken=${validAccessToken}`
+      },
+      {
+        method: "POST" as const,
+        url: "/streamer-chat/twitch-reconnect",
+        payload: { accessToken: validAccessToken }
+      },
+      {
+        method: "GET" as const,
+        url: `/streamer-chat/discord-status?accessToken=${validAccessToken}`
+      },
+      {
+        method: "POST" as const,
+        url: "/streamer-chat/discord-reconnect",
+        payload: { accessToken: validAccessToken }
+      },
+      {
+        method: "GET" as const,
+        url: `/streamer-chat/youtube-status?accessToken=${validAccessToken}`
+      },
+      {
+        method: "POST" as const,
+        url: "/streamer-chat/youtube-reconnect",
+        payload: { accessToken: validAccessToken }
+      }
+    ];
+
+    for (const privateRequest of privateRequests) {
+      const response = await server.inject(privateRequest);
+
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toEqual({
+        ok: false,
+        reason: "streamer_chat_forbidden"
+      });
+    }
+
+    expect(discordRuntime.start).not.toHaveBeenCalled();
+    expect(twitchRuntime.start).not.toHaveBeenCalled();
+    expect(youtubeRuntime.start).not.toHaveBeenCalled();
+  });
+
   it("does not run reconnect when the control token is for the wrong surface or scope", async () => {
     const { server, twitchRuntime } = await createServer(async () => createAccessResult(403));
 
@@ -157,6 +380,29 @@ describe("streamer chat control API", () => {
       reason: "token_not_valid_for_scope"
     });
     expect(twitchRuntime.start).not.toHaveBeenCalled();
+  });
+
+  it("rejects websocket chat for linked users without chat authority", async () => {
+    const { server } = await createServer(
+      async () => createSuccessfulAccessResult(),
+      [["moderators:manage"]]
+    );
+    const address = await server.listen({ host: "127.0.0.1", port: 0 });
+    const socket = new WebSocket(`${address.replace("http://", "ws://")}/streamer-chat/live?accessToken=${validAccessToken}`);
+
+    const closeEvent = new Promise<{ code: number; reason: string }>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Timed out waiting for websocket close")), 2_000);
+      socket.on("close", (code, reason) => {
+        clearTimeout(timeout);
+        resolve({ code, reason: reason.toString() });
+      });
+      socket.on("error", reject);
+    });
+
+    await expect(closeEvent).resolves.toEqual({
+      code: 1008,
+      reason: "control_panel_access_denied"
+    });
   });
 
   it("rejects websocket chat with the same session boundary and a sanitized reason", async () => {
