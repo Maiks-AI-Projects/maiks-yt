@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-27 production container provenance reconciliation
+
+- Read-only inspection on exact host `Michael-Server-1` reconciled both container replacements reported by Network Monitor as intended Maiks.yt deployments. Network monitoring neither initiated nor remediated them.
+- The 15:54 CEST API replacement followed the server checkout of reviewed revision `4bb517d` and used image `sha256:6b5f362dddda6985923d4b45f7beb96745409b6662e601dff66f5645c55e6c3f`, retained as `maiks-yt-production:release-4bb517d` and later as `rollback-2a99457-api-before`.
+- The 17:59 CEST Web/API replacement used image `sha256:27ceb533fb230e2b14cc2c2a1cfe0a9b1fe82564add217c3931a4fb553235c27`. Git reflog proves the production checkout advanced to `2a99457` at 17:57, the image was created at 17:58:30, both containers were created at 17:59:12, and the docs-only `c8d77c1` checkout occurred later at 18:04. This brackets the image source at `2a99457` despite `.git` being intentionally excluded from the image.
+- Current Web and API use the `2a99457` image and remain healthy with zero restarts. Control still uses `sha256:858101774fd4a3fcd36f964dd8ee06e9cd6200c31fc1c873841d00699c0ceb31` from `f12c98d`; Overlay still uses `sha256:b4bd1393a335757e3ba1fce0562ff077781ab71bc5f43d00e93fd674953df191` from `501613c`. No Docker, route, service, network, repository, or server state was changed during reconciliation.
+
 ## 2026-08-27 production overlay-test route boundary
 
 - Production no longer registers the fake overlay injection routes for chat, combined audience events, top-bar demos, routed notifications, or redeems. It also omits the fake/local moderation command route, so a production Control token and session cannot inject drill data into a real overlay through those legacy paths.
