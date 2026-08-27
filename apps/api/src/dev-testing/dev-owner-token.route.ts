@@ -38,6 +38,10 @@ export const registerDevOwnerTokenRoutes = (
   server: FastifyInstance,
   dependencies: DevOwnerTokenRouteDependencies
 ): void => {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
   const getService = (): Pick<DevOwnerTokenService, "mint"> =>
     dependencies.createService?.()
     ?? new DevOwnerTokenService(
@@ -45,14 +49,6 @@ export const registerDevOwnerTokenRoutes = (
     );
 
   server.post("/dev/testing/owner-token", async (request, reply) => {
-    if (process.env.NODE_ENV === "production") {
-      reply.code(404);
-      return {
-        ok: false,
-        reason: "dev_owner_token_disabled"
-      };
-    }
-
     const expectedSecret = getDevOwnerTokenMintSecret(process.env);
 
     if (!expectedSecret) {

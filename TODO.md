@@ -300,6 +300,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Replace the retired `/admin/live-helper` API aggregate with an owner-only `/admin/overview/activity` projection containing only actionable warning/critical counts and active helper counts. Remove simulated approvals/history and fake-local moderation data from this production dashboard boundary.
   - [x] Omit fake overlay injection and fake/local moderation command routes from production API registration while retaining the development/test harness outside production. Preserve real overlay reads, live transport, scene controls, provider chat, and provider moderation.
   - [x] Omit the unauthenticated realtime spike event echo, SSE heartbeat, and WebSocket echo routes from production registration while retaining the transport experiment outside production.
+  - [x] Remove the dev owner-token mint, simulated Event Routing dispatch, and dev notification-post routes from the production route table while preserving their non-production testing workflows and real owner notification routes.
   - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API with clearly labelled backend example records.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.

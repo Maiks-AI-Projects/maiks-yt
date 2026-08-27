@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-27 production dev-route registration boundary
+
+- Production no longer registers `/dev/testing/owner-token`, `/dev/event-routing/dispatch`, or `/dev/notifications`. Their token mint, simulated dispatch, and monitor-notification workflows remain available outside production with their existing secrets and safety checks.
+- The notification module still registers the real owner notification list, push configuration/subscription, and read/archive routes in production. Focused coverage proves each dev route is absent from the production route table and the real notification route remains present.
+- The API suite passes with 517 tests, API typecheck passes, and architecture/whitespace checks pass. This slice changes no UI, schema, migration, credentials, real Event Routing execution, Web Push behavior, deployment, or server state. GUI verification remains prohibited by Michael's desktop-control stop order.
+
 ## 2026-08-27 production realtime-spike boundary
 
 - Production no longer registers the unauthenticated `/events/test`, `/realtime/spike/sse`, or `/realtime/spike/ws` transport experiments. Development and test environments retain the existing spike harness and `scripts/realtime-spike-test.mjs` workflow.

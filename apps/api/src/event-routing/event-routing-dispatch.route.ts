@@ -51,6 +51,10 @@ export const registerEventRoutingDispatchRoutes = (
   server: FastifyInstance,
   dependencies: EventRoutingDispatchRouteDependencies
 ): void => {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
   const getService = (): Pick<EventRoutingDispatchService, "dispatch"> =>
     dependencies.createService?.()
     ?? new EventRoutingDispatchService(
@@ -59,14 +63,6 @@ export const registerEventRoutingDispatchRoutes = (
     );
 
   server.post("/dev/event-routing/dispatch", async (request, reply) => {
-    if (process.env.NODE_ENV === "production") {
-      reply.code(404);
-      return {
-        ok: false,
-        reason: "not_found"
-      };
-    }
-
     const parsedBody = dispatchPayloadSchema.safeParse(request.body);
 
     if (!parsedBody.success) {

@@ -345,15 +345,11 @@ export const registerNotificationAdminRoutes = (
   registerStatusRoute("post", "archived");
   registerStatusRoute("patch", "archived");
 
-  server.post("/dev/notifications", async (request, reply) => {
-    if ((dependencies.getNodeEnv?.() ?? process.env.NODE_ENV) === "production") {
-      reply.code(404);
-      return {
-        ok: false,
-        reason: "not_found"
-      };
-    }
+  if ((dependencies.getNodeEnv?.() ?? process.env.NODE_ENV) === "production") {
+    return;
+  }
 
+  server.post("/dev/notifications", async (request, reply) => {
     const configuredSecret = dependencies.getDevNotificationSecret?.() ?? process.env.DEV_NOTIFICATION_POST_SECRET;
 
     if (!configuredSecret) {

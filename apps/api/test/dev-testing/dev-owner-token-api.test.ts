@@ -216,6 +216,8 @@ describe("dev owner token route", () => {
       }
     });
 
+    expect(server.hasRoute({ method: "POST", url: "/dev/testing/owner-token" })).toBe(false);
+
     const response = await server.inject({
       method: "POST",
       url: "/dev/testing/owner-token",
@@ -226,9 +228,5 @@ describe("dev owner token route", () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({
-      ok: false,
-      reason: "dev_owner_token_disabled"
-    });
   });
 });

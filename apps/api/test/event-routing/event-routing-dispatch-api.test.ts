@@ -312,6 +312,35 @@ describe("EventRoutingDispatchService", () => {
 });
 
 describe("event routing dispatch route boundary", () => {
+  it("omits the simulated dispatch route in production", async () => {
+    const originalNodeEnvironment = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      const server = Fastify();
+      registerEventRoutingDispatchRoutes(server, {
+        getDatabasePool: () => {
+          throw new Error("pool should not be used");
+        }
+      });
+
+      expect(server.hasRoute({ method: "POST", url: "/dev/event-routing/dispatch" })).toBe(false);
+
+      const response = await server.inject({
+        method: "POST",
+        url: "/dev/event-routing/dispatch",
+        payload: baseRequest()
+      });
+      expect(response.statusCode).toBe(404);
+    } finally {
+      if (originalNodeEnvironment === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = originalNodeEnvironment;
+      }
+    }
+  });
+
   it("dispatches through the injected dev service", async () => {
     const repository = new FakeEventRoutingDispatchRepository();
     repository.rules.set("website.signup:any", baseRule({

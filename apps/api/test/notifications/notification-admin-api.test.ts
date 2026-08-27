@@ -523,6 +523,9 @@ describe("notification admin route boundary", () => {
       getDevNotificationSecret: () => "dev-secret"
     });
 
+    expect(server.hasRoute({ method: "POST", url: "/dev/notifications" })).toBe(false);
+    expect(server.hasRoute({ method: "GET", url: "/admin/notifications" })).toBe(true);
+
     const response = await server.inject({
       method: "POST",
       url: "/dev/notifications",
@@ -533,10 +536,6 @@ describe("notification admin route boundary", () => {
     });
 
     expect(response.statusCode).toBe(404);
-    expect(response.json()).toEqual({
-      ok: false,
-      reason: "not_found"
-    });
   });
 
   it("updates read and archive status through post or patch routes", async () => {
