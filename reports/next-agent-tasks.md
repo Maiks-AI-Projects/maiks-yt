@@ -1,5 +1,15 @@
 # Next Agent Tasks
 
+## Production-Only Direction
+
+- Work only in `/home/michael/Documents/Codex/maiks-yt-production` on branch `production` for forward product development.
+- Treat `/home/michael/Documents/Codex/maiks-yt-fresh`, dev branches, old worktrees, reports, Todo entries, and idea cards as evidence. Do not merge dev wholesale, preserve dev architecture for compatibility, or spend work keeping dev current.
+- Start from `reports/production-capability-ledger.md`. Keep design, approval, implementation, integration, deployment, and real verification separate.
+- The highest-value safe code slice is integration of the approved operational PWA redesign into current production. Preserve provider chat, attention, commands, moderation, music, audio-output, token/session, and OBS-safe behavior while matching the production visual system.
+- Do not deploy while the production origin is unreachable. Current evidence is SSH `No route to host` and Cloudflare `530` on the public web/API/overlay/control origins.
+
+Updated: 2026-08-27
+
 ## Production Stream-Safe Music Foundation
 
 - Domain, schema, API, public request, member Top 10, searchable preview player, and focused music admin pages are implemented in the production worktree.
@@ -12,7 +22,7 @@ Updated: 2026-08-18
 
 ## Production Website Current Lane
 
-- Work in `/home/michael/Documents/Codex/maiks-yt-production` on branch `production`; treat `/home/michael/Documents/Codex/maiks-yt-fresh` as the active dev/reference repo unless Michael explicitly redirects the task.
+- Work in `/home/michael/Documents/Codex/maiks-yt-production` on branch `production`; treat `/home/michael/Documents/Codex/maiks-yt-fresh` as read-only inventory unless Michael explicitly redirects the task.
 - The first homepage, `/progress`, `/about`, `/about/health`, and `/about/history` are implemented as working production drafts, not final content approval.
 - Public `/schedule`, `/projects`, `/projects/[slug]`, and `/games` now use the existing live dev backend directly through typed public API loaders. Do not reintroduce visual fixtures or fallback records; unavailable and empty states must remain honest. `/games` also derives play plans from real schedule game links and retains the live private-review suggestion endpoint.
 - Keep `/about` mostly text. `/about/health` uses `apps/web/public/images/health/latest-mri-annotated.png` temporarily. `/about/history` uses normal page scroll with Michael's confirmed birth, dynamically generated completed birthdays, and privacy-trimmed government residence history. Do not expose exact addresses or treat administrative registration changes as personal moves.
@@ -22,9 +32,7 @@ Updated: 2026-08-18
 - The homepage hero at `apps/web/public/images/home/creator-workspace-placeholder.png` is temporary until Michael can photograph the real seven-monitor streaming desk.
 - Creator Links current scope B-F is reviewed for production with no migration; preserve deferred G-I as planning-only items until Michael explicitly opens those slices.
 
-Use larger vertical chunks from here. The goal is fewer agent handoffs and fewer repeated checks, while still keeping high-risk areas bounded.
-
-The coordinator reviews, tests, commits on `dev`, pushes `dev`, deploys to the dev server for testing, applies any approved dev-only seed/migration step, and verifies public dev after each accepted chunk.
+Use coherent production slices that end in narrow checks and a real verification plan. The coordinator reviews, tests, and commits on `production`; deployment remains a separate authorized step after the current production host is reachable and the slice has a real-user verification path.
 
 ## Current Blocked/Manual Items
 

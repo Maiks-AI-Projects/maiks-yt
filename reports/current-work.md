@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 production-line reconciliation
+
+- `production` is now the sole forward-development line. Dev remains an idea and implementation inventory only; wanted capabilities must be deliberately rebuilt or selectively reused in production patterns rather than merged wholesale.
+- Safely preserved and committed the existing context-page redesign, PWA operations specification, and OBS status note before reconciling the checkout with `origin/production`.
+- Reconciliation commits are `39e1b98`, `08128d8`, and merge commit `ec13b74`. The only upstream overlap was this report; the context implementation and PWA specification had no code overlap with the 13 incoming production commits.
+- `pnpm check:review` passes after reconciliation, including shared builds, 142 domain tests, 411 API tests, database/API typechecks, web build, overlay/control typechecks, architecture validation, and diff checks.
+- Live verification is currently blocked: `codex-server-1` is unreachable from this machine and the public web, API, overlay, and control origins return Cloudflare `530`. Historical deployment notes below are evidence of prior state, not proof of current availability.
+- The evidence-based capability ledger and ranked queue are in `reports/production-capability-ledger.md`.
+
 ## 2026-08-21 production chat attention fallback
 
 - Added local chat attention controls to the shared standalone streamer-chat viewer used by both Chat and Moderation.
@@ -18,9 +27,9 @@ Updated: 2026-08-18
 
 ## Objective
 
-Build the production public website page by page on the dedicated `production` branch, reusing the reviewed dev backend while keeping one default visual theme.
+Build one coherent Maiks.yt product on the dedicated `production` branch. Preserve the approved production visual and interaction system, use dev only as evidence, and deliver missing capabilities as small verified production-native slices.
 
-Canonical operational-PWA redesign specification: `reports/pwa-operations-redesign-spec.md`. It is grounded against production `f1ecd02`; implementation has not started.
+Canonical operational-PWA redesign specification: `reports/pwa-operations-redesign-spec.md`. It is grounded against production `f1ecd02`; a separate reviewable implementation patch exists, but it has not been integrated into the current production line.
 
 ## Production Website Lane
 

@@ -1,0 +1,67 @@
+# Maiks.yt Production Capability Ledger
+
+Updated: 2026-08-27
+
+## Direction
+
+`production` is the sole forward-development line. The dev repository and its
+branches are evidence for product intent and earlier experiments, not a second
+product to maintain and not a history to merge wholesale. Wanted behavior is
+rebuilt or selectively reused in the production architecture and visual system.
+
+This ledger records separate delivery stages. `Implementation: done` does not
+mean a capability is deployed or proven in a real user path.
+
+## Capabilities
+
+| Capability | Design | Approval | Implementation | Integration | Deployment | Verification | Evidence | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Public site and public content | done | done | done | done | blocked | blocked | Production routes, typed public loaders, and `pnpm check:review`; public origin currently returns Cloudflare `530` | Restore production reachability, identify the deployed revision, then smoke the main public routes |
+| Account identity and linked login providers | done | done | done | done | blocked | blocked | Focused account pages, independent Maiks.yt name/image, linked provider choices, and production auth code | Verify sign-in, linking, profile replacement, privacy, and session recovery on the live origin |
+| Public profiles and recognition | done | in-progress | in-progress | not-started | not-started | not-started | `/profiles` is explicitly a static public/private demonstration, not a real account read model | Approve public slug/privacy/recognition rules, then replace the demonstrations with real data |
+| Unified provider chat intake | done | done | done | in-progress | blocked | blocked | Twitch multi-channel, Discord, and YouTube intake code plus shared streamer-chat projection; failed first-stream evidence shows the full path was not reliable | Prove MaiksPlays channel intake and reconnect behavior end to end before the next stream |
+| Chat attention and viewer commands | done | done | done | in-progress | blocked | blocked | Production commits for reliable attention readout and viewer commands; `!commands` exists in code | Verify live reply credentials, command output, unread attention, and suppression behavior on the actual channel |
+| Event routing and alerts | done | done | done | in-progress | blocked | blocked | Real-provider execution, cooldown/approval history, top/center transport, and alert-sound work exist in production | Rehearse real follow/sub/chat-derived events, dedupe, audio ownership, and fallback in OBS |
+| Music catalog, requests, and playback | done | done | done | in-progress | blocked | blocked | Production music schema/API/UI, YouTube Audio Library import, browser/OBS playback, and per-PWA output selection | Establish the real catalog, verify play/pause/skip/history/audio output, then finish the VLC/local-agent path |
+| Operational Chat, Moderation, Control, and Notifications PWAs | done | done | in-progress | not-started | not-started | in-progress | Canonical spec in `reports/pwa-operations-redesign-spec.md`; a separate reviewable patch has build and screenshot evidence but is not on `production` | Port and review the approved redesign against current production, preserving live behavior |
+| PWA session and rapid recovery | done | done | in-progress | in-progress | blocked | blocked | Token plus login boundary exists; prior installed-window expiry/recovery failures are real evidence | Prove durable installed access and a recovery path taking less than one minute without weakening owner/moderator boundaries |
+| OBS widget bridge and master-overlay fallback | done | done | in-progress | in-progress | blocked | blocked | Protocol-v1 bridge contracts, local companion, readiness/fallback semantics, and current master-overlay compatibility | Add and verify Browser Source widgets, then run a complete stream rehearsal with fallback |
+| Sandustry OBS collection | in-progress | not-started | not-started | not-started | not-started | not-started | Rejected V1 and later V2 assets under `reports/visual-concepts/sandustry-obs/production-assets-v2`; V2 is reference evidence, not approval | Review V2 at native size, keep only usable assets, then build the OBS collection named exactly `Sandustry` |
+| Moderation, roles, ranks, and helper operations | in-progress | in-progress | in-progress | in-progress | blocked | blocked | Local/provider moderation, audit, rules, grants, and admin foundations exist; final Ranks & Perks ownership remains unsettled | Resolve the Ranks & Perks boundary and verify real moderator workflows without exposing raw identifiers |
+| Notifications and operational health | done | done | done | in-progress | blocked | blocked | Notification PWA, Web Push, recurring health checks, and sanitized admin health surfaces exist | Restore origin reachability, then verify delivery, read/archive, long-lived access, and failure-only alerting |
+| Page Creator and route ownership | done | done | done | in-progress | blocked | blocked | Persistence, owner editor, preview/publish gate, reserved routes, and exact-path rendering exist | Verify live draft isolation and publish/unpublish behavior before using it for production pages |
+| Backup, export, and recovery evidence | done | in-progress | in-progress | in-progress | blocked | blocked | Key-data export, backup health, runbook, and a dry-run record exist | Approve retention/encryption/owner policy, install the production workflow, and prove a disposable restore drill |
+| Money and accounting | done | in-progress | in-progress | in-progress | blocked | blocked | Private ledger, dated rules, imports, receipts, reports, and posting workflow exist; public money behavior remains gated | Verify bookkeeping against real provider statements before opening any public payment path |
+| Production route and operator-surface hygiene | done | done | not-started | not-started | not-started | not-started | Dev/test/Gemini routes, retired Live Helper remnants, static demos, and implementation-detail copy remain discoverable in the production tree | Remove or hide production-inappropriate routes after the stream-critical path is stable |
+
+## Ranked Queue
+
+### P0: Make The Next Stream Work
+
+1. Restore reachability to the production host and record the deployed commit. Current SSH is unreachable and the public origins return Cloudflare `530`.
+2. Integrate the approved operational PWA redesign into the current production line without losing provider chat, attention, commands, moderation, music, audio-output, token, or session behavior.
+3. Rehearse the MaiksPlays path end to end: provider intake, newest-first Chat, attention, `!commands`, moderation, alerts, music controls, and reconnect behavior.
+4. Complete the OBS widget Browser Sources while retaining the master overlay as a tested fallback.
+5. Prove installed PWA access remains usable and that owner/moderator recovery takes less than one minute.
+
+### P1: Make Production Coherent
+
+1. Remove or hide dev/test consoles, Gemini experiments, retired Live Helper UI, fake controls, seed-only states, raw identifiers, and operator metrics without decisions attached.
+2. Replace static profile demonstrations with reviewed real profile, privacy, recognition, and linked-account read models.
+3. Finish the Ranks & Perks product boundary and simplify moderator/admin workflows around actual permissions.
+4. Finish multi-channel provider identity and routing behavior for the intended Twitch and YouTube channel structure.
+5. Finish Page Creator adoption for appropriate informational pages without taking over code-owned routes.
+
+### P2: Operate And Expand Safely
+
+1. Add automated backup recency, artifact verification, and disposable restore evidence after policy approval.
+2. Verify private accounting against real statements before considering public support or donation behavior.
+3. Add provider writes, destructive moderation, public AI, and other high-risk automation only through their existing explicit approval gates.
+
+## Deliberate Omissions
+
+- No wholesale merge from dev.
+- No effort to keep dev current.
+- No production test console, simulator framing, fake operational controls, or seed-only success states.
+- No raw secrets, provider payloads, database identifiers, or debug metrics in routine user-facing UI.
+- No claim that a build, migration, screenshot, or historical deployment proves the current live path.
