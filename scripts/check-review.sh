@@ -30,6 +30,8 @@ run_step "API typecheck" pnpm --filter @maiks-yt/api typecheck
 run_step "Web build" pnpm --filter @maiks-yt/web build
 run_step "Overlay typecheck" pnpm --filter @maiks-yt/overlay typecheck
 run_step "Control panel typecheck" pnpm --filter @maiks-yt/control-panel typecheck
+run_step "Local agent tests" pnpm --filter @maiks-yt/local-agent test
+run_step "Local agent typecheck" pnpm --filter @maiks-yt/local-agent typecheck
 run_step "Architecture rules" pnpm check:architecture
 run_step "Diff whitespace check" git diff --check
 

@@ -10,6 +10,7 @@
     { "path": "./packages/ui" },
     { "path": "./apps/api" },
     { "path": "./apps/control-panel" },
+    { "path": "./apps/local-agent" },
     { "path": "./apps/overlay" },
     { "path": "./apps/web" }
   ]

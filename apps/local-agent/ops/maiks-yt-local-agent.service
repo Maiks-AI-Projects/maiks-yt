@@ -1,0 +1,33 @@
+[Unit]
+Description=Maiks.yt Local Agent
+Documentation=file://@APP_ROOT@/README.md
+After=graphical-session.target network-online.target pipewire.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@APP_ROOT@
+ExecStart=@NODE_BIN@ @APP_ENTRY@
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=15s
+Environment=NODE_ENV=production
+EnvironmentFile=-%h/.config/maiks-yt/local-agent/config
+LoadCredential=maiks-local-agent-token:%h/.config/maiks-yt/local-agent/device-token
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=read-only
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=%h/.local/state/maiks-yt/local-agent
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+
+[Install]
+WantedBy=default.target

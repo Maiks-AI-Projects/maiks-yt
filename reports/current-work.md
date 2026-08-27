@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 production local-agent foundation
+
+- Added `@maiks-yt/local-agent` as the production foundation for one outbound streaming-PC service instead of separate unmanaged helpers.
+- The agent has a durable device identity, disk-backed terminal acknowledgement replay, event-ID collision protection, bounded reconnect jitter, heartbeat/status reporting, strict inbound schema and payload bounds, module lifecycle rollback, and secure credential-file handling.
+- The first executable module sends private cues to PipeWire sink `stream_private` and can use `espeak-ng` for private TTS when installed. VLC music and countdown are typed extension points only in this slice.
+- Added conservative user-systemd installation helpers. They do not enable or start the service, provision credentials, or alter live audio routing.
+- Focused tests, build, typecheck, architecture validation, and whitespace checks pass. Coordinator review also fixed post-connect WebSocket errors so they are reported rather than becoming unhandled process errors.
+- The production server endpoint, dedicated revocable device credential, owner-visible device status, VLC execution, countdown execution, service installation, and live audio proof remain separate gates. Browser/PWA private audio and `/music/player` remain the active fallbacks.
+
 ## 2026-08-27 OBS companion recovery
 
 - Reconciled and committed the previously uncommitted, approved Project Zomboid Browser Source work in `/home/michael/Documents/Codex/maiks-yt-obs-bridge` as companion commit `f150376`.
