@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 Twitch EventSub channel scoping
+
+- Extended the owner EventSub subscription workspace from one implicit Twitch broadcaster to the configured production channel set. `maiksmc` remains the default, while `maiksplays` can now be selected explicitly for listing or creating the existing 20 read-only default event subscriptions.
+- Broadcaster input is normalized and must match a valid, deduplicated, bounded configured channel list before any Twitch API or token work occurs. Unknown or malformed targets fail closed, authentication runs before request validation, and legacy primary-channel precedence remains unchanged when multi-channel configuration is added.
+- Helix subscription reads now paginate completely before applying selected-broadcaster filtering. Failed, malformed, repeated-cursor, or over-limit pagination fails closed instead of returning a partial list that could cause duplicate subscription creation.
+- Initial provider-workspace load remains privacy-minimal: the identifier-bearing EventSub list is requested only after an explicit operator action, and the compact channel selector appears only when more than one broadcaster is configured.
+- Focused checks pass with 264 integrations tests, 469 API tests, 40 provider-workspace web tests, relevant typechecks, the production web build, architecture validation, and whitespace checks. Independent senior review found the final corrected slice clean after pagination, list-scoping, configured-channel, and legacy-precedence regressions were added.
+- No EventSub subscription was created, changed, or removed; no live provider call, secret, environment, schema, migration, deployment, Docker, or Cloudflare state changed. Owner UI verification, explicit per-channel subscription reconciliation, deployment, and real intake proof remain open.
+
 ## 2026-08-27 Twitch live/offline Event Routing state
 
 - Added a runtime-only Twitch stream-state resolver for production Event Routing. `liveOnly` and `offlineOnly` rules now require an exact known state for the originating Twitch broadcaster; unsupported providers, missing identity/configuration, API failure, invalid responses, and state mismatch fail closed as `blocked_safety`.

@@ -225,6 +225,7 @@ export type TwitchEventSubSubscriptionListResponse =
   | {
     ok: true;
     broadcasterLogin: string;
+    broadcasterLogins: readonly string[];
     broadcasterUserId: string;
     callbackUrl: string;
     defaults: readonly TwitchEventSubDefaultSubscriptionStatus[];
@@ -240,6 +241,7 @@ export type TwitchEventSubEnsureDefaultsResponse =
   | {
     ok: true;
     broadcasterLogin: string;
+    broadcasterLogins: readonly string[];
     broadcasterUserId: string;
     callbackUrl: string;
     results: readonly {

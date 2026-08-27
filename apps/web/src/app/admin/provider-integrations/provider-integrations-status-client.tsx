@@ -37,6 +37,8 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [youtubeChannels, setYouTubeChannels] = useState<readonly YouTubeSavedChannel[]>([]);
   const [youtubeSelectedChannelId, setYouTubeSelectedChannelId] = useState<string | null>(null);
   const [twitchEventSubDefaults, setTwitchEventSubDefaults] = useState<readonly TwitchEventSubDefaultSubscriptionStatus[]>([]);
+  const [twitchEventSubBroadcasterLogin, setTwitchEventSubBroadcasterLogin] = useState<string | null>(null);
+  const [twitchEventSubBroadcasterLogins, setTwitchEventSubBroadcasterLogins] = useState<readonly string[]>([]);
   const [twitchEventSubSubscriptionCount, setTwitchEventSubSubscriptionCount] = useState<number>(0);
   const [twitchEventSubCallbackUrl, setTwitchEventSubCallbackUrl] = useState<string | null>(null);
   const [youtubePubSubSubscription, setYouTubePubSubSubscription] = useState<Extract<YouTubePubSubSubscriptionResponse, { ok: true }> | null>(null);
@@ -111,22 +113,26 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     } catch {}
   }, []);
 
-  const loadTwitchEventSubSubscriptions = useCallback(async (): Promise<void> => {
+  const loadTwitchEventSubSubscriptions = useCallback(async (requestedBroadcaster?: string): Promise<void> => {
     try {
-      const response = await fetch(`${apiBaseUrl}${providerIntegrationRequestPaths.twitchEventSubSubscriptions}`, {
+      const broadcasterLogin = requestedBroadcaster ?? twitchEventSubBroadcasterLogin;
+      const query = broadcasterLogin ? `?broadcaster=${encodeURIComponent(broadcasterLogin)}` : "";
+      const response = await fetch(`${apiBaseUrl}${providerIntegrationRequestPaths.twitchEventSubSubscriptions}${query}`, {
         headers: createApiHeaders(),
         credentials: "include"
       });
       const payload = await parseJson<TwitchEventSubSubscriptionListResponse>(response);
 
       if (response.ok && payload?.ok) {
+        setTwitchEventSubBroadcasterLogin(payload.broadcasterLogin);
+        setTwitchEventSubBroadcasterLogins(payload.broadcasterLogins);
         setTwitchEventSubDefaults(payload.defaults);
         setTwitchEventSubSubscriptionCount(payload.subscriptions.length);
         setTwitchEventSubCallbackUrl(payload.callbackUrl);
         return;
       }
     } catch {}
-  }, []);
+  }, [twitchEventSubBroadcasterLogin]);
 
   const loadYouTubePubSubSubscription = useCallback(async (): Promise<void> => {
     try {
@@ -191,18 +197,21 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
     try {
       const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/twitch-eventsub/default-subscriptions`, {
         method: "POST",
-        headers: createApiHeaders(),
-        credentials: "include"
+        headers: createApiHeaders({ "content-type": "application/json" }),
+        credentials: "include",
+        body: JSON.stringify({
+          ...(twitchEventSubBroadcasterLogin ? { broadcasterLogin: twitchEventSubBroadcasterLogin } : {})
+        })
       });
       const payload = await parseJson<TwitchEventSubEnsureDefaultsResponse>(response);
 
       if (response.ok && payload?.ok) {
-        await loadTwitchEventSubSubscriptions();
+        await loadTwitchEventSubSubscriptions(twitchEventSubBroadcasterLogin ?? undefined);
         await loadStatus();
         return;
       }
     } catch {}
-  }, [loadStatus, loadTwitchEventSubSubscriptions]);
+  }, [loadStatus, loadTwitchEventSubSubscriptions, twitchEventSubBroadcasterLogin]);
 
   const discoverYouTubeChannels = useCallback(async (): Promise<void> => {
     try {
@@ -369,11 +378,17 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
             void loadYouTubePubSubSubscription();
           }}
           onSelectYouTubeChannel={(channelId) => void selectYouTubeChannel(channelId)}
+          onSelectTwitchEventSubBroadcaster={(broadcasterLogin) => {
+            setTwitchEventSubBroadcasterLogin(broadcasterLogin);
+            void loadTwitchEventSubSubscriptions(broadcasterLogin);
+          }}
           onTwitchChatAction={(action) => void runTwitchChatAction(action)}
           onYouTubeLiveChatAction={(action) => void runYouTubeLiveChatAction(action)}
           onYouTubePubSubAction={(mode) => void requestYouTubePubSubSubscription(mode)}
           snapshot={snapshot}
           twitchEventSubCallbackUrl={twitchEventSubCallbackUrl}
+          twitchEventSubBroadcasterLogin={twitchEventSubBroadcasterLogin}
+          twitchEventSubBroadcasterLogins={twitchEventSubBroadcasterLogins}
           twitchEventSubDefaults={twitchEventSubDefaults}
           twitchEventSubSubscriptionCount={twitchEventSubSubscriptionCount}
           youtubeActivitiesPoll={youtubeActivitiesPoll}

@@ -66,6 +66,7 @@ export type TwitchEventSubSubscriptionListResult =
   | {
     ok: true;
     broadcasterLogin: string;
+    broadcasterLogins: readonly string[];
     broadcasterUserId: string;
     callbackUrl: string;
     defaults: readonly TwitchEventSubDefaultSubscriptionStatus[];
@@ -76,6 +77,7 @@ export type TwitchEventSubSubscriptionListResult =
     ok: false;
     reason:
       | "twitch_eventsub_config_missing"
+      | "twitch_eventsub_broadcaster_not_configured"
       | "twitch_eventsub_broadcaster_not_found"
       | "twitch_eventsub_api_unavailable";
   };
@@ -91,6 +93,7 @@ export type TwitchEventSubEnsureDefaultsResult =
   | {
     ok: true;
     broadcasterLogin: string;
+    broadcasterLogins: readonly string[];
     broadcasterUserId: string;
     callbackUrl: string;
     results: readonly TwitchEventSubEnsureSubscriptionResult[];
@@ -99,12 +102,14 @@ export type TwitchEventSubEnsureDefaultsResult =
     ok: false;
     reason:
       | "twitch_eventsub_config_missing"
+      | "twitch_eventsub_broadcaster_not_configured"
       | "twitch_eventsub_broadcaster_not_found"
       | "twitch_eventsub_api_unavailable";
   };
 
 export type TwitchEventSubSubscriptionConfig = {
   broadcasterLogin: string;
+  broadcasterLogins: readonly string[];
   callbackUrl: string;
   clientId: string;
   clientSecret: string;

@@ -25,9 +25,12 @@ class FakeTwitchEventSubRepository implements TwitchEventSubSubscriptionReposito
 
 class FakeTwitchEventSubService {
   public ensureCalls = 0;
+  public ensureBroadcasterLogins: Array<string | undefined> = [];
+  public listBroadcasterLogins: Array<string | undefined> = [];
   public listResponse: TwitchEventSubSubscriptionListResult = {
     ok: true,
     broadcasterLogin: "maiksmc",
+    broadcasterLogins: ["maiksmc", "maiksplays"],
     broadcasterUserId: "617410645",
     callbackUrl: "https://api-dev.maiks.yt/provider-webhooks/twitch/eventsub",
     defaults: [
@@ -48,6 +51,7 @@ class FakeTwitchEventSubService {
   public ensureResponse: TwitchEventSubEnsureDefaultsResult = {
     ok: true,
     broadcasterLogin: "maiksmc",
+    broadcasterLogins: ["maiksmc", "maiksplays"],
     broadcasterUserId: "617410645",
     callbackUrl: "https://api-dev.maiks.yt/provider-webhooks/twitch/eventsub",
     results: [
@@ -75,12 +79,14 @@ class FakeTwitchEventSubService {
     ]
   };
 
-  public async ensureDefaults(): Promise<TwitchEventSubEnsureDefaultsResult> {
+  public async ensureDefaults(input: { broadcasterLogin?: string } = {}): Promise<TwitchEventSubEnsureDefaultsResult> {
     this.ensureCalls += 1;
+    this.ensureBroadcasterLogins.push(input.broadcasterLogin);
     return structuredClone(this.ensureResponse);
   }
 
-  public async listDefaults(): Promise<TwitchEventSubSubscriptionListResult> {
+  public async listDefaults(input: { broadcasterLogin?: string } = {}): Promise<TwitchEventSubSubscriptionListResult> {
+    this.listBroadcasterLogins.push(input.broadcasterLogin);
     return structuredClone(this.listResponse);
   }
 }
@@ -154,6 +160,12 @@ describe("Twitch EventSub subscription routes", () => {
       ok: false,
       reason: "not_authenticated"
     });
+
+    const malformedResponse = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/twitch-eventsub/subscriptions?broadcaster=not%20valid"
+    });
+    expect(malformedResponse.statusCode).toBe(401);
   });
 
   it("lists and creates defaults through authenticated owner routes", async () => {
@@ -174,10 +186,11 @@ describe("Twitch EventSub subscription routes", () => {
 
     const listResponse = await server.inject({
       method: "GET",
-      url: "/admin/provider-integrations/twitch-eventsub/subscriptions"
+      url: "/admin/provider-integrations/twitch-eventsub/subscriptions?broadcaster=maiksplays"
     });
     const createResponse = await server.inject({
       method: "POST",
+      payload: { broadcasterLogin: "maiksplays" },
       url: "/admin/provider-integrations/twitch-eventsub/default-subscriptions"
     });
 
@@ -201,6 +214,39 @@ describe("Twitch EventSub subscription routes", () => {
       ]
     });
     expect(providerService.ensureCalls).toBe(1);
+    expect(providerService.listBroadcasterLogins).toEqual(["maiksplays"]);
+    expect(providerService.ensureBroadcasterLogins).toEqual(["maiksplays"]);
+  });
+
+  it("rejects malformed broadcaster selection without calling the service", async () => {
+    const server = Fastify();
+    const providerService = new FakeTwitchEventSubService();
+
+    registerTwitchEventSubSubscriptionRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new TwitchEventSubSubscriptionControlService(
+        new FakeTwitchEventSubRepository(),
+        providerService
+      )
+    });
+
+    const listResponse = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/twitch-eventsub/subscriptions?broadcaster=not%20valid"
+    });
+    const createResponse = await server.inject({
+      method: "POST",
+      payload: { broadcasterLogin: "not valid" },
+      url: "/admin/provider-integrations/twitch-eventsub/default-subscriptions"
+    });
+
+    expect(listResponse.statusCode).toBe(400);
+    expect(createResponse.statusCode).toBe(400);
+    expect(providerService.listBroadcasterLogins).toEqual([]);
+    expect(providerService.ensureBroadcasterLogins).toEqual([]);
   });
 
   it("returns safe errors without leaking thrown values", async () => {

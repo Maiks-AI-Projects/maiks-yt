@@ -389,6 +389,28 @@
   width: 100%;
 }
 
+.workspace :global(.provider-workspace-broadcaster-selector) {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.workspace :global(.provider-workspace-broadcaster-selector > span) {
+  color: #8fa3aa;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.workspace :global(.provider-workspace-broadcaster-selector select) {
+  background: #10191d;
+  border: 1px solid #33444b;
+  border-radius: 4px;
+  color: #f3f7f6;
+  font: inherit;
+  min-height: 34px;
+  padding: 0 28px 0 9px;
+}
+
 .workspace :global(.provider-workspace-boundary) {
   align-items: center;
   border-top: 1px solid var(--admin-line);

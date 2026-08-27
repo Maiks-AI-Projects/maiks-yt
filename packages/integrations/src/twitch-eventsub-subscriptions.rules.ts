@@ -135,6 +135,61 @@ const trimToNull = (value: string | undefined): string | null => {
   return trimmed ? trimmed : null;
 };
 
+const maxConfiguredEventSubBroadcasters = 10;
+const maxTwitchLoginLength = 25;
+const twitchLoginPattern = /^[A-Za-z0-9_]+$/;
+
+export const normalizeTwitchEventSubBroadcasterLogin = (value: string | undefined): string | null => {
+  const trimmed = trimToNull(value);
+  const withoutChannelPrefix = trimmed?.replace(/^#/, "") ?? null;
+
+  if (
+    !withoutChannelPrefix
+    || withoutChannelPrefix.length > maxTwitchLoginLength
+    || !twitchLoginPattern.test(withoutChannelPrefix)
+  ) {
+    return null;
+  }
+
+  return withoutChannelPrefix.toLowerCase();
+};
+
+const getFirstLegacyBroadcasterLogin = (env: Record<string, string | undefined>): string | null => {
+  for (const envName of ["TWITCH_CHANNEL", "TWITCH_LOGIN", "TWITCH_CHAT_CHANNEL"] as const) {
+    const login = normalizeTwitchEventSubBroadcasterLogin(env[envName]);
+    if (login) {
+      return login;
+    }
+  }
+
+  return null;
+};
+
+const resolveTwitchEventSubBroadcasterLogins = (env: Record<string, string | undefined>): readonly string[] => {
+  const broadcasterLogins: string[] = [];
+  const seen = new Set<string>();
+  const addLogin = (login: string | null) => {
+    if (!login || seen.has(login) || broadcasterLogins.length >= maxConfiguredEventSubBroadcasters) {
+      return;
+    }
+
+    seen.add(login);
+    broadcasterLogins.push(login);
+  };
+
+  addLogin(getFirstLegacyBroadcasterLogin(env));
+
+  for (const rawChannel of env.TWITCH_CHAT_CHANNELS?.split(",") ?? []) {
+    addLogin(normalizeTwitchEventSubBroadcasterLogin(rawChannel));
+  }
+
+  if (broadcasterLogins.length === 0) {
+    addLogin("maiksmc");
+  }
+
+  return broadcasterLogins;
+};
+
 const getApiBaseUrl = (env: Record<string, string | undefined>): string => {
   const configured = trimToNull(env.API_PUBLIC_BASE_URL);
 
@@ -147,10 +202,8 @@ export const resolveTwitchEventSubSubscriptionConfig = (
   const clientId = trimToNull(env.TWITCH_CLIENT_ID);
   const clientSecret = trimToNull(env.TWITCH_CLIENT_SECRET);
   const secret = trimToNull(env.TWITCH_EVENTSUB_WEBHOOK_SECRET);
-  const broadcasterLogin = trimToNull(env.TWITCH_CHANNEL)
-    ?? trimToNull(env.TWITCH_LOGIN)
-    ?? trimToNull(env.TWITCH_CHAT_CHANNEL)
-    ?? "maiksmc";
+  const broadcasterLogins = resolveTwitchEventSubBroadcasterLogins(env);
+  const broadcasterLogin = broadcasterLogins[0] ?? "maiksmc";
 
   if (!clientId || !clientSecret || !secret || secret.length < 10 || secret.length > 100) {
     return null;
@@ -158,6 +211,7 @@ export const resolveTwitchEventSubSubscriptionConfig = (
 
   return {
     broadcasterLogin,
+    broadcasterLogins,
     callbackUrl: new URL("/provider-webhooks/twitch/eventsub", getApiBaseUrl(env)).toString(),
     clientId,
     clientSecret,
@@ -215,6 +269,15 @@ export const summarizeTwitchEventSubSubscription = (
     version
   };
 };
+
+export const isTwitchEventSubSubscriptionScopedToBroadcaster = (
+  subscription: TwitchEventSubSubscriptionSummary,
+  broadcasterUserId: string
+): boolean =>
+  subscription.condition.broadcaster_user_id === broadcasterUserId
+  || subscription.condition.to_broadcaster_user_id === broadcasterUserId
+  || subscription.condition.from_broadcaster_user_id === broadcasterUserId
+  || subscription.condition.user_id === broadcasterUserId;
 
 const findExistingDefault = (
   subscriptions: readonly TwitchEventSubSubscriptionSummary[],

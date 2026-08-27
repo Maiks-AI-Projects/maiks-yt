@@ -1,6 +1,8 @@
 import {
   projectTwitchEventSubDefaultStatuses,
   buildTwitchEventSubCondition,
+  isTwitchEventSubSubscriptionScopedToBroadcaster,
+  normalizeTwitchEventSubBroadcasterLogin,
   resolveTwitchEventSubSubscriptionConfig,
   summarizeTwitchEventSubSubscription
 } from "./twitch-eventsub-subscriptions.rules.js";
@@ -39,6 +41,24 @@ const asSubscription = (value: unknown): TwitchEventSubHelixSubscription | null 
   value && typeof value === "object" && !Array.isArray(value)
     ? value as TwitchEventSubHelixSubscription
     : null;
+
+const getPaginationCursor = (value: unknown): string | null | undefined => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const pagination = (value as { pagination?: unknown }).pagination;
+  if (!pagination || typeof pagination !== "object" || Array.isArray(pagination)) {
+    return undefined;
+  }
+
+  const cursor = (pagination as { cursor?: unknown }).cursor;
+
+  return cursor === undefined ? null : typeof cursor === "string" && cursor.trim() ? cursor : undefined;
+};
+
+const maxEventSubSubscriptionPages = 20;
+const eventSubSubscriptionPageSize = 100;
 
 export const createTwitchEventSubHelixTransport = (): TwitchEventSubHelixTransport => ({
   async createSubscription(input) {
@@ -123,22 +143,59 @@ export const createTwitchEventSubHelixTransport = (): TwitchEventSubHelixTranspo
   },
 
   async listSubscriptions(input) {
-    const response = await fetch(`${helixBaseUrl}/eventsub/subscriptions`, {
-      headers: {
-        authorization: `Bearer ${input.accessToken}`,
-        "client-id": input.clientId
-      }
-    });
+    try {
+      const subscriptions: TwitchEventSubHelixSubscription[] = [];
+      const seenCursors = new Set<string>();
+      let after: string | null = null;
 
-    if (!response.ok) {
+      for (let page = 0; page < maxEventSubSubscriptionPages; page += 1) {
+        const url = new URL(`${helixBaseUrl}/eventsub/subscriptions`);
+        url.searchParams.set("first", String(eventSubSubscriptionPageSize));
+        if (after) {
+          url.searchParams.set("after", after);
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            authorization: `Bearer ${input.accessToken}`,
+            "client-id": input.clientId
+          }
+        });
+
+        if (!response.ok) {
+          return null;
+        }
+
+        const payload = await parseJson(response);
+        const data = getDataArray(payload);
+        const nextCursor = getPaginationCursor(payload);
+
+        if (!data || nextCursor === undefined) {
+          return null;
+        }
+
+        subscriptions.push(
+          ...data
+            .map((item) => asSubscription(item))
+            .filter((item): item is TwitchEventSubHelixSubscription => item !== null)
+        );
+
+        if (!nextCursor) {
+          return subscriptions;
+        }
+
+        if (seenCursors.has(nextCursor)) {
+          return null;
+        }
+
+        seenCursors.add(nextCursor);
+        after = nextCursor;
+      }
+
+      return null;
+    } catch {
       return null;
     }
-
-    const data = getDataArray(await parseJson(response));
-
-    return data
-      ? data.map((item) => asSubscription(item)).filter((item): item is TwitchEventSubHelixSubscription => item !== null)
-      : null;
   }
 });
 
@@ -150,8 +207,8 @@ export class TwitchEventSubSubscriptionService {
     } = {}
   ) {}
 
-  public async listDefaults(): Promise<TwitchEventSubSubscriptionListResult> {
-    const context = await this.resolveContext();
+  public async listDefaults(input: { broadcasterLogin?: string } = {}): Promise<TwitchEventSubSubscriptionListResult> {
+    const context = await this.resolveContext(input);
     if (!context.ok) {
       return {
         ok: false,
@@ -162,6 +219,7 @@ export class TwitchEventSubSubscriptionService {
     return {
       ok: true,
       broadcasterLogin: context.broadcasterLogin,
+      broadcasterLogins: context.broadcasterLogins,
       broadcasterUserId: context.broadcasterUserId,
       callbackUrl: context.callbackUrl,
       defaults: projectTwitchEventSubDefaultStatuses({
@@ -173,8 +231,8 @@ export class TwitchEventSubSubscriptionService {
     };
   }
 
-  public async ensureDefaults(): Promise<TwitchEventSubEnsureDefaultsResult> {
-    const context = await this.resolveContext();
+  public async ensureDefaults(input: { broadcasterLogin?: string } = {}): Promise<TwitchEventSubEnsureDefaultsResult> {
+    const context = await this.resolveContext(input);
     if (!context.ok) {
       return {
         ok: false,
@@ -234,17 +292,19 @@ export class TwitchEventSubSubscriptionService {
     return {
       ok: true,
       broadcasterLogin: context.broadcasterLogin,
+      broadcasterLogins: context.broadcasterLogins,
       broadcasterUserId: context.broadcasterUserId,
       callbackUrl: context.callbackUrl,
       results
     };
   }
 
-  private async resolveContext(): Promise<
+  private async resolveContext(input: { broadcasterLogin?: string }): Promise<
     | {
       ok: true;
       accessToken: string;
       broadcasterLogin: string;
+      broadcasterLogins: readonly string[];
       broadcasterUserId: string;
       callbackUrl: string;
       clientId: string;
@@ -256,6 +316,7 @@ export class TwitchEventSubSubscriptionService {
       ok: false;
       reason:
         | "twitch_eventsub_config_missing"
+        | "twitch_eventsub_broadcaster_not_configured"
         | "twitch_eventsub_broadcaster_not_found"
         | "twitch_eventsub_api_unavailable";
     }
@@ -265,6 +326,14 @@ export class TwitchEventSubSubscriptionService {
       return {
         ok: false,
         reason: "twitch_eventsub_config_missing"
+      };
+    }
+
+    const requestedLogin = normalizeTwitchEventSubBroadcasterLogin(input.broadcasterLogin ?? config.broadcasterLogin);
+    if (!requestedLogin || !config.broadcasterLogins.includes(requestedLogin)) {
+      return {
+        ok: false,
+        reason: "twitch_eventsub_broadcaster_not_configured"
       };
     }
 
@@ -283,7 +352,7 @@ export class TwitchEventSubSubscriptionService {
     const broadcaster = await transport.getUserByLogin({
       accessToken,
       clientId: config.clientId,
-      login: config.broadcasterLogin
+      login: requestedLogin
     });
     if (!broadcaster) {
       return {
@@ -307,13 +376,17 @@ export class TwitchEventSubSubscriptionService {
       ok: true,
       accessToken,
       broadcasterLogin: broadcaster.login,
+      broadcasterLogins: config.broadcasterLogins,
       broadcasterUserId: broadcaster.id,
       callbackUrl: config.callbackUrl,
       clientId: config.clientId,
       secret: config.secret,
       subscriptions: rawSubscriptions
         .map((subscription) => summarizeTwitchEventSubSubscription(subscription, config.callbackUrl))
-        .filter((subscription): subscription is NonNullable<typeof subscription> => subscription !== null),
+        .filter((subscription): subscription is NonNullable<typeof subscription> => subscription !== null)
+        .filter((subscription) =>
+          isTwitchEventSubSubscriptionScopedToBroadcaster(subscription, broadcaster.id)
+        ),
       transport
     };
   }

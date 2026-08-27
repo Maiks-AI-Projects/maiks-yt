@@ -18,12 +18,22 @@ export class TwitchEventSubSubscriptionControlService {
     private readonly subscriptionService: Pick<TwitchEventSubSubscriptionService, "ensureDefaults" | "listDefaults"> = new TwitchEventSubSubscriptionService()
   ) {}
 
-  public async listDefaults(input: { authUserId: string }): Promise<TwitchEventSubSubscriptionControlResult> {
-    return await this.withActor(input.authUserId, () => this.subscriptionService.listDefaults());
+  public async listDefaults(input: {
+    authUserId: string;
+    broadcasterLogin?: string;
+  }): Promise<TwitchEventSubSubscriptionControlResult> {
+    return await this.withActor(input.authUserId, () => this.subscriptionService.listDefaults({
+      ...(input.broadcasterLogin ? { broadcasterLogin: input.broadcasterLogin } : {})
+    }));
   }
 
-  public async ensureDefaults(input: { authUserId: string }): Promise<TwitchEventSubSubscriptionControlResult> {
-    return await this.withActor(input.authUserId, () => this.subscriptionService.ensureDefaults());
+  public async ensureDefaults(input: {
+    authUserId: string;
+    broadcasterLogin?: string;
+  }): Promise<TwitchEventSubSubscriptionControlResult> {
+    return await this.withActor(input.authUserId, () => this.subscriptionService.ensureDefaults({
+      ...(input.broadcasterLogin ? { broadcasterLogin: input.broadcasterLogin } : {})
+    }));
   }
 
   private async withActor(

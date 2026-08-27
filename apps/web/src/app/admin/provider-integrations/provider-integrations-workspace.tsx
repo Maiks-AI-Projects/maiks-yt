@@ -45,6 +45,8 @@ type ProviderIntegrationsWorkspaceProps = {
   youtubePubSubSubscription: YouTubePubSubStatus | null;
   youtubeActivitiesPoll: YouTubeActivitiesStatus | null;
   twitchEventSubDefaults: readonly TwitchEventSubDefaultSubscriptionStatus[];
+  twitchEventSubBroadcasterLogin: string | null;
+  twitchEventSubBroadcasterLogins: readonly string[];
   twitchEventSubSubscriptionCount: number;
   twitchEventSubCallbackUrl: string | null;
   youtubeRedirectUri: string;
@@ -60,6 +62,7 @@ type ProviderIntegrationsWorkspaceProps = {
   onConnectYouTube: () => void;
   onDiscoverYouTubeChannels: () => void;
   onSelectYouTubeChannel: (channelId: string | null) => void;
+  onSelectTwitchEventSubBroadcaster: (broadcasterLogin: string) => void;
   onYouTubePubSubAction: (mode: "subscribe" | "unsubscribe") => void;
   onPollYouTubeActivities: () => void;
 };
@@ -206,6 +209,19 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
           <div className="provider-workspace-detail-header">
             <div><ProviderMark provider="twitch" /><h2>Twitch · {targetLabels.twitch}</h2></div>
             <div className="provider-workspace-actions">
+              {props.twitchEventSubBroadcasterLogins.length > 1 ? (
+                <label className="provider-workspace-broadcaster-selector">
+                  <span>Twitch channel</span>
+                  <select
+                    onChange={(event) => props.onSelectTwitchEventSubBroadcaster(event.currentTarget.value)}
+                    value={props.twitchEventSubBroadcasterLogin ?? props.twitchEventSubBroadcasterLogins[0]}
+                  >
+                    {props.twitchEventSubBroadcasterLogins.map((login) => (
+                      <option key={login} value={login}>{login}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
               <button
                 className="secondary-action"
                 disabled={runtimeIsActive(runtime?.connectionState)}

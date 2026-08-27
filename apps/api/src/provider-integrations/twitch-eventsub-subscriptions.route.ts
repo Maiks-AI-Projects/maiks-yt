@@ -1,5 +1,6 @@
 import type { DatabasePool } from "@maiks-yt/database";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
 
 import { createTwitchEventSubSubscriptionRepository } from "./twitch-eventsub-subscriptions-store.service.js";
 import { TwitchEventSubSubscriptionControlService } from "./twitch-eventsub-subscriptions.service.js";
@@ -15,6 +16,14 @@ type TwitchEventSubSubscriptionRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<TwitchEventSubSubscriptionAuthSession>;
   getDatabasePool: () => DatabasePool;
 };
+
+const broadcasterLoginSchema = z.string().trim().min(1).max(25).regex(/^[a-zA-Z0-9_]+$/);
+const listQuerySchema = z.object({
+  broadcaster: broadcasterLoginSchema.optional()
+}).strict();
+const ensureBodySchema = z.object({
+  broadcasterLogin: broadcasterLoginSchema.optional()
+}).strict();
 
 export const registerTwitchEventSubSubscriptionRoutes = (
   server: FastifyInstance,
@@ -68,7 +77,9 @@ export const registerTwitchEventSubSubscriptionRoutes = (
 
       if (typeof result === "object" && result !== null && "ok" in result && result.ok === false) {
         const reason = "reason" in result && typeof result.reason === "string" ? result.reason : "";
-        reply.code(reason === "twitch_eventsub_forbidden" || reason === "twitch_eventsub_user_unlinked" ? 403 : 503);
+        if (reply.statusCode < 400) {
+          reply.code(reason === "twitch_eventsub_forbidden" || reason === "twitch_eventsub_user_unlinked" ? 403 : 503);
+        }
       }
 
       return result;
@@ -82,11 +93,33 @@ export const registerTwitchEventSubSubscriptionRoutes = (
     }
   };
 
-  server.get("/admin/provider-integrations/twitch-eventsub/subscriptions", async (request, reply) =>
-    runAuthenticated(request, reply, (service, authUserId) => service.listDefaults({ authUserId }))
-  );
+  server.get("/admin/provider-integrations/twitch-eventsub/subscriptions", async (request, reply) => {
+    return runAuthenticated(request, reply, async (service, authUserId) => {
+      const parsedQuery = listQuerySchema.safeParse(request.query);
+      if (!parsedQuery.success) {
+        reply.code(400);
+        return { ok: false, reason: "invalid_twitch_eventsub_broadcaster" };
+      }
 
-  server.post("/admin/provider-integrations/twitch-eventsub/default-subscriptions", async (request, reply) =>
-    runAuthenticated(request, reply, (service, authUserId) => service.ensureDefaults({ authUserId }))
-  );
+      return service.listDefaults({
+        authUserId,
+        ...(parsedQuery.data.broadcaster ? { broadcasterLogin: parsedQuery.data.broadcaster } : {})
+      });
+    });
+  });
+
+  server.post("/admin/provider-integrations/twitch-eventsub/default-subscriptions", async (request, reply) => {
+    return runAuthenticated(request, reply, async (service, authUserId) => {
+      const parsedBody = ensureBodySchema.safeParse(request.body ?? {});
+      if (!parsedBody.success) {
+        reply.code(400);
+        return { ok: false, reason: "invalid_twitch_eventsub_broadcaster" };
+      }
+
+      return service.ensureDefaults({
+        authUserId,
+        ...(parsedBody.data.broadcasterLogin ? { broadcasterLogin: parsedBody.data.broadcasterLogin } : {})
+      });
+    });
+  });
 };
