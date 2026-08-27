@@ -84,6 +84,9 @@ importers:
 
   apps/control-panel:
     dependencies:
+      '@maiks-yt/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@maiks-yt/events':
         specifier: workspace:*
         version: link:../../packages/events

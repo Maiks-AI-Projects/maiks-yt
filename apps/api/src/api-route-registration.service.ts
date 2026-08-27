@@ -11,6 +11,7 @@ import {
   type AuthSessionSnapshot
 } from "./account/index.js";
 import { registerActionPanelRoutes } from "./actions/index.js";
+import { registerControlPanelNavigationRoutes } from "./control-panel/index.js";
 import {
   registerEventRoutingAdminRoutes,
   registerEventRoutingDispatchRoutes,
@@ -146,6 +147,10 @@ export const registerApplicationRoutes = ({
   registerActionPanelRoutes(server, {
     getAuthSession,
     getDatabasePool
+  });
+  registerControlPanelNavigationRoutes(server, {
+    getDatabasePool,
+    requireUrlAccessTokenForRequest
   });
   registerStreamVisibilityPreferencesRoutes(server, {
     getAuthSession,

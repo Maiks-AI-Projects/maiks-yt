@@ -21,6 +21,8 @@ This is local synthetic verification of the first production implementation of t
 - `control-overlay-960x1080.png`
 - `control-music-1366x768.png`
 - `control-music-720x900.png`
+- `control-navigation-owner-1366x768.png`
+- `control-navigation-helper-1366x768.png`
 - `notifications-390x844.png`
 
 ## Findings
@@ -31,6 +33,7 @@ This is local synthetic verification of the first production implementation of t
 - Moderation uses its own permission-derived internal navigation and a selected-message context panel without adding cross-PWA navigation.
 - Control separates Overview, Stream Controls, Overlays & Scenes, Actions, Music, and Provider Health. The compatibility scene editor warns that saving can update connected master-overlay Browser Sources, shows only working controls, and stacks cleanly at half-screen width without horizontal overflow.
 - Music uses authoritative playback state, human-readable status copy, and a compact playback-output indicator. It does not expose a placeholder Browser Source URL or token-shaped setup copy. Both captured widths fit without horizontal overflow.
+- The owner Control navigation shows all six permitted pages. A synthetic helper projection shows only Overview, Stream Controls, and Overlays & Scenes; a direct `/control/music` load resolves to `/control`, Provider Health is absent, and neither view has horizontal overflow.
 - Notifications has its own compact dark mobile layout and install manifest.
 
 The implementation follows the approved density and hierarchy. Chat retains one extra compact status and attention row because those working production controls need to remain reachable.

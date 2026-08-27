@@ -227,6 +227,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Make critical controls usable on mobile.
 - [x] Keep default control panel low-distraction.
 - [x] Prepare optional advanced/product mode foundation.
+- [x] Derive optional Control navigation from the signed-in user's active permissions.
+  - 2026-08-27 added a control-token plus signed-in-session navigation projection. Owner wildcard sees all pages; Actions, Music, and the chat-intake Provider Health view require `action-panel:view`, `music:play-control`, and `chat:view`, and unavailable deep links fail closed to `/control`. Overview, Stream Controls, and Overlays & Scenes remain core pages under the existing Control entry gate until dedicated capabilities are designed and enforced end to end.
 
 ## 8. Themes and Layouts
 

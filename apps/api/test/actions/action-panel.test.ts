@@ -487,6 +487,25 @@ describe("ActionPanelService decisions", () => {
 });
 
 describe("Action Panel mysql transaction boundary", () => {
+  it("excludes revoked and expired role grants while resolving the actor", async () => {
+    let actorSql = "";
+    const repository = createActionPanelRepository({
+      execute: async (sql: string) => {
+        actorSql = sql;
+        return [[{
+          domainUserId: "actor-domain-user",
+          rolePermissions: [actionPanelViewCapability]
+        }]];
+      }
+    } as unknown as DatabasePool);
+
+    const actor = await repository.resolveActor("auth-user");
+
+    expect(actor?.domainUserId).toBe("actor-domain-user");
+    expect(actorSql).toContain("user_roles.revoked_at IS NULL");
+    expect(actorSql).toContain("user_roles.expires_at IS NULL OR user_roles.expires_at > NOW()");
+  });
+
   it("rolls back and releases the connection when history insertion fails", async () => {
     const events: string[] = [];
     const connection = {

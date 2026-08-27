@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-27 permission-aware Control navigation
+
+- Added a signed-in Control navigation projection behind the existing `control:open` URL-token gate. Overview, Stream Controls, and Overlays & Scenes remain the core pages governed by that existing outer Control access; Actions, Music, and the chat-intake Provider Health view now appear only when the linked user has `action-panel:view`, `music:play-control`, or `chat:view` respectively. Owner wildcard retains the complete workspace.
+- Direct links to a page outside the returned projection fail closed to `/control` without revealing the unavailable page. The API returns only page keys and labels, not role rows, raw permissions, account identifiers, or token material; database failures use a bounded sanitized response.
+- Domain and API coverage includes unauthenticated, token-only, owner-wildcard, specific-capability, active-grant query, invalid-request, and safe-failure behavior. The pre-existing Actions actor query now excludes revoked and expired role grants so navigation and backend authorization agree. Control tests, typecheck, build, architecture validation, and whitespace checks pass.
+- Local credential-free visual proof records a complete owner view and a three-page helper view at 1366x768. The helper deep-link check resolves `/control/music` back to `/control`, hides Provider Health, and has no horizontal overflow. Production deployment, signed-in owner/helper verification, and installed-PWA proof remain open.
+- Dedicated rights for the three core Control pages are not invented in this slice. They remain governed by the established Control entry gate until stream/overlay capabilities are explicitly designed and enforced end to end.
+- Independent senior review is clean after correcting fail-open navigation fallback, stale authorization projection, Provider Health capability alignment, and the Actions active-grant query. The shared `pnpm check:review` gate passes with 148 domain tests and 476 API tests.
+
 ## 2026-08-27 truthful Control music operations
 
 - Removed the fake `OVERLAY_ACCESS_TOKEN` Browser Source URL from the production Control Music view. The operator surface now shows human-readable playback status and whether an actual playback consumer is connected, without exposing setup placeholders or raw internal reason codes.

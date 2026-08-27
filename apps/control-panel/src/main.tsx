@@ -1,6 +1,13 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import {
+  resolveControlPanelPage,
+  type ControlPanelPageKey
+} from "@maiks-yt/domain/security";
 import type { ControlPanelAuthState } from "./access/control-access.service.js";
 import { useControlAccess } from "./access/control-access.state.js";
+import {
+  loadControlPanelNavigation
+} from "./access/control-navigation.service.js";
 import { ControlActionsPanel } from "./actions/ControlActionsPanel.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
@@ -24,14 +31,13 @@ const isStandaloneChatRoute = currentRoutePath === "/chat";
 const isModerationRoute = currentRoutePath === "/moderation" || currentRoutePath.startsWith("/moderation/");
 const defaultPanelMode = "creator";
 type PanelMode = "creator" | "advanced";
-type ControlPageKey = "overview" | "stream" | "overlays" | "actions" | "music" | "providers";
 const controlRouteLabels: Record<string, string> = {
   "/chat": "Streamer Chat",
   "/control": "Control Panel",
   "/moderation": "Moderation"
 };
 
-const controlPageLabels: Record<ControlPageKey, string> = {
+const controlPageLabels: Record<ControlPanelPageKey, string> = {
   actions: "Actions",
   music: "Music",
   overlays: "Overlays & Scenes",
@@ -40,7 +46,7 @@ const controlPageLabels: Record<ControlPageKey, string> = {
   stream: "Stream Controls"
 };
 
-const controlPagePathSegments: Record<ControlPageKey, string> = {
+const controlPagePathSegments: Record<ControlPanelPageKey, string> = {
   actions: "actions",
   music: "music",
   overlays: "overlays",
@@ -48,8 +54,8 @@ const controlPagePathSegments: Record<ControlPageKey, string> = {
   providers: "providers",
   stream: "stream"
 };
-const controlPageOrder: readonly ControlPageKey[] = ["overview", "stream", "overlays", "actions", "music", "providers"];
-const controlPageIcons: Record<ControlPageKey, OperationNavIconName> = {
+const controlPageOrder: readonly ControlPanelPageKey[] = ["overview", "stream", "overlays", "actions", "music", "providers"];
+const controlPageIcons: Record<ControlPanelPageKey, OperationNavIconName> = {
   actions: "actions",
   music: "music",
   overlays: "overlays",
@@ -80,10 +86,15 @@ const getCurrentSurfaceLabel = (): string =>
   controlRouteLabels[currentRoutePath] ?? "Control Panel";
 
 type ControlPanelBlockedState = Exclude<ControlPanelAuthState, { status: "allowed" }>;
+type ControlPanelAllowedState = Extract<ControlPanelAuthState, { status: "allowed" }>;
+type LoadedControlNavigation = {
+  readonly authState: ControlPanelAllowedState;
+  readonly pages: readonly ControlPanelPageKey[];
+};
 
-const getInitialControlPage = (): ControlPageKey => {
+const getInitialControlPage = (): ControlPanelPageKey => {
   const segment = window.location.pathname.replace(/\/+$/, "").split("/")[2] ?? "";
-  const routePage = (Object.entries(controlPagePathSegments).find(([, pathSegment]) => pathSegment === segment)?.[0] ?? null) as ControlPageKey | null;
+  const routePage = (Object.entries(controlPagePathSegments).find(([, pathSegment]) => pathSegment === segment)?.[0] ?? null) as ControlPanelPageKey | null;
 
   if (routePage) {
     return routePage;
@@ -152,7 +163,10 @@ const AccessRequired = ({
 const App = (): React.ReactNode => {
   const { authState, retryAccess } = useControlAccess(apiBaseUrl);
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
-  const [controlPage, setControlPage] = useState<ControlPageKey>(getInitialControlPage);
+  const [controlPage, setControlPage] = useState<ControlPanelPageKey>(getInitialControlPage);
+  const [loadedControlNavigation, setLoadedControlNavigation] = useState<LoadedControlNavigation | null>(null);
+  const [failedNavigationAuthState, setFailedNavigationAuthState] = useState<ControlPanelAllowedState | null>(null);
+  const [navigationRetryKey, setNavigationRetryKey] = useState(0);
   const [controlSidebarCollapsed, setControlSidebarCollapsed] = useState(() =>
     window.localStorage.getItem(controlSidebarStorageKey) === "true"
   );
@@ -180,7 +194,7 @@ const App = (): React.ReactNode => {
     window.localStorage.setItem(panelModeStorageKey, nextMode);
   };
 
-  const chooseControlPage = (page: ControlPageKey): void => {
+  const chooseControlPage = (page: ControlPanelPageKey): void => {
     setControlPage(page);
     window.localStorage.setItem(controlPageStorageKey, page);
     const segment = controlPagePathSegments[page];
@@ -188,6 +202,47 @@ const App = (): React.ReactNode => {
 
     window.history.replaceState(null, "", nextPath);
   };
+
+  useEffect(() => {
+    if (authState.status !== "allowed" || isStandaloneChatRoute || isModerationRoute) {
+      return;
+    }
+
+    let disposed = false;
+    setFailedNavigationAuthState(null);
+
+    const loadNavigation = async (): Promise<void> => {
+      try {
+        const pages = await loadControlPanelNavigation(apiBaseUrl);
+
+        if (disposed) {
+          return;
+        }
+
+        setLoadedControlNavigation({ authState, pages });
+        const requestedPage = getInitialControlPage();
+        const nextPage = resolveControlPanelPage(requestedPage, pages);
+
+        setControlPage(nextPage);
+        if (nextPage !== requestedPage) {
+          window.localStorage.setItem(controlPageStorageKey, nextPage);
+          const segment = controlPagePathSegments[nextPage];
+          window.history.replaceState(null, "", segment ? `/control/${segment}` : "/control");
+        }
+      } catch {
+        if (!disposed) {
+          setLoadedControlNavigation(null);
+          setFailedNavigationAuthState(authState);
+        }
+      }
+    };
+
+    void loadNavigation();
+
+    return () => {
+      disposed = true;
+    };
+  }, [authState, navigationRetryKey]);
 
   const toggleControlSidebar = (): void => {
     setControlSidebarCollapsed((currentValue) => {
@@ -251,9 +306,31 @@ const App = (): React.ReactNode => {
     );
   }
 
+  if (failedNavigationAuthState === authState) {
+    return (
+      <AccessRequired
+        authState={{
+          status: "blocked",
+          kind: "unavailable",
+          message: "Your available Control pages could not be verified."
+        }}
+        onRetry={() => setNavigationRetryKey((currentValue) => currentValue + 1)}
+      />
+    );
+  }
+
+  const availableControlPages = loadedControlNavigation?.authState === authState
+    ? loadedControlNavigation.pages
+    : null;
+
+  if (availableControlPages === null) {
+    return <AccessRequired authState={{ status: "checking" }} onRetry={retryAccess} />;
+  }
+
   const shellStyle = { fontSize: `${uiScale}%` } satisfies CSSProperties;
+  const activeControlPage = resolveControlPanelPage(controlPage, availableControlPages);
   const renderControlPage = (): React.ReactNode => {
-    if (controlPage === "overlays") {
+    if (activeControlPage === "overlays") {
       return (
         <>
           <section className="overlay-workflow-strip" aria-label="Live-safe overlay workflow">
@@ -266,15 +343,15 @@ const App = (): React.ReactNode => {
       );
     }
 
-    if (controlPage === "actions") {
+    if (activeControlPage === "actions") {
       return <ControlActionsPanel apiBaseUrl={apiBaseUrl} />;
     }
 
-    if (controlPage === "music") {
+    if (activeControlPage === "music") {
       return <MusicControlPanel />;
     }
 
-    if (controlPage === "providers") {
+    if (activeControlPage === "providers") {
       return (
         <section className="provider-health-page" aria-label="Provider health and recovery">
           <div className="section-heading">
@@ -289,13 +366,15 @@ const App = (): React.ReactNode => {
     return (
       <>
         <SurfaceStatus apiBaseUrl={apiBaseUrl} panelMode={panelMode} />
-        {controlPage === "overview" ? (
+        {activeControlPage === "overview" ? (
           <section className="control-live-overview" aria-label="Live operations overview">
-            <article>
-              <span>Next recovery stop</span>
-              <strong>Provider Health</strong>
-              <p>Use the recovery page for intake/provider status; raw diagnostics stay out of the routine overview.</p>
-            </article>
+            {availableControlPages.includes("providers") ? (
+              <article>
+                <span>Next recovery stop</span>
+                <strong>Provider Health</strong>
+                <p>Use the recovery page for intake/provider status; raw diagnostics stay out of the routine overview.</p>
+              </article>
+            ) : null}
             <article>
               <span>Scene work</span>
               <strong>Overlays & Scenes</strong>
@@ -319,25 +398,27 @@ const App = (): React.ReactNode => {
           {controlSidebarCollapsed ? ">" : "<"}
         </button>
         <nav className="operations-nav">
-          {controlPageOrder.map((page) => (
-            <button
-              type="button"
-              className={page === controlPage ? "active" : ""}
-              key={page}
-              onClick={() => chooseControlPage(page)}
-              title={controlPageLabels[page]}
-            >
-              <span className="nav-icon" aria-hidden="true"><OperationNavIcon name={controlPageIcons[page]} /></span>
-              <span className="nav-label">{controlPageLabels[page]}</span>
-            </button>
-          ))}
+          {controlPageOrder
+            .filter((page) => availableControlPages.includes(page))
+            .map((page) => (
+              <button
+                type="button"
+                className={page === activeControlPage ? "active" : ""}
+                key={page}
+                onClick={() => chooseControlPage(page)}
+                title={controlPageLabels[page]}
+              >
+                <span className="nav-icon" aria-hidden="true"><OperationNavIcon name={controlPageIcons[page]} /></span>
+                <span className="nav-label">{controlPageLabels[page]}</span>
+              </button>
+            ))}
         </nav>
       </aside>
       <section className="operations-page">
         <div className="operations-page-header">
           <div>
             <h1>Control</h1>
-            <p>{controlPageLabels[controlPage]} · {authState.displayName}</p>
+            <p>{controlPageLabels[activeControlPage]} · {authState.displayName}</p>
           </div>
           <div className="operations-header-actions">
             <button
