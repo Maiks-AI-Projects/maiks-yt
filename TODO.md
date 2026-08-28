@@ -25,6 +25,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Design and independently review the separate profile-handle audit/event store required before any handle transition ships. `reports/profile-handle-audit-event-store-proposal.md` now defines an Owner-only operation/detail model, atomic canonical-state and audit writes, append-only enforcement gates, finite replay/rejection behavior, and strict private identity boundaries. This is design evidence only; no schema or migration was generated.
 - [x] Remove raw internal ids from anonymous Project list/detail contracts, reject unrecognized response shapes in Web consumers, preserve private admin mutation ids, and deploy/live-verify the bounded Web/API slice (`ab2682f`).
 - [x] Split the anonymous Schedule contract from the private admin model, remove every schedule/project/game-link/game id and operator-only field, add strict bounded Web parsing, and deploy/live-verify the bounded Web/API slice (`c6b32aa`).
+- [x] Remove the raw game database id from the anonymous Games contract, keep slug as the unique public identity, reject duplicate/malformed public payloads, preserve private admin and suggestion ids, and deploy/live-verify the bounded Web/API slice (`87cb83c`).
+- [ ] Replace anonymous Music catalog track/source database ids with opaque public references, resolve requests server-side, add strict finite Web parsing, and preserve every private admin/playback/VLC identifier and behavior.
 - [ ] Submit the prepared production approval list at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6` before implementing `/about/ai` or generating the profile-handle migration files.
 
 ## Production Operator Contract Pass - 2026-08-28

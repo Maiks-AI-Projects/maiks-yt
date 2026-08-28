@@ -1,11 +1,18 @@
 # Next Agent Tasks
 
+## Public Games browser contract deployed
+
+- Production revision `87cb83cae6c544efe8fc5f1d9c740936927a4318` is deployed to Web and API on provenance-labelled image `sha256:ec67b3529cd6eda3a90f82d4116bd323aa7e50a47433c5feeba5553f11f3ff37`. Do not repeat the deployment.
+- Anonymous Games responses contain no raw game database id. Slug is the unique public identity; strict parsing rejects duplicate slugs and every malformed or extra field. Private admin, persistence, suggestion-review, and Schedule ids remain unchanged.
+- Public HTTP/API, 15-row populated shape, zero-id recursion, unique-slug, container health/restarts, rollback, logs, and Control/Overlay preservation are verified. The next Games gate is positive signed-in owner editing and suggestion review; do not create durable data merely to repeat source proof.
+- The next ranked anonymous-contract slice is Music: replace public track/source database ids with opaque references resolved server-side, add strict finite Web parsing, and preserve private admin/playback/VLC identifiers and behavior.
+
 ## Public Schedule browser contract deployed
 
 - Production revision `c6b32aa8b7dbf6794e32a654a826ed7b4d0cb91b` is deployed to Web and API on provenance-labelled image `sha256:7c6b3c17cecd633b0eb4f7110d57de33d3514be5a587143b835f9ea2a4bd1d6a`. Do not repeat the deployment.
 - Anonymous Schedule responses contain no schedule/project/game-link/game ids or operator-only state. Private admin contracts still retain ids. Public consumers parse exact bounded fields and fail closed; private/draft Project focus remains hidden unless the linked Project is public.
 - Public HTTP/API, container health/restarts, rollback, logs, Control/Overlay preservation, and the empty live Schedule shape are verified. The next Schedule gate is a positive signed-in owner lifecycle and one real populated public entry; do not create durable Schedule data merely to repeat source-deployment proof.
-- The next ranked anonymous-contract slice is Games: remove only the public game database id, keep the existing slug as public identity, switch public keys to the slug, and add strict runtime parsing. Preserve all owner/admin ids and private suggestion review behavior.
+- Games is complete and deployed at `87cb83c`; do not repeat that slice.
 
 ## Public Project browser contracts deployed
 
