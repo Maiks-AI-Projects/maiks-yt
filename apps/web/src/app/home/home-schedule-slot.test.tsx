@@ -1,14 +1,17 @@
 import type { PublicProjectSummary } from "@maiks-yt/domain/projects";
 import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
+import type { PublicUpdateSummary } from "@maiks-yt/domain/updates";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProjectListLoadResult } from "../projects/project-read-data";
 import type { StreamScheduleLoadResult } from "../schedule/stream-schedule-data";
+import type { PublicUpdateListLoadResult } from "../updates/public-update-data";
 import { getHomeScheduleSlot } from "./home-schedule-data";
 
 const getPublicProjects = vi.hoisted(() => vi.fn());
 const getPublicStreamSchedule = vi.hoisted(() => vi.fn());
+const getPublicUpdates = vi.hoisted(() => vi.fn());
 
 vi.mock("../projects/project-read-data", () => ({
   getPublicProjects
@@ -17,6 +20,10 @@ vi.mock("../projects/project-read-data", () => ({
 vi.mock("../schedule/stream-schedule-data", () => ({
   formatScheduleDate: (value: string) => `formatted ${value}`,
   getPublicStreamSchedule
+}));
+
+vi.mock("../updates/public-update-data", () => ({
+  getPublicUpdates
 }));
 
 const createStream = (
@@ -72,11 +79,31 @@ const projectLoaded = (projects: readonly PublicProjectSummary[]): ProjectListLo
   projects
 });
 
+const createUpdate = (
+  slug: string,
+  overrides: Partial<PublicUpdateSummary> = {}
+): PublicUpdateSummary => ({
+  slug,
+  title: `Update ${slug}`,
+  summary: `Summary for ${slug}`,
+  kind: "post",
+  isPinned: false,
+  publishedAt: "2026-08-28T12:00:00.000Z",
+  updatedAt: "2026-08-28T12:00:00.000Z",
+  ...overrides
+});
+
+const updateLoaded = (updates: readonly PublicUpdateSummary[]): PublicUpdateListLoadResult => ({
+  status: "loaded",
+  updates
+});
+
 describe("home schedule slot", () => {
   beforeEach(() => {
     vi.resetModules();
     getPublicProjects.mockReset();
     getPublicStreamSchedule.mockReset();
+    getPublicUpdates.mockReset();
   });
 
   it("selects the earliest live stream before planned streams", () => {
@@ -175,11 +202,15 @@ describe("home schedule slot", () => {
         summary: "Public homepage project."
       })
     ]));
+    getPublicUpdates.mockResolvedValue(updateLoaded([
+      createUpdate("homepage-update")
+    ]));
 
     const markup = renderToStaticMarkup(await HomePage());
 
     expect(getPublicStreamSchedule).toHaveBeenCalledTimes(1);
     expect(getPublicProjects).toHaveBeenCalledTimes(1);
+    expect(getPublicUpdates).toHaveBeenCalledTimes(1);
     expect(markup).toContain("Next stream: Homepage schedule stream");
     expect(markup).toContain("Homepage schedule stream");
     expect(markup).toContain("formatted 2026-08-29T18:00:00.000Z");

@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 production homepage featured-Update integration
+
+- The production homepage now starts the real public schedule, project, and public Updates loaders concurrently, once each, before deriving homepage slots.
+- The existing "Projects and updates" path tile shows the first authoritative API-ordered public Update as a "Featured update"; it does not call it latest. The tile links to the encoded update detail route when an update is available.
+- The homepage boundary validates the full `PublicUpdateSummary` contract before projecting and returns only normalized slug, title capped at 96 characters, and summary capped at 180 characters. Empty and unavailable or malformed states use distinct honest copy, and the existing tile structure, classes, CSS, schedule behavior, and project behavior were preserved.
+- Independent final review reports zero standards and zero specification findings. Narrow checks pass with 159 Domain tests, 202 Web tests, Web typecheck/build, architecture checks, and diff checks. Full `pnpm check:review` remains a coordinator rerun.
+- No deployment, server state, GUI, browser, screenshot, live user workflow, mobile rendered-fit proof, or production runtime verification was performed. Deployment and real homepage verification remain separate gates.
+
 ## 2026-08-28 production homepage real-project integration
 
 - The production homepage now starts the real public schedule and project loaders concurrently, once each, before deriving the homepage slots.

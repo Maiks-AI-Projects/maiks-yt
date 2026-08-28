@@ -1,16 +1,19 @@
 import type { PublicProjectSummary } from "@maiks-yt/domain/projects";
 import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
+import type { PublicUpdateSummary } from "@maiks-yt/domain/updates";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProjectListLoadResult } from "../projects/project-read-data";
 import type { StreamScheduleLoadResult } from "../schedule/stream-schedule-data";
+import type { PublicUpdateListLoadResult } from "../updates/public-update-data";
 import { HomeCurrentSection } from "./home-current-section";
 import { getHomeProjectSlot, type HomeProjectSlot } from "./home-project-data";
 import type { HomeScheduleSlot } from "./home-schedule-data";
 
 const getPublicProjects = vi.hoisted(() => vi.fn());
 const getPublicStreamSchedule = vi.hoisted(() => vi.fn());
+const getPublicUpdates = vi.hoisted(() => vi.fn());
 
 vi.mock("../projects/project-read-data", () => ({
   getPublicProjects
@@ -19,6 +22,10 @@ vi.mock("../projects/project-read-data", () => ({
 vi.mock("../schedule/stream-schedule-data", () => ({
   formatScheduleDate: (value: string) => `formatted ${value}`,
   getPublicStreamSchedule
+}));
+
+vi.mock("../updates/public-update-data", () => ({
+  getPublicUpdates
 }));
 
 const createProject = (
@@ -75,6 +82,25 @@ const scheduleLoaded = (streams: readonly StreamScheduleEntry[]): StreamSchedule
   streams
 });
 
+const createUpdate = (
+  slug: string,
+  overrides: Partial<PublicUpdateSummary> = {}
+): PublicUpdateSummary => ({
+  slug,
+  title: `Update ${slug}`,
+  summary: `Summary for ${slug}`,
+  kind: "post",
+  isPinned: false,
+  publishedAt: "2026-08-28T12:00:00.000Z",
+  updatedAt: "2026-08-28T12:00:00.000Z",
+  ...overrides
+});
+
+const updateLoaded = (updates: readonly PublicUpdateSummary[]): PublicUpdateListLoadResult => ({
+  status: "loaded",
+  updates
+});
+
 const emptyScheduleSlot: HomeScheduleSlot = { status: "empty" };
 
 const renderCurrentProject = (projectSlot: HomeProjectSlot): string =>
@@ -99,6 +125,7 @@ describe("home project slot", () => {
     vi.resetModules();
     getPublicProjects.mockReset();
     getPublicStreamSchedule.mockReset();
+    getPublicUpdates.mockReset();
   });
 
   it("selects the first active project before planning projects while preserving API order", () => {
@@ -326,11 +353,12 @@ describe("home project slot", () => {
     expect(renderCurrentProject({ status: "unavailable" })).toContain('href="/projects"');
   });
 
-  it("starts schedule and project loaders once and keeps the shared schedule projection", async () => {
+  it("starts schedule, project, and update loaders once and keeps the shared schedule projection", async () => {
     const { default: HomePage } = await import("../page");
     const calls: string[] = [];
     const schedule = createDeferred<StreamScheduleLoadResult>();
     const projects = createDeferred<ProjectListLoadResult>();
+    const updates = createDeferred<PublicUpdateListLoadResult>();
 
     getPublicStreamSchedule.mockImplementation(() => {
       calls.push("schedule");
@@ -340,12 +368,17 @@ describe("home project slot", () => {
       calls.push("projects");
       return projects.promise;
     });
+    getPublicUpdates.mockImplementation(() => {
+      calls.push("updates");
+      return updates.promise;
+    });
 
     const page = HomePage();
 
-    expect(calls).toEqual(["schedule", "projects"]);
+    expect(calls).toEqual(["schedule", "projects", "updates"]);
     expect(getPublicStreamSchedule).toHaveBeenCalledTimes(1);
     expect(getPublicProjects).toHaveBeenCalledTimes(1);
+    expect(getPublicUpdates).toHaveBeenCalledTimes(1);
 
     schedule.resolve(scheduleLoaded([
       createStream("next-stream", {
@@ -359,11 +392,17 @@ describe("home project slot", () => {
         title: "Concurrent public project"
       })
     ]));
+    updates.resolve(updateLoaded([
+      createUpdate("concurrent-update", {
+        title: "Concurrent update"
+      })
+    ]));
 
     const markup = renderToStaticMarkup(await page);
 
     expect(markup.match(/Concurrent schedule stream/g)).toHaveLength(2);
     expect(markup).toContain("formatted 2026-08-29T18:00:00.000Z");
     expect(markup).toContain("Concurrent public project");
+    expect(markup).toContain("Featured update: Concurrent update");
   });
 });
