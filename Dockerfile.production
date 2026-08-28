@@ -30,6 +30,16 @@ FROM node:24-alpine AS runtime
 
 WORKDIR /app
 
+ARG MAIKS_OCI_TITLE="Maiks.yt Production"
+ARG MAIKS_OCI_REVISION=unverified
+ARG MAIKS_OCI_SOURCE=unverified
+ARG MAIKS_OCI_CREATED=unverified
+
+LABEL org.opencontainers.image.title="${MAIKS_OCI_TITLE}" \
+  org.opencontainers.image.revision="${MAIKS_OCI_REVISION}" \
+  org.opencontainers.image.source="${MAIKS_OCI_SOURCE}" \
+  org.opencontainers.image.created="${MAIKS_OCI_CREATED}"
+
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm

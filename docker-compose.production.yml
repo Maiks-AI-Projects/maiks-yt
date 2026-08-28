@@ -4,6 +4,12 @@ x-production-service: &production-service
   networks:
     - br187
 
+x-production-image-provenance-args: &production-image-provenance-args
+  MAIKS_OCI_TITLE: "${MAIKS_OCI_TITLE:-Maiks.yt Production}"
+  MAIKS_OCI_REVISION: "${MAIKS_OCI_REVISION:-unverified}"
+  MAIKS_OCI_SOURCE: "${MAIKS_OCI_SOURCE:-unverified}"
+  MAIKS_OCI_CREATED: "${MAIKS_OCI_CREATED:-unverified}"
+
 services:
   web:
     <<: *production-service
@@ -11,6 +17,7 @@ services:
       context: .
       dockerfile: Dockerfile.production
       args:
+        <<: *production-image-provenance-args
         NEXT_PUBLIC_API_BASE_URL: https://api.maiks.yt
         NEXT_PUBLIC_CONTROL_BASE_URL: https://control.maiks.yt
         NEXT_PUBLIC_OVERLAY_BASE_URL: https://overlay.maiks.yt

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "turbo run build",
+    "build:production-image": "node scripts/build-production-image.mjs",
     "agent:brief": "node scripts/create-agent-brief.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm check:architecture",
     "check:architecture": "node scripts/check-architecture.mjs",
@@ -22,6 +23,7 @@
     "dev": "turbo run dev --parallel",
     "review:start": "node scripts/start-session-review.mjs",
     "test:obs-live-audience": "node packages/integrations/scripts/run-obs-live-audience-test.mjs",
+    "test:production-image-provenance": "node --test scripts/production-image-provenance.test.mjs",
     "test:readiness": "sh scripts/test-readiness.sh",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"
