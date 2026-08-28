@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { formatSessionActivity, getDeviceSummary } from "./session-admin-data";
+import { formatSessionActivity, getDeviceSummary, getSessionCountLabel } from "./session-admin-data";
 
 describe("session admin display helpers", () => {
   afterEach(() => {
@@ -36,5 +36,11 @@ describe("session admin display helpers", () => {
     expect(formatSessionActivity("2026-08-18T10:29:00.000Z")).toBe("Active now");
     expect(formatSessionActivity("2026-08-18T10:12:00.000Z")).toBe("18 minutes ago");
     expect(formatSessionActivity("2026-08-16T10:30:00.000Z")).toBe("2 days ago");
+  });
+
+  it("labels capped session lists without claiming a total", () => {
+    expect(getSessionCountLabel(0, false)).toBe("0 sessions");
+    expect(getSessionCountLabel(1, false)).toBe("1 session");
+    expect(getSessionCountLabel(100, true)).toBe("Showing 100 sessions");
   });
 });

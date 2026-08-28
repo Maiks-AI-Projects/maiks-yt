@@ -2,6 +2,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 
 import type {
   SessionAdminActor,
+  SessionAdminListPage,
   SessionAdminRecord,
   SessionAdminRepository
 } from "./session-admin.types.js";
@@ -10,15 +11,14 @@ type QueryExecutor = Pick<DatabasePool, "execute">;
 
 type SessionRow = {
   id: string;
-  authUserId: string;
-  userName: string;
-  userEmail: string;
   ipAddress?: string | null;
   userAgent?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
   expiresAt: Date | string;
 };
+
+const SESSION_ADMIN_LIST_LIMIT = 100;
 
 const toIsoString = (value: Date | string): string =>
   value instanceof Date ? value.toISOString() : new Date(value).toISOString();
@@ -74,9 +74,6 @@ const mapSessionRow = (
 
   return {
     id: row.id,
-    authUserId: row.authUserId,
-    userName: row.userName,
-    userEmail: row.userEmail,
     ipAddress: row.ipAddress ?? null,
     userAgent: row.userAgent ?? null,
     createdAt: toIsoString(row.createdAt),
@@ -94,31 +91,40 @@ export const createSessionAdminRepository = (
     return await resolveActor(pool, authUserId);
   },
 
-  async listSessions(authUserId, currentSessionId) {
+  async listSessions(authUserId, currentSessionId): Promise<SessionAdminListPage> {
     const [rows] = await pool.execute(
       `
         SELECT
           auth_sessions.id,
-          auth_sessions.user_id AS authUserId,
-          auth_users.name AS userName,
-          auth_users.email AS userEmail,
           auth_sessions.ip_address AS ipAddress,
           auth_sessions.user_agent AS userAgent,
           auth_sessions.created_at AS createdAt,
           auth_sessions.updated_at AS updatedAt,
           auth_sessions.expires_at AS expiresAt
         FROM auth_sessions
-        INNER JOIN auth_users ON auth_users.id = auth_sessions.user_id
         WHERE auth_sessions.user_id = ?
         ORDER BY auth_sessions.updated_at DESC, auth_sessions.created_at DESC
-        LIMIT 100
+        LIMIT ?
       `,
-      [authUserId]
+      [authUserId, SESSION_ADMIN_LIST_LIMIT + 1]
     );
 
-    return Array.isArray(rows)
-      ? (rows as SessionRow[]).map((row) => mapSessionRow(row, currentSessionId))
-      : [];
+    if (!Array.isArray(rows)) {
+      return {
+        sessions: [],
+        shownCount: 0,
+        hasMore: false
+      };
+    }
+
+    const sessionRows = (rows as SessionRow[]).slice(0, SESSION_ADMIN_LIST_LIMIT);
+    const sessions = sessionRows.map((row) => mapSessionRow(row, currentSessionId));
+
+    return {
+      sessions,
+      shownCount: sessions.length,
+      hasMore: rows.length > SESSION_ADMIN_LIST_LIMIT
+    };
   },
 
   async revokeSession(authUserId, id) {

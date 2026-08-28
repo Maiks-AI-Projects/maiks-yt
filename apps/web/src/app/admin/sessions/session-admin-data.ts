@@ -3,6 +3,11 @@ export type DeviceSummary = {
   mobile: boolean;
 };
 
+export const getSessionCountLabel = (shownCount: number, hasMore: boolean): string =>
+  hasMore
+    ? `Showing ${shownCount} sessions`
+    : `${shownCount} session${shownCount === 1 ? "" : "s"}`;
+
 export const formatSessionDate = (value: string): string =>
   new Intl.DateTimeFormat(undefined, {
     month: "short",

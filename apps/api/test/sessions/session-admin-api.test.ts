@@ -7,21 +7,24 @@ import { SessionAdminService } from "../../src/sessions/session-admin.service.js
 import { createSessionAdminRepository } from "../../src/sessions/session-admin-store.service.js";
 import type {
   SessionAdminActor,
+  SessionAdminListPage,
   SessionAdminRecord,
   SessionAdminRepository
 } from "../../src/sessions/session-admin.types.js";
+
+type FakeSessionRecord = SessionAdminRecord & {
+  authUserId: string;
+};
 
 class FakeSessionAdminRepository implements SessionAdminRepository {
   public actor: SessionAdminActor | null = {
     domainUserId: "domain-user",
     rolePermissionValues: [["*"]]
   };
-  public readonly sessions: SessionAdminRecord[] = [
+  public readonly sessions: FakeSessionRecord[] = [
     {
       id: "session-current",
       authUserId: "auth-owner",
-      userName: "Michael",
-      userEmail: "michael@example.test",
       ipAddress: "127.0.0.1",
       userAgent: "Vitest Browser",
       createdAt: "2026-07-09T10:00:00.000Z",
@@ -33,8 +36,6 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
     {
       id: "session-other",
       authUserId: "auth-owner",
-      userName: "Michael",
-      userEmail: "michael@example.test",
       ipAddress: "203.0.113.10",
       userAgent: "Suspicious Browser",
       createdAt: "2026-07-09T09:00:00.000Z",
@@ -46,8 +47,6 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
     {
       id: "session-admin-current",
       authUserId: "auth-session-admin",
-      userName: "Helper",
-      userEmail: "helper@example.test",
       ipAddress: "198.51.100.8",
       userAgent: "Delegated Browser",
       createdAt: "2026-07-09T08:00:00.000Z",
@@ -59,8 +58,6 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
     {
       id: "session-admin-other",
       authUserId: "auth-session-admin",
-      userName: "Helper",
-      userEmail: "helper@example.test",
       ipAddress: "198.51.100.9",
       userAgent: "Delegated Phone",
       createdAt: "2026-07-09T07:00:00.000Z",
@@ -78,13 +75,25 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
   public async listSessions(
     authUserId: string,
     currentSessionId: string | null
-  ): Promise<readonly SessionAdminRecord[]> {
-    return structuredClone(this.sessions
+  ): Promise<SessionAdminListPage> {
+    const sessions = structuredClone(this.sessions
       .filter((session) => session.authUserId === authUserId)
       .map((session) => ({
-        ...session,
-        isCurrent: session.id === currentSessionId
+        id: session.id,
+        ipAddress: session.ipAddress,
+        userAgent: session.userAgent,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        expiresAt: session.expiresAt,
+        isCurrent: session.id === currentSessionId,
+        isExpired: session.isExpired
       })));
+
+    return {
+      sessions,
+      shownCount: sessions.length,
+      hasMore: false
+    };
   }
 
   public async revokeSession(authUserId: string, id: string): Promise<boolean> {
@@ -127,28 +136,33 @@ describe("SessionAdminService", () => {
     await expect(service.listSessions({
       authUserId: "auth-owner",
       currentSessionId: "session-current"
-    })).resolves.toMatchObject({
+    })).resolves.toEqual({
       ok: true,
+      shownCount: 2,
+      hasMore: false,
       sessions: [
         {
           id: "session-current",
-          isCurrent: true
+          ipAddress: "127.0.0.1",
+          userAgent: "Vitest Browser",
+          createdAt: "2026-07-09T10:00:00.000Z",
+          updatedAt: "2026-07-09T11:00:00.000Z",
+          expiresAt: "2026-07-10T10:00:00.000Z",
+          isCurrent: true,
+          isExpired: false
         },
         {
           id: "session-other",
-          isCurrent: false
+          ipAddress: "203.0.113.10",
+          userAgent: "Suspicious Browser",
+          createdAt: "2026-07-09T09:00:00.000Z",
+          updatedAt: "2026-07-09T09:30:00.000Z",
+          expiresAt: "2026-07-10T09:00:00.000Z",
+          isCurrent: false,
+          isExpired: false
         }
       ]
     });
-    const result = await service.listSessions({
-      authUserId: "auth-owner",
-      currentSessionId: "session-current"
-    });
-
-    expect(result.ok ? result.sessions.map((session) => session.id) : []).toEqual([
-      "session-current",
-      "session-other"
-    ]);
   });
 
   it("allows active delegated session admins without owner wildcard", async () => {
@@ -162,16 +176,30 @@ describe("SessionAdminService", () => {
     await expect(service.listSessions({
       authUserId: "auth-session-admin",
       currentSessionId: "session-admin-current"
-    })).resolves.toMatchObject({
+    })).resolves.toEqual({
       ok: true,
+      shownCount: 2,
+      hasMore: false,
       sessions: [
         {
           id: "session-admin-current",
-          isCurrent: true
+          ipAddress: "198.51.100.8",
+          userAgent: "Delegated Browser",
+          createdAt: "2026-07-09T08:00:00.000Z",
+          updatedAt: "2026-07-09T08:30:00.000Z",
+          expiresAt: "2026-07-10T08:00:00.000Z",
+          isCurrent: true,
+          isExpired: false
         },
         {
           id: "session-admin-other",
-          isCurrent: false
+          ipAddress: "198.51.100.9",
+          userAgent: "Delegated Phone",
+          createdAt: "2026-07-09T07:00:00.000Z",
+          updatedAt: "2026-07-09T07:30:00.000Z",
+          expiresAt: "2026-07-10T07:00:00.000Z",
+          isCurrent: false,
+          isExpired: false
         }
       ]
     });
@@ -190,11 +218,33 @@ describe("SessionAdminService", () => {
       currentSessionId: "session-admin-current"
     });
 
-    expect(result.ok ? result.sessions.map((session) => session.authUserId) : []).toEqual([
-      "auth-session-admin",
-      "auth-session-admin"
-    ]);
-    expect(result.ok ? result.sessions.map((session) => session.id) : []).not.toContain("session-other");
+    expect(result).toEqual({
+      ok: true,
+      shownCount: 2,
+      hasMore: false,
+      sessions: [
+        {
+          id: "session-admin-current",
+          ipAddress: "198.51.100.8",
+          userAgent: "Delegated Browser",
+          createdAt: "2026-07-09T08:00:00.000Z",
+          updatedAt: "2026-07-09T08:30:00.000Z",
+          expiresAt: "2026-07-10T08:00:00.000Z",
+          isCurrent: true,
+          isExpired: false
+        },
+        {
+          id: "session-admin-other",
+          ipAddress: "198.51.100.9",
+          userAgent: "Delegated Phone",
+          createdAt: "2026-07-09T07:00:00.000Z",
+          updatedAt: "2026-07-09T07:30:00.000Z",
+          expiresAt: "2026-07-10T07:00:00.000Z",
+          isCurrent: false,
+          isExpired: false
+        }
+      ]
+    });
   });
 
   it("denies users without session permissions", async () => {
@@ -399,9 +449,6 @@ describe("session admin mysql authorization boundary", () => {
         listParams = params ?? [];
         return [[{
           id: "session-current",
-          authUserId: "auth-owner",
-          userName: "Michael",
-          userEmail: "michael@example.test",
           ipAddress: "127.0.0.1",
           userAgent: "Vitest Browser",
           createdAt: "2026-07-09T10:00:00.000Z",
@@ -411,11 +458,53 @@ describe("session admin mysql authorization boundary", () => {
       }
     } as unknown as DatabasePool);
 
-    const sessions = await repository.listSessions("auth-owner", "session-current");
+    const page = await repository.listSessions("auth-owner", "session-current");
 
     expect(listSql).toContain("WHERE auth_sessions.user_id = ?");
-    expect(listParams).toEqual(["auth-owner"]);
-    expect(sessions.map((session) => session.id)).toEqual(["session-current"]);
+    expect(listSql).toContain("LIMIT ?");
+    expect(listSql).not.toContain("auth_users");
+    expect(listSql).not.toContain("authUserId");
+    expect(listSql).not.toContain("userName");
+    expect(listSql).not.toContain("userEmail");
+    expect(listParams).toEqual(["auth-owner", 101]);
+    expect(page).toEqual({
+      sessions: [
+        {
+          id: "session-current",
+          ipAddress: "127.0.0.1",
+          userAgent: "Vitest Browser",
+          createdAt: "2026-07-09T10:00:00.000Z",
+          updatedAt: "2026-07-09T11:00:00.000Z",
+          expiresAt: "2026-07-10T10:00:00.000Z",
+          isCurrent: true,
+          isExpired: true
+        }
+      ],
+      shownCount: 1,
+      hasMore: false
+    });
+  });
+
+  it("reports when the Better Auth session list is capped without claiming a total", async () => {
+    const rows = Array.from({ length: 101 }, (_value, index) => ({
+      id: `session-${String(index + 1).padStart(3, "0")}`,
+      ipAddress: "127.0.0.1",
+      userAgent: "Vitest Browser",
+      createdAt: "2026-07-09T10:00:00.000Z",
+      updatedAt: "2026-07-09T11:00:00.000Z",
+      expiresAt: "2026-07-10T10:00:00.000Z"
+    }));
+    const repository = createSessionAdminRepository({
+      execute: async () => [rows]
+    } as unknown as DatabasePool);
+
+    const page = await repository.listSessions("auth-owner", "session-001");
+
+    expect(page.sessions).toHaveLength(100);
+    expect(page.sessions[0]?.isCurrent).toBe(true);
+    expect(page.sessions.at(-1)?.id).toBe("session-100");
+    expect(page.shownCount).toBe(100);
+    expect(page.hasMore).toBe(true);
   });
 
   it("deletes selected Better Auth sessions only for the authenticated auth user", async () => {
@@ -509,15 +598,32 @@ describe("session admin API", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
+    expect(response.json()).toEqual({
       ok: true,
-      sessions: expect.arrayContaining([
-        expect.objectContaining({
+      shownCount: 2,
+      hasMore: false,
+      sessions: [
+        {
           id: "session-current",
+          ipAddress: "127.0.0.1",
+          userAgent: "Vitest Browser",
+          createdAt: "2026-07-09T10:00:00.000Z",
+          updatedAt: "2026-07-09T11:00:00.000Z",
+          expiresAt: "2026-07-10T10:00:00.000Z",
           isCurrent: true,
-          userEmail: "michael@example.test"
-        })
-      ])
+          isExpired: false
+        },
+        {
+          id: "session-other",
+          ipAddress: "203.0.113.10",
+          userAgent: "Suspicious Browser",
+          createdAt: "2026-07-09T09:00:00.000Z",
+          updatedAt: "2026-07-09T09:30:00.000Z",
+          expiresAt: "2026-07-10T09:00:00.000Z",
+          isCurrent: false,
+          isExpired: false
+        }
+      ]
     });
     expect(response.json().sessions.map((session: SessionAdminRecord) => session.id)).toEqual([
       "session-current",
@@ -625,10 +731,33 @@ describe("session admin API", () => {
     });
 
     expect(listResponse.statusCode).toBe(200);
-    expect(listResponse.json().sessions.map((session: SessionAdminRecord) => session.id)).toEqual([
-      "session-admin-current",
-      "session-admin-other"
-    ]);
+    expect(listResponse.json()).toEqual({
+      ok: true,
+      shownCount: 2,
+      hasMore: false,
+      sessions: [
+        {
+          id: "session-admin-current",
+          ipAddress: "198.51.100.8",
+          userAgent: "Delegated Browser",
+          createdAt: "2026-07-09T08:00:00.000Z",
+          updatedAt: "2026-07-09T08:30:00.000Z",
+          expiresAt: "2026-07-10T08:00:00.000Z",
+          isCurrent: true,
+          isExpired: false
+        },
+        {
+          id: "session-admin-other",
+          ipAddress: "198.51.100.9",
+          userAgent: "Delegated Phone",
+          createdAt: "2026-07-09T07:00:00.000Z",
+          updatedAt: "2026-07-09T07:30:00.000Z",
+          expiresAt: "2026-07-10T07:00:00.000Z",
+          isCurrent: false,
+          isExpired: false
+        }
+      ]
+    });
 
     const revokeResponse = await server.inject({
       method: "POST",

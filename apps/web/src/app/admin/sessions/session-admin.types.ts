@@ -1,8 +1,5 @@
 export type SessionAdminRecord = {
   id: string;
-  authUserId: string;
-  userName: string;
-  userEmail: string;
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
@@ -10,4 +7,11 @@ export type SessionAdminRecord = {
   expiresAt: string;
   isCurrent: boolean;
   isExpired: boolean;
+};
+
+export type SessionAdminListResponse = {
+  ok: true;
+  sessions: readonly SessionAdminRecord[];
+  shownCount: number;
+  hasMore: boolean;
 };

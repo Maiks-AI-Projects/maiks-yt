@@ -4,13 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { FiLock, FiRefreshCw, FiShield } from "react-icons/fi";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
-import { getDeviceSummary } from "./session-admin-data";
+import { getDeviceSummary, getSessionCountLabel } from "./session-admin-data";
 import SessionAdminRows from "./session-admin-rows";
 import styles from "./session-admin.module.css";
-import type { SessionAdminRecord } from "./session-admin.types";
+import type { SessionAdminListResponse, SessionAdminRecord } from "./session-admin.types";
 
 type SessionAdminResponse =
-  | { ok: true; sessions: readonly SessionAdminRecord[] }
+  | SessionAdminListResponse
   | { ok: false; reason: string };
 
 type SessionAdminMutationResponse =
@@ -44,6 +44,8 @@ const SessionAdminClient = (): React.ReactNode => {
   const [message, setMessage] = useState("Loading active sessions...");
   const [busySessionId, setBusySessionId] = useState<string | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [hasMoreSessions, setHasMoreSessions] = useState(false);
+  const [shownCount, setShownCount] = useState(0);
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
     try {
@@ -66,15 +68,23 @@ const SessionAdminClient = (): React.ReactNode => {
 
       if (response.ok && payload?.ok) {
         setSessions(payload.sessions);
+        setHasMoreSessions(payload.hasMore);
+        setShownCount(payload.shownCount);
         setLoadState("ready");
-        setMessage(payload.sessions.length === 0 ? "No signed-in sessions found." : "Sessions loaded.");
+        setMessage(payload.shownCount === 0 ? "No signed-in sessions found." : "Sessions loaded.");
         return;
       }
 
+      setSessions([]);
+      setHasMoreSessions(false);
+      setShownCount(0);
       const reason = payload?.ok === false ? payload.reason : undefined;
       setLoadState(getLoadStateForFailure(response, reason));
       setMessage(getFailureMessage(response, reason));
     } catch (error) {
+      setSessions([]);
+      setHasMoreSessions(false);
+      setShownCount(0);
       setLoadState("failed");
       setMessage(error instanceof Error ? error.message : "Session request failed.");
     }
@@ -155,6 +165,7 @@ const SessionAdminClient = (): React.ReactNode => {
 
   const orderedSessions = [...sessions].sort((left, right) => Number(right.isCurrent) - Number(left.isCurrent));
   const hasCurrentSession = sessions.some((session) => session.isCurrent);
+  const sessionCountLabel = getSessionCountLabel(shownCount, hasMoreSessions);
 
   return (
     <section className={`${styles.shell} project-admin-shell`}>
@@ -209,7 +220,7 @@ const SessionAdminClient = (): React.ReactNode => {
         <section className={styles.sessionTable} aria-labelledby="signed-in-sessions-heading">
           <header className={styles.tableTitle}>
             <h2 id="signed-in-sessions-heading">Signed-in sessions</h2>
-            <span>{sessions.length} session{sessions.length === 1 ? "" : "s"}</span>
+            <span>{sessionCountLabel}</span>
           </header>
 
           {orderedSessions.length === 0 ? (

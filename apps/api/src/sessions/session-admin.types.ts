@@ -5,9 +5,6 @@ export type SessionAdminActor = {
 
 export type SessionAdminRecord = {
   id: string;
-  authUserId: string;
-  userName: string;
-  userEmail: string;
   ipAddress: string | null;
   userAgent: string | null;
   createdAt: string;
@@ -17,11 +14,16 @@ export type SessionAdminRecord = {
   isExpired: boolean;
 };
 
+export type SessionAdminListPage = {
+  sessions: readonly SessionAdminRecord[];
+  shownCount: number;
+  hasMore: boolean;
+};
+
 export type SessionAdminListResult =
   | {
     ok: true;
-    sessions: readonly SessionAdminRecord[];
-  }
+  } & SessionAdminListPage
   | {
     ok: false;
     reason: "session_admin_user_unlinked" | "session_admin_forbidden";
@@ -42,7 +44,7 @@ export type SessionAdminMutationResult =
 
 export interface SessionAdminRepository {
   resolveActor(authUserId: string): Promise<SessionAdminActor | null>;
-  listSessions(authUserId: string, currentSessionId: string | null): Promise<readonly SessionAdminRecord[]>;
+  listSessions(authUserId: string, currentSessionId: string | null): Promise<SessionAdminListPage>;
   revokeSession(authUserId: string, id: string): Promise<boolean>;
   revokeOtherSessions(authUserId: string, currentSessionId: string): Promise<number>;
 }

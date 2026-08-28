@@ -56,7 +56,7 @@ export class SessionAdminService {
 
     return {
       ok: true,
-      sessions: await this.repository.listSessions(input.authUserId, input.currentSessionId ?? null)
+      ...await this.repository.listSessions(input.authUserId, input.currentSessionId ?? null)
     };
   }
 
