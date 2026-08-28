@@ -2,7 +2,9 @@
 
 ## Status
 
-Candidate awaiting Michael's approval. No recovery-page implementation, deployment, or live verification is implied by this image.
+Approved by Michael on 2026-08-28 as the source-level acceptance reference, with two binding corrections. Implementation, deployment, and live recovery verification remain separate.
+
+The logo shown in the generated candidate is wrong. The proven current Maiks.yt website logo is `apps/web/public/brand/icon-64.png` (SHA-256 `0ea2c0babaa79b79bded15cfebe60f094acdb0cc2eca03c6f89834b8581d4d8a`), introduced by approved-logo commit `0ac6f7c45c863f0b26692914ed538a94e0396983`. The implementation must reuse that asset instead of recreating, restyling, or replacing it. The public website header belongs to the login/access-recovery screen only. After successful login, every PWA returns to its purpose-built app chrome and must not retain the public header.
 
 ## Visual scope
 
@@ -13,6 +15,8 @@ Candidate awaiting Michael's approval. No recovery-page implementation, deployme
 - Return only to an allowlisted PWA destination after sign-in.
 - Revalidate the launch token, account session, linked identity, and current permissions when the PWA is reopened.
 - Stack provider controls on narrow screens while keeping touch targets usable.
+- Replace the candidate's generated logo with the proven current Maiks.yt website logo asset.
+- Keep the public header out of authenticated Chat, Moderation, Control, Notifications, and any other actual PWA view; those screens retain their purpose-built app chrome and layout.
 
 ## Copy boundary
 
@@ -28,4 +32,4 @@ The page must not promise that the PWA token remains valid. A token can expire o
 
 ## Change boundary
 
-This registration adds one image and its design record. It changes no application code, OAuth behavior, access-token behavior, migration, deployment, server, browser, or live state.
+This registration adds one image and its design record. Approval authorizes a bounded implementation against this record using the proven website logo and recovery-only public header. It changes no application code, OAuth behavior, access-token behavior, migration, deployment, server, browser, or live state by itself.
