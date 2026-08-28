@@ -1,11 +1,18 @@
 # Next Agent Tasks
 
+## Public Music browser contract deployed
+
+- Production revision `e5f0dd84d6d40a99809cfc3ebfed7289a8581d0c` is deployed to Web and API on provenance-labelled image `sha256:94ad53a68e7c7d2041bd63cb839893db1e02a29a2690c113fb3aabca4ab2718b`. Do not repeat the deployment.
+- Anonymous Music catalog/request contracts use an opaque exact-selection reference and contain no track/source ids or private provider/license/policy metadata. The request transaction re-resolves current eligibility before claiming the daily bucket. Private admin, account Top 10, playback, Local Agent, VLC, review, and persistence ids remain unchanged.
+- Strict public parsing, finite failure handling, preview URL/MIME pairing, transaction rollback, collision rejection, MariaDB/Node digest equivalence, container health/restarts, rollback, logs, and Control/Overlay preservation are verified. The live catalog is empty, so no durable anonymous request was created for smoke testing.
+- Next Music work is real catalog population plus authenticated Top 10 and owner review, then deliberate streaming-PC Local Agent/VLC playback, automatic-next, history, reconnect, `stream_music`, and browser-fallback verification.
+
 ## Public Games browser contract deployed
 
 - Production revision `87cb83cae6c544efe8fc5f1d9c740936927a4318` is deployed to Web and API on provenance-labelled image `sha256:ec67b3529cd6eda3a90f82d4116bd323aa7e50a47433c5feeba5553f11f3ff37`. Do not repeat the deployment.
 - Anonymous Games responses contain no raw game database id. Slug is the unique public identity; strict parsing rejects duplicate slugs and every malformed or extra field. Private admin, persistence, suggestion-review, and Schedule ids remain unchanged.
 - Public HTTP/API, 15-row populated shape, zero-id recursion, unique-slug, container health/restarts, rollback, logs, and Control/Overlay preservation are verified. The next Games gate is positive signed-in owner editing and suggestion review; do not create durable data merely to repeat source proof.
-- The next ranked anonymous-contract slice is Music: replace public track/source database ids with opaque references resolved server-side, add strict finite Web parsing, and preserve private admin/playback/VLC identifiers and behavior.
+- The next Games gate is positive signed-in owner editing and suggestion review; do not create durable production data merely to repeat source proof.
 
 ## Public Schedule browser contract deployed
 
