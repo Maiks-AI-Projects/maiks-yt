@@ -1,11 +1,15 @@
 import { eventKinds, type EventRoutingRuleInput } from "@maiks-yt/domain/events";
 import type { DatabasePool } from "@maiks-yt/database";
 import Fastify from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { registerEventRoutingAdminRoutes } from "../../src/event-routing/event-routing-admin.route.js";
 import { EventRoutingAdminService } from "../../src/event-routing/event-routing-admin.service.js";
-import { createEventRoutingAdminRepository } from "../../src/event-routing/event-routing-admin-store.service.js";
+import {
+  buildEventRoutingApprovalRef,
+  createEventRoutingAdminRepository,
+  eventRoutingApprovalRefSql
+} from "../../src/event-routing/event-routing-admin-store.service.js";
 import type {
   EventRoutingAdminActor,
   EventRoutingAdminApprovalRepositoryRecord,
@@ -48,48 +52,56 @@ const toRecord = (
   ...overrides
 });
 
+const defaultApprovalRef = buildEventRoutingApprovalRef("approval-1");
+
 const toApproval = (
   overrides: Partial<EventRoutingAdminApprovalRepositoryRecord> = {}
-): EventRoutingAdminApprovalRepositoryRecord => ({
-  id: "approval-1",
-  eventHistoryId: "history-1",
-  routingRuleId: "rule-1",
-  destination: "top_notification",
-  status: "pending",
-  reviewerUserId: null,
-  reviewedAt: null,
-  reviewNote: null,
-  createdAt: "2026-06-22T10:00:00.000Z",
-  updatedAt: "2026-06-22T10:00:00.000Z",
-  event: {
-    id: "history-1",
-    sourcePlatform: "website",
-    eventKind: "website.signup",
-    sourceEventId: "preview-1",
-    routingOutcome: "queued_for_approval",
-    actorUserId: null,
-    actorExternalId: "actor-1",
-    actorDisplayName: "Preview User",
-    userId: "user-1",
-    streamSessionId: null,
-    streamScheduleEntryId: null,
-    sessionId: null,
-    isTest: false,
-    isSimulated: false,
-    isRealMoney: false,
-    testResettable: false,
-    redactedPayload: {
-      displayText: "Preview User joined Maiks.yt."
+): EventRoutingAdminApprovalRepositoryRecord => {
+  const id = overrides.id ?? "approval-1";
+
+  return {
+    id,
+    approvalRef: overrides.approvalRef ?? buildEventRoutingApprovalRef(id),
+    eventHistoryId: "history-1",
+    routingRuleId: "rule-1",
+    destination: "top_notification",
+    status: "pending",
+    reviewerUserId: null,
+    reviewedAt: null,
+    reviewNote: null,
+    createdAt: "2026-06-22T10:00:00.000Z",
+    updatedAt: "2026-06-22T10:00:00.000Z",
+    event: {
+      id: "history-1",
+      sourcePlatform: "website",
+      eventKind: "website.signup",
+      sourceEventId: "preview-1",
+      routingOutcome: "queued_for_approval",
+      actorUserId: null,
+      actorExternalId: "actor-1",
+      actorDisplayName: "Preview User",
+      userId: "user-1",
+      streamSessionId: null,
+      streamScheduleEntryId: null,
+      sessionId: null,
+      isTest: false,
+      isSimulated: false,
+      isRealMoney: false,
+      testResettable: false,
+      redactedPayload: {
+        displayText: "Preview User joined Maiks.yt."
+      },
+      occurredAt: "2026-06-22T10:00:00.000Z",
+      createdAt: "2026-06-22T10:00:00.000Z"
     },
-    occurredAt: "2026-06-22T10:00:00.000Z",
-    createdAt: "2026-06-22T10:00:00.000Z"
-  },
-  rule: {
-    notificationPriority: "normal",
-    sourcePlatform: "any"
-  },
-  ...overrides
-});
+    rule: {
+      notificationPriority: "normal",
+      sourcePlatform: "any",
+      soundKey: null
+    },
+    ...overrides
+  };
+};
 
 class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
   public actor: EventRoutingAdminActor | null = {
@@ -103,6 +115,7 @@ class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
     activeCount: 0,
     nearestExpiry: null as string | null
   };
+  public optedOut = false;
   public lastUpsert: EventRoutingAdminUpsertInput | null = null;
   public lastReview: {
     id: string;
@@ -152,10 +165,16 @@ class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
       .map((approval) => structuredClone(approval));
   }
 
-  public async getPendingApproval(id: string): Promise<EventRoutingAdminApprovalRepositoryRecord | null> {
-    const approval = this.approvals.get(id);
+  public async getPendingApprovalByRef(approvalRef: string): Promise<EventRoutingAdminApprovalRepositoryRecord | null> {
+    const approval = [...this.approvals.values()].find((candidate) => candidate.approvalRef === approvalRef);
 
     return approval?.status === "pending" ? structuredClone(approval) : null;
+  }
+
+  public async getApprovalByRef(approvalRef: string): Promise<EventRoutingAdminApprovalRepositoryRecord | null> {
+    const approval = [...this.approvals.values()].find((candidate) => candidate.approvalRef === approvalRef);
+
+    return approval ? structuredClone(approval) : null;
   }
 
   public async reviewApproval(input: {
@@ -164,12 +183,19 @@ class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
     reviewerUserId: string;
     reviewNote: string | null;
     playback: EventRoutingApprovalReviewPlayback | null;
-  }): Promise<EventRoutingAdminApprovalRepositoryRecord | null> {
+  }) {
     this.lastReview = structuredClone(input);
     const approval = this.approvals.get(input.id);
 
-    if (!approval || approval.status !== "pending") {
-      return null;
+    if (!approval) {
+      return { kind: "not_found" as const };
+    }
+
+    if (approval.status !== "pending") {
+      return {
+        kind: "terminal" as const,
+        approval: structuredClone(approval)
+      };
     }
 
     const reviewed: EventRoutingAdminApprovalRepositoryRecord = {
@@ -182,7 +208,14 @@ class FakeEventRoutingAdminRepository implements EventRoutingAdminRepository {
     };
     this.approvals.set(input.id, reviewed);
 
-    return structuredClone(reviewed);
+    return {
+      kind: "reviewed" as const,
+      approval: structuredClone(reviewed)
+    };
+  }
+
+  public async isUserOptedOut(): Promise<boolean> {
+    return this.optedOut;
   }
 
   public async deleteRule(
@@ -296,9 +329,26 @@ describe("event routing admin store boundaries", () => {
     } as never);
 
     await expect(repository.listPendingApprovals(25)).resolves.toEqual([]);
+    await expect(repository.getPendingApprovalByRef(defaultApprovalRef)).resolves.toBeNull();
     expect(calls[0]?.sql).toContain("h.is_test = false");
     expect(calls[0]?.sql).toContain("h.is_simulated = false");
     expect(calls[0]?.sql).toContain("h.test_resettable = false");
+    expect(calls[0]?.sql).toContain(`${eventRoutingApprovalRefSql("q.id")} AS approvalRef`);
+    expect(calls[1]?.sql).toContain(`WHERE ${eventRoutingApprovalRefSql("q.id")} = BINARY ?`);
+    expect(calls[1]?.parameters).toEqual([defaultApprovalRef, "pending"]);
+  });
+
+  it("builds deterministic non-reversible approval references in one fixed format", () => {
+    const rawApprovalId = "11111111-1111-4111-8111-111111111111";
+    const first = buildEventRoutingApprovalRef(rawApprovalId);
+
+    expect(first).toBe(buildEventRoutingApprovalRef(rawApprovalId));
+    expect(first).toMatch(/^approvalref_v1_[a-f0-9]{64}$/u);
+    expect(first).not.toBe(rawApprovalId);
+    expect(first).not.toContain(rawApprovalId);
+    expect(eventRoutingApprovalRefSql("q.id")).toBe(
+      "CONCAT('approvalref_v1_', LOWER(SHA2(CONCAT('maiks-yt:event-routing-approval-reference:v1', CHAR(0), q.id), 256)))"
+    );
   });
 
   it("queries only real operational history and persists bounded review notes in the existing column", async () => {
@@ -792,7 +842,7 @@ describe("EventRoutingAdminService", () => {
       ok: true,
       approvals: [
         {
-          id: "approval-1",
+          approvalRef: defaultApprovalRef,
           productionEvent: true,
           destination: "top_notification",
           label: "Website Signup",
@@ -809,24 +859,384 @@ describe("EventRoutingAdminService", () => {
     });
   });
 
-  it("keeps real approvals pending until approval replay and publish exist", async () => {
+  it("approves pending top notification events and publishes overlay playback once", async () => {
     const repository = new FakeEventRoutingAdminRepository();
     repository.approvals.set("approval-1", toApproval());
-    const service = new EventRoutingAdminService(repository);
+    const publish = vi.fn().mockReturnValue({
+      emitted: true,
+      activeOverlayConnections: 1
+    });
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
 
     const result = await service.reviewApproval({
       authUserId: "auth-user",
-      approvalId: "approval-1",
+      approvalRef: defaultApprovalRef,
       action: "approve",
       reviewNote: "Looks safe."
     });
 
-    expect(result).toEqual({
-      ok: false,
-      reason: "event_routing_admin_production_execution_unavailable"
+    expect(result).toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved",
+        playback: {
+          projected: { ok: true },
+          published: {
+            emitted: true
+          }
+        }
+      }
     });
+    expect(repository.lastReview).toMatchObject({
+      status: "approved",
+      reviewNote: "Looks safe.",
+      playback: null
+    });
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({
+      destination: "top_notification",
+      overlayEvent: expect.objectContaining({
+        type: "overlay.top-bar-notification.queued"
+      })
+    }));
+  });
+
+  it("approves pending center notification events through the routed overlay queue", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval({
+      destination: "center_notification"
+    }));
+    const publish = vi.fn().mockReturnValue({ emitted: true });
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
+
+    await expect(service.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    })).resolves.toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved",
+        playback: {
+          published: {
+            emitted: true
+          }
+        }
+      }
+    });
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({
+      destination: "center_notification",
+      overlayEvent: expect.objectContaining({
+        type: "overlay.routed-notification.queued"
+      })
+    }));
+  });
+
+  it("approves approval-queue destinations as status-only completion", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval({
+      destination: "approval_queue"
+    }));
+    const publish = vi.fn();
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
+
+    await expect(service.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: "Status only."
+    })).resolves.toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved",
+        playback: null
+      }
+    });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("rejects approval review for money, test, simulated, and simulated-only rows", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("money", toApproval({
+      id: "money",
+      event: {
+        ...toApproval().event,
+        isRealMoney: true
+      }
+    }));
+    repository.approvals.set("test", toApproval({
+      id: "test",
+      event: {
+        ...toApproval().event,
+        isTest: true
+      }
+    }));
+    repository.approvals.set("simulated", toApproval({
+      id: "simulated",
+      event: {
+        ...toApproval().event,
+        isSimulated: true
+      }
+    }));
+    repository.approvals.set("simulated-money-kind", toApproval({
+      id: "simulated-money-kind",
+      event: {
+        ...toApproval().event,
+        eventKind: "simulated.support-money"
+      }
+    }));
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: true,
+      publishPlayback: vi.fn()
+    });
+
+    for (const approvalId of ["money", "test", "simulated", "simulated-money-kind"]) {
+      await expect(service.reviewApproval({
+        authUserId: "auth-user",
+        approvalRef: buildEventRoutingApprovalRef(approvalId),
+        action: "approve",
+        reviewNote: null
+      })).resolves.toEqual({
+        ok: false,
+        reason: "event_routing_admin_approval_not_found"
+      });
+    }
     expect(repository.lastReview).toBeNull();
-    expect(repository.approvals.get("approval-1")?.status).toBe("pending");
+  });
+
+  it("approves but blocks website public playback when the current opt-out is enabled", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.optedOut = true;
+    repository.approvals.set("approval-1", toApproval());
+    const publish = vi.fn();
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
+
+    await expect(service.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    })).resolves.toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved",
+        playback: {
+          projected: {
+            ok: false,
+            reason: "event_routing_playback_current_opt_out"
+          },
+          published: null
+        }
+      }
+    });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("preserves queued destination when the current rule changed or was deleted", async () => {
+    const changedRuleRepository = new FakeEventRoutingAdminRepository();
+    changedRuleRepository.approvals.set("approval-1", toApproval({
+      destination: "top_notification",
+      rule: {
+        notificationPriority: "urgent",
+        sourcePlatform: "website",
+        soundKey: "follow-creaky-door"
+      }
+    }));
+    const changedRulePublish = vi.fn().mockReturnValue({ emitted: true });
+    const changedRuleService = new EventRoutingAdminService(changedRuleRepository, {
+      productionCatalogue: false,
+      publishPlayback: changedRulePublish
+    });
+
+    await changedRuleService.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    });
+    expect(changedRulePublish).toHaveBeenCalledWith(expect.objectContaining({
+      destination: "top_notification",
+      overlayEvent: expect.objectContaining({
+        payload: expect.objectContaining({
+          priority: "urgent",
+          sound: expect.objectContaining({
+            url: "/event-sounds/02-standard-alerts/follow-creaky-door.wav"
+          })
+        })
+      })
+    }));
+
+    const deletedRuleRepository = new FakeEventRoutingAdminRepository();
+    deletedRuleRepository.approvals.set("approval-1", toApproval({
+      routingRuleId: "deleted-rule",
+      rule: {
+        notificationPriority: "normal",
+        sourcePlatform: null,
+        soundKey: null
+      }
+    }));
+    const deletedRulePublish = vi.fn().mockReturnValue({ emitted: true });
+    const deletedRuleService = new EventRoutingAdminService(deletedRuleRepository, {
+      productionCatalogue: false,
+      publishPlayback: deletedRulePublish
+    });
+
+    await expect(deletedRuleService.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    })).resolves.toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved"
+      }
+    });
+    expect(deletedRulePublish).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes only once when two approvals race the same pending row", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval());
+    const publish = vi.fn().mockReturnValue({ emitted: true });
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
+
+    const results = await Promise.all([
+      service.reviewApproval({
+        authUserId: "auth-user",
+        approvalRef: defaultApprovalRef,
+        action: "approve",
+        reviewNote: "First."
+      }),
+      service.reviewApproval({
+        authUserId: "auth-user",
+        approvalRef: defaultApprovalRef,
+        action: "approve",
+        reviewNote: "Second."
+      })
+    ]);
+
+    expect(results).toEqual([
+      expect.objectContaining({ ok: true }),
+      expect.objectContaining({ ok: true })
+    ]);
+    expect(repository.approvals.get("approval-1")?.status).toBe("approved");
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats matching terminal retries as idempotent and opposite actions as conflict", async () => {
+    const approvedRepository = new FakeEventRoutingAdminRepository();
+    approvedRepository.approvals.set("approval-1", toApproval({
+      status: "approved",
+      reviewerUserId: "domain-user",
+      reviewedAt: "2026-06-22T11:00:00.000Z"
+    }));
+    const approvedPublish = vi.fn();
+    const approvedService = new EventRoutingAdminService(approvedRepository, {
+      productionCatalogue: false,
+      publishPlayback: approvedPublish
+    });
+
+    await expect(approvedService.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    })).resolves.toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved",
+        playback: null
+      }
+    });
+    expect(approvedPublish).not.toHaveBeenCalled();
+
+    await expect(approvedService.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "reject",
+      reviewNote: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_approval_conflict"
+    });
+
+    const rejectedRepository = new FakeEventRoutingAdminRepository();
+    rejectedRepository.approvals.set("approval-1", toApproval({
+      status: "rejected",
+      reviewerUserId: "domain-user",
+      reviewedAt: "2026-06-22T11:00:00.000Z"
+    }));
+    const rejectedService = new EventRoutingAdminService(rejectedRepository, {
+      productionCatalogue: false,
+      publishPlayback: vi.fn()
+    });
+
+    await expect(rejectedService.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "reject",
+      reviewNote: null
+    })).resolves.toMatchObject({
+      ok: true,
+      approval: {
+        status: "rejected"
+      }
+    });
+    await expect(rejectedService.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_approval_conflict"
+    });
+  });
+
+  it("approves once and reports unavailable playback when the publisher throws", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval());
+    const publish = vi.fn(() => {
+      throw new Error("overlay transport unavailable");
+    });
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
+
+    await expect(service.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    })).resolves.toMatchObject({
+      ok: true,
+      approval: {
+        status: "approved",
+        playback: {
+          projected: { ok: true },
+          published: null
+        }
+      }
+    });
+    expect(publish).toHaveBeenCalledTimes(1);
   });
 
   it("rejects pending approval items without public playback", async () => {
@@ -836,7 +1246,7 @@ describe("EventRoutingAdminService", () => {
 
     const result = await service.reviewApproval({
       authUserId: "auth-user",
-      approvalId: "approval-1",
+      approvalRef: defaultApprovalRef,
       action: "reject",
       reviewNote: "Not this one."
     });
@@ -853,6 +1263,32 @@ describe("EventRoutingAdminService", () => {
       reviewNote: "Not this one.",
       playback: null
     });
+  });
+
+  it("requires event-routing permission before approving a queued event", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.actor = {
+      domainUserId: "linked-user",
+      rolePermissionValues: [["creator-links:manage"]]
+    };
+    repository.approvals.set("approval-1", toApproval());
+    const publish = vi.fn();
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
+
+    await expect(service.reviewApproval({
+      authUserId: "auth-user",
+      approvalRef: defaultApprovalRef,
+      action: "approve",
+      reviewNote: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "event_routing_admin_forbidden"
+    });
+    expect(repository.approvals.get("approval-1")?.status).toBe("pending");
+    expect(publish).not.toHaveBeenCalled();
   });
 
   it("projects approval context through a compact allowlist without raw identities or payloads", async () => {
@@ -923,7 +1359,7 @@ describe("EventRoutingAdminService", () => {
     });
     await expect(service.reviewApproval({
       authUserId: "auth-user",
-      approvalId: "approval-1",
+      approvalRef: defaultApprovalRef,
       action: "reject",
       reviewNote: null
     })).resolves.toEqual({
@@ -1302,7 +1738,7 @@ describe("event routing admin route boundary", () => {
 
     const response = await server.inject({
       method: "POST",
-      url: "/admin/event-routing/approvals/approval-1/review",
+      url: `/admin/event-routing/approvals/${defaultApprovalRef}/review`,
       payload: {
         action: "reject",
         reviewNote: "Skip playback."
@@ -1313,7 +1749,7 @@ describe("event routing admin route boundary", () => {
     expect(response.json()).toMatchObject({
       ok: true,
       approval: {
-        id: "approval-1",
+        approvalRef: defaultApprovalRef,
         status: "rejected",
         reviewNote: "Skip playback.",
         event: {
@@ -1329,9 +1765,142 @@ describe("event routing admin route boundary", () => {
     expect(response.body).not.toContain("user-1");
   });
 
-  it("returns conflict without mutating a real approval when execution is unavailable", async () => {
+  it("keeps approval list and approve retries free of internal replay data", async () => {
     const repository = new FakeEventRoutingAdminRepository();
-    repository.approvals.set("approval-1", toApproval());
+    const rawApprovalId = "private-queue-id";
+    const approvalRef = buildEventRoutingApprovalRef(rawApprovalId);
+    repository.approvals.set(rawApprovalId, toApproval({
+      id: rawApprovalId,
+      eventHistoryId: "private-history-id",
+      routingRuleId: "private-rule-id",
+      event: {
+        ...toApproval().event,
+        id: "private-history-id"
+      },
+      rule: {
+        notificationPriority: "normal",
+        sourcePlatform: "any",
+        soundKey: "follow-creaky-door"
+      }
+    }));
+    const publish = vi.fn().mockReturnValue({
+      emitted: true,
+      activeOverlayConnections: 7
+    });
+    const service = new EventRoutingAdminService(repository, {
+      productionCatalogue: false,
+      publishPlayback: publish
+    });
+    const server = Fastify();
+    registerEventRoutingAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => service
+    });
+
+    const listResponse = await server.inject({
+      method: "GET",
+      url: "/admin/event-routing/approvals/pending"
+    });
+    const malformedResponse = await server.inject({
+      method: "POST",
+      url: "/admin/event-routing/approvals/private-queue-id/review",
+      payload: { action: "approve", reviewNote: null }
+    });
+    const unknownResponse = await server.inject({
+      method: "POST",
+      url: `/admin/event-routing/approvals/${buildEventRoutingApprovalRef("unknown-queue-id")}/review`,
+      payload: { action: "approve", reviewNote: null }
+    });
+    const approveResponse = await server.inject({
+      method: "POST",
+      url: `/admin/event-routing/approvals/${approvalRef}/review`,
+      payload: { action: "approve", reviewNote: "Ready." }
+    });
+    const retryResponse = await server.inject({
+      method: "POST",
+      url: `/admin/event-routing/approvals/${approvalRef}/review`,
+      payload: { action: "approve", reviewNote: "Ready." }
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toMatchObject({
+      ok: true,
+      approvals: [{ approvalRef }]
+    });
+    expect(malformedResponse.statusCode).toBe(400);
+    expect(malformedResponse.json()).toEqual({
+      ok: false,
+      reason: "event_routing_admin_invalid_input"
+    });
+    expect(unknownResponse.statusCode).toBe(404);
+    expect(unknownResponse.json()).toEqual({
+      ok: false,
+      reason: "event_routing_admin_approval_not_found"
+    });
+    expect(approveResponse.statusCode).toBe(200);
+    expect(approveResponse.json()).toMatchObject({
+      ok: true,
+      approval: {
+        approvalRef,
+        status: "approved",
+        rule: {
+          notificationPriority: "normal",
+          sourcePlatform: "any"
+        },
+        playback: {
+          projected: { ok: true },
+          published: { emitted: true }
+        }
+      }
+    });
+    expect(retryResponse.statusCode).toBe(200);
+    expect(retryResponse.json()).toMatchObject({
+      ok: true,
+      approval: {
+        approvalRef,
+        status: "approved",
+        playback: null
+      }
+    });
+
+    const forbiddenResponseFragments = [
+      "\"id\":",
+      rawApprovalId,
+      "soundKey",
+      "follow-creaky-door",
+      "eventHistoryId",
+      "private-history-id",
+      "routingRuleId",
+      "private-rule-id",
+      "projection",
+      "overlayEvent",
+      "actorName",
+      "actionLabel",
+      "avatarUrl",
+      "activeOverlayConnections"
+    ];
+    for (const response of [listResponse, approveResponse, retryResponse]) {
+      for (const fragment of forbiddenResponseFragments) {
+        expect(response.body).not.toContain(fragment);
+      }
+    }
+    expect(approvalRef).toMatch(/^approvalref_v1_[a-f0-9]{64}$/u);
+    expect(approvalRef).not.toBe(rawApprovalId);
+    expect(approvalRef).not.toContain(rawApprovalId);
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns conflict when a route review action opposes an existing terminal status", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.approvals.set("approval-1", toApproval({
+      status: "rejected",
+      reviewerUserId: "domain-user",
+      reviewedAt: "2026-06-22T11:00:00.000Z",
+      reviewNote: "Already rejected."
+    }));
     const server = Fastify();
     registerEventRoutingAdminRoutes(server, {
       getAuthSession: async () => ({ user: { id: "auth-user" } }),
@@ -1343,14 +1912,14 @@ describe("event routing admin route boundary", () => {
 
     const response = await server.inject({
       method: "POST",
-      url: "/admin/event-routing/approvals/approval-1/review",
+      url: `/admin/event-routing/approvals/${defaultApprovalRef}/review`,
       payload: { action: "approve", reviewNote: "Ready." }
     });
 
     expect(response.statusCode).toBe(409);
     expect(response.json()).toEqual({
       ok: false,
-      reason: "event_routing_admin_production_execution_unavailable"
+      reason: "event_routing_admin_approval_conflict"
     });
     expect(repository.lastReview).toBeNull();
   });
@@ -1369,7 +1938,7 @@ describe("event routing admin route boundary", () => {
 
     const response = await server.inject({
       method: "POST",
-      url: "/admin/event-routing/approvals/approval-1/review",
+      url: `/admin/event-routing/approvals/${defaultApprovalRef}/review`,
       payload: {
         action: "approve",
         reviewNote: "x".repeat(1001)

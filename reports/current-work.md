@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-29 production Event Routing approval execution reviewed
+
+- Completed the missing production approval path for real non-money Event Routing rows. The API now claims a pending queue row with a compare-and-set, lets only the winning request publish, treats a repeated matching action as idempotent without replay, and returns a conflict for an opposite terminal action.
+- Approval reuses the stored routing decision instead of rerunning provider intake, rule resolution, cooldown consumption, or the original stream-state decision. It rechecks current website stream-visibility consent before public playback. Only `top_notification` and `center_notification` publish through the existing overlay transport; `approval_queue` remains status-only and destinations without a consumer remain blocked.
+- Browser list and review paths use strict `approvalref_v1_...` references. Raw queue, history, and rule ids, `soundKey`, provider/user identifiers, payloads, cooldown keys, and the internal overlay projection remain server-side. Malformed references return `400`, unknown references return `404`, and test, simulation, or real-money rows remain ineligible.
+- Three senior review passes found and closed the internal playback projection leak, the accidental `soundKey` projection, and the raw queue-id action handle. The final review returned `READY` with zero standards and zero specification findings. `pnpm check:review` passed with 186 Domain tests, 694 API tests, 497 Web tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, 15 provenance tests, architecture rules, and the diff check.
+- This is reviewed source only. No migration, database/data, provider/account/credential, DNS/tunnel, service, deployment, stream, GUI, or browser action occurred. Live MariaDB concurrency, signed-in owner review, and one naturally received event reaching an active production overlay remain unverified.
+
 ## 2026-08-28 public AI page deployed and profile migration generated
 
 - `/about/ai` was implemented at commit `127d1a3218d336938be66b255f87e7158a1bb003`, independently reviewed, deployed, and verified through the public HTTP path. The deployed image config is `sha256:d1fd3479c7d5586dfbcb18d0065500ed837237214b1cc6771d15425cd6345860`. This added no AI runtime behavior, migration, provider action, account change, or live-stream action.

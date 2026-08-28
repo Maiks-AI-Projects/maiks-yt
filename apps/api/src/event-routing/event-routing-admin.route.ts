@@ -14,6 +14,11 @@ import { z } from "zod";
 
 import { EventRoutingAdminService } from "./event-routing-admin.service.js";
 import { createEventRoutingAdminRepository } from "./event-routing-admin-store.service.js";
+import type { EventRoutingPlaybackPublisher } from "./event-routing-dispatch.types.js";
+import {
+  eventRoutingApprovalRefLength,
+  isEventRoutingApprovalRef
+} from "./event-routing-admin.types.js";
 import type {
   EventRoutingAdminApprovalReviewResult,
   EventRoutingAdminUpdateResult
@@ -29,6 +34,7 @@ type EventRoutingAdminRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<EventRoutingAdminAuthSession>;
   getDatabasePool: () => DatabasePool;
   getNodeEnv?: () => string | undefined;
+  publishPlayback?: EventRoutingPlaybackPublisher;
   createService?: () => Pick<EventRoutingAdminService,
     | "listRules"
     | "updateRule"
@@ -63,7 +69,9 @@ const approvalListQuerySchema = z.object({
 }).strict();
 
 const approvalParamsSchema = z.object({
-  approvalId: z.string().trim().min(1).max(191)
+  approvalRef: z.string()
+    .length(eventRoutingApprovalRefLength)
+    .refine(isEventRoutingApprovalRef)
 }).strict();
 
 const approvalReviewPayloadSchema = z.object({
@@ -138,11 +146,7 @@ const sendApprovalReviewResult = (
     return result;
   }
 
-  reply.code(result.reason === "event_routing_admin_approval_not_found"
-    ? 404
-    : result.reason === "event_routing_admin_production_execution_unavailable"
-      ? 409
-      : 400);
+  reply.code(result.reason === "event_routing_admin_approval_not_found" ? 404 : 409);
   return result;
 };
 
@@ -160,7 +164,8 @@ export const registerEventRoutingAdminRoutes = (
     | "listOperationalHistory"> =>
     dependencies.createService?.()
     ?? new EventRoutingAdminService(createEventRoutingAdminRepository(dependencies.getDatabasePool()), {
-      productionCatalogue: (dependencies.getNodeEnv?.() ?? process.env.NODE_ENV) === "production"
+      productionCatalogue: (dependencies.getNodeEnv?.() ?? process.env.NODE_ENV) === "production",
+      ...(dependencies.publishPlayback ? { publishPlayback: dependencies.publishPlayback } : {})
     });
 
   const getSession = async (
@@ -334,7 +339,7 @@ export const registerEventRoutingAdminRoutes = (
     }
   });
 
-  server.post("/admin/event-routing/approvals/:approvalId/review", async (request, reply) => {
+  server.post("/admin/event-routing/approvals/:approvalRef/review", async (request, reply) => {
     const session = await getSession(request, reply);
 
     if (!session) {
@@ -358,7 +363,7 @@ export const registerEventRoutingAdminRoutes = (
     try {
       return sendApprovalReviewResult(await getService().reviewApproval({
         authUserId: session.user.id,
-        approvalId: parsedParams.data.approvalId,
+        approvalRef: parsedParams.data.approvalRef,
         action: parsedBody.data.action,
         reviewNote: parsedBody.data.reviewNote ?? null
       }), reply);

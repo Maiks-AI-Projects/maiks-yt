@@ -16,6 +16,9 @@ import {
 
 import type {
   EventRoutingAdminActor,
+  EventRoutingAdminApprovalBrowserRecord,
+  EventRoutingAdminApprovalPlaybackOutcome,
+  EventRoutingAdminApprovalRepositoryRecord,
   EventRoutingAdminApprovalListResult,
   EventRoutingAdminApprovalReviewResult,
   EventRoutingAdminCooldownSummaryResult,
@@ -31,6 +34,8 @@ import {
   projectEventRoutingAdminApproval,
   projectEventRoutingOperationalHistory
 } from "./event-routing-admin-projection.service.js";
+import type { EventRoutingPlaybackPublisher } from "./event-routing-dispatch.types.js";
+import { buildProductionEventRoutingPlaybackProjection } from "./event-routing-playback.service.js";
 
 const parsePermissionArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -97,14 +102,74 @@ const isProductionApproval = (
   approval: Parameters<typeof projectEventRoutingAdminApproval>[0]
 ): boolean => !approval.event.isTest
   && !approval.event.isSimulated
+  && !approval.event.isRealMoney
   && !approval.event.testResettable
   && approval.event.sourcePlatform !== "test/system"
   && !getEventRegistryEntry(approval.event.eventKind).safety.simulatedOnly;
 
+const projectBrowserApproval = (
+  approval: EventRoutingAdminApprovalRepositoryRecord,
+  playback: EventRoutingAdminApprovalPlaybackOutcome | null
+): EventRoutingAdminApprovalBrowserRecord => {
+  const projected = projectEventRoutingAdminApproval(approval, playback);
+
+  return {
+    approvalRef: approval.approvalRef,
+    productionEvent: projected.productionEvent,
+    destination: projected.destination,
+    status: projected.status,
+    reviewedAt: projected.reviewedAt,
+    reviewNote: projected.reviewNote,
+    createdAt: projected.createdAt,
+    updatedAt: projected.updatedAt,
+    event: {
+      sourcePlatform: projected.event.sourcePlatform,
+      eventKind: projected.event.eventKind,
+      occurredAt: projected.event.occurredAt,
+      context: {
+        displayText: projected.event.context.displayText,
+        displayName: projected.event.context.displayName,
+        title: projected.event.context.title,
+        projectLabel: projected.event.context.projectLabel,
+        amount: projected.event.context.amount,
+        currency: projected.event.context.currency
+      }
+    },
+    rule: {
+      notificationPriority: approval.rule.notificationPriority,
+      sourcePlatform: approval.rule.sourcePlatform
+    },
+    label: projected.label,
+    description: projected.description,
+    safety: projected.safety,
+    playback
+  };
+};
+
+const isPlaybackDestination = (
+  destination: EventRoutingRuleInput["destination"]
+): destination is "top_notification" | "center_notification" =>
+  destination === "top_notification" || destination === "center_notification";
+
+const requiresCurrentWebsiteOptOutCheck = (
+  approval: EventRoutingAdminApprovalRepositoryRecord
+): boolean => approval.event.sourcePlatform === "website"
+  && isPlaybackDestination(approval.destination)
+  && getEventRegistryEntry(approval.event.eventKind).safety.optOutSupported;
+
+const isMatchingTerminalAction = (
+  approval: EventRoutingAdminApprovalRepositoryRecord,
+  action: "approve" | "reject"
+): boolean => (action === "approve" && approval.status === "approved")
+  || (action === "reject" && approval.status === "rejected");
+
 export class EventRoutingAdminService {
   public constructor(
     private readonly repository: EventRoutingAdminRepository,
-    private readonly options: { productionCatalogue: boolean } = { productionCatalogue: false }
+    private readonly options: {
+      productionCatalogue: boolean;
+      publishPlayback?: EventRoutingPlaybackPublisher;
+    } = { productionCatalogue: false }
   ) {}
 
   public async listRules(input: { authUserId: string }): Promise<EventRoutingAdminListResult> {
@@ -199,13 +264,13 @@ export class EventRoutingAdminService {
       ok: true,
       approvals: approvals
         .filter(isProductionApproval)
-        .map((approval) => projectEventRoutingAdminApproval(approval, null))
+        .map((approval) => projectBrowserApproval(approval, null))
     };
   }
 
   public async reviewApproval(input: {
     authUserId: string;
-    approvalId: string;
+    approvalRef: string;
     action: "approve" | "reject";
     reviewNote: string | null;
   }): Promise<EventRoutingAdminApprovalReviewResult> {
@@ -215,40 +280,50 @@ export class EventRoutingAdminService {
       return actor;
     }
 
-    const approval = await this.repository.getPendingApproval(input.approvalId);
+    const approval = await this.repository.getPendingApprovalByRef(input.approvalRef);
 
-    if (!approval || !isProductionApproval(approval)) {
+    if (!approval) {
+      return await this.reviewTerminalApproval(input);
+    }
+
+    if (!isProductionApproval(approval)) {
       return {
         ok: false,
         reason: "event_routing_admin_approval_not_found"
       };
     }
 
-    if (input.action === "reject") {
-      const reviewed = await this.repository.reviewApproval({
-        id: input.approvalId,
-        status: "rejected",
-        reviewerUserId: actor.domainUserId,
-        reviewNote: input.reviewNote,
-        playback: null
-      });
+    const reviewed = await this.repository.reviewApproval({
+      id: approval.id,
+      status: input.action === "approve" ? "approved" : "rejected",
+      reviewerUserId: actor.domainUserId,
+      reviewNote: input.reviewNote,
+      playback: null
+    });
 
-      return reviewed
-        ? {
-          ok: true,
-          approval: projectEventRoutingAdminApproval(reviewed, null)
-        }
-        : {
-          ok: false,
-          reason: "event_routing_admin_approval_not_found"
-        };
+    if (reviewed.kind === "not_found") {
+      return {
+        ok: false,
+        reason: "event_routing_admin_approval_not_found"
+      };
     }
 
-    // Production approval review is visible now, but approval replay/publish is
-    // not implemented. Keep the queue row pending until that consumer exists.
+    if (reviewed.kind === "terminal") {
+      return this.toTerminalReviewResult(reviewed.approval, input.action);
+    }
+
+    if (input.action === "reject") {
+      return {
+        ok: true,
+        approval: projectBrowserApproval(reviewed.approval, null)
+      };
+    }
+
+    const playback = await this.publishApprovedEvent(reviewed.approval);
+
     return {
-      ok: false,
-      reason: "event_routing_admin_production_execution_unavailable"
+      ok: true,
+      approval: projectBrowserApproval(reviewed.approval, playback)
     };
   }
 
@@ -374,6 +449,104 @@ export class EventRoutingAdminService {
       ok: true,
       domainUserId: actor.domainUserId
     };
+  }
+
+  private async reviewTerminalApproval(input: {
+    approvalRef: string;
+    action: "approve" | "reject";
+  }): Promise<EventRoutingAdminApprovalReviewResult> {
+    const terminal = await this.repository.getApprovalByRef(input.approvalRef);
+
+    if (!terminal || !isProductionApproval(terminal)) {
+      return {
+        ok: false,
+        reason: "event_routing_admin_approval_not_found"
+      };
+    }
+
+    return this.toTerminalReviewResult(terminal, input.action);
+  }
+
+  private toTerminalReviewResult(
+    approval: EventRoutingAdminApprovalRepositoryRecord,
+    action: "approve" | "reject"
+  ): EventRoutingAdminApprovalReviewResult {
+    if (!isMatchingTerminalAction(approval, action)) {
+      return {
+        ok: false,
+        reason: "event_routing_admin_approval_conflict"
+      };
+    }
+
+    return {
+      ok: true,
+      approval: projectBrowserApproval(approval, null)
+    };
+  }
+
+  private async publishApprovedEvent(
+    approval: EventRoutingAdminApprovalRepositoryRecord
+  ): Promise<EventRoutingAdminApprovalPlaybackOutcome | null> {
+    if (approval.destination === "approval_queue") {
+      return null;
+    }
+
+    if (requiresCurrentWebsiteOptOutCheck(approval)) {
+      if (!approval.event.userId
+        || await this.repository.isUserOptedOut({
+          userId: approval.event.userId,
+          eventKind: approval.event.eventKind
+        })) {
+        return {
+          projected: {
+            ok: false,
+            reason: "event_routing_playback_current_opt_out"
+          },
+          published: null
+        };
+      }
+    }
+
+    const projection = buildProductionEventRoutingPlaybackProjection({
+      history: approval.event,
+      destination: approval.destination,
+      notificationPriority: approval.rule.notificationPriority,
+      soundKey: approval.rule.soundKey
+    });
+
+    if (!projection.ok) {
+      return {
+        projected: {
+          ok: false,
+          reason: projection.reason
+        },
+        published: null
+      };
+    }
+
+    if (!this.options.publishPlayback) {
+      return {
+        projected: { ok: true },
+        published: null
+      };
+    }
+
+    try {
+      const published = await this.options.publishPlayback(projection.projection);
+
+      return {
+        projected: { ok: true },
+        published: {
+          emitted: published.emitted,
+          ...(published.reason ? { reason: published.reason } : {})
+        }
+      };
+    } catch {
+      return {
+        projected: { ok: true },
+        published: null
+      };
+    }
   }
 
   private async requireOwner(authUserId: string): Promise<{

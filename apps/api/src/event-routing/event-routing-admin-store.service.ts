@@ -1,7 +1,10 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
 
+import {
+  eventRoutingApprovalRefPrefix
+} from "./event-routing-admin.types.js";
 import type {
   EventRoutingAdminActor,
   EventRoutingAdminApprovalRepositoryRecord,
@@ -13,6 +16,21 @@ import type {
 } from "./event-routing-admin.types.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
+
+const eventRoutingApprovalRefDomain = "maiks-yt:event-routing-approval-reference:v1";
+
+export const buildEventRoutingApprovalRef = (approvalId: string): string => {
+  const digest = createHash("sha256")
+    .update(eventRoutingApprovalRefDomain, "utf8")
+    .update("\0", "utf8")
+    .update(approvalId, "utf8")
+    .digest("hex");
+
+  return `${eventRoutingApprovalRefPrefix}${digest}`;
+};
+
+export const eventRoutingApprovalRefSql = (approvalIdExpression: string): string =>
+  `CONCAT('${eventRoutingApprovalRefPrefix}', LOWER(SHA2(CONCAT('${eventRoutingApprovalRefDomain}', CHAR(0), ${approvalIdExpression}), 256)))`;
 
 type EventRoutingRuleRow = {
   id: string;
@@ -38,6 +56,7 @@ type EventRoutingRuleRow = {
 
 type EventRoutingApprovalRow = {
   id: string;
+  approvalRef: string;
   eventHistoryId: string;
   routingRuleId?: string | null;
   destination: EventRoutingAdminApprovalRepositoryRecord["destination"];
@@ -67,6 +86,7 @@ type EventRoutingApprovalRow = {
   historyCreatedAt: Date | string;
   notificationPriority?: EventRoutingAdminApprovalRepositoryRecord["rule"]["notificationPriority"] | null;
   ruleSourcePlatform?: EventRoutingAdminApprovalRepositoryRecord["rule"]["sourcePlatform"] | null;
+  soundKey?: string | null;
 };
 
 type EventRoutingOperationalHistoryRow = {
@@ -151,6 +171,7 @@ const selectRuleFields = `
 
 const selectApprovalFields = `
   q.id,
+  ${eventRoutingApprovalRefSql("q.id")} AS approvalRef,
   q.event_history_id AS eventHistoryId,
   q.routing_rule_id AS routingRuleId,
   q.destination,
@@ -179,7 +200,8 @@ const selectApprovalFields = `
   h.occurred_at AS occurredAt,
   h.created_at AS historyCreatedAt,
   r.notification_priority AS notificationPriority,
-  r.source_platform AS ruleSourcePlatform
+  r.source_platform AS ruleSourcePlatform,
+  r.sound_key AS soundKey
 `;
 
 const mapApproval = (row: EventRoutingApprovalRow): EventRoutingAdminApprovalRepositoryRecord => {
@@ -187,6 +209,7 @@ const mapApproval = (row: EventRoutingApprovalRow): EventRoutingAdminApprovalRep
 
   return {
     id: row.id,
+    approvalRef: row.approvalRef,
     eventHistoryId: row.eventHistoryId,
     routingRuleId: row.routingRuleId ?? null,
     destination: row.destination,
@@ -219,7 +242,8 @@ const mapApproval = (row: EventRoutingApprovalRow): EventRoutingAdminApprovalRep
     },
     rule: {
       notificationPriority: row.notificationPriority ?? "normal",
-      sourcePlatform: row.ruleSourcePlatform ?? null
+      sourcePlatform: row.ruleSourcePlatform ?? null,
+      soundKey: row.soundKey ?? null
     }
   };
 };
@@ -239,9 +263,9 @@ const mapOperationalHistory = (
   occurredAt: toIsoString(row.occurredAt)
 });
 
-const readApproval = async (
+const readApprovalByRef = async (
   executor: QueryExecutor,
-  id: string,
+  approvalRef: string,
   status?: EventRoutingApprovalQueueStatus
 ): Promise<EventRoutingAdminApprovalRepositoryRecord | null> => {
   const [rows] = await executor.execute(
@@ -250,15 +274,42 @@ const readApproval = async (
       FROM event_approval_queue q
       INNER JOIN event_history h ON h.id = q.event_history_id
       LEFT JOIN event_routing_rules r ON r.id = q.routing_rule_id
-      WHERE q.id = ?
+      WHERE ${eventRoutingApprovalRefSql("q.id")} = BINARY ?
         ${status ? "AND q.status = ?" : ""}
+        AND h.routing_outcome = 'queued_for_approval'
         AND h.is_real_money = false
         AND h.is_test = false
         AND h.is_simulated = false
         AND h.test_resettable = false
       LIMIT 1
     `,
-    status ? [id, status] : [id]
+    status ? [approvalRef, status] : [approvalRef]
+  );
+
+  return Array.isArray(rows) && rows.length > 0
+    ? mapApproval(rows[0] as EventRoutingApprovalRow)
+    : null;
+};
+
+const readApprovalById = async (
+  executor: QueryExecutor,
+  id: string
+): Promise<EventRoutingAdminApprovalRepositoryRecord | null> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT ${selectApprovalFields}
+      FROM event_approval_queue q
+      INNER JOIN event_history h ON h.id = q.event_history_id
+      LEFT JOIN event_routing_rules r ON r.id = q.routing_rule_id
+      WHERE q.id = ?
+        AND h.routing_outcome = 'queued_for_approval'
+        AND h.is_real_money = false
+        AND h.is_test = false
+        AND h.is_simulated = false
+        AND h.test_resettable = false
+      LIMIT 1
+    `,
+    [id]
   );
 
   return Array.isArray(rows) && rows.length > 0
@@ -374,8 +425,12 @@ export const createEventRoutingAdminRepository = (
       : [];
   },
 
-  async getPendingApproval(id) {
-    return await readApproval(pool, id, "pending");
+  async getApprovalByRef(approvalRef) {
+    return await readApprovalByRef(pool, approvalRef);
+  },
+
+  async getPendingApprovalByRef(approvalRef) {
+    return await readApprovalByRef(pool, approvalRef, "pending");
   },
 
   async getRule(eventKind, sourcePlatform) {
@@ -532,7 +587,7 @@ export const createEventRoutingAdminRepository = (
   },
 
   async reviewApproval(input) {
-    await pool.execute(
+    const [result] = await pool.execute(
       `
         UPDATE event_approval_queue
         SET
@@ -552,8 +607,38 @@ export const createEventRoutingAdminRepository = (
       ]
     );
 
-    const approval = await readApproval(pool, input.id);
+    const changed = Boolean(result
+      && typeof result === "object"
+      && "affectedRows" in result
+      && typeof result.affectedRows === "number"
+      && result.affectedRows > 0);
+    const approval = await readApprovalById(pool, input.id);
 
-    return approval;
+    if (!approval) {
+      return {
+        kind: "not_found"
+      };
+    }
+
+    return {
+      kind: changed ? "reviewed" : "terminal",
+      approval
+    };
+  },
+
+  async isUserOptedOut(input) {
+    const [rows] = await pool.execute(
+      `
+        SELECT opted_out AS optedOut
+        FROM event_user_opt_outs
+        WHERE user_id = ?
+          AND event_kind IN ('all_stream_visible_website_events', ?)
+          AND opted_out = true
+        LIMIT 1
+      `,
+      [input.userId, input.eventKind]
+    );
+
+    return Array.isArray(rows) && rows.length > 0;
   }
 });

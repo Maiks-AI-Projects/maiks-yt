@@ -69,13 +69,27 @@ type ApprovalContext = {
   currency: string | null;
 };
 
+type ApprovalProjectionBlockReason =
+  | "event_routing_playback_inert_destination"
+  | "event_routing_playback_unsafe_history"
+  | "event_routing_playback_internal_only"
+  | "event_routing_playback_overlay_ineligible"
+  | "event_routing_playback_unknown_sound"
+  | "event_routing_playback_current_opt_out";
+type ApprovalPublishBlockReason =
+  | "top_notifications_disabled"
+  | "center_notifications_disabled"
+  | "event_routing_playback_inert_destination";
+type ApprovalPlaybackOutcome = {
+  projected: { ok: true } | { ok: false; reason: ApprovalProjectionBlockReason };
+  published: { emitted: boolean; reason?: ApprovalPublishBlockReason } | null;
+};
+
 type Approval = {
-  id: string;
+  approvalRef: string;
   productionEvent: boolean;
-  eventHistoryId: string;
   destination: EventRoutingDestination;
   status: "pending" | "approved" | "rejected" | "expired" | "cancelled";
-  reviewerUserId: string | null;
   reviewedAt: string | null;
   reviewNote: string | null;
   createdAt: string;
@@ -90,10 +104,7 @@ type Approval = {
   label: string;
   description: string;
   safety: EventRoutingSafety;
-  playback: {
-    projected: { ok: boolean; reason?: string };
-    published: { emitted: boolean; reason?: string; activeOverlayConnections?: number } | null;
-  } | null;
+  playback: ApprovalPlaybackOutcome | null;
 };
 
 type ApprovalsResponse = { ok: true; approvals: readonly Approval[] } | { ok: false; reason: string };
@@ -227,12 +238,58 @@ const getFailureMessage = (response: Response, reason?: string, issues?: readonl
   if (response.status === 403 || reason === "event_routing_admin_forbidden") return "Your account does not have event routing admin permission.";
   if (reason === "event_routing_admin_production_catalogue_forbidden") return "Production cannot save simulation or test-source event routing rules.";
   if (reason === "event_routing_admin_invalid_input") return issues?.length ? `Invalid routing rule: ${issues.join(", ")}.` : "The routing rule has invalid or missing fields.";
+  if (reason === "event_routing_admin_approval_conflict") return "This event was already reviewed with the opposite action.";
   return `Event routing admin request failed with ${response.status}.`;
 };
 const getLoadState = (response: Response, reason?: string): LoadState => {
   if (response.status === 401 || reason === "not_authenticated") return "signed-out";
   if (response.status === 403 || reason === "event_routing_admin_forbidden" || reason === "event_routing_admin_user_unlinked") return "forbidden";
   return "failed";
+};
+
+const projectionBlockMessages: Record<ApprovalProjectionBlockReason, string> = {
+  event_routing_playback_current_opt_out: "Approved, but current stream visibility settings block public playback.",
+  event_routing_playback_inert_destination: "Approved, but this destination has no playback consumer.",
+  event_routing_playback_internal_only: "Approved, but this event is internal-only.",
+  event_routing_playback_overlay_ineligible: "Approved, but this event is not eligible for overlay playback.",
+  event_routing_playback_unknown_sound: "Approved, but its saved sound is unavailable.",
+  event_routing_playback_unsafe_history: "Approved, but playback was blocked by the production safety check."
+};
+
+const publishBlockMessages: Record<ApprovalPublishBlockReason, string> = {
+  top_notifications_disabled: "Approved, but top notifications are currently disabled.",
+  center_notifications_disabled: "Approved, but center notifications are currently disabled.",
+  event_routing_playback_inert_destination: "Approved, but this destination has no playback consumer."
+};
+
+export const getApprovalReviewMessage = (
+  approval: Approval,
+  action: "approve" | "reject"
+): string => {
+  if (action === "reject") {
+    return "Rejected queued event.";
+  }
+
+  if (approval.destination === "approval_queue") {
+    return "Approved queued event without public playback.";
+  }
+
+  const projected = approval.playback?.projected;
+  if (projected && !projected.ok) {
+    return projectionBlockMessages[projected.reason];
+  }
+
+  const published = approval.playback?.published;
+  if (!published) {
+    return "Approved, but playback could not be confirmed.";
+  }
+
+  if (published.emitted) {
+    return `Approved and queued ${destinationLabels[approval.destination]} playback.`;
+  }
+
+  return (published.reason ? publishBlockMessages[published.reason] : undefined)
+    ?? "Approved, but playback is currently unavailable.";
 };
 
 const RuleIcon = ({ rule }: { rule: Rule }): React.ReactNode => {
@@ -257,7 +314,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading event routing rules...");
   const [busy, setBusy] = useState(false);
-  const [reviewingApprovalId, setReviewingApprovalId] = useState<string | null>(null);
+  const [reviewingApprovalRef, setReviewingApprovalRef] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<EventRoutingRuleSourcePlatform | "all">("all");
   const [destinationFilter, setDestinationFilter] = useState<EventRoutingDestination | "all">("all");
@@ -528,31 +585,27 @@ const EventRoutingAdminClient = (): React.ReactNode => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [moveSelection, saveRule]);
 
-  const reviewApproval = async (id: string, action: "approve" | "reject"): Promise<void> => {
-    setReviewingApprovalId(id);
+  const reviewApproval = async (approvalRef: string, action: "approve" | "reject"): Promise<void> => {
+    setReviewingApprovalRef(approvalRef);
     setMessage(action === "approve" ? "Approving queued event..." : "Rejecting queued event...");
     try {
-      const response = await fetch(`${apiBaseUrl}/admin/event-routing/approvals/${encodeURIComponent(id)}/review`, {
+      const response = await fetch(`${apiBaseUrl}/admin/event-routing/approvals/${encodeURIComponent(approvalRef)}/review`, {
         method: "POST", headers: createApiHeaders({ "Content-Type": "application/json" }), credentials: "include",
-        body: JSON.stringify({ action, reviewNote: approvalNotes[id]?.trim() || null })
+        body: JSON.stringify({ action, reviewNote: approvalNotes[approvalRef]?.trim() || null })
       });
       const payload = await parseJson<ReviewResponse>(response);
       if (response.ok && payload?.ok) {
-        setApprovals((current) => current.filter((approval) => approval.id !== id));
-        setApprovalNotes((current) => { const next = { ...current }; delete next[id]; return next; });
-        setMessage(payload.approval.playback?.published?.emitted ? `Queued ${destinationLabels[payload.approval.destination]} playback.` : `Marked event ${payload.approval.status}.`);
+        setApprovals((current) => current.filter((approval) => approval.approvalRef !== approvalRef));
+        setApprovalNotes((current) => { const next = { ...current }; delete next[approvalRef]; return next; });
+        setMessage(getApprovalReviewMessage(payload.approval, action));
         return;
       }
       const reason = payload?.ok === false ? payload.reason : undefined;
-      if (reason === "event_routing_admin_production_execution_unavailable") {
-        setMessage("Approval replay and publish are not implemented yet. The event remains pending.");
-      } else {
-        setMessage(getFailureMessage(response, reason));
-        setApprovals((current) => current.filter((approval) => approval.id !== id));
-      }
+      setMessage(getFailureMessage(response, reason));
+      setApprovals((current) => current.filter((approval) => approval.approvalRef !== approvalRef));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Reviewing queued event failed.");
-    } finally { setReviewingApprovalId(null); }
+    } finally { setReviewingApprovalRef(null); }
   };
 
   if (loadState !== "ready" || !selectedRule || !formRule || !validation) {
@@ -572,8 +625,8 @@ const EventRoutingAdminClient = (): React.ReactNode => {
     </header>
     {message !== "Event routing rules loaded." ? <p className={styles.message} role="status">{message}</p> : null}
     <details className={styles.approvalQueue} open={approvals.length > 0}>
-      <summary><FiShield aria-hidden="true" /><strong>Pending review</strong><span>{approvals.length} real event{approvals.length === 1 ? "" : "s"} waiting</span><small>Allowlisted context only</small><button type="button" onClick={(event) => { event.preventDefault(); void loadRules(); }} disabled={busy || reviewingApprovalId !== null}>Refresh <FiRefreshCw aria-hidden="true" /></button></summary>
-      {approvals.length > 0 ? <ul>{approvals.map((approval) => <li key={approval.id}><div><strong>{approval.label}</strong><span>{sourceLabels[approval.event.sourcePlatform]} · {destinationLabels[approval.destination]} · {formatDate(approval.createdAt)}</span><p>{getApprovalText(approval)}</p>{getContextDetails(approval.event.context) ? <small>{getContextDetails(approval.event.context)}</small> : null}<label className={styles.reviewNote}>Optional review note<input maxLength={1000} value={approvalNotes[approval.id] ?? ""} onChange={(event) => setApprovalNotes((current) => ({ ...current, [approval.id]: event.target.value }))} /></label></div><div className={styles.approvalActions}><button type="button" onClick={() => void reviewApproval(approval.id, "reject")} disabled={reviewingApprovalId !== null}>Reject</button><button type="button" title="Disabled until approval replay and publish are implemented" disabled>Approve</button></div></li>)}</ul> : <p className={styles.emptyPanel}>No real production events are waiting for review.</p>}
+      <summary><FiShield aria-hidden="true" /><strong>Pending review</strong><span>{approvals.length} real event{approvals.length === 1 ? "" : "s"} waiting</span><small>Allowlisted context only</small><button type="button" onClick={(event) => { event.preventDefault(); void loadRules(); }} disabled={busy || reviewingApprovalRef !== null}>Refresh <FiRefreshCw aria-hidden="true" /></button></summary>
+      {approvals.length > 0 ? <ul>{approvals.map((approval) => <li key={approval.approvalRef}><div><strong>{approval.label}</strong><span>{sourceLabels[approval.event.sourcePlatform]} · {destinationLabels[approval.destination]} · {formatDate(approval.createdAt)}</span><p>{getApprovalText(approval)}</p>{getContextDetails(approval.event.context) ? <small>{getContextDetails(approval.event.context)}</small> : null}<label className={styles.reviewNote}>Optional review note<input maxLength={1000} value={approvalNotes[approval.approvalRef] ?? ""} disabled={reviewingApprovalRef !== null} onChange={(event) => setApprovalNotes((current) => ({ ...current, [approval.approvalRef]: event.target.value }))} /></label></div><div className={styles.approvalActions}><button type="button" onClick={() => void reviewApproval(approval.approvalRef, "reject")} disabled={reviewingApprovalRef !== null}>Reject</button><button type="button" onClick={() => void reviewApproval(approval.approvalRef, "approve")} disabled={reviewingApprovalRef !== null}>Approve</button></div></li>)}</ul> : <p className={styles.emptyPanel}>No real production events are waiting for review.</p>}
     </details>
     <details className={styles.historyPanel}>
       <summary><FiClock aria-hidden="true" /><strong>Routing history</strong><span>{history.length} recent real event{history.length === 1 ? "" : "s"}</span></summary>

@@ -38,7 +38,8 @@ export type EventRoutingPlaybackBlockReason =
   | "event_routing_playback_unsafe_history"
   | "event_routing_playback_internal_only"
   | "event_routing_playback_overlay_ineligible"
-  | "event_routing_playback_unknown_sound";
+  | "event_routing_playback_unknown_sound"
+  | "event_routing_playback_current_opt_out";
 
 export type EventRoutingPlaybackProjectionResult =
   | {
@@ -312,6 +313,7 @@ export const buildProductionEventRoutingPlaybackProjection = (input: {
 
   if (input.history.isTest
     || input.history.isSimulated
+    || input.history.isRealMoney
     || input.history.testResettable
     || input.history.eventKind === "simulated.support-money") {
     return {

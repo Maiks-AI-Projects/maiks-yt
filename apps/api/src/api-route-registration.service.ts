@@ -238,7 +238,8 @@ export const registerApplicationRoutes = ({
   }
   registerEventRoutingAdminRoutes(server, {
     getAuthSession,
-    getDatabasePool
+    getDatabasePool,
+    publishPlayback: publishEventRoutingPlayback
   });
   registerNotificationAdminRoutes(server, {
     getAuthSession,

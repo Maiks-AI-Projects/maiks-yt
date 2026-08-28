@@ -12,13 +12,7 @@ import type {
   EventSourcePlatform
 } from "@maiks-yt/domain/events";
 
-import type {
-  EventRoutingPlaybackHistory,
-  EventRoutingPlaybackProjectionResult
-} from "./event-routing-playback.service.js";
-import type {
-  EventRoutingPlaybackPublishResult
-} from "./event-routing-dispatch.types.js";
+import type { EventRoutingPlaybackHistory } from "./event-routing-playback.service.js";
 
 export type EventRoutingAdminActor = {
   domainUserId: string;
@@ -54,10 +48,37 @@ export type EventRoutingApprovalQueueStatus = "pending" | "approved" | "rejected
 
 export type EventRoutingApprovalReviewAction = "approve" | "reject";
 
-export type EventRoutingApprovalReviewPlayback = {
-  projected: EventRoutingPlaybackProjectionResult;
-  published: EventRoutingPlaybackPublishResult | null;
+export const eventRoutingApprovalRefPrefix = "approvalref_v1_" as const;
+export const eventRoutingApprovalRefDigestLength = 64;
+export const eventRoutingApprovalRefLength =
+  eventRoutingApprovalRefPrefix.length + eventRoutingApprovalRefDigestLength;
+
+export const isEventRoutingApprovalRef = (value: string): boolean =>
+  /^approvalref_v1_[a-f0-9]{64}$/u.test(value);
+
+export type EventRoutingAdminApprovalPlaybackOutcome = {
+  projected:
+    | { ok: true }
+    | {
+      ok: false;
+      reason:
+        | "event_routing_playback_inert_destination"
+        | "event_routing_playback_unsafe_history"
+        | "event_routing_playback_internal_only"
+        | "event_routing_playback_overlay_ineligible"
+        | "event_routing_playback_unknown_sound"
+        | "event_routing_playback_current_opt_out";
+    };
+  published: {
+    emitted: boolean;
+    reason?:
+      | "top_notifications_disabled"
+      | "center_notifications_disabled"
+      | "event_routing_playback_inert_destination";
+  } | null;
 };
+
+export type EventRoutingApprovalReviewPlayback = EventRoutingAdminApprovalPlaybackOutcome;
 
 export type EventRoutingAdminSafeContext = {
   displayText: string | null;
@@ -70,6 +91,7 @@ export type EventRoutingAdminSafeContext = {
 
 export type EventRoutingAdminApprovalRepositoryRecord = {
   id: string;
+  approvalRef: string;
   eventHistoryId: string;
   routingRuleId: string | null;
   destination: EventRoutingDestination;
@@ -93,6 +115,7 @@ export type EventRoutingAdminApprovalRepositoryRecord = {
   rule: {
     notificationPriority: EventRoutingNotificationPriority;
     sourcePlatform: EventSourcePlatform | "any" | null;
+    soundKey: string | null;
   };
 };
 
@@ -119,6 +142,10 @@ export type EventRoutingAdminApprovalRecord = {
   description: string;
   safety: EventRegistryEntry["safety"];
   playback: EventRoutingApprovalReviewPlayback | null;
+};
+
+export type EventRoutingAdminApprovalBrowserRecord = Omit<EventRoutingAdminApprovalRecord, "id"> & {
+  approvalRef: string;
 };
 
 export type EventRoutingAdminListResult =
@@ -150,7 +177,7 @@ export type EventRoutingAdminUpdateResult =
 export type EventRoutingAdminApprovalListResult =
   | {
     ok: true;
-    approvals: readonly EventRoutingAdminApprovalRecord[];
+    approvals: readonly EventRoutingAdminApprovalBrowserRecord[];
   }
   | {
     ok: false;
@@ -160,7 +187,7 @@ export type EventRoutingAdminApprovalListResult =
 export type EventRoutingAdminApprovalReviewResult =
   | {
     ok: true;
-    approval: EventRoutingAdminApprovalRecord;
+    approval: EventRoutingAdminApprovalBrowserRecord;
   }
   | {
     ok: false;
@@ -168,8 +195,21 @@ export type EventRoutingAdminApprovalReviewResult =
       | "event_routing_admin_user_unlinked"
       | "event_routing_admin_forbidden"
       | "event_routing_admin_approval_not_found"
-      | "event_routing_admin_production_execution_unavailable";
+      | "event_routing_admin_approval_conflict";
     playback?: EventRoutingApprovalReviewPlayback;
+  };
+
+export type EventRoutingAdminApprovalReviewCommitResult =
+  | {
+    kind: "reviewed";
+    approval: EventRoutingAdminApprovalRepositoryRecord;
+  }
+  | {
+    kind: "terminal";
+    approval: EventRoutingAdminApprovalRepositoryRecord;
+  }
+  | {
+    kind: "not_found";
   };
 
 export type EventRoutingAdminDeleteResult =
@@ -247,7 +287,8 @@ export interface EventRoutingAdminRepository {
   resolveActor(authUserId: string): Promise<EventRoutingAdminActor | null>;
   listRules(): Promise<readonly EventRoutingAdminRuleRecord[]>;
   listPendingApprovals(limit: number): Promise<readonly EventRoutingAdminApprovalRepositoryRecord[]>;
-  getPendingApproval(id: string): Promise<EventRoutingAdminApprovalRepositoryRecord | null>;
+  getApprovalByRef(approvalRef: string): Promise<EventRoutingAdminApprovalRepositoryRecord | null>;
+  getPendingApprovalByRef(approvalRef: string): Promise<EventRoutingAdminApprovalRepositoryRecord | null>;
   upsertRule(input: EventRoutingAdminUpsertInput): Promise<EventRoutingAdminRuleRecord>;
   reviewApproval(input: {
     id: string;
@@ -255,7 +296,8 @@ export interface EventRoutingAdminRepository {
     reviewerUserId: string;
     reviewNote: string | null;
     playback: EventRoutingApprovalReviewPlayback | null;
-  }): Promise<EventRoutingAdminApprovalRepositoryRecord | null>;
+  }): Promise<EventRoutingAdminApprovalReviewCommitResult>;
+  isUserOptedOut(input: { userId: string; eventKind: EventKind }): Promise<boolean>;
   getRule(eventKind: EventKind, sourcePlatform: EventRoutingRuleInput["sourcePlatform"]): Promise<EventRoutingAdminRuleRecord | null>;
   deleteRule(eventKind: EventKind, sourcePlatform: EventRoutingRuleSourcePlatform): Promise<boolean>;
   getActiveCooldownSummary(input: {

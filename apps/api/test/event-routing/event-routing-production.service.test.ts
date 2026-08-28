@@ -7,6 +7,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import { EventRoutingProductionService } from "../../src/event-routing/event-routing-production.service.js";
+import { buildProductionEventRoutingPlaybackProjection } from "../../src/event-routing/event-routing-playback.service.js";
 import type {
   EventRoutingActiveCooldown,
   EventRoutingApprovalQueueRecord,
@@ -344,5 +345,31 @@ describe("EventRoutingProductionService", () => {
     expect(result.status).toBe("blocked_safety");
     expect(streamStateResolver.resolve).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("blocks real-money histories at the production playback projector", () => {
+    expect(buildProductionEventRoutingPlaybackProjection({
+      history: {
+        id: "history-money",
+        sourcePlatform: "twitch",
+        eventKind: "twitch.bits",
+        actorDisplayName: "Viewer One",
+        redactedPayload: {
+          event: {
+            bits: 100
+          }
+        },
+        isTest: false,
+        isSimulated: false,
+        isRealMoney: true,
+        testResettable: false,
+        createdAt: "2026-08-20T18:00:01.000Z"
+      },
+      destination: "top_notification",
+      notificationPriority: "normal"
+    })).toEqual({
+      ok: false,
+      reason: "event_routing_playback_unsafe_history"
+    });
   });
 });

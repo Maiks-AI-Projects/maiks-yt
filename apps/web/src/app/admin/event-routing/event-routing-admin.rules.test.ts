@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -276,5 +278,22 @@ describe("event routing admin client rules", () => {
     expect(getValidProductionOverrideSources("chat")).toEqual(["twitch", "youtube"]);
     expect(getValidProductionOverrideSources("discord.message")).toEqual(["discord"]);
     expect(getValidProductionOverrideSources("website.schedule-changed")).toEqual(["website"]);
+  });
+
+  it("keeps production approval controls enabled, locked in-flight, and finite about outcomes", () => {
+    const clientSource = readFileSync(
+      new URL("./event-routing-admin-client.tsx", import.meta.url),
+      "utf8"
+    );
+
+    expect(clientSource).toContain('onClick={() => void reviewApproval(approval.approvalRef, "approve")}');
+    expect(clientSource).toContain("disabled={reviewingApprovalRef !== null}>Approve</button>");
+    expect(clientSource).toContain("key={approval.approvalRef}");
+    expect(clientSource).not.toContain("approval.id");
+    expect(clientSource).toContain("Approved queued event without public playback.");
+    expect(clientSource).toContain("Approved, but current stream visibility settings block public playback.");
+    expect(clientSource).toContain("Approved, but playback could not be confirmed.");
+    expect(clientSource).toContain("This event was already reviewed with the opposite action.");
+    expect(clientSource).not.toContain("Disabled until approval replay and publish are implemented");
   });
 });
