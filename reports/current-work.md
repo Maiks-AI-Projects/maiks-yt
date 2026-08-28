@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-28 MaiksPlays discovery and homepage live verification `bd8e8de`
+
+- Added a restrained `Read why MaiksPlays exists` link to the existing public `/channels` status block so the deployed `/plays` page is reachable through the public site instead of only by direct URL. A focused server-rendered test covers the link and copy.
+- Independent GPT-5.5 review found zero findings. `pnpm check:review` passed with 159 Domain tests, 646 API tests, 283 Web tests, the Web production build, Overlay and Control typechecks, 16 Local Agent tests, 15 provenance tests, architecture rules, and the diff check.
+- Web-only revision `bd8e8dea117ea85c0f2c034bb631f210d7b06b91` is deployed as image config `sha256:ae61d481a95dc2e5991f36a4c85f4495ff0ca5b47fc546cc1cd75c2f162cccf4`, BuildKit manifest `sha256:2508948771529aaa1d13629a6692efb4421d64814a4d9a7a5b67e920efab2694`, and container `e7ac1a8c203ede32fffb3fdfb81fd7b159d58a7e5425538376a4e44fe79a3f63`. OCI labels carry the exact revision, repository, and created timestamp `2026-08-28T10:38:40Z`. Rollback tag `maiks-yt-production:rollback-bd8e8de-web-before` points to `sha256:188bfa9382407ac6897a407c35960afb8cd3e79e8f9fa40066b0c5bc00644880`.
+- Public HTTP returned `200` for Home, `/channels`, `/plays`, `/about/health`, API health, Control, and Overlay; a synthetic missing route returned `404`. The channels HTML contains the `/plays` link and copy, the MaiksPlays page renders, the Health wording remains preserved, and a 56-page public crawl reaches `/plays` with zero bad responses.
+- Live homepage verification now closes the earlier deployment gap for its authoritative read models: public schedule, project, Updates, and Home all returned `200`; Home rendered the active `Community Onboarding Notes` project and the honest loaded-empty schedule and featured-Update copy. API, Control, and Overlay containers were not recreated.
+- One clean official Cloudflare API MCP OAuth retry selected Full access with `384/384` permissions and reached Cloudflare authenticator verification. The callback expired before the code was entered. The expired tab was closed, incomplete OAuth state was removed, and `mcp list` again proves `Not logged in`. No Cloudflare access or mutation occurred, so `plays.maiks.yt` remains `NXDOMAIN`. The next attempt must wait until Michael says his authenticator is ready, use one fresh CLI login and one fresh Codex in-app-browser tab, and must not fall back to Chrome, Wayland, or Computer Use.
+
 ## 2026-08-28 public Health wording correction `42b3065`
 
 - Michael rejected the phrase `serious brain tumor` as attention-seeking. The deployed lead now says exactly: `I have a brain tumor, brain damage, and ADHD.` No replacement intensifier was added.

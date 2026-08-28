@@ -15,6 +15,11 @@
 - Real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, and starting a public stream retain their specific gates.
 - Desktop and GUI automation remain forbidden, but non-GUI HTTP/API/service verification is expected and must not be treated as blocked by that restriction.
 
+## MaiksPlays discovery and hostname
+
+- Web revision `bd8e8dea117ea85c0f2c034bb631f210d7b06b91` is deployed and live-verified. `/channels` now links to `/plays`, and a 56-page public crawl reaches it with zero bad responses. The same runtime proves the homepage's real project and honest empty schedule/Update states.
+- `plays.maiks.yt` remains `NXDOMAIN`. The official Cloudflare API MCP is enabled but not logged in. A clean Full access `384/384` authorization reached the authenticator step, then its callback expired before the code was entered. Do not reuse that URL. Start one fresh login only when Michael says his authenticator is ready, use one fresh Codex in-app-browser tab, and do not fall back to Chrome, Wayland, or Computer Use. After successful login, change only the approved proxied CNAME and tunnel public-hostname route.
+
 ## Twitch chat-reply readiness deployed
 
 - Commit `30adb56` is deployed to Web and API. Provider Integrations now exposes the finite `twitch_chat_replies` capability through a bounded, cached, read-only Twitch token validation; it does not refresh, rotate, log, return, or use the credential for a provider write.
