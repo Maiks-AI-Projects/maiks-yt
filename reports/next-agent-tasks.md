@@ -2,6 +2,7 @@
 
 ## Public Profiles hygiene gate
 
+- Choices list `fc1c6e1363e3d9f6` has both answers entered but is still open and unsubmitted. Do not treat the entered `/about/ai` or profile-handle selections as final authorization until the list status is `submitted`.
 - The current public Profile pages are static demonstrations with nonfunctional search and unimplemented provider/supporter/donation/perk claims. Do not present them as live product behavior.
 - Desktop and mobile candidates are registered at `reports/visual-concepts/production-profiles-planned-state/`. Obtain Michael's approval before materially changing the page. The generated navigation/footer are placeholders; preserve the real production shell.
 - After approval, remove fake search semantics and unimplemented claims while preserving the exact private text and no-image behavior. Do not implement handles, real search, image routing, assignment, migration, backfill, or provider-derived identity until the separate choice list is submitted.
