@@ -16,11 +16,13 @@ import {
   type OverlayPresentationStateResponse,
   type SurfaceStatusProps
 } from "./SurfaceStatus.types.js";
+import { shouldRenderUnsupportedProductOverlayControls } from "./SurfaceStatus.rules.js";
 
 export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): React.ReactNode => {
   const { overlayPresence, sceneOptions, setOverlayPresence } = useOverlayPresence(apiBaseUrl);
   const [topBarActionStatus, setTopBarActionStatus] = useState<string | null>(null);
   const [goalDraft, setGoalDraft] = useState<OverlayActiveGoalState>(defaultGoalDraft);
+  const unsupportedProductControlsEnabled = shouldRenderUnsupportedProductOverlayControls();
 
   const overlayActive = overlayPresence.status === "ready" && overlayPresence.activeOverlayConnections > 0;
   const emergencyCleanModeEnabled = overlayPresence.status === "ready" && overlayPresence.emergencyCleanModeEnabled;
@@ -385,6 +387,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
         panelMode={panelMode}
         sponsorVisible={sponsorVisible}
         topBarEnabled={topBarEnabled}
+        unsupportedProductControlsEnabled={unsupportedProductControlsEnabled}
         updateChatOrder={updateChatOrder}
         updateChatVisibility={updateChatVisibility}
         updateEmergencyCleanMode={updateEmergencyCleanMode}
@@ -402,6 +405,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
         goalDraft={goalDraft}
         saveActiveGoal={saveActiveGoal}
         setGoalDraft={setGoalDraft}
+        unsupportedProductControlsEnabled={unsupportedProductControlsEnabled}
         updateGoalDraft={updateGoalDraft}
       />
       {topBarActionStatus ? <span className="status-note">{topBarActionStatus}</span> : null}

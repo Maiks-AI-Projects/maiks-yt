@@ -174,24 +174,33 @@ describe("GET /overlay/state", () => {
 });
 
 describe("production overlay route registration", () => {
-  it("omits every fake overlay injection route while retaining real overlay reads", async () => {
+  it("omits fake and unsupported product mutation routes while retaining real overlay controls", async () => {
     const originalNodeEnvironment = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
 
     try {
       const server = Fastify();
+      const overlayRuntime = new OverlayRuntime();
+      const setActiveGoal = vi.spyOn(overlayRuntime, "setActiveGoal");
+      const setSponsorVisible = vi.spyOn(overlayRuntime, "setSponsorVisible");
 
       registerOverlayRoutes(server, {
         fakeLocalModerationRuntime: {
           isAuthorMuted: () => null
         },
-        overlayRuntime: new OverlayRuntime(),
+        overlayRuntime,
         recordFakeLocalStreamerChatMessage: () => null,
         requireStreamerChatModerationPermission: async () => ({ ok: true }),
         requireUrlAccessTokenForRequest: async () => ({
-          ok: false,
-          statusCode: 401,
-          reason: "not_authenticated"
+          ok: true,
+          requiresLogin: true,
+          session: { user: { id: "auth-owner" }, session: { userId: "auth-owner" } },
+          user: {
+            id: "owner-user",
+            displayName: "Owner",
+            profileVisibility: "private",
+            avatarUrl: null
+          }
         }),
         validateUrlAccessToken: async () => ({ valid: true, requiresLogin: false })
       });
@@ -202,17 +211,95 @@ describe("production overlay route registration", () => {
         "/overlay/live-audience/test",
         "/overlay/top-bar/test",
         "/overlay/notification/test",
-        "/overlay/redeem/test"
+        "/overlay/redeem/test",
+        "/overlay/goal",
+        "/overlay/sponsor/visibility"
       ]) {
         const response = await server.inject({ method: "POST", url, payload: {} });
         expect(response.statusCode).toBe(404);
       }
+      expect(setActiveGoal).not.toHaveBeenCalled();
+      expect(setSponsorVisible).not.toHaveBeenCalled();
 
       const stateResponse = await server.inject({
         method: "GET",
         url: `/overlay/state?accessToken=${"a".repeat(24)}`
       });
       expect(stateResponse.statusCode).toBe(200);
+
+      const token = "a".repeat(24);
+      const retainedMutationResponses = await Promise.all([
+        server.inject({
+          method: "POST",
+          url: "/overlay/top-bar/enabled",
+          payload: { accessToken: token, enabled: false }
+        }),
+        server.inject({
+          method: "POST",
+          url: "/overlay/chat/visibility",
+          payload: { accessToken: token, visible: false }
+        }),
+        server.inject({
+          method: "POST",
+          url: "/overlay/chat/order",
+          payload: { accessToken: token, newestOnTop: false }
+        }),
+        server.inject({
+          method: "POST",
+          url: "/overlay/center/settings",
+          payload: {
+            accessToken: token,
+            enabled: true,
+            onscreenMs: 4_000,
+            fadeOutMs: 700,
+            restMs: 1_500
+          }
+        }),
+        server.inject({
+          method: "POST",
+          url: "/overlay/emergency-clean-mode",
+          payload: { accessToken: token, enabled: true }
+        }),
+        server.inject({
+          method: "POST",
+          url: "/overlay/presentation-state",
+          payload: {
+            accessToken: token,
+            scene: "default",
+            layout: "camera-left",
+            theme: "default"
+          }
+        })
+      ]);
+      expect(retainedMutationResponses.map((response) => response.statusCode)).toEqual([200, 200, 200, 200, 200, 200]);
+
+      const scenesResponse = await server.inject({
+        method: "GET",
+        url: `/overlay/scenes?accessToken=${token}`
+      });
+      expect(scenesResponse.statusCode).toBe(200);
+      expect(scenesResponse.json()).toMatchObject({ ok: true });
+
+      const statusResponse = await server.inject({
+        method: "GET",
+        url: `/overlay/status?accessToken=${token}`
+      });
+      expect(statusResponse.statusCode).toBe(200);
+      expect(statusResponse.json()).toMatchObject({
+        ok: true,
+        activeGoal: null,
+        centerEnabled: true,
+        chatNewestOnTop: false,
+        chatVisible: false,
+        emergencyCleanModeEnabled: true,
+        presentationState: {
+          scene: "default",
+          layout: "camera-left",
+          theme: "default"
+        },
+        sponsorVisible: true,
+        topBarEnabled: false
+      });
     } finally {
       if (originalNodeEnvironment === undefined) {
         delete process.env.NODE_ENV;

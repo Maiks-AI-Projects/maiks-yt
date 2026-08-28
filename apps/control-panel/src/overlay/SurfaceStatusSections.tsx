@@ -20,6 +20,7 @@ type SurfaceStatusControlsProps = {
   panelMode: string;
   sponsorVisible: boolean;
   topBarEnabled: boolean;
+  unsupportedProductControlsEnabled: boolean;
   updateChatOrder: (newestOnTop: boolean) => Promise<void>;
   updateChatVisibility: (visible: boolean) => Promise<void>;
   updateEmergencyCleanMode: (enabled: boolean) => Promise<void>;
@@ -36,6 +37,7 @@ export const SurfaceStatusControls = ({
   panelMode,
   sponsorVisible,
   topBarEnabled,
+  unsupportedProductControlsEnabled,
   updateChatOrder,
   updateChatVisibility,
   updateEmergencyCleanMode,
@@ -77,9 +79,11 @@ export const SurfaceStatusControls = ({
       <button type="button" className="status-action" onClick={() => void updateChatOrder(!chatNewestOnTop)}>
         {chatNewestOnTop ? "Newest top" : "Newest bottom"}
       </button>
-      <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
-        {sponsorVisible ? "Sponsor on" : "Sponsor off"}
-      </button>
+      {unsupportedProductControlsEnabled ? (
+        <button type="button" className="status-action" onClick={() => void updateSponsorVisibility(!sponsorVisible)}>
+          {sponsorVisible ? "Sponsor on" : "Sponsor off"}
+        </button>
+      ) : null}
     </div>
   </>
 );
@@ -148,6 +152,7 @@ type GoalWidgetSettingsProps = {
   goalDraft: OverlayActiveGoalState;
   saveActiveGoal: () => Promise<void>;
   setGoalDraft: (goal: OverlayActiveGoalState) => void;
+  unsupportedProductControlsEnabled: boolean;
   updateGoalDraft: (patch: Partial<OverlayActiveGoalState>) => void;
 };
 
@@ -156,68 +161,75 @@ export const GoalWidgetSettings = ({
   goalDraft,
   saveActiveGoal,
   setGoalDraft,
+  unsupportedProductControlsEnabled,
   updateGoalDraft
-}: GoalWidgetSettingsProps): React.ReactNode => (
-  <details className="notification-settings">
-    <summary>Goal widget</summary>
-    <label>
-      <span>Enabled</span>
-      <input
-        checked={goalDraft.enabled}
-        type="checkbox"
-        onChange={(event) => updateGoalDraft({ enabled: event.currentTarget.checked })}
-      />
-    </label>
-    <label>
-      <span>Label</span>
-      <input
-        maxLength={80}
-        type="text"
-        value={goalDraft.label}
-        onChange={(event) => updateGoalDraft({ label: event.currentTarget.value })}
-      />
-    </label>
-    <label>
-      <span>Current</span>
-      <input
-        min={0}
-        max={1000000}
-        step={1}
-        type="number"
-        value={goalDraft.currentAmount}
-        onChange={(event) => updateGoalDraft({ currentAmount: Number(event.currentTarget.value) })}
-      />
-    </label>
-    <label>
-      <span>Target</span>
-      <input
-        min={1}
-        max={1000000}
-        step={1}
-        type="number"
-        value={goalDraft.targetAmount}
-        onChange={(event) => updateGoalDraft({ targetAmount: Number(event.currentTarget.value) })}
-      />
-    </label>
-    <label>
-      <span>Currency</span>
-      <input
-        maxLength={3}
-        type="text"
-        value={goalDraft.currencyCode}
-        onChange={(event) => updateGoalDraft({ currencyCode: event.currentTarget.value.toUpperCase() })}
-      />
-    </label>
-    <div className="status-action-group goal-settings-actions">
-      <button type="button" className="status-action" onClick={() => setGoalDraft(activeGoal ?? defaultGoalDraft())}>
-        Reset
-      </button>
-      <button type="button" className="status-action" onClick={() => void saveActiveGoal()}>
-        Save goal
-      </button>
-    </div>
-  </details>
-);
+}: GoalWidgetSettingsProps): React.ReactNode => {
+  if (!unsupportedProductControlsEnabled) {
+    return null;
+  }
+
+  return (
+    <details className="notification-settings">
+      <summary>Goal widget</summary>
+      <label>
+        <span>Enabled</span>
+        <input
+          checked={goalDraft.enabled}
+          type="checkbox"
+          onChange={(event) => updateGoalDraft({ enabled: event.currentTarget.checked })}
+        />
+      </label>
+      <label>
+        <span>Label</span>
+        <input
+          maxLength={80}
+          type="text"
+          value={goalDraft.label}
+          onChange={(event) => updateGoalDraft({ label: event.currentTarget.value })}
+        />
+      </label>
+      <label>
+        <span>Current</span>
+        <input
+          min={0}
+          max={1000000}
+          step={1}
+          type="number"
+          value={goalDraft.currentAmount}
+          onChange={(event) => updateGoalDraft({ currentAmount: Number(event.currentTarget.value) })}
+        />
+      </label>
+      <label>
+        <span>Target</span>
+        <input
+          min={1}
+          max={1000000}
+          step={1}
+          type="number"
+          value={goalDraft.targetAmount}
+          onChange={(event) => updateGoalDraft({ targetAmount: Number(event.currentTarget.value) })}
+        />
+      </label>
+      <label>
+        <span>Currency</span>
+        <input
+          maxLength={3}
+          type="text"
+          value={goalDraft.currencyCode}
+          onChange={(event) => updateGoalDraft({ currencyCode: event.currentTarget.value.toUpperCase() })}
+        />
+      </label>
+      <div className="status-action-group goal-settings-actions">
+        <button type="button" className="status-action" onClick={() => setGoalDraft(activeGoal ?? defaultGoalDraft())}>
+          Reset
+        </button>
+        <button type="button" className="status-action" onClick={() => void saveActiveGoal()}>
+          Save goal
+        </button>
+      </div>
+    </details>
+  );
+};
 
 type NotificationSettingsProps = {
   centerEnabled: boolean;

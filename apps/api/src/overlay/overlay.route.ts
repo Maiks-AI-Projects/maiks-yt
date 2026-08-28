@@ -113,37 +113,39 @@ export const registerOverlayRoutes = (
     };
   });
 
-  server.post("/overlay/goal", async (request, reply) => {
-    const parsedRequest = overlayGoalStateSchema.safeParse(request.body);
+  if (process.env.NODE_ENV !== "production") {
+    server.post("/overlay/goal", async (request, reply) => {
+      const parsedRequest = overlayGoalStateSchema.safeParse(request.body);
 
-    if (!parsedRequest.success) {
-      reply.code(400);
+      if (!parsedRequest.success) {
+        reply.code(400);
+        return {
+          ok: false,
+          reason: "invalid_request"
+        };
+      }
+
+      const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
+
+      if (!tokenValidation.ok) {
+        return applyControlPanelAccessFailure(reply, tokenValidation);
+      }
+
+      const activeGoal = overlayRuntime.setActiveGoal({
+        enabled: parsedRequest.data.enabled,
+        label: parsedRequest.data.label,
+        currentAmount: parsedRequest.data.currentAmount,
+        targetAmount: parsedRequest.data.targetAmount,
+        currencyCode: parsedRequest.data.currencyCode
+      });
+
       return {
-        ok: false,
-        reason: "invalid_request"
+        ok: true,
+        activeGoal,
+        activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
       };
-    }
-
-    const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
-
-    if (!tokenValidation.ok) {
-      return applyControlPanelAccessFailure(reply, tokenValidation);
-    }
-
-    const activeGoal = overlayRuntime.setActiveGoal({
-      enabled: parsedRequest.data.enabled,
-      label: parsedRequest.data.label,
-      currentAmount: parsedRequest.data.currentAmount,
-      targetAmount: parsedRequest.data.targetAmount,
-      currencyCode: parsedRequest.data.currencyCode
     });
-
-    return {
-      ok: true,
-      activeGoal,
-      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-    };
-  });
+  }
 
   server.post("/overlay/center/settings", async (request, reply) => {
     const parsedRequest = overlayCenterSettingsRequestSchema.safeParse(request.body);
@@ -296,31 +298,33 @@ export const registerOverlayRoutes = (
     };
   });
 
-  server.post("/overlay/sponsor/visibility", async (request, reply) => {
-    const parsedRequest = overlaySponsorVisibilityRequestSchema.safeParse(request.body);
+  if (process.env.NODE_ENV !== "production") {
+    server.post("/overlay/sponsor/visibility", async (request, reply) => {
+      const parsedRequest = overlaySponsorVisibilityRequestSchema.safeParse(request.body);
 
-    if (!parsedRequest.success) {
-      reply.code(400);
+      if (!parsedRequest.success) {
+        reply.code(400);
+        return {
+          ok: false,
+          reason: "invalid_request"
+        };
+      }
+
+      const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
+
+      if (!tokenValidation.ok) {
+        return applyControlPanelAccessFailure(reply, tokenValidation);
+      }
+
+      const sponsorVisible = overlayRuntime.setSponsorVisible(parsedRequest.data.visible);
+
       return {
-        ok: false,
-        reason: "invalid_request"
+        ok: true,
+        sponsorVisible,
+        activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
       };
-    }
-
-    const tokenValidation = await requireControlPanelAccess(request, parsedRequest.data.accessToken);
-
-    if (!tokenValidation.ok) {
-      return applyControlPanelAccessFailure(reply, tokenValidation);
-    }
-
-    const sponsorVisible = overlayRuntime.setSponsorVisible(parsedRequest.data.visible);
-
-    return {
-      ok: true,
-      sponsorVisible,
-      activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
-    };
-  });
+    });
+  }
 
   server.post("/overlay/ai/muted", async (request, reply) => {
     const parsedRequest = overlayAiMutedRequestSchema.safeParse(request.body);
