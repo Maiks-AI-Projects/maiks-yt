@@ -1,5 +1,12 @@
 # Next Agent Tasks
 
+## Public Schedule browser contract deployed
+
+- Production revision `c6b32aa8b7dbf6794e32a654a826ed7b4d0cb91b` is deployed to Web and API on provenance-labelled image `sha256:7c6b3c17cecd633b0eb4f7110d57de33d3514be5a587143b835f9ea2a4bd1d6a`. Do not repeat the deployment.
+- Anonymous Schedule responses contain no schedule/project/game-link/game ids or operator-only state. Private admin contracts still retain ids. Public consumers parse exact bounded fields and fail closed; private/draft Project focus remains hidden unless the linked Project is public.
+- Public HTTP/API, container health/restarts, rollback, logs, Control/Overlay preservation, and the empty live Schedule shape are verified. The next Schedule gate is a positive signed-in owner lifecycle and one real populated public entry; do not create durable Schedule data merely to repeat source-deployment proof.
+- The next ranked anonymous-contract slice is Games: remove only the public game database id, keep the existing slug as public identity, switch public keys to the slug, and add strict runtime parsing. Preserve all owner/admin ids and private suggestion review behavior.
+
 ## Public Project browser contracts deployed
 
 - Production revision `ab2682f9d278a87da9797aadde5cfd0c4f8883d1` is deployed to Web and API on provenance-labelled image `sha256:18f611d8e003ae5e02c255cb14dd49376908f5213dd8b420967ac7ccd1a311ab`. Do not repeat the deployment.
