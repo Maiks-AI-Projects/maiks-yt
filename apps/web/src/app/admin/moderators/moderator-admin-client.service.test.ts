@@ -4,7 +4,9 @@ import {
   getFailureMessage,
   rankPathIsProtectedForEditing,
   roleIsProtectedForEditing,
-  type ModeratorAdminRole
+  toRolePayload,
+  type ModeratorAdminRole,
+  type RoleFormState
 } from "./moderator-admin-client.service";
 
 const now = "2026-08-28T12:00:00.000Z";
@@ -31,6 +33,24 @@ const createRole = (overrides: Partial<ModeratorAdminRole> = {}): ModeratorAdmin
 });
 
 describe("moderator admin client contract", () => {
+  it("preserves a stored Discord mapping in an unrelated role edit payload", () => {
+    const form: RoleFormState = {
+      id: "helper-role",
+      key: "community-helper",
+      name: "Updated helper name",
+      permissions: "chat:view",
+      rankPathId: "mod-path",
+      rankLevel: "1",
+      displayLabel: "Helper",
+      nextRoleId: "",
+      discordRoleId: "  stored-discord-role  ",
+      isOwnerRank: false,
+      isSystem: false
+    };
+
+    expect(toRolePayload(form).discordRoleId).toBe("stored-discord-role");
+  });
+
   it("shows finite protected-rank copy before generic 403 permission copy", () => {
     const forbidden = new Response(null, { status: 403 });
 
