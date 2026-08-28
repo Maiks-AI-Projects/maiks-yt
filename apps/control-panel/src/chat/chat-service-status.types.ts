@@ -1,57 +1,44 @@
+export type ChatServiceStatusIssue = {
+  code:
+    | "discord_not_configured"
+    | "discord_reconnect_suppressed"
+    | "discord_runtime_problem"
+    | "twitch_not_configured"
+    | "twitch_reconnect_suppressed"
+    | "twitch_runtime_problem"
+    | "youtube_not_configured"
+    | "youtube_runtime_problem";
+  copy: string;
+};
+
 export type TwitchChatIntakeStatus = {
-  channelName: string | null;
-  channelNames: readonly string[];
-  connectedAt: string | null;
-  disconnectsInWindow: number;
-  lastError: string | null;
-  lastDisconnectAt: string | null;
-  lastMessageAt: string | null;
-  nextReconnectAt: string | null;
-  recentMessages: Array<{
-    id: string;
-    authorName: string;
-    createdAt: string;
-    message: string;
-  }>;
-  reconnectSuppressed: boolean;
+  provider: "twitch";
   state: "stopped" | "connecting" | "connected" | "unconfigured";
+  targetLabel: string | null;
+  lastMessageAt: string | null;
+  nextRetryAt: string | null;
+  reconnectSuppressed: boolean;
+  issue: ChatServiceStatusIssue | null;
 };
 
 export type DiscordChatIntakeStatus = {
-  channelIds: readonly string[];
-  connectedAt: string | null;
-  disconnectsInWindow: number;
-  guildId: string | null;
-  lastError: string | null;
-  lastDisconnectAt: string | null;
-  lastMessageAt: string | null;
-  nextReconnectAt: string | null;
-  recentMessages: Array<{
-    id: string;
-    authorName: string;
-    channelName: string;
-    createdAt: string;
-    message: string;
-  }>;
-  reconnectSuppressed: boolean;
+  provider: "discord";
   state: "stopped" | "connecting" | "connected" | "unconfigured";
+  targetLabel: string | null;
+  lastMessageAt: string | null;
+  nextRetryAt: string | null;
+  reconnectSuppressed: boolean;
+  issue: ChatServiceStatusIssue | null;
 };
 
 export type YouTubeLiveChatIntakeStatus = {
-  activeLiveChatId: string | null;
-  channelId: string | null;
-  channelName: string | null;
-  connectedAt: string | null;
-  lastError: string | null;
+  provider: "youtube";
+  state: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+  targetLabel: string | null;
   lastMessageAt: string | null;
   nextPollAt: string | null;
-  recentMessages: Array<{
-    id: string;
-    authorName: string;
-    createdAt: string;
-    message: string;
-  }>;
-  state: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+  reconnectSuppressed: false;
+  issue: ChatServiceStatusIssue | null;
 };
 
 export type TwitchChatStatusResponse = {

@@ -315,27 +315,30 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
   const twitchTone = getTwitchServiceTone(status);
   const twitchDetail = [
     status ? twitchIntakeStateLabels[status.state] : "Loading",
-    status?.channelNames.length ? status.channelNames.map((channelName) => `#${channelName}`).join(" + ") : null,
+    status?.targetLabel ?? null,
     status?.lastMessageAt ? `last ${formatChatTime(status.lastMessageAt)}` : null,
-    status?.nextReconnectAt ? `retry ${formatChatTime(status.nextReconnectAt)}` : null,
-    status?.disconnectsInWindow ? `${status.disconnectsInWindow}/10 disconnects` : null
+    status?.nextRetryAt ? `retry ${formatChatTime(status.nextRetryAt)}` : null,
+    status?.reconnectSuppressed ? "reconnect paused" : null,
+    status?.issue && !status.reconnectSuppressed ? "needs attention" : null
   ].filter(Boolean).join(" - ");
   const twitchTitle = `${message}${checkedAt ? ` Checked ${formatChatTime(checkedAt)}.` : ""}`;
   const discordTone = getDiscordServiceTone(discordStatus);
   const discordDetail = [
     discordStatus ? discordIntakeStateLabels[discordStatus.state] : "Loading",
-    discordStatus?.channelIds.length ? `${discordStatus.channelIds.length} channel(s)` : "guild-wide",
+    discordStatus?.targetLabel ?? null,
     discordStatus?.lastMessageAt ? `last ${formatChatTime(discordStatus.lastMessageAt)}` : null,
-    discordStatus?.nextReconnectAt ? `retry ${formatChatTime(discordStatus.nextReconnectAt)}` : null,
-    discordStatus?.disconnectsInWindow ? `${discordStatus.disconnectsInWindow}/10 disconnects` : null
+    discordStatus?.nextRetryAt ? `retry ${formatChatTime(discordStatus.nextRetryAt)}` : null,
+    discordStatus?.reconnectSuppressed ? "reconnect paused" : null,
+    discordStatus?.issue && !discordStatus.reconnectSuppressed ? "needs attention" : null
   ].filter(Boolean).join(" - ");
   const discordTitle = `${discordMessage}${discordCheckedAt ? ` Checked ${formatChatTime(discordCheckedAt)}.` : ""}`;
   const youtubeTone = getYouTubeServiceTone(youtubeStatus);
   const youtubeDetail = [
     youtubeStatus ? youtubeIntakeStateLabels[youtubeStatus.state] : "Loading",
-    youtubeStatus?.channelName ? youtubeStatus.channelName : null,
+    youtubeStatus?.targetLabel ?? null,
     youtubeStatus?.lastMessageAt ? `last ${formatChatTime(youtubeStatus.lastMessageAt)}` : null,
-    youtubeStatus?.nextPollAt ? `next ${formatChatTime(youtubeStatus.nextPollAt)}` : null
+    youtubeStatus?.nextPollAt ? `next ${formatChatTime(youtubeStatus.nextPollAt)}` : null,
+    youtubeStatus?.issue ? "needs attention" : null
   ].filter(Boolean).join(" - ");
   const youtubeTitle = `${youtubeMessage}${youtubeCheckedAt ? ` Checked ${formatChatTime(youtubeCheckedAt)}.` : ""}`;
 

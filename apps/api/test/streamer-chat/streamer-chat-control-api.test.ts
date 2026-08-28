@@ -22,20 +22,120 @@ const createMessage = (): StreamerChatMessage => ({
   visibleOnOverlayByDefault: false
 });
 
-const createStatusRuntime = () => ({
+const createTwitchStatusRuntime = () => ({
   getStatus: vi.fn(() => ({
     channelName: "maiksmc",
+    channelNames: ["maiksmc", "maiksplays"],
     connectedAt: null,
-    lastError: null,
-    lastMessageAt: null,
-    recentMessages: [],
+    disconnectsInWindow: 4,
+    lastDisconnectAt: "2026-08-27T00:01:00.000Z",
+    lastError: "Authorization: Bearer secret-twitch-value failed for broadcasterId=987654321 payload={raw}",
+    lastMessageAt: "2026-08-27T00:02:00.000Z",
+    nextReconnectAt: "2026-08-27T00:03:00.000Z",
+    recentMessages: [{
+      id: "twitch-recent-1",
+      authorKind: "human",
+      authorName: "Recent Twitch Viewer",
+      channelName: "maiksmc",
+      createdAt: "2026-08-27T00:02:00.000Z",
+      message: "raw recent twitch message",
+      providerMessageId: "provider-twitch-message-1",
+      source: "twitch",
+      userId: "twitch-user-1",
+      userName: "recentviewer",
+      visibleOnOverlayByDefault: false
+    }],
+    reconnectSuppressed: false,
     state: "stopped"
   })),
   start: vi.fn(() => ({
     channelName: "maiksmc",
+    channelNames: ["maiksmc", "maiksplays"],
     connectedAt: "2026-08-27T00:00:00.000Z",
+    disconnectsInWindow: 0,
+    lastDisconnectAt: null,
     lastError: null,
-    lastMessageAt: null,
+    lastMessageAt: "2026-08-27T00:02:00.000Z",
+    nextReconnectAt: null,
+    recentMessages: [],
+    reconnectSuppressed: false,
+    state: "connected"
+  }))
+});
+
+const createDiscordStatusRuntime = () => ({
+  getStatus: vi.fn(() => ({
+    channelIds: ["123456789012345678", "234567890123456789"],
+    connectedAt: null,
+    disconnectsInWindow: 10,
+    guildId: "345678901234567890",
+    lastDisconnectAt: "2026-08-27T00:04:00.000Z",
+    lastError: "Discord raw failure for guildId=345678901234567890 channelId=123456789012345678 token=secret-discord-value",
+    lastMessageAt: "2026-08-27T00:05:00.000Z",
+    nextReconnectAt: "2026-08-27T00:06:00.000Z",
+    recentMessages: [{
+      id: "discord-recent-1",
+      authorKind: "human",
+      authorName: "Discord Viewer",
+      channelId: "123456789012345678",
+      channelName: "general",
+      createdAt: "2026-08-27T00:05:00.000Z",
+      guildId: "345678901234567890",
+      message: "raw recent discord message",
+      providerMessageId: "provider-discord-message-1",
+      source: "discord",
+      userId: "discord-user-1",
+      visibleOnOverlayByDefault: false
+    }],
+    reconnectSuppressed: true,
+    state: "stopped"
+  })),
+  start: vi.fn(() => ({
+    channelIds: ["123456789012345678", "234567890123456789"],
+    connectedAt: "2026-08-27T00:07:00.000Z",
+    disconnectsInWindow: 0,
+    guildId: "345678901234567890",
+    lastDisconnectAt: null,
+    lastError: null,
+    lastMessageAt: "2026-08-27T00:05:00.000Z",
+    nextReconnectAt: null,
+    recentMessages: [],
+    reconnectSuppressed: false,
+    state: "connected"
+  }))
+});
+
+const createYouTubeStatusRuntime = () => ({
+  getStatus: vi.fn(() => ({
+    activeLiveChatId: "active-live-chat-1",
+    channelId: "UC1234567890123456789012",
+    channelName: "MaiksMC",
+    connectedAt: null,
+    lastError: "YouTube raw polling failure for liveChatId=active-live-chat-1 channelId=UC1234567890123456789012 secret-youtube-value",
+    lastMessageAt: "2026-08-27T00:08:00.000Z",
+    nextPollAt: "2026-08-27T00:09:00.000Z",
+    recentMessages: [{
+      id: "youtube-recent-1",
+      authorChannelId: "UC-author-123456789",
+      authorKind: "human",
+      authorName: "YouTube Viewer",
+      channelName: "MaiksMC",
+      createdAt: "2026-08-27T00:08:00.000Z",
+      message: "raw recent youtube message",
+      providerMessageId: "provider-youtube-message-1",
+      source: "youtube",
+      visibleOnOverlayByDefault: false
+    }],
+    state: "waiting"
+  })),
+  start: vi.fn(() => ({
+    activeLiveChatId: "active-live-chat-1",
+    channelId: "UC1234567890123456789012",
+    channelName: "MaiksMC",
+    connectedAt: "2026-08-27T00:10:00.000Z",
+    lastError: null,
+    lastMessageAt: "2026-08-27T00:08:00.000Z",
+    nextPollAt: "2026-08-27T00:11:00.000Z",
     recentMessages: [],
     state: "connected"
   }))
@@ -86,9 +186,9 @@ const createServer = async (
   const server = Fastify();
   const databasePool = createDatabasePool(rolePermissionValues);
   const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: 10 });
-  const twitchRuntime = createStatusRuntime();
-  const discordRuntime = createStatusRuntime();
-  const youtubeRuntime = createStatusRuntime();
+  const twitchRuntime = createTwitchStatusRuntime();
+  const discordRuntime = createDiscordStatusRuntime();
+  const youtubeRuntime = createYouTubeStatusRuntime();
 
   await server.register(fastifyWebsocket);
   registerStreamerChatControlRoutes(server, {
@@ -178,6 +278,193 @@ describe("streamer chat control API", () => {
     });
   });
 
+  it("returns minimal safe provider status projections for the private chat PWA", async () => {
+    const { server } = await createServer(async () => createSuccessfulAccessResult());
+
+    const twitchResponse = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/twitch-status?accessToken=${validAccessToken}`
+    });
+    const discordResponse = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/discord-status?accessToken=${validAccessToken}`
+    });
+    const youtubeResponse = await server.inject({
+      method: "GET",
+      url: `/streamer-chat/youtube-status?accessToken=${validAccessToken}`
+    });
+    const bodies = [
+      twitchResponse.json(),
+      discordResponse.json(),
+      youtubeResponse.json()
+    ];
+    const serialized = JSON.stringify(bodies);
+
+    expect(twitchResponse.statusCode).toBe(200);
+    expect(twitchResponse.json()).toEqual({
+      ok: true,
+      readOnly: true,
+      checkedAt: expect.any(String),
+      status: {
+        provider: "twitch",
+        state: "stopped",
+        targetLabel: "#maiksmc + #maiksplays",
+        lastMessageAt: "2026-08-27T00:02:00.000Z",
+        nextRetryAt: "2026-08-27T00:03:00.000Z",
+        reconnectSuppressed: false,
+        issue: {
+          code: "twitch_runtime_problem",
+          copy: "Twitch chat intake needs attention. Open provider admin for details."
+        }
+      }
+    });
+    expect(discordResponse.statusCode).toBe(200);
+    expect(discordResponse.json()).toEqual({
+      ok: true,
+      readOnly: true,
+      checkedAt: expect.any(String),
+      status: {
+        provider: "discord",
+        state: "stopped",
+        targetLabel: "2 selected channels",
+        lastMessageAt: "2026-08-27T00:05:00.000Z",
+        nextRetryAt: "2026-08-27T00:06:00.000Z",
+        reconnectSuppressed: true,
+        issue: {
+          code: "discord_reconnect_suppressed",
+          copy: "Auto reconnect is paused after repeated disconnects. Open provider admin or retry manually."
+        }
+      }
+    });
+    expect(youtubeResponse.statusCode).toBe(200);
+    expect(youtubeResponse.json()).toEqual({
+      ok: true,
+      readOnly: true,
+      checkedAt: expect.any(String),
+      status: {
+        provider: "youtube",
+        state: "waiting",
+        targetLabel: "MaiksMC",
+        lastMessageAt: "2026-08-27T00:08:00.000Z",
+        nextPollAt: "2026-08-27T00:09:00.000Z",
+        reconnectSuppressed: false,
+        issue: {
+          code: "youtube_runtime_problem",
+          copy: "YouTube live-chat polling needs attention. Open provider admin for details."
+        }
+      }
+    });
+    expect(serialized).not.toContain("recentMessages");
+    expect(serialized).not.toContain("lastError");
+    expect(serialized).not.toContain("disconnectsInWindow");
+    expect(serialized).not.toContain("lastDisconnectAt");
+    expect(serialized).not.toContain("connectedAt");
+    expect(serialized).not.toContain("channelIds");
+    expect(serialized).not.toContain("guildId");
+    expect(serialized).not.toContain("channelId");
+    expect(serialized).not.toContain("activeLiveChatId");
+    expect(serialized).not.toContain("raw recent");
+    expect(serialized).not.toContain("Authorization");
+    expect(serialized).not.toContain("secret");
+    expect(serialized).not.toContain("987654321");
+    expect(serialized).not.toContain("123456789012345678");
+    expect(serialized).not.toContain("UC1234567890123456789012");
+    expect(serialized).not.toContain("active-live-chat-1");
+  });
+
+  it("returns minimal safe provider status projections after private PWA reconnect", async () => {
+    const { discordRuntime, server, twitchRuntime, youtubeRuntime } = await createServer(
+      async () => createSuccessfulAccessResult()
+    );
+
+    const twitchResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/twitch-reconnect",
+      payload: {
+        accessToken: validAccessToken
+      }
+    });
+    const discordResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/discord-reconnect",
+      payload: {
+        accessToken: validAccessToken
+      }
+    });
+    const youtubeResponse = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/youtube-reconnect",
+      payload: {
+        accessToken: validAccessToken
+      }
+    });
+    const bodies = [
+      twitchResponse.json(),
+      discordResponse.json(),
+      youtubeResponse.json()
+    ];
+    const serialized = JSON.stringify(bodies);
+
+    expect(twitchResponse.statusCode).toBe(200);
+    expect(twitchResponse.json()).toEqual({
+      ok: true,
+      readOnly: true,
+      checkedAt: expect.any(String),
+      status: {
+        provider: "twitch",
+        state: "connected",
+        targetLabel: "#maiksmc + #maiksplays",
+        lastMessageAt: "2026-08-27T00:02:00.000Z",
+        nextRetryAt: null,
+        reconnectSuppressed: false,
+        issue: null
+      }
+    });
+    expect(discordResponse.statusCode).toBe(200);
+    expect(discordResponse.json()).toEqual({
+      ok: true,
+      readOnly: true,
+      checkedAt: expect.any(String),
+      status: {
+        provider: "discord",
+        state: "connected",
+        targetLabel: "2 selected channels",
+        lastMessageAt: "2026-08-27T00:05:00.000Z",
+        nextRetryAt: null,
+        reconnectSuppressed: false,
+        issue: null
+      }
+    });
+    expect(youtubeResponse.statusCode).toBe(200);
+    expect(youtubeResponse.json()).toEqual({
+      ok: true,
+      readOnly: true,
+      checkedAt: expect.any(String),
+      status: {
+        provider: "youtube",
+        state: "connected",
+        targetLabel: "MaiksMC",
+        lastMessageAt: "2026-08-27T00:08:00.000Z",
+        nextPollAt: "2026-08-27T00:11:00.000Z",
+        reconnectSuppressed: false,
+        issue: null
+      }
+    });
+    expect(serialized).not.toContain("recentMessages");
+    expect(serialized).not.toContain("lastError");
+    expect(serialized).not.toContain("disconnectsInWindow");
+    expect(serialized).not.toContain("channelIds");
+    expect(serialized).not.toContain("guildId");
+    expect(serialized).not.toContain("channelId");
+    expect(serialized).not.toContain("activeLiveChatId");
+    expect(serialized).not.toContain("secret");
+    expect(serialized).not.toContain("123456789012345678");
+    expect(serialized).not.toContain("UC1234567890123456789012");
+    expect(discordRuntime.start).toHaveBeenCalledTimes(1);
+    expect(twitchRuntime.start).toHaveBeenCalledTimes(1);
+    expect(youtubeRuntime.start).toHaveBeenCalledTimes(1);
+  });
+
   it("allows chat:view helpers to read messages, status, reconnect, and live websocket snapshots", async () => {
     const requireUrlAccessTokenForRequest = vi.fn(async () => createSuccessfulAccessResult());
     const { discordRuntime, server, streamerChatRuntime, twitchRuntime, youtubeRuntime } = await createServer(
@@ -265,7 +552,7 @@ describe("streamer chat control API", () => {
       ok: true,
       readOnly: true,
       status: {
-        state: "stopped"
+        state: "waiting"
       }
     });
     expect(reconnectResponse.statusCode).toBe(200);
@@ -360,8 +647,11 @@ describe("streamer chat control API", () => {
       });
     }
 
+    expect(discordRuntime.getStatus).not.toHaveBeenCalled();
     expect(discordRuntime.start).not.toHaveBeenCalled();
+    expect(twitchRuntime.getStatus).not.toHaveBeenCalled();
     expect(twitchRuntime.start).not.toHaveBeenCalled();
+    expect(youtubeRuntime.getStatus).not.toHaveBeenCalled();
     expect(youtubeRuntime.start).not.toHaveBeenCalled();
   });
 

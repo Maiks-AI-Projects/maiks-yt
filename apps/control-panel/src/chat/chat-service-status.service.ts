@@ -27,11 +27,11 @@ export const getTwitchIntakeStatusCopy = (status: TwitchChatIntakeStatus | null)
   }
 
   if (status.reconnectSuppressed) {
-    return "Auto reconnect paused after repeated disconnects. Open provider admin or retry manually.";
+    return status.issue?.copy ?? "Auto reconnect paused after repeated disconnects. Open provider admin or retry manually.";
   }
 
-  if (status.lastError) {
-    return status.lastError;
+  if (status.issue) {
+    return status.issue.copy;
   }
 
   switch (status.state) {
@@ -54,11 +54,11 @@ export const getDiscordIntakeStatusCopy = (status: DiscordChatIntakeStatus | nul
   }
 
   if (status.reconnectSuppressed) {
-    return "Auto reconnect paused after repeated Discord disconnects. Open provider admin or retry manually.";
+    return status.issue?.copy ?? "Auto reconnect paused after repeated Discord disconnects. Open provider admin or retry manually.";
   }
 
-  if (status.lastError) {
-    return status.lastError;
+  if (status.issue) {
+    return status.issue.copy;
   }
 
   switch (status.state) {
@@ -80,8 +80,8 @@ export const getYouTubeIntakeStatusCopy = (status: YouTubeLiveChatIntakeStatus |
     return "Loading YouTube live-chat state.";
   }
 
-  if (status.lastError) {
-    return status.lastError;
+  if (status.issue) {
+    return status.issue.copy;
   }
 
   switch (status.state) {
@@ -105,11 +105,11 @@ export const getTwitchServiceTone = (status: TwitchChatIntakeStatus | null): Ser
     return "loading";
   }
 
-  if (status.state === "connected" && !status.lastError && !status.reconnectSuppressed) {
+  if (status.state === "connected" && !status.issue && !status.reconnectSuppressed) {
     return "connected";
   }
 
-  if (status.state === "connecting" || status.lastError || status.reconnectSuppressed) {
+  if (status.state === "connecting" || status.issue || status.reconnectSuppressed) {
     return "problem";
   }
 
@@ -121,11 +121,11 @@ export const getDiscordServiceTone = (status: DiscordChatIntakeStatus | null): S
     return "loading";
   }
 
-  if (status.state === "connected" && !status.lastError && !status.reconnectSuppressed) {
+  if (status.state === "connected" && !status.issue && !status.reconnectSuppressed) {
     return "connected";
   }
 
-  if (status.state === "connecting" || status.lastError || status.reconnectSuppressed) {
+  if (status.state === "connecting" || status.issue || status.reconnectSuppressed) {
     return "problem";
   }
 
@@ -137,11 +137,11 @@ export const getYouTubeServiceTone = (status: YouTubeLiveChatIntakeStatus | null
     return "loading";
   }
 
-  if (status.state === "connected" && !status.lastError) {
+  if (status.state === "connected" && !status.issue) {
     return "connected";
   }
 
-  if (status.state === "connecting" || status.state === "waiting" || status.lastError) {
+  if (status.state === "connecting" || status.state === "waiting" || status.issue) {
     return "problem";
   }
 

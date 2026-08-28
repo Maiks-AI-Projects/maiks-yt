@@ -12,6 +12,11 @@ import type {
 import type { RequireUrlAccessTokenForRequest } from "../url-access-token-request-access.service.js";
 import { createRequireStreamerChatControlAccess } from "./streamer-chat-control-access.service.js";
 import type { StreamerChatLiveSocket, StreamerChatRuntime } from "./index.js";
+import {
+  projectDiscordStreamerChatStatus,
+  projectTwitchStreamerChatStatus,
+  projectYouTubeStreamerChatStatus
+} from "./streamer-chat-status-projection.service.js";
 
 const streamerChatAccessRequestSchema = z.object({
   accessToken: z.string().min(24)
@@ -90,7 +95,7 @@ export const registerStreamerChatControlRoutes = (
     return {
       ok: true,
       readOnly: true,
-      status: dependencies.twitchChatIntakeRuntime.getStatus(),
+      status: projectTwitchStreamerChatStatus(dependencies.twitchChatIntakeRuntime.getStatus()),
       checkedAt: new Date().toISOString()
     };
   });
@@ -119,7 +124,7 @@ export const registerStreamerChatControlRoutes = (
     return {
       ok: true,
       readOnly: true,
-      status: dependencies.twitchChatIntakeRuntime.start(),
+      status: projectTwitchStreamerChatStatus(dependencies.twitchChatIntakeRuntime.start()),
       checkedAt: new Date().toISOString()
     };
   });
@@ -148,7 +153,7 @@ export const registerStreamerChatControlRoutes = (
     return {
       ok: true,
       readOnly: true,
-      status: dependencies.discordChatIntakeRuntime.getStatus(),
+      status: projectDiscordStreamerChatStatus(dependencies.discordChatIntakeRuntime.getStatus()),
       checkedAt: new Date().toISOString()
     };
   });
@@ -177,7 +182,7 @@ export const registerStreamerChatControlRoutes = (
     return {
       ok: true,
       readOnly: true,
-      status: dependencies.discordChatIntakeRuntime.start(),
+      status: projectDiscordStreamerChatStatus(dependencies.discordChatIntakeRuntime.start()),
       checkedAt: new Date().toISOString()
     };
   });
@@ -206,7 +211,7 @@ export const registerStreamerChatControlRoutes = (
     return {
       ok: true,
       readOnly: true,
-      status: dependencies.youtubeLiveChatIntakeRuntime.getStatus(),
+      status: projectYouTubeStreamerChatStatus(dependencies.youtubeLiveChatIntakeRuntime.getStatus()),
       checkedAt: new Date().toISOString()
     };
   });
@@ -235,7 +240,7 @@ export const registerStreamerChatControlRoutes = (
     return {
       ok: true,
       readOnly: true,
-      status: dependencies.youtubeLiveChatIntakeRuntime.start(),
+      status: projectYouTubeStreamerChatStatus(dependencies.youtubeLiveChatIntakeRuntime.start()),
       checkedAt: new Date().toISOString()
     };
   });
