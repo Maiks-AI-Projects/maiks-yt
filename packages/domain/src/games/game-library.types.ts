@@ -107,6 +107,20 @@ export type GameSuggestionSource = {
   updatedAt: string;
 };
 
+export type GameSuggestionAdminEntry = {
+  id: string;
+  title: string;
+  platformLabel: string | null;
+  storeUrl: string | null;
+  reason: string | null;
+  tags: readonly string[];
+  suggestedByName: string | null;
+  status: GameSuggestionStatus;
+  linkedGameId: string | null;
+  reviewerNote: string | null;
+  reviewedAt: string | null;
+};
+
 export type PublicGameSuggestionInput = {
   title: string;
   platformLabel?: string | null | undefined;

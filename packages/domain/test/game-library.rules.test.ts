@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPublicGameLibraryEntry,
+  buildGameSuggestionAdminEntry,
   canManageGameLibrary,
   createGameSlugFromTitle,
   gameLibraryManageCapability,
@@ -11,7 +12,8 @@ import {
   normalizeGameSuggestionReviewInput,
   normalizeGameSlug,
   normalizePublicGameSuggestionInput,
-  type GameLibrarySource
+  type GameLibrarySource,
+  type GameSuggestionSource
 } from "../src/games/index.js";
 
 const createGame = (overrides: Partial<GameLibrarySource> = {}): GameLibrarySource => ({
@@ -34,6 +36,26 @@ const createGame = (overrides: Partial<GameLibrarySource> = {}): GameLibrarySour
   updatedByUserId: "owner",
   createdAt: "2026-07-09T20:00:00.000Z",
   updatedAt: "2026-07-09T20:30:00.000Z",
+  ...overrides
+});
+
+const createSuggestion = (overrides: Partial<GameSuggestionSource> = {}): GameSuggestionSource => ({
+  id: "suggestion-1",
+  title: "Factorio",
+  platformLabel: "PC",
+  storeUrl: "https://example.com/factorio",
+  reason: "Automation classic.",
+  tags: ["automation"],
+  suggestedByUserId: "domain-viewer",
+  suggestedByName: "Viewer",
+  status: "accepted",
+  linkedGameId: "game-1",
+  reviewerUserId: "domain-reviewer",
+  reviewerNote: "Added to the list.",
+  reviewedAt: "2026-07-09T21:00:00.000Z",
+  isPublic: false,
+  createdAt: "2026-07-09T20:00:00.000Z",
+  updatedAt: "2026-07-09T21:00:00.000Z",
   ...overrides
 });
 
@@ -97,6 +119,24 @@ describe("game suggestion validation", () => {
     expect(isValidGameSuggestionReviewInput({
       status: "pending" as never
     })).toBe(false);
+  });
+});
+
+describe("private admin game suggestion projection", () => {
+  it("allows only review UI fields into admin suggestion responses", () => {
+    expect(buildGameSuggestionAdminEntry(createSuggestion())).toEqual({
+      id: "suggestion-1",
+      title: "Factorio",
+      platformLabel: "PC",
+      storeUrl: "https://example.com/factorio",
+      reason: "Automation classic.",
+      tags: ["automation"],
+      suggestedByName: "Viewer",
+      status: "accepted",
+      linkedGameId: "game-1",
+      reviewerNote: "Added to the list.",
+      reviewedAt: "2026-07-09T21:00:00.000Z"
+    });
   });
 });
 

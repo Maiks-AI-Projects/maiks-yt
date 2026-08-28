@@ -1,4 +1,5 @@
 import type {
+  GameSuggestionAdminEntry,
   GameLibraryAdminEntry,
   GameLibrarySource,
   GameScheduleAssociationSummary,
@@ -342,6 +343,42 @@ describe("GameLibraryService", () => {
     });
   });
 
+  it("returns exact private admin suggestion DTOs", async () => {
+    const repository = new FakeGameLibraryRepository();
+    repository.suggestions.set("suggestion-1", createSuggestion("suggestion-1", {
+      suggestedByUserId: "domain-viewer",
+      status: "accepted",
+      linkedGameId: "game-1",
+      reviewerUserId: "domain-reviewer",
+      reviewerNote: "Added to the list.",
+      reviewedAt: "2026-07-09T21:00:00.000Z",
+      isPublic: false,
+      createdAt: "2026-07-09T20:00:00.000Z",
+      updatedAt: "2026-07-09T21:00:00.000Z"
+    }));
+    const service = new GameLibraryService(repository);
+
+    await expect(service.listGames({ authUserId: "auth-user" })).resolves.toEqual({
+      ok: true,
+      games: [],
+      suggestions: [
+        {
+          id: "suggestion-1",
+          title: "Suggestion suggestion-1",
+          platformLabel: "PC",
+          storeUrl: "https://example.com/suggested-game",
+          reason: "Looks good for stream.",
+          tags: ["automation"],
+          suggestedByName: "Viewer",
+          status: "accepted",
+          linkedGameId: "game-1",
+          reviewerNote: "Added to the list.",
+          reviewedAt: "2026-07-09T21:00:00.000Z"
+        }
+      ]
+    });
+  });
+
   it("allows owners to review suggestions", async () => {
     const repository = new FakeGameLibraryRepository();
     repository.suggestions.set("suggestion-1", createSuggestion("suggestion-1"));
@@ -356,14 +393,23 @@ describe("GameLibraryService", () => {
         reviewerNote: "Added to library.",
         linkedGameId: "game-1"
       }
-    })).resolves.toMatchObject({
+    })).resolves.toEqual({
       ok: true,
       suggestion: {
+        id: "suggestion-1",
+        title: "Suggestion suggestion-1",
+        platformLabel: "PC",
+        storeUrl: "https://example.com/suggested-game",
+        reason: "Looks good for stream.",
+        tags: ["automation"],
+        suggestedByName: "Viewer",
         status: "accepted",
         linkedGameId: "game-1",
-        reviewerUserId: "domain-user"
+        reviewerNote: "Added to library.",
+        reviewedAt: "2026-07-09T21:00:00.000Z"
       }
     });
+    expect(repository.suggestions.get("suggestion-1")?.reviewerUserId).toBe("domain-user");
   });
 
   it("denies unlinked and normal linked users", async () => {
@@ -666,6 +712,57 @@ describe("game library routes", () => {
     await server.close();
   });
 
+  it("returns exact private admin suggestion DTOs from the admin list route", async () => {
+    const repository = new FakeGameLibraryRepository();
+    repository.suggestions.set("suggestion-1", createSuggestion("suggestion-1", {
+      suggestedByUserId: "domain-viewer",
+      reviewerUserId: "domain-reviewer",
+      status: "rejected",
+      reviewerNote: "Not a fit right now.",
+      reviewedAt: "2026-07-09T21:00:00.000Z",
+      isPublic: false,
+      createdAt: "2026-07-09T20:00:00.000Z",
+      updatedAt: "2026-07-09T21:00:00.000Z"
+    }));
+    const service = new GameLibraryService(repository);
+    const server = Fastify();
+
+    registerGameLibraryRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("not used");
+      },
+      createService: () => service
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/games"
+    });
+
+    expect(response.statusCode).toBe(200);
+    const payload = response.json<{
+      ok: true;
+      suggestions: readonly GameSuggestionAdminEntry[];
+    }>();
+    expect(payload.suggestions).toEqual([
+      {
+        id: "suggestion-1",
+        title: "Suggestion suggestion-1",
+        platformLabel: "PC",
+        storeUrl: "https://example.com/suggested-game",
+        reason: "Looks good for stream.",
+        tags: ["automation"],
+        suggestedByName: "Viewer",
+        status: "rejected",
+        linkedGameId: null,
+        reviewerNote: "Not a fit right now.",
+        reviewedAt: "2026-07-09T21:00:00.000Z"
+      }
+    ]);
+    await server.close();
+  });
+
   it("maps create and update responses", async () => {
     const repository = new FakeGameLibraryRepository();
     const service = new GameLibraryService(repository);
@@ -776,12 +873,20 @@ describe("game library routes", () => {
       }
     });
     expect(reviewResponse.statusCode).toBe(200);
-    expect(reviewResponse.json()).toMatchObject({
+    expect(reviewResponse.json()).toEqual({
       ok: true,
       suggestion: {
+        id: suggestionId,
+        title: "Factorio",
+        platformLabel: "PC",
+        storeUrl: null,
+        reason: "Automation classic.",
+        tags: ["automation"],
+        suggestedByName: "Viewer",
         status: "accepted",
         linkedGameId: "game-1",
-        reviewerUserId: "domain-user"
+        reviewerNote: "Added to the list.",
+        reviewedAt: "2026-07-09T21:00:00.000Z"
       }
     });
     await adminServer.close();

@@ -23,7 +23,7 @@ import type {
   GameInterestStatus,
   GameLibraryAdminEntry,
   GameOwnershipStatus,
-  GameSuggestionSource,
+  GameSuggestionAdminEntry,
   GameSuggestionStatus,
   GameVisibility
 } from "@maiks-yt/domain/games";
@@ -41,7 +41,7 @@ type AdminGamesResponse =
   | {
     ok: true;
     games: readonly GameLibraryAdminEntry[];
-    suggestions: readonly GameSuggestionSource[];
+    suggestions: readonly GameSuggestionAdminEntry[];
   }
   | {
     ok: false;
@@ -61,7 +61,7 @@ type AdminGameMutationResponse =
 type AdminSuggestionMutationResponse =
   | {
     ok: true;
-    suggestion: GameSuggestionSource;
+    suggestion: GameSuggestionAdminEntry;
   }
   | {
     ok: false;
@@ -149,7 +149,7 @@ const toPayload = (form: GameFormState): Record<string, unknown> => ({
   sortOrder: form.sortOrder
 });
 
-const suggestionToGameForm = (suggestion: GameSuggestionSource): GameFormState => ({
+const suggestionToGameForm = (suggestion: GameSuggestionAdminEntry): GameFormState => ({
   title: suggestion.title,
   slug: createGameSlugFromTitle(suggestion.title),
   platformLabel: suggestion.platformLabel ?? "",
@@ -164,7 +164,7 @@ const suggestionToGameForm = (suggestion: GameSuggestionSource): GameFormState =
   sortOrder: 0
 });
 
-const suggestionToGiftedGameForm = (suggestion: GameSuggestionSource): GameFormState => ({
+const suggestionToGiftedGameForm = (suggestion: GameSuggestionAdminEntry): GameFormState => ({
   ...suggestionToGameForm(suggestion),
   ownershipStatus: "gifted"
 });
@@ -294,7 +294,7 @@ const GameArtwork = ({ game, large = false }: { game: GameLibraryAdminEntry; lar
 
 const GameLibraryAdminClient = (): React.ReactNode => {
   const [games, setGames] = useState<readonly GameLibraryAdminEntry[]>([]);
-  const [suggestions, setSuggestions] = useState<readonly GameSuggestionSource[]>([]);
+  const [suggestions, setSuggestions] = useState<readonly GameSuggestionAdminEntry[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [gameForm, setGameForm] = useState<GameFormState>(defaultGameForm);
   const [suggestionReview, setSuggestionReview] = useState<SuggestionReviewState>(defaultSuggestionReviewState);
@@ -420,7 +420,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     suggestionId: string,
     status: Exclude<GameSuggestionStatus, "pending">,
     override?: Partial<SuggestionReviewState>
-  ): Promise<GameSuggestionSource | null> => {
+  ): Promise<GameSuggestionAdminEntry | null> => {
     setBusyAction(`Reviewing ${suggestionId}`);
     setMessage("Reviewing game suggestion...");
 
@@ -501,7 +501,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
   };
 
   const createPrivateGameFromSuggestion = async (
-    suggestion: GameSuggestionSource,
+    suggestion: GameSuggestionAdminEntry,
     options: {
       gifted?: boolean;
     } = {}
@@ -538,7 +538,7 @@ const GameLibraryAdminClient = (): React.ReactNode => {
     });
   };
 
-  const draftGameFromSuggestion = (suggestion: GameSuggestionSource): void => {
+  const draftGameFromSuggestion = (suggestion: GameSuggestionAdminEntry): void => {
     setActiveView("library");
     setSelectedId("");
     setGameForm(suggestionToGameForm(suggestion));

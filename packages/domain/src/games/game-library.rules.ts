@@ -9,7 +9,9 @@ import {
   type GameLibraryCapability,
   type GameLibrarySource,
   type GameScheduleAssociationSummary,
+  type GameSuggestionAdminEntry,
   type GameSuggestionReviewInput,
+  type GameSuggestionSource,
   type GameSlugValidationResult,
   type PublicGameSuggestionInput,
   type PublicGameLibraryEntry
@@ -173,6 +175,22 @@ export const isValidGameSuggestionReviewInput = (
   && (input.linkedGameId === undefined
     || input.linkedGameId === null
     || (typeof input.linkedGameId === "string" && input.linkedGameId.trim().length > 0 && input.linkedGameId.trim().length <= 36));
+
+export const buildGameSuggestionAdminEntry = (
+  suggestion: GameSuggestionSource
+): GameSuggestionAdminEntry => ({
+  id: suggestion.id,
+  title: suggestion.title,
+  platformLabel: suggestion.platformLabel,
+  storeUrl: suggestion.storeUrl,
+  reason: suggestion.reason,
+  tags: suggestion.tags,
+  suggestedByName: suggestion.suggestedByName,
+  status: suggestion.status,
+  linkedGameId: suggestion.linkedGameId,
+  reviewerNote: suggestion.reviewerNote,
+  reviewedAt: suggestion.reviewedAt
+});
 
 export const buildPublicGameLibraryEntry = (entry: GameLibrarySource): PublicGameLibraryEntry | null => {
   if (entry.visibility !== "public") {

@@ -1,5 +1,6 @@
 import {
   buildGameLibraryAdminEntry,
+  buildGameSuggestionAdminEntry,
   buildPublicGameLibraryEntry,
   canManageGameLibrary,
   createGameSlugFromTitle,
@@ -136,7 +137,7 @@ export class GameLibraryService {
         scheduleAssociationsByGameId.get(game.id) ?? [],
         now
       )),
-      suggestions: await this.repository.listSuggestions()
+      suggestions: (await this.repository.listSuggestions()).map(buildGameSuggestionAdminEntry)
     };
   }
 
@@ -327,7 +328,7 @@ export class GameLibraryService {
         }
         : {
           ok: true,
-          suggestion: result
+          suggestion: buildGameSuggestionAdminEntry(result)
         };
   }
 

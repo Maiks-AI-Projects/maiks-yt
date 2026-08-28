@@ -1,29 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import type { GameSuggestionSource } from "@maiks-yt/domain/games";
+import type { GameSuggestionAdminEntry } from "@maiks-yt/domain/games";
 
 import { createReviewedSuggestionView } from "./reviewed-suggestion-view.rules";
 
 const createSuggestion = (
   index: number,
-  overrides: Partial<GameSuggestionSource> = {}
-): GameSuggestionSource => ({
+  overrides: Partial<GameSuggestionAdminEntry> = {}
+): GameSuggestionAdminEntry => ({
   id: `suggestion-${index}`,
   title: `Game ${index}`,
   platformLabel: "Steam",
   storeUrl: null,
   reason: null,
   tags: [],
-  suggestedByUserId: null,
   suggestedByName: null,
   status: "accepted",
   linkedGameId: null,
   reviewerNote: null,
-  reviewerUserId: null,
   reviewedAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
-  isPublic: false,
-  createdAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
-  updatedAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
   ...overrides
 });
 

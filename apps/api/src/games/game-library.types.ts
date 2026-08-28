@@ -3,6 +3,7 @@ import type {
   GameLibraryAdminEntry,
   GameLibraryAdminUpdateInput,
   GameScheduleAssociationSummary,
+  GameSuggestionAdminEntry,
   GameSuggestionReviewInput,
   GameSuggestionSource,
   GameLibrarySource,
@@ -22,7 +23,7 @@ export type GameLibraryAdminListResult =
   | {
     ok: true;
     games: readonly GameLibraryAdminEntry[];
-    suggestions: readonly GameSuggestionSource[];
+    suggestions: readonly GameSuggestionAdminEntry[];
   }
   | {
     ok: false;
@@ -62,7 +63,7 @@ export type PublicGameSuggestionCreateResult =
 export type GameSuggestionReviewResult =
   | {
     ok: true;
-    suggestion: GameSuggestionSource;
+    suggestion: GameSuggestionAdminEntry;
   }
   | {
     ok: false;

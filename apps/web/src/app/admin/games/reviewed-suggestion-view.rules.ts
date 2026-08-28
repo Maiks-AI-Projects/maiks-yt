@@ -1,5 +1,5 @@
 import type {
-  GameSuggestionSource,
+  GameSuggestionAdminEntry,
   GameSuggestionStatus
 } from "@maiks-yt/domain/games";
 
@@ -13,19 +13,19 @@ type ReviewedSuggestionViewOptions = {
   collapsedLimit?: number;
 };
 
-const getReviewedSortValue = (suggestion: GameSuggestionSource): number => {
-  const timestamp = Date.parse(suggestion.reviewedAt ?? suggestion.updatedAt);
+const getReviewedSortValue = (suggestion: GameSuggestionAdminEntry): number => {
+  const timestamp = suggestion.reviewedAt ? Date.parse(suggestion.reviewedAt) : 0;
 
   return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
 export const createReviewedSuggestionView = (
-  suggestions: readonly GameSuggestionSource[],
+  suggestions: readonly GameSuggestionAdminEntry[],
   options: ReviewedSuggestionViewOptions
 ): {
-  reviewed: readonly GameSuggestionSource[];
-  filtered: readonly GameSuggestionSource[];
-  displayed: readonly GameSuggestionSource[];
+  reviewed: readonly GameSuggestionAdminEntry[];
+  filtered: readonly GameSuggestionAdminEntry[];
+  displayed: readonly GameSuggestionAdminEntry[];
 } => {
   const reviewed = suggestions
     .filter((suggestion) => suggestion.status !== "pending")
