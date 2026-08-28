@@ -3,7 +3,7 @@
 ## Public Profiles hygiene gate
 
 - The current public Profile pages are static demonstrations with nonfunctional search and unimplemented provider/supporter/donation/perk claims. Do not present them as live product behavior.
-- Create one representative desktop/mobile production-style image for a truthful `/profiles` planned state and the minimal private example. Obtain Michael's approval before materially changing the page.
+- Desktop and mobile candidates are registered at `reports/visual-concepts/production-profiles-planned-state/`. Obtain Michael's approval before materially changing the page. The generated navigation/footer are placeholders; preserve the real production shell.
 - After approval, remove fake search semantics and unimplemented claims while preserving the exact private text and no-image behavior. Do not implement handles, real search, image routing, assignment, migration, backfill, or provider-derived identity until the separate choice list is submitted.
 
 ## Public Music browser contract deployed

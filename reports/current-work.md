@@ -2,6 +2,7 @@
 
 ## 2026-08-28 public Profiles production-hygiene audit
 
+- Desktop and mobile candidates are now registered under `reports/visual-concepts/production-profiles-planned-state/`. They propose an honest planned `/profiles` state and the settled name-only private projection. The generated navigation/footer are explicitly non-authoritative placeholders; production implementation must preserve the real public shell. Both images await Michael's exact visual approval before source changes.
 - `/profiles`, `/profiles/michael-public`, and `/profiles/michael-private` are static demonstrations. Search input does not control results; the two Michael examples are always returned. The public mock advertises provider identities, verification, role sync, supporter rank, claimable contributions, donations, verified game names, and future perks that are not production behavior.
 - The three static pages do not render raw internal or provider ids. The real account image endpoint still uses a domain-user UUID in its URL; private images fail closed with an indistinguishable no-store `404`, but replacing that public identifier belongs to the reviewed handle runtime rather than this cleanup.
 - A safe cleanup can remove fake search semantics and unimplemented capability claims while preserving the settled private example: account name plus `This account is set to private`, with no image. Because that materially changes the public surface, the implementation must first receive image-first approval.
