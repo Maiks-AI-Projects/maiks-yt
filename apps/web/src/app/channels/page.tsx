@@ -77,7 +77,7 @@ const ChannelsPage = async (): Promise<React.ReactNode> => {
         <p>
           Twitch and YouTube links below come from the live creator-link records. Dedicated topic
           pages, channel-aware schedules, themes, and automatic destination routing are not active
-          on the public site yet.
+          on the public site yet. <a href="/plays">Read why MaiksPlays exists &rarr;</a>
         </p>
       </aside>
 

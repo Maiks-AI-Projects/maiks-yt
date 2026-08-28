@@ -87,6 +87,12 @@
   max-width: 850px;
 }
 
+.statusNotice a {
+  color: var(--mint);
+  font-weight: 800;
+  text-underline-offset: 4px;
+}
+
 .destinations,
 .interests {
   border-top: 1px solid var(--line);
