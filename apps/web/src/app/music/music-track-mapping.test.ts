@@ -1,84 +1,93 @@
 import { describe, expect, it } from "vitest";
 
-import { adminTrackToMusicSelectTrack, formatMusicDuration, toMusicSelectTrack } from "./music-track-mapping.service";
-import type { MusicApiCatalogTrack, MusicTrackAdminRecord } from "./music-api.types";
+import {
+  adminTrackToMusicSelectTrack,
+  formatMusicDuration,
+  toMusicSelectTrack,
+  toPublicMusicSelectTrack
+} from "./music-track-mapping.service";
+import type { MusicAccountCatalogTrack, MusicPublicApiCatalogTrack, MusicTrackAdminRecord } from "./music-api.types";
 
 describe("music track mapping", () => {
   it("keeps corrected preview and safety fields from public catalog rows", () => {
-    const track: MusicApiCatalogTrack = {
+    const track: MusicPublicApiCatalogTrack = {
       artist: "Artist",
       attributionText: "Artist via Provider",
       durationSeconds: 123,
-      licenseKind: "catalog",
-      licenseName: "Safe license",
-      licenseUrl: null,
       liveSafe: false,
       previewMimeType: "audio/mpeg",
       previewUrl: "https://api.maiks.yt/music/previews/track.mp3",
-      providerKey: "provider",
       providerName: "Provider",
-      providerPolicyUrl: null,
-      providerTermsUrl: null,
-      sourceId: "source",
+      selectionReference: `musicref_v1_${"a".repeat(64)}`,
       sourceLabel: "Main source",
-      sourceUrl: null,
+      title: "Track",
+      vodSafe: true
+    };
+
+    expect(toPublicMusicSelectTrack(track)).toMatchObject({
+      id: `musicref_v1_${"a".repeat(64)}`,
+      liveSafe: false,
+      previewMimeType: "audio/mpeg",
+      previewUrl: "https://api.maiks.yt/music/previews/track.mp3",
+      provider: "Provider",
+      selectionReference: `musicref_v1_${"a".repeat(64)}`,
+      sourceLabel: "Main source",
+      vodSafe: true
+    });
+  });
+
+  it("keeps one public row selectable per exact opaque reference", () => {
+    const baseTrack: MusicPublicApiCatalogTrack = {
+      artist: "Artist",
+      attributionText: "Artist via Provider",
+      durationSeconds: 123,
+      liveSafe: true,
+      previewMimeType: "audio/mpeg",
+      previewUrl: "https://api.maiks.yt/music/previews/track.mp3",
+      providerName: "Provider",
+      selectionReference: `musicref_v1_${"a".repeat(64)}`,
+      sourceLabel: "Provider source",
+      title: "Track",
+      vodSafe: true
+    };
+
+    const first = toPublicMusicSelectTrack(baseTrack);
+    const second = toPublicMusicSelectTrack({
+      ...baseTrack,
+      attributionText: "Artist via Local archive",
+      previewUrl: "https://api.maiks.yt/music/previews/track-local.mp3",
+      selectionReference: `musicref_v1_${"b".repeat(64)}`,
+      sourceLabel: "Local archive"
+    });
+
+    expect(first.id).toBe(`musicref_v1_${"a".repeat(64)}`);
+    expect(second.id).toBe(`musicref_v1_${"b".repeat(64)}`);
+    expect(first.attributionCue).toBe("Artist via Provider");
+    expect(second.attributionCue).toBe("Artist via Local archive");
+  });
+
+  it("keeps authenticated account catalog rows tied to internal track ids for Top 10 saves", () => {
+    const track: MusicAccountCatalogTrack = {
+      artist: "Artist",
+      attributionText: "Artist via Provider",
+      durationSeconds: 123,
+      liveSafe: true,
+      previewMimeType: "audio/mpeg",
+      previewUrl: "https://api.maiks.yt/music/previews/track.mp3",
+      providerName: "Provider",
+      sourceLabel: "Main source",
       title: "Track",
       trackId: "track",
       vodSafe: true
     };
 
     expect(toMusicSelectTrack(track)).toMatchObject({
-      id: "track::source::source",
-      liveSafe: false,
-      previewMimeType: "audio/mpeg",
-      previewUrl: "https://api.maiks.yt/music/previews/track.mp3",
+      id: "track",
       provider: "Provider",
-      sourceId: "source",
-      sourceLabel: "Main source",
-      vodSafe: true
-    });
-  });
-
-  it("keeps one track selectable per exact public catalog source", () => {
-    const baseTrack: MusicApiCatalogTrack = {
-      artist: "Artist",
-      attributionText: "Artist via Provider",
-      durationSeconds: 123,
-      licenseKind: "catalog",
-      licenseName: "Safe license",
-      licenseUrl: null,
-      liveSafe: true,
-      previewMimeType: "audio/mpeg",
-      previewUrl: "https://api.maiks.yt/music/previews/track.mp3",
-      providerKey: "provider",
-      providerName: "Provider",
-      providerPolicyUrl: null,
-      providerTermsUrl: null,
-      sourceId: "source-a",
-      sourceLabel: "Provider source",
-      sourceUrl: null,
+      sourceId: null,
       title: "Track",
-      trackId: "track",
-      vodSafe: true
-    };
-
-    const first = toMusicSelectTrack(baseTrack);
-    const second = toMusicSelectTrack({
-      ...baseTrack,
-      attributionText: "Artist via Local archive",
-      previewUrl: "https://api.maiks.yt/music/previews/track-local.mp3",
-      sourceId: "source-b",
-      sourceLabel: "Local archive"
+      trackId: "track"
     });
-
-    expect(first.trackId).toBe("track");
-    expect(second.trackId).toBe("track");
-    expect(first.id).toBe("track::source::source-a");
-    expect(second.id).toBe("track::source::source-b");
-    expect(first.sourceId).toBe("source-a");
-    expect(second.sourceId).toBe("source-b");
-    expect(first.attributionCue).toBe("Artist via Provider");
-    expect(second.attributionCue).toBe("Artist via Local archive");
   });
 
   it("maps admin tracks without exposing storage references as preview URLs", () => {

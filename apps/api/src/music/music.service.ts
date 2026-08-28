@@ -13,7 +13,7 @@ import {
 } from "./music-request-hash.service.js";
 import { MusicAdminService } from "./music-admin.service.js";
 import { requireMusicPlayControlActor } from "./music-service-authorization.service.js";
-import { safeHttpUrlOrNull, toPublicCatalogTrack } from "./music-service-catalog.service.js";
+import { safeHttpUrlOrNull, toAccountCatalogTrack, toPublicCatalogTrack } from "./music-service-catalog.service.js";
 import type {
   MusicAuthUser,
   MusicBlacklistInput,
@@ -53,18 +53,23 @@ export class MusicService {
       context: input.context,
       limit: input.limit ?? 50
     });
+    const projectedTracks = tracks
+      .filter((track) => decideMusicTrackSelection(track, input.context).ok)
+      .map(toPublicCatalogTrack);
+    const referenceCounts = new Map<string, number>();
+
+    for (const track of projectedTracks) {
+      referenceCounts.set(track.selectionReference, (referenceCounts.get(track.selectionReference) ?? 0) + 1);
+    }
 
     return {
       ok: true as const,
-      tracks: tracks
-        .filter((track) => decideMusicTrackSelection(track, input.context).ok)
-        .map(toPublicCatalogTrack)
+      tracks: projectedTracks.filter((track) => referenceCounts.get(track.selectionReference) === 1)
     };
   }
 
   public async createAnonymousRequest(input: {
-    trackId: string;
-    sourceId: string | null;
+    selectionReference: string;
     context: MusicSafetyContext;
     viewerIp: string;
     requestText: string | null;
@@ -78,20 +83,6 @@ export class MusicService {
       };
     }
 
-    const track = await this.repository.getSelectableTrack({
-      trackId: input.trackId,
-      sourceId: input.sourceId,
-      context: input.context,
-      requirePublicRequest: true
-    });
-
-    if (!track || !decideMusicTrackSelection(track, input.context).ok) {
-      return {
-        ok: false as const,
-        reason: "music_track_not_selectable" as const
-      };
-    }
-
     const amsterdamDate = getAmsterdamCalendarDate(this.options.getNow?.() ?? new Date());
     const anonymousDailyHmac = deriveAnonymousMusicRequestHmac({
       ipAddress: input.viewerIp,
@@ -100,13 +91,40 @@ export class MusicService {
     });
 
     return await this.repository.createAnonymousTrackRequest({
-      trackId: track.trackId,
-      sourceId: track.sourceId,
-      providerKey: track.providerKey,
+      selectionReference: input.selectionReference,
+      context: input.context,
       anonymousDailyHmac,
       amsterdamDate,
       requestText: input.requestText?.trim() || null
     });
+  }
+
+  public async listAccountCatalog(input: {
+    query: string | null;
+    context: MusicSafetyContext;
+    limit?: number;
+  }) {
+    const tracks = await this.repository.listPublicCatalog({
+      query: input.query?.trim() || null,
+      context: input.context,
+      limit: input.limit ?? 50
+    });
+    const seenTrackIds = new Set<string>();
+    const accountTracks = [];
+
+    for (const track of tracks) {
+      if (!decideMusicTrackSelection(track, input.context).ok || seenTrackIds.has(track.trackId)) {
+        continue;
+      }
+
+      seenTrackIds.add(track.trackId);
+      accountTracks.push(toAccountCatalogTrack(track));
+    }
+
+    return {
+      ok: true as const,
+      tracks: accountTracks
+    };
   }
 
   public async getTopTracks(input: { authUser: MusicAuthUser; limit?: number }) {

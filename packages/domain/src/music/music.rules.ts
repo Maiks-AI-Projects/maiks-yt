@@ -2,6 +2,8 @@ import {
   blockedMusicProviderKeys,
   musicManageCapability,
   musicPlayControlCapability,
+  publicMusicSelectionReferenceMaxLength,
+  publicMusicSelectionReferencePrefix,
   type MusicCapability,
   type MusicPlaybackOutcome,
   type MusicSafetyContext,
@@ -16,12 +18,20 @@ export const maximumMusicTopTrackLimit = 1_000;
 
 const publiclySelectableReviewStates = new Set(["unreviewed", "approved"]);
 const blockedProviderKeys = new Set<string>(blockedMusicProviderKeys);
+const publicMusicSelectionReferencePattern = new RegExp(
+  `^${publicMusicSelectionReferencePrefix}[a-f0-9]{64}$`,
+  "u"
+);
 
 export const normalizeMusicProviderKey = (providerKey: string): string =>
   providerKey.trim().toLowerCase();
 
 export const isBlockedMusicProviderKey = (providerKey: string): boolean =>
   blockedProviderKeys.has(normalizeMusicProviderKey(providerKey));
+
+export const isPublicMusicSelectionReference = (value: string): boolean =>
+  value.length === publicMusicSelectionReferenceMaxLength
+  && publicMusicSelectionReferencePattern.test(value);
 
 export const canManageMusic = (capabilities: readonly unknown[]): boolean =>
   capabilities.some((capability): capability is MusicCapability =>

@@ -1,13 +1,20 @@
-import type { PublicMusicCatalogTrack } from "./music.types.js";
+import { publicMusicPreviewUrlMaxLength } from "@maiks-yt/domain/music";
 
-export const safeHttpUrlOrNull = (value: string | null): string | null => {
+import type { PublicMusicCatalogTrack } from "./music.types.js";
+import { buildPublicMusicSelectionReference } from "./music-public-selection-reference.service.js";
+
+export const safeHttpUrlOrNull = (value: string | null, maxLength?: number): string | null => {
   if (!value) {
     return null;
   }
 
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+    const canonicalUrl = url.toString();
+    return (url.protocol === "http:" || url.protocol === "https:")
+      && (maxLength === undefined || canonicalUrl.length <= maxLength)
+      ? canonicalUrl
+      : null;
   } catch {
     return null;
   }
@@ -32,24 +39,53 @@ export const toPublicCatalogTrack = (track: {
   licenseKind: string;
   providerPolicyUrl: string | null;
   providerTermsUrl: string | null;
-}): PublicMusicCatalogTrack => ({
-  trackId: track.trackId,
-  sourceId: track.sourceId,
-  title: track.title,
-  artist: track.artist,
-  durationSeconds: track.durationSeconds,
-  providerKey: track.providerKey,
-  providerName: track.providerName,
-  sourceLabel: track.sourceLabel,
-  liveSafe: track.liveSafe,
-  vodSafe: track.vodSafe,
-  previewUrl: safeHttpUrlOrNull(track.previewUrl),
-  previewMimeType: track.previewMimeType,
-  sourceUrl: safeHttpUrlOrNull(track.sourceUrl),
-  attributionText: track.attributionText,
-  licenseName: track.licenseName,
-  licenseKind: track.licenseKind,
-  licenseUrl: null,
-  providerPolicyUrl: safeHttpUrlOrNull(track.providerPolicyUrl),
-  providerTermsUrl: safeHttpUrlOrNull(track.providerTermsUrl)
-});
+}): PublicMusicCatalogTrack => {
+  const previewUrl = safeHttpUrlOrNull(track.previewUrl, publicMusicPreviewUrlMaxLength);
+
+  return {
+    selectionReference: buildPublicMusicSelectionReference({
+      trackId: track.trackId,
+      sourceId: track.sourceId
+    }),
+    title: track.title,
+    artist: track.artist,
+    durationSeconds: track.durationSeconds,
+    providerName: track.providerName,
+    sourceLabel: track.sourceLabel,
+    liveSafe: track.liveSafe,
+    vodSafe: track.vodSafe,
+    previewUrl,
+    previewMimeType: previewUrl ? track.previewMimeType : null,
+    attributionText: track.attributionText
+  };
+};
+
+export const toAccountCatalogTrack = (track: {
+  trackId: string;
+  title: string;
+  artist: string;
+  durationSeconds: number | null;
+  providerName: string;
+  sourceLabel: string;
+  liveSafe: boolean;
+  vodSafe: boolean;
+  previewUrl: string | null;
+  previewMimeType: string | null;
+  attributionText: string | null;
+}) => {
+  const previewUrl = safeHttpUrlOrNull(track.previewUrl, publicMusicPreviewUrlMaxLength);
+
+  return {
+    trackId: track.trackId,
+    title: track.title,
+    artist: track.artist,
+    durationSeconds: track.durationSeconds,
+    providerName: track.providerName,
+    sourceLabel: track.sourceLabel,
+    liveSafe: track.liveSafe,
+    vodSafe: track.vodSafe,
+    previewUrl,
+    previewMimeType: previewUrl ? track.previewMimeType : null,
+    attributionText: track.attributionText
+  };
+};

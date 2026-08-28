@@ -72,3 +72,9 @@ export type MusicTopTracksValidationResult =
     ok: false;
     reason: "limit_exceeded" | "duplicate_track" | "duplicate_rank" | "invalid_rank";
   };
+
+export const publicMusicSelectionReferencePrefix = "musicref_v1_" as const;
+export const publicMusicSelectionReferenceDigestLength = 64;
+export const publicMusicSelectionReferenceMaxLength =
+  publicMusicSelectionReferencePrefix.length + publicMusicSelectionReferenceDigestLength;
+export const publicMusicPreviewUrlMaxLength = 1_024;

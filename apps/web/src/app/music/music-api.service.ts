@@ -4,7 +4,7 @@ import { createApiHeaders } from "../dev-auth-token";
 import type {
   MusicAdminOverview,
   MusicAudioUploadResult,
-  MusicApiCatalogTrack,
+  MusicAccountCatalogTrack,
   MusicApiResult,
   MusicRequestResult,
   MusicReviewAction,
@@ -12,6 +12,11 @@ import type {
   MusicYouTubeAudioLibraryImportResult,
   MusicYouTubeAudioLibraryManifest
 } from "./music-api.types";
+import {
+  parsePublicMusicCatalogResponse,
+  parsePublicMusicRequestResponse,
+  type PublicMusicCatalogResponse
+} from "./music-public-parser.rules";
 
 export const musicApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
@@ -52,35 +57,99 @@ const requestMusicJson = async <TPayload>(
   };
 };
 
-export const fetchMusicCatalog = async (input: {
+const parseJsonOrNull = async (response: Response): Promise<unknown | null> => {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+};
+
+const requestPublicMusicJson = async <TPayload>(
+  path: string,
+  parser: (value: unknown) => TPayload | null,
+  fallback: TPayload,
+  options: ApiRequestOptions = {}
+): Promise<MusicApiResponse<TPayload>> => {
+  const headers = createApiHeaders(options.body === undefined
+    ? {}
+    : { "Content-Type": "application/json" });
+  const init: RequestInit = {
+    cache: "no-store",
+    credentials: "include",
+    headers,
+    method: options.method ?? "GET"
+  };
+
+  if (options.body !== undefined) {
+    init.body = JSON.stringify(options.body);
+  }
+
+  const response = await fetch(`${musicApiBaseUrl}${path}`, init);
+  const parsed = parser(await parseJsonOrNull(response));
+  const successfulStatus = response.status >= 200 && response.status < 300;
+  const contradictorySuccess = !successfulStatus
+    && typeof parsed === "object"
+    && parsed !== null
+    && "ok" in parsed
+    && parsed.ok === true;
+
+  return {
+    payload: parsed === null || contradictorySuccess ? fallback : parsed,
+    status: response.status
+  };
+};
+
+export const fetchPublicMusicCatalog = async (input: {
   readonly context?: "live" | "vod";
   readonly limit?: number;
   readonly query?: string;
-} = {}): Promise<MusicApiResponse<MusicApiResult<{ readonly tracks: readonly MusicApiCatalogTrack[] }>>> => {
+} = {}): Promise<MusicApiResponse<PublicMusicCatalogResponse>> => {
   const query = new URLSearchParams({
     context: input.context ?? "live",
     limit: String(input.limit ?? 100),
     query: input.query ?? ""
   });
 
-  return await requestMusicJson(`/music/catalog?${query.toString()}`);
+  return await requestPublicMusicJson(
+    `/music/catalog?${query.toString()}`,
+    parsePublicMusicCatalogResponse,
+    { ok: false, reason: "music_unavailable" }
+  );
+};
+
+export const fetchAccountMusicCatalog = async (input: {
+  readonly context?: "live" | "vod";
+  readonly limit?: number;
+  readonly query?: string;
+} = {}): Promise<MusicApiResponse<MusicApiResult<{ readonly tracks: readonly MusicAccountCatalogTrack[] }>>> => {
+  const query = new URLSearchParams({
+    context: input.context ?? "live",
+    limit: String(input.limit ?? 100),
+    query: input.query ?? ""
+  });
+
+  return await requestMusicJson(`/account/music/catalog?${query.toString()}`);
 };
 
 export const createMusicRequest = async (input: {
   readonly context?: "live" | "vod";
   readonly requestText?: string | null;
-  readonly sourceId: string | null;
-  readonly trackId: string;
+  readonly selectionReference: string;
 }): Promise<MusicApiResponse<MusicRequestResult>> =>
-  await requestMusicJson("/music/requests", {
-    body: {
-      context: input.context ?? "live",
-      requestText: input.requestText ?? null,
-      sourceId: input.sourceId,
-      trackId: input.trackId
-    },
-    method: "POST"
-  });
+  await requestPublicMusicJson(
+    "/music/requests",
+    parsePublicMusicRequestResponse,
+    { ok: false, reason: "music_request_unavailable" },
+    {
+      body: {
+        context: input.context ?? "live",
+        requestText: input.requestText ?? null,
+        selectionReference: input.selectionReference
+      },
+      method: "POST"
+    }
+  );
 
 export const fetchMusicTopTracks = async (): Promise<MusicApiResponse<MusicApiResult<{
   readonly limit: number;

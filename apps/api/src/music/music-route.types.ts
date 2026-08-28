@@ -22,6 +22,7 @@ export type MusicRouteDependencies = {
   publicApiBaseUrl?: string;
   createService?: () => Pick<MusicService,
     | "listPublicCatalog"
+    | "listAccountCatalog"
     | "createAnonymousRequest"
     | "getTopTracks"
     | "replaceTopTracks"

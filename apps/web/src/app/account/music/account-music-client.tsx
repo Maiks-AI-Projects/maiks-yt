@@ -6,7 +6,7 @@ import { FiArrowDown, FiArrowUp, FiSave, FiTrash2 } from "react-icons/fi";
 import { captureDevAuthTokenFromUrl } from "../../dev-auth-token";
 import { MusicSearchableSelect } from "../../music/components";
 import {
-  fetchMusicCatalog,
+  fetchAccountMusicCatalog,
   fetchMusicTopTracks,
   saveMusicTopTracks
 } from "../../music/music-api.service";
@@ -40,7 +40,7 @@ const AccountMusicClient = (): React.ReactNode => {
       setLoadState("loading");
       try {
         const [catalogResponse, topTracksResponse] = await Promise.all([
-          fetchMusicCatalog({ context: "live", limit: 100 }),
+          fetchAccountMusicCatalog({ context: "live", limit: 100 }),
           fetchMusicTopTracks()
         ]);
 

@@ -6,6 +6,7 @@ import {
   decideMusicTrackSelection,
   getAmsterdamCalendarDate,
   isBlockedMusicProviderKey,
+  isPublicMusicSelectionReference,
   musicManageCapability,
   musicPlayControlCapability,
   resolveMusicTopTrackLimit,
@@ -35,6 +36,16 @@ describe("music permissions", () => {
     expect(canManageMusic([musicPlayControlCapability])).toBe(false);
     expect(canControlMusicPlayback([musicPlayControlCapability])).toBe(true);
     expect(canControlMusicPlayback([musicManageCapability])).toBe(false);
+  });
+});
+
+describe("public music selection references", () => {
+  it("accepts only the bounded prefixed lowercase SHA-256 shape", () => {
+    expect(isPublicMusicSelectionReference(`musicref_v1_${"a".repeat(64)}`)).toBe(true);
+    expect(isPublicMusicSelectionReference(`musicref_v1_${"A".repeat(64)}`)).toBe(false);
+    expect(isPublicMusicSelectionReference(`musicref_v1_${"a".repeat(63)}`)).toBe(false);
+    expect(isPublicMusicSelectionReference(`track-${"a".repeat(64)}`)).toBe(false);
+    expect(isPublicMusicSelectionReference(`musicref_v1_${"g".repeat(64)}`)).toBe(false);
   });
 });
 

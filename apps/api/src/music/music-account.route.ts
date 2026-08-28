@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { createMusicService, getMusicSession } from "./music-route-helpers.service.js";
-import { topTracksPayloadSchema } from "./music-route.schema.js";
+import { catalogQuerySchema, topTracksPayloadSchema } from "./music-route.schema.js";
 import type { MusicRouteDependencies } from "./music-route.types.js";
 
 export const registerMusicAccountRoutes = (server: FastifyInstance, dependencies: MusicRouteDependencies): void => {
@@ -20,6 +20,33 @@ export const registerMusicAccountRoutes = (server: FastifyInstance, dependencies
       return await getService().getTopTracks({ authUser: session.user });
     } catch (error) {
       server.log.warn({ err: error }, "Music top tracks read failed.");
+      reply.code(503);
+      return { ok: false, reason: "music_unavailable" };
+    }
+  });
+
+  server.get("/account/music/catalog", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "music_unavailable" : "not_authenticated" };
+    }
+
+    const parsedQuery = catalogQuerySchema.safeParse(request.query);
+
+    if (!parsedQuery.success) {
+      reply.code(400);
+      return { ok: false, reason: "music_invalid_input" };
+    }
+
+    try {
+      return await getService().listAccountCatalog({
+        query: parsedQuery.data.query,
+        context: parsedQuery.data.context,
+        limit: parsedQuery.data.limit
+      });
+    } catch (error) {
+      server.log.warn({ err: error }, "Music account catalog failed.");
       reply.code(503);
       return { ok: false, reason: "music_unavailable" };
     }

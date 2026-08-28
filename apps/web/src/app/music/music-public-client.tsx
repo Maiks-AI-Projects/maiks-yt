@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { captureDevAuthTokenFromUrl } from "../dev-auth-token";
 import { MusicSearchableSelect } from "./components";
-import { createMusicRequest, fetchMusicCatalog } from "./music-api.service";
-import type { MusicUiTrack } from "./music-api.types";
-import { toMusicSelectTrack } from "./music-track-mapping.service";
+import { createMusicRequest, fetchPublicMusicCatalog } from "./music-api.service";
+import type { MusicPublicUiTrack } from "./music-api.types";
+import { toPublicMusicSelectTrack } from "./music-track-mapping.service";
 import styles from "./music.module.css";
 
 type LoadState = "loading" | "ready" | "error";
@@ -28,7 +28,7 @@ const requestMessageForReason = (reason: string, status: number): string => {
 };
 
 const MusicPublicClient = (): React.ReactNode => {
-  const [catalog, setCatalog] = useState<readonly MusicUiTrack[]>([]);
+  const [catalog, setCatalog] = useState<readonly MusicPublicUiTrack[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [requestMessage, setRequestMessage] = useState("Signed-out free requests are limited to one accepted request per Amsterdam day.");
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
@@ -43,7 +43,7 @@ const MusicPublicClient = (): React.ReactNode => {
     const loadCatalog = async (): Promise<void> => {
       setLoadState("loading");
       try {
-        const response = await fetchMusicCatalog({ context: "live", limit: 100 });
+        const response = await fetchPublicMusicCatalog({ context: "live", limit: 100 });
 
         if (!active) {
           return;
@@ -55,7 +55,7 @@ const MusicPublicClient = (): React.ReactNode => {
           return;
         }
 
-        setCatalog(response.payload.tracks.map(toMusicSelectTrack));
+        setCatalog(response.payload.tracks.map(toPublicMusicSelectTrack));
         setLoadState("ready");
       } catch {
         if (active) {
@@ -77,14 +77,13 @@ const MusicPublicClient = (): React.ReactNode => {
     [catalog, selectedTrackId]
   );
 
-  const submitRequest = async (track: MusicUiTrack): Promise<void> => {
+  const submitRequest = async (track: MusicPublicUiTrack): Promise<void> => {
     setRequestMessage("Sending request...");
     try {
       const response = await createMusicRequest({
         context: "live",
         requestText: null,
-        sourceId: track.sourceId,
-        trackId: track.trackId
+        selectionReference: track.selectionReference
       });
 
       if (!response.payload.ok) {
@@ -121,7 +120,7 @@ const MusicPublicClient = (): React.ReactNode => {
         label="Search music catalog"
         loadingMessage="Loading eligible tracks..."
         onAction={(track) => {
-          void submitRequest(track as MusicUiTrack);
+          void submitRequest(track as MusicPublicUiTrack);
         }}
         onSelectedTrackChange={(track) => setSelectedTrackId(track?.id ?? null)}
         safetyContext="live"

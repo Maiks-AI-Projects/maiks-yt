@@ -14,7 +14,7 @@ export type MusicTrackRequestCreateResult =
   }
   | {
     ok: false;
-    reason: "music_request_daily_limit";
+    reason: "music_request_daily_limit" | "music_track_not_selectable";
   };
 
 export type MusicPlayHistoryAppendResult =

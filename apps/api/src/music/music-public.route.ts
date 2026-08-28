@@ -39,8 +39,7 @@ export const registerMusicPublicRoutes = (server: FastifyInstance, dependencies:
 
     try {
       const result = await getService().createAnonymousRequest({
-        trackId: parsedBody.data.trackId,
-        sourceId: parsedBody.data.sourceId ?? null,
+        selectionReference: parsedBody.data.selectionReference,
         context: parsedBody.data.context,
         requestText: parsedBody.data.requestText ?? null,
         viewerIp: getMusicRequestViewerIp(request)

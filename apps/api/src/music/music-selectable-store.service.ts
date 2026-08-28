@@ -1,6 +1,7 @@
 import type { DatabasePool } from "@maiks-yt/database";
 
 import type { MusicRepository, MusicSelectableTrack } from "./music.types.js";
+import { publicMusicSelectionReferenceSql } from "./music-public-selection-reference.service.js";
 import { bool, mapRows, parseStringArray, type QueryExecutor } from "./music-store-shared.service.js";
 
 type SelectableRow = {
@@ -208,6 +209,46 @@ export const readSelectableTrack = async (
   return row ? mapSelectable(row) : null;
 };
 
+export const readPublicCatalogSelection = async (
+  executor: QueryExecutor,
+  input: {
+    selectionReference: string;
+    context: "live" | "vod";
+    lockForUpdate?: boolean;
+  }
+): Promise<MusicSelectableTrack | "ambiguous" | null> => {
+  const selectionReferenceExpression = publicMusicSelectionReferenceSql("tracks.id", "sources.id");
+  const [rows] = await executor.execute(
+    `
+      SELECT ${selectSelectableFields},
+        ${selectionReferenceExpression} AS publicSelectionReference
+      ${selectableFromClause}
+      WHERE sources.availability_status = 'available'
+        AND policies.provider_status = 'allowed'
+        AND policies.public_requests_enabled = TRUE
+        AND tracks.rights_state = 'eligible'
+        AND sources.rights_state = 'eligible'
+        AND policies.rights_state = 'eligible'
+        AND licenses.rights_state = 'eligible'
+        AND tracks.review_state IN ('unreviewed', 'approved')
+        AND ((? = 'live' AND tracks.live_safe = TRUE AND licenses.live_safe = TRUE)
+          OR (? = 'vod' AND tracks.vod_safe = TRUE AND licenses.vod_safe = TRUE))
+      HAVING hasActiveBlacklist = 0
+        AND publicSelectionReference = BINARY ?
+      ORDER BY tracks.title, tracks.artist, sources.created_at DESC
+      LIMIT 2${input.lockForUpdate ? "\n      FOR UPDATE" : ""}
+    `,
+    [input.context, input.context, input.selectionReference]
+  );
+  const matches = mapRows<SelectableRow, MusicSelectableTrack>(rows, mapSelectable);
+
+  if (matches.length !== 1) {
+    return matches.length > 1 ? "ambiguous" : null;
+  }
+
+  return matches[0] ?? null;
+};
+
 export const readAdminPreviewTrack = async (
   executor: QueryExecutor,
   input: {
@@ -269,6 +310,7 @@ export const createMusicSelectableRepository = (pool: DatabasePool): Pick<MusicR
   | "listPublicCatalog"
   | "listPlaybackCatalog"
   | "getSelectableTrack"
+  | "getPublicCatalogSelection"
   | "getAdminPreviewTrack"
 > => ({
   async listPublicCatalog(input) {
@@ -325,6 +367,10 @@ export const createMusicSelectableRepository = (pool: DatabasePool): Pick<MusicR
 
   async getSelectableTrack(input) {
     return await readSelectableTrack(pool, input);
+  },
+
+  async getPublicCatalogSelection(input) {
+    return await readPublicCatalogSelection(pool, input);
   },
 
   async getAdminPreviewTrack(input) {

@@ -6,26 +6,48 @@ import type {
 export type MusicEligibilityState = "eligible" | "uncertain" | "ineligible";
 export type MusicReviewState = "unreviewed" | "review" | "approved" | "restricted" | "rejected" | "blacklisted";
 
-export type MusicApiCatalogTrack = {
-  readonly trackId: string;
-  readonly sourceId: string;
+export type MusicPublicApiCatalogTrack = {
+  readonly selectionReference: string;
   readonly title: string;
   readonly artist: string;
   readonly durationSeconds: number | null;
-  readonly providerKey: string;
   readonly providerName: string;
   readonly sourceLabel: string;
   readonly previewUrl: string | null;
   readonly previewMimeType: string | null;
-  readonly sourceUrl: string | null;
   readonly attributionText: string | null;
-  readonly licenseName: string;
-  readonly licenseKind: string;
-  readonly licenseUrl: string | null;
-  readonly providerPolicyUrl: string | null;
-  readonly providerTermsUrl: string | null;
   readonly liveSafe: boolean;
   readonly vodSafe: boolean;
+};
+
+export type MusicAccountCatalogTrack = {
+  readonly trackId: string;
+  readonly title: string;
+  readonly artist: string;
+  readonly durationSeconds: number | null;
+  readonly providerName: string;
+  readonly sourceLabel: string;
+  readonly previewUrl: string | null;
+  readonly previewMimeType: string | null;
+  readonly attributionText: string | null;
+  readonly liveSafe: boolean;
+  readonly vodSafe: boolean;
+};
+
+export type MusicPublicUiTrack = {
+  readonly id: string;
+  readonly selectionReference: string;
+  readonly title: string;
+  readonly artist: string;
+  readonly durationSeconds: number | null;
+  readonly provider: string;
+  readonly sourceLabel: string | null;
+  readonly liveSafe: boolean;
+  readonly vodSafe: boolean;
+  readonly attributionCue: string | null;
+  readonly previewUrl: string | null;
+  readonly previewMimeType: string | null;
+  readonly unavailableReason?: string | null;
 };
 
 export type MusicUiTrack = {

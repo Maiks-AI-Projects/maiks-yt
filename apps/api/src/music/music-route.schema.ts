@@ -1,4 +1,10 @@
-import { isBlockedMusicProviderKey, musicSafetyContexts } from "@maiks-yt/domain/music";
+import {
+  isBlockedMusicProviderKey,
+  isPublicMusicSelectionReference,
+  musicSafetyContexts,
+  publicMusicPreviewUrlMaxLength,
+  publicMusicSelectionReferenceMaxLength
+} from "@maiks-yt/domain/music";
 import { z } from "zod";
 
 export const idParamsSchema = z.object({
@@ -25,8 +31,10 @@ export const catalogQuerySchema = z.object({
 }).strict();
 
 export const requestPayloadSchema = z.object({
-  trackId: z.string().trim().min(1).max(36),
-  sourceId: z.string().trim().min(1).max(36).nullable().optional(),
+  selectionReference: z.string()
+    .min(publicMusicSelectionReferenceMaxLength)
+    .max(publicMusicSelectionReferenceMaxLength)
+    .refine(isPublicMusicSelectionReference),
   context: z.enum(musicSafetyContexts).optional().default("live"),
   requestText: z.string().trim().max(500).nullable().optional()
 }).strict();
@@ -86,7 +94,7 @@ export const sourceSchema = z.object({
   sourceLabel: z.string().trim().min(1).max(191),
   sourceExternalId: z.string().trim().max(191).nullable().optional(),
   sourceUrl: nullableSafeHttpUrl(1024),
-  previewUrl: nullableSafeHttpUrl(1024),
+  previewUrl: nullableSafeHttpUrl(publicMusicPreviewUrlMaxLength),
   previewMimeType: z.string().trim().max(120).nullable().optional(),
   storageRef: z.string().trim().max(512).nullable().optional(),
   sha256: z.string().trim().regex(/^[a-fA-F0-9]{64}$/).nullable().optional(),

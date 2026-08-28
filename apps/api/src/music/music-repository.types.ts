@@ -23,14 +23,17 @@ export type MusicRepository = {
     context: MusicSafetyContext;
     requirePublicRequest: boolean;
   }): Promise<MusicSelectableTrack | null>;
+  getPublicCatalogSelection(input: {
+    selectionReference: string;
+    context: MusicSafetyContext;
+  }): Promise<MusicSelectableTrack | "ambiguous" | null>;
   getAdminPreviewTrack(input: {
     trackId: string;
     sourceId: string | null;
   }): Promise<MusicSelectableTrack | null>;
   createAnonymousTrackRequest(input: {
-    trackId: string;
-    sourceId: string;
-    providerKey: string;
+    selectionReference: string;
+    context: MusicSafetyContext;
     anonymousDailyHmac: string;
     amsterdamDate: string;
     requestText: string | null;

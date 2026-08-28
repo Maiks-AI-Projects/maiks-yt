@@ -4,7 +4,11 @@ import type { DatabasePool } from "@maiks-yt/database";
 
 import type { MusicRepository, MusicTopTrackPick, MusicTrackRequestCreateResult } from "./music.types.js";
 import { isDuplicateKeyError } from "./music-store-shared.service.js";
-import { selectSelectableFields, selectableFromClause } from "./music-selectable-store.service.js";
+import {
+  readPublicCatalogSelection,
+  selectSelectableFields,
+  selectableFromClause
+} from "./music-selectable-store.service.js";
 
 export const createMusicRequestsRepository = (pool: DatabasePool): Pick<MusicRepository,
   | "createAnonymousTrackRequest"
@@ -16,6 +20,17 @@ export const createMusicRequestsRepository = (pool: DatabasePool): Pick<MusicRep
 
     try {
       await connection.beginTransaction();
+      const selectable = await readPublicCatalogSelection(connection, {
+        selectionReference: input.selectionReference,
+        context: input.context,
+        lockForUpdate: true
+      });
+
+      if (!selectable || selectable === "ambiguous") {
+        await connection.rollback();
+        return { ok: false, reason: "music_track_not_selectable" };
+      }
+
       const bucketId = randomUUID();
 
       try {
@@ -46,13 +61,13 @@ export const createMusicRequestsRepository = (pool: DatabasePool): Pick<MusicRep
         `,
         [
           requestId,
-          input.trackId,
-          input.sourceId,
+          selectable.trackId,
+          selectable.sourceId,
           bucketId,
           input.anonymousDailyHmac,
           input.amsterdamDate,
           input.requestText,
-          input.providerKey
+          selectable.providerKey
         ]
       );
 
@@ -62,8 +77,8 @@ export const createMusicRequestsRepository = (pool: DatabasePool): Pick<MusicRep
         ok: true,
         request: {
           id: requestId,
-          trackId: input.trackId,
-          sourceId: input.sourceId,
+          trackId: selectable.trackId,
+          sourceId: selectable.sourceId,
           status: "pending",
           amsterdamDate: input.amsterdamDate,
           createdAt: new Date().toISOString()

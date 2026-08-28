@@ -1,8 +1,14 @@
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import type { DatabasePool } from "@maiks-yt/database";
+import { publicMusicPreviewUrlMaxLength } from "@maiks-yt/domain/music";
 
 import { registerMusicRoutes } from "../../src/music/music.route.js";
+import {
+  buildPublicMusicSelectionReference,
+  publicMusicSelectionReferenceSql
+} from "../../src/music/music-public-selection-reference.service.js";
+import { safeHttpUrlOrNull } from "../../src/music/music-service-catalog.service.js";
 import { MusicService } from "../../src/music/music.service.js";
 import { createMusicRepository } from "../../src/music/music-store.service.js";
 import type {
@@ -93,7 +99,10 @@ class FakeMusicRepository implements MusicRepository {
     anonymousDailyHmac: string;
     amsterdamDate: string;
     providerKey: string;
+    sourceId: string;
+    trackId: string;
   }> = [];
+  public readonly ambiguousSelectionReferences = new Set<string>();
   public readonly reviewItems = new Map<string, MusicReviewQueueRecord>();
   public readonly sources = new Map<string, MusicTrackSourceRecord>();
   public readonly licenses = new Map<string, MusicLicenseSnapshotRecord>();
@@ -139,6 +148,33 @@ class FakeMusicRepository implements MusicRepository {
     return structuredClone(track);
   }
 
+  public async getPublicCatalogSelection(input: {
+    selectionReference: string;
+    context: "live" | "vod";
+  }): Promise<MusicSelectableTrack | "ambiguous" | null> {
+    if (this.ambiguousSelectionReferences.has(input.selectionReference)) {
+      return "ambiguous";
+    }
+
+    const matches = [...this.selectableTracks.values()].filter((track) =>
+      buildPublicMusicSelectionReference({
+        trackId: track.trackId,
+        sourceId: track.sourceId
+      }) === input.selectionReference
+      && (input.context === "live" ? track.liveSafe : track.vodSafe)
+      && !track.hasActiveBlacklist
+      && track.providerPolicyState === "allowed"
+      && track.eligibilityState === "eligible"
+      && (track.reviewState === "unreviewed" || track.reviewState === "approved")
+    );
+
+    if (matches.length !== 1) {
+      return matches.length > 1 ? "ambiguous" : null;
+    }
+
+    return structuredClone(matches[0] as MusicSelectableTrack);
+  }
+
   public async getAdminPreviewTrack(input: {
     trackId: string;
     sourceId: string | null;
@@ -159,12 +195,21 @@ class FakeMusicRepository implements MusicRepository {
   }
 
   public async createAnonymousTrackRequest(input: {
-    trackId: string;
-    sourceId: string;
-    providerKey: string;
+    selectionReference: string;
+    context: "live" | "vod";
     anonymousDailyHmac: string;
     amsterdamDate: string;
+    requestText: string | null;
   }): Promise<MusicTrackRequestCreateResult> {
+    const selectable = await this.getPublicCatalogSelection({
+      selectionReference: input.selectionReference,
+      context: input.context
+    });
+
+    if (!selectable || selectable === "ambiguous") {
+      return { ok: false, reason: "music_track_not_selectable" };
+    }
+
     const bucketKey = `${input.anonymousDailyHmac}:${input.amsterdamDate}`;
 
     if (this.requestBuckets.has(bucketKey)) {
@@ -175,15 +220,17 @@ class FakeMusicRepository implements MusicRepository {
     this.persistedRequests.push({
       anonymousDailyHmac: input.anonymousDailyHmac,
       amsterdamDate: input.amsterdamDate,
-      providerKey: input.providerKey
+      providerKey: selectable.providerKey,
+      sourceId: selectable.sourceId,
+      trackId: selectable.trackId
     });
 
     return {
       ok: true,
       request: {
         id: "request",
-        trackId: input.trackId,
-        sourceId: input.sourceId,
+        trackId: selectable.trackId,
+        sourceId: selectable.sourceId,
         status: "pending",
         amsterdamDate: input.amsterdamDate,
         createdAt: nowIso
@@ -591,24 +638,79 @@ describe("MusicService public catalog", () => {
     const service = new MusicService(repository);
 
     const result = await service.listPublicCatalog({ query: "", context: "live" });
+    const firstTrack = result.tracks[0];
 
-    expect(result.tracks.map((track) => track.trackId)).toEqual(["safe", "approved"]);
-    expect(result.tracks[0]).toMatchObject({
+    expect(result.tracks.map((track) => track.selectionReference)).toEqual([
+      buildPublicMusicSelectionReference({ trackId: "safe", sourceId: "safe-source" }),
+      buildPublicMusicSelectionReference({ trackId: "approved", sourceId: "approved-source" })
+    ]);
+    expect(firstTrack).toEqual({
+      selectionReference: buildPublicMusicSelectionReference({ trackId: "safe", sourceId: "safe-source" }),
       title: "Track safe",
       artist: "Artist",
-      providerKey: "safe-provider",
+      durationSeconds: 180,
+      providerName: "Safe Provider",
+      sourceLabel: "Catalog",
       liveSafe: true,
       vodSafe: true,
       previewUrl: "https://cdn.example.com/preview.mp3",
       previewMimeType: "audio/mpeg",
-      sourceUrl: "https://example.com/track",
-      attributionText: "Artist via Safe Provider",
-      licenseUrl: null
+      attributionText: "Artist via Safe Provider"
     });
-    expect(result.tracks[0]).not.toHaveProperty("reviewState");
-    expect(result.tracks[0]).not.toHaveProperty("hasActiveBlacklist");
-    expect(result.tracks[0]).not.toHaveProperty("storageRef");
-    expect(result.tracks[0]).not.toHaveProperty("sha256");
+    expect(Object.keys(firstTrack ?? {}).sort()).toEqual([
+      "artist",
+      "attributionText",
+      "durationSeconds",
+      "liveSafe",
+      "previewMimeType",
+      "previewUrl",
+      "providerName",
+      "selectionReference",
+      "sourceLabel",
+      "title",
+      "vodSafe"
+    ]);
+    for (const field of [
+      "trackId",
+      "sourceId",
+      "providerKey",
+      "reviewState",
+      "hasActiveBlacklist",
+      "storageRef",
+      "sha256",
+      "sourceUrl",
+      "licenseName",
+      "licenseKind",
+      "licenseUrl",
+      "providerPolicyUrl",
+      "providerTermsUrl"
+    ]) {
+      expect(firstTrack).not.toHaveProperty(field);
+      expect(JSON.stringify(result)).not.toContain(`"${field}"`);
+    }
+  });
+
+  it("builds deterministic distinct opaque references for exact track-source pairs", () => {
+    const first = buildPublicMusicSelectionReference({ trackId: "track", sourceId: "source-a" });
+    const firstAgain = buildPublicMusicSelectionReference({ trackId: "track", sourceId: "source-a" });
+    const second = buildPublicMusicSelectionReference({ trackId: "track", sourceId: "source-b" });
+
+    expect(first).toBe(firstAgain);
+    expect(first).toMatch(/^musicref_v1_[a-f0-9]{64}$/);
+    expect(second).not.toBe(first);
+    expect(first).not.toContain("track");
+    expect(first).not.toContain("source-a");
+  });
+
+  it("keeps the Node digest and MySQL expression on one fixed reference contract", () => {
+    const trackId = "11111111-1111-4111-8111-111111111111";
+    const sourceId = "22222222-2222-4222-8222-222222222222";
+    const expectedReference = "musicref_v1_da90a6d34e7289d74926432eb868482eecb06321fa3899a72c160f58f6b68d73";
+
+    expect(buildPublicMusicSelectionReference({ trackId, sourceId })).toBe(expectedReference);
+    expect(publicMusicSelectionReferenceSql(`'${trackId}'`, `'${sourceId}'`)).toBe(
+      "CONCAT('musicref_v1_', LOWER(SHA2(CONCAT('maiks-yt:music-public-selection-reference:v1', CHAR(0), '11111111-1111-4111-8111-111111111111', CHAR(0), '22222222-2222-4222-8222-222222222222'), 256)))"
+    );
   });
 
   it("gives blacklist precedence over otherwise eligible tracks", async () => {
@@ -624,10 +726,11 @@ describe("MusicService public catalog", () => {
     expect(result.tracks).toEqual([]);
   });
 
-  it("redacts unsafe public URLs and never exposes private license proof URLs", async () => {
+  it("redacts unsafe public preview URLs and omits private license and provider URLs", async () => {
     const repository = new FakeMusicRepository();
     repository.selectableTracks.set("safe", createSelectableTrack("safe", {
       previewUrl: "file:///tmp/private-preview.mp3",
+      previewMimeType: "audio/mpeg",
       sourceUrl: "/private/catalog",
       licenseUrl: "https://example.com/private-proof",
       providerPolicyUrl: "ftp://example.com/policy",
@@ -638,10 +741,100 @@ describe("MusicService public catalog", () => {
 
     expect(result.tracks[0]).toMatchObject({
       previewUrl: null,
-      sourceUrl: null,
-      licenseUrl: null,
-      providerPolicyUrl: null,
-      providerTermsUrl: "https://example.com/terms"
+      previewMimeType: null
+    });
+    expect(result.tracks[0]).not.toHaveProperty("sourceUrl");
+    expect(result.tracks[0]).not.toHaveProperty("licenseUrl");
+    expect(result.tracks[0]).not.toHaveProperty("providerPolicyUrl");
+    expect(result.tracks[0]).not.toHaveProperty("providerTermsUrl");
+  });
+
+  it("preserves a safe preview URL when its source MIME type is null", async () => {
+    const repository = new FakeMusicRepository();
+    repository.selectableTracks.set("safe", createSelectableTrack("safe", {
+      previewUrl: "https://cdn.example.com/preview-without-mime",
+      previewMimeType: null
+    }));
+
+    const result = await new MusicService(repository).listPublicCatalog({ query: "", context: "live" });
+
+    expect(result.tracks[0]).toMatchObject({
+      previewUrl: "https://cdn.example.com/preview-without-mime",
+      previewMimeType: null
+    });
+  });
+
+  it("keeps a long source URL playable while redacting the same public preview URL", async () => {
+    const rawPreviewUrl = `https://example.com/${"\u00e9".repeat(200)}`;
+    const canonicalPreviewUrl = new URL(rawPreviewUrl).toString();
+    const repository = new FakeMusicRepository();
+    repository.selectableTracks.set("safe", createSelectableTrack("safe", {
+      previewUrl: rawPreviewUrl,
+      previewMimeType: "audio/mpeg",
+      sourceUrl: rawPreviewUrl
+    }));
+
+    expect(rawPreviewUrl.length).toBeLessThanOrEqual(publicMusicPreviewUrlMaxLength);
+    expect(canonicalPreviewUrl.length).toBeGreaterThan(publicMusicPreviewUrlMaxLength);
+    expect(safeHttpUrlOrNull(rawPreviewUrl)).toBe(canonicalPreviewUrl);
+
+    const service = new MusicService(repository);
+    const publicResult = await service.listPublicCatalog({ query: "", context: "live" });
+    const accountResult = await service.listAccountCatalog({ query: "", context: "live" });
+
+    expect(publicResult.tracks[0]).toMatchObject({
+      previewUrl: null,
+      previewMimeType: null
+    });
+    expect(accountResult.tracks[0]).toMatchObject({
+      previewUrl: null,
+      previewMimeType: null
+    });
+  });
+});
+
+describe("MusicService account catalog", () => {
+  it("deduplicates source rows by track id and preserves the first eligible source", async () => {
+    const repository = new FakeMusicRepository();
+    repository.selectableTracks.set("safe-secondary", createSelectableTrack("safe-secondary", {
+      trackId: "safe",
+      sourceId: "safe-secondary-source",
+      providerName: "Second Provider",
+      sourceLabel: "Second source",
+      previewUrl: "https://cdn.example.com/second.mp3"
+    }));
+    repository.selectableTracks.set("other", createSelectableTrack("other"));
+
+    const result = await new MusicService(repository).listAccountCatalog({ query: "", context: "live" });
+
+    expect(result.tracks.map((track) => track.trackId)).toEqual(["safe", "other"]);
+    expect(result.tracks[0]).toEqual({
+      trackId: "safe",
+      title: "Track safe",
+      artist: "Artist",
+      durationSeconds: 180,
+      providerName: "Safe Provider",
+      sourceLabel: "Catalog",
+      liveSafe: true,
+      vodSafe: true,
+      previewUrl: "https://cdn.example.com/preview.mp3",
+      previewMimeType: "audio/mpeg",
+      attributionText: "Artist via Safe Provider"
+    });
+  });
+
+  it("redacts an unsafe preview URL and its non-null source MIME as a null pair", async () => {
+    const repository = new FakeMusicRepository();
+    repository.selectableTracks.set("safe", createSelectableTrack("safe", {
+      previewUrl: "file:///tmp/private-preview.mp3",
+      previewMimeType: "audio/mpeg"
+    }));
+
+    const result = await new MusicService(repository).listAccountCatalog({ query: "", context: "live" });
+
+    expect(result.tracks[0]).toMatchObject({
+      previewUrl: null,
+      previewMimeType: null
     });
   });
 });
@@ -655,15 +848,13 @@ describe("MusicService anonymous requests", () => {
     });
 
     const first = await service.createAnonymousRequest({
-      trackId: "safe",
-      sourceId: "safe-source",
+      selectionReference: buildPublicMusicSelectionReference({ trackId: "safe", sourceId: "safe-source" }),
       context: "live",
       viewerIp: "203.0.113.10",
       requestText: "please"
     });
     const second = await service.createAnonymousRequest({
-      trackId: "safe",
-      sourceId: "safe-source",
+      selectionReference: buildPublicMusicSelectionReference({ trackId: "safe", sourceId: "safe-source" }),
       context: "live",
       viewerIp: "203.0.113.10",
       requestText: "again"
@@ -674,17 +865,28 @@ describe("MusicService anonymous requests", () => {
     expect(repository.persistedRequests[0]?.amsterdamDate).toBe("2026-01-02");
     expect(repository.persistedRequests[0]?.anonymousDailyHmac).toMatch(/^[a-f0-9]{64}$/);
     expect(repository.persistedRequests[0]?.anonymousDailyHmac).not.toContain("203.0.113.10");
+    expect(repository.persistedRequests[0]).toMatchObject({
+      trackId: "safe",
+      sourceId: "safe-source"
+    });
   });
 
-  it("rejects non-selectable tracks with a safe error", async () => {
+  it("rechecks eligibility after catalog selection and writes nothing when it is lost", async () => {
     const repository = new FakeMusicRepository();
+    const service = new MusicService(repository, {
+      getRequestHashSecret: () => "test-secret"
+    });
+    const catalog = await service.listPublicCatalog({ query: "", context: "live" });
+    const selectionReference = catalog.tracks[0]?.selectionReference;
+
+    if (!selectionReference) {
+      throw new Error("Expected the eligible track to appear in the public catalog.");
+    }
+
     repository.selectableTracks.set("safe", createSelectableTrack("safe", { eligibilityState: "uncertain" }));
 
-    await expect(new MusicService(repository, {
-      getRequestHashSecret: () => "test-secret"
-    }).createAnonymousRequest({
-      trackId: "safe",
-      sourceId: "safe-source",
+    await expect(service.createAnonymousRequest({
+      selectionReference,
       context: "live",
       viewerIp: "203.0.113.10",
       requestText: null
@@ -692,6 +894,172 @@ describe("MusicService anonymous requests", () => {
       ok: false,
       reason: "music_track_not_selectable"
     });
+    expect(repository.persistedRequests).toEqual([]);
+    expect(repository.requestBuckets.size).toBe(0);
+  });
+
+  it("rejects stale or ambiguous public references without writing requests", async () => {
+    const repository = new FakeMusicRepository();
+    const ambiguousReference = buildPublicMusicSelectionReference({ trackId: "safe", sourceId: "safe-source" });
+    repository.ambiguousSelectionReferences.add(ambiguousReference);
+    const service = new MusicService(repository, {
+      getRequestHashSecret: () => "test-secret"
+    });
+
+    await expect(service.createAnonymousRequest({
+      selectionReference: `musicref_v1_${"a".repeat(64)}`,
+      context: "live",
+      viewerIp: "203.0.113.10",
+      requestText: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "music_track_not_selectable"
+    });
+    await expect(service.createAnonymousRequest({
+      selectionReference: ambiguousReference,
+      context: "live",
+      viewerIp: "203.0.113.10",
+      requestText: null
+    })).resolves.toEqual({
+      ok: false,
+      reason: "music_track_not_selectable"
+    });
+    expect(repository.persistedRequests).toEqual([]);
+    expect(repository.requestBuckets.size).toBe(0);
+  });
+});
+
+const createAnonymousRequestTransactionHarness = (
+  selectionRows: readonly MusicSelectableTrack[],
+  options: { duplicateBucket?: boolean } = {}
+) => {
+  const statements: Array<{ sql: string; values: readonly unknown[] }> = [];
+  const events: string[] = [];
+  const connection = {
+    beginTransaction: async () => {
+      events.push("begin");
+    },
+    commit: async () => {
+      events.push("commit");
+    },
+    execute: async (sql: unknown, values?: readonly unknown[]) => {
+      const statement = { sql: String(sql), values: values ?? [] };
+      statements.push(statement);
+      if (options.duplicateBucket && statement.sql.includes("INSERT INTO music_anonymous_request_buckets")) {
+        throw { code: "ER_DUP_ENTRY" };
+      }
+      return statement.sql.includes("AS publicSelectionReference")
+        ? [selectionRows]
+        : [{ affectedRows: 1 }];
+    },
+    release: () => {
+      events.push("release");
+    },
+    rollback: async () => {
+      events.push("rollback");
+    }
+  };
+  const repository = createMusicRepository({
+    getConnection: async () => connection
+  } as unknown as DatabasePool);
+
+  return { events, repository, statements };
+};
+
+describe("MusicRepository anonymous request transaction", () => {
+  const requestInput = {
+    selectionReference: `musicref_v1_${"a".repeat(64)}`,
+    context: "live" as const,
+    anonymousDailyHmac: "b".repeat(64),
+    amsterdamDate: "2026-08-28",
+    requestText: "please"
+  };
+
+  it("writes no bucket or request when current eligibility no longer resolves", async () => {
+    const harness = createAnonymousRequestTransactionHarness([]);
+
+    await expect(harness.repository.createAnonymousTrackRequest(requestInput)).resolves.toEqual({
+      ok: false,
+      reason: "music_track_not_selectable"
+    });
+
+    expect(harness.statements.map((statement) => statement.sql)).toHaveLength(1);
+    expect(harness.statements[0]?.sql).toContain("public_requests_enabled = TRUE");
+    expect(harness.statements[0]?.sql).toContain("tracks.review_state IN ('unreviewed', 'approved')");
+    expect(harness.statements[0]?.sql).toContain("HAVING hasActiveBlacklist = 0");
+    expect(harness.statements[0]?.sql).toContain("FOR UPDATE");
+    expect(harness.events).toEqual(["begin", "rollback", "release"]);
+  });
+
+  it("writes no bucket or request when the reference resolves ambiguously", async () => {
+    const harness = createAnonymousRequestTransactionHarness([
+      createSelectableTrack("collision-a"),
+      createSelectableTrack("collision-b")
+    ]);
+
+    await expect(harness.repository.createAnonymousTrackRequest(requestInput)).resolves.toEqual({
+      ok: false,
+      reason: "music_track_not_selectable"
+    });
+
+    expect(harness.statements).toHaveLength(1);
+    expect(harness.events).toEqual(["begin", "rollback", "release"]);
+  });
+
+  it("claims the bucket and inserts only the transaction-resolved internal ids", async () => {
+    const resolved = createSelectableTrack("resolved-row", {
+      trackId: "resolved-track",
+      sourceId: "resolved-source",
+      providerKey: "resolved-provider"
+    });
+    const harness = createAnonymousRequestTransactionHarness([resolved]);
+
+    await expect(harness.repository.createAnonymousTrackRequest(requestInput)).resolves.toMatchObject({
+      ok: true,
+      request: {
+        trackId: "resolved-track",
+        sourceId: "resolved-source"
+      }
+    });
+
+    const bucketInsert = harness.statements.find((statement) =>
+      statement.sql.includes("INSERT INTO music_anonymous_request_buckets")
+    );
+    const requestInsert = harness.statements.find((statement) =>
+      statement.sql.includes("INSERT INTO music_track_requests")
+    );
+    expect(bucketInsert?.values).toEqual([
+      expect.any(String),
+      requestInput.anonymousDailyHmac,
+      requestInput.amsterdamDate
+    ]);
+    expect(requestInsert?.values).toEqual([
+      expect.any(String),
+      "resolved-track",
+      "resolved-source",
+      expect.any(String),
+      requestInput.anonymousDailyHmac,
+      requestInput.amsterdamDate,
+      requestInput.requestText,
+      "resolved-provider"
+    ]);
+    expect(harness.events).toEqual(["begin", "commit", "release"]);
+  });
+
+  it("keeps the unique daily bucket claim atomic", async () => {
+    const harness = createAnonymousRequestTransactionHarness([
+      createSelectableTrack("resolved")
+    ], { duplicateBucket: true });
+
+    await expect(harness.repository.createAnonymousTrackRequest(requestInput)).resolves.toEqual({
+      ok: false,
+      reason: "music_request_daily_limit"
+    });
+
+    expect(harness.statements.some((statement) =>
+      statement.sql.includes("INSERT INTO music_track_requests")
+    )).toBe(false);
+    expect(harness.events).toEqual(["begin", "rollback", "release"]);
   });
 });
 
@@ -1101,6 +1469,33 @@ describe("MusicRepository SQL policy shape", () => {
     expect(sql).not.toContain("tracks.review_state IN ('unreviewed', 'approved')");
     expect(sql).not.toContain("policies.public_playback_enabled = TRUE");
   });
+
+  it("resolves public references against current public-request candidates only", async () => {
+    const executed: string[] = [];
+    const params: unknown[][] = [];
+    const repository = createMusicRepository({
+      execute: async (sql, values) => {
+        executed.push(String(sql));
+        params.push(Array.isArray(values) ? values : []);
+        return [[]];
+      }
+    } as unknown as DatabasePool);
+
+    await repository.getPublicCatalogSelection({
+      selectionReference: `musicref_v1_${"a".repeat(64)}`,
+      context: "live"
+    });
+
+    const sql = executed[0] ?? "";
+
+    expect(sql).toContain("CONCAT('musicref_v1_', LOWER(SHA2");
+    expect(sql).toContain("public_requests_enabled = TRUE");
+    expect(sql).toContain("tracks.review_state IN ('unreviewed', 'approved')");
+    expect(sql).toContain("HAVING hasActiveBlacklist = 0");
+    expect(sql).toContain("publicSelectionReference = BINARY ?");
+    expect(sql).toContain("LIMIT 2");
+    expect(params[0]).toEqual(["live", "live", `musicref_v1_${"a".repeat(64)}`]);
+  });
 });
 
 describe("Music routes", () => {
@@ -1208,6 +1603,7 @@ describe("Music routes", () => {
           };
         },
         listPublicCatalog: async () => ({ ok: true, tracks: [] }),
+        listAccountCatalog: async () => ({ ok: true, tracks: [] }),
         getTopTracks: async () => ({ ok: true, limit: 10, tracks: [] }),
         replaceTopTracks: async () => ({ ok: true, limit: 10, tracks: [] }),
         listAdmin: async () => ({ ok: false, reason: "music_admin_forbidden" }),
@@ -1237,8 +1633,7 @@ describe("Music routes", () => {
         "x-forwarded-for": "203.0.113.55"
       },
       payload: {
-        trackId: "safe",
-        sourceId: "safe-source"
+        selectionReference: buildPublicMusicSelectionReference({ trackId: "safe", sourceId: "safe-source" })
       }
     });
 
@@ -1268,8 +1663,7 @@ describe("Music routes", () => {
         "cf-connecting-ip": "198.51.100.77"
       },
       payload: {
-        trackId: "safe",
-        sourceId: "safe-source"
+        selectionReference: buildPublicMusicSelectionReference({ trackId: "safe", sourceId: "safe-source" })
       }
     });
     const responseBody = response.json();
@@ -1284,8 +1678,98 @@ describe("Music routes", () => {
     expect(repository.persistedRequests).toEqual([{
       anonymousDailyHmac: expect.stringMatching(/^[a-f0-9]{64}$/),
       amsterdamDate: "2026-01-02",
-      providerKey: "safe-provider"
+      providerKey: "safe-provider",
+      sourceId: "safe-source",
+      trackId: "safe"
     }]);
+  });
+
+  it("rejects old anonymous request id payloads before they can write", async () => {
+    const repository = new FakeMusicRepository();
+    const server = Fastify({ logger: false });
+    registerMusicRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new MusicService(repository, {
+        getRequestHashSecret: () => "test-secret"
+      })
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/music/requests",
+      payload: {
+        trackId: "safe",
+        sourceId: "safe-source"
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ ok: false, reason: "music_invalid_input" });
+    expect(repository.persistedRequests).toEqual([]);
+  });
+
+  it("keeps the account catalog authenticated and exact for Top 10 preservation", async () => {
+    const server = Fastify({ logger: false });
+    registerMusicRoutes(server, {
+      getAuthSession: async (request) => request.headers.authorization === "Bearer member"
+        ? { user: { id: "auth-user", name: "Member" } }
+        : null,
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new MusicService(new FakeMusicRepository())
+    });
+
+    const anonymous = await server.inject({
+      method: "GET",
+      url: "/account/music/catalog"
+    });
+    const authenticated = await server.inject({
+      method: "GET",
+      url: "/account/music/catalog",
+      headers: {
+        authorization: "Bearer member"
+      }
+    });
+    const authenticatedBody = authenticated.json();
+
+    expect(anonymous.statusCode).toBe(401);
+    expect(anonymous.json()).toEqual({ ok: false, reason: "not_authenticated" });
+    expect(authenticated.statusCode).toBe(200);
+    expect(authenticatedBody.ok).toBe(true);
+    expect(Object.keys(authenticatedBody.tracks[0]).sort()).toEqual([
+      "artist",
+      "attributionText",
+      "durationSeconds",
+      "liveSafe",
+      "previewMimeType",
+      "previewUrl",
+      "providerName",
+      "sourceLabel",
+      "title",
+      "trackId",
+      "vodSafe"
+    ]);
+    expect(authenticatedBody.tracks[0]).toMatchObject({
+      trackId: "safe",
+      title: "Track safe"
+    });
+    for (const field of [
+      "selectionReference",
+      "sourceId",
+      "providerKey",
+      "sourceUrl",
+      "licenseName",
+      "licenseKind",
+      "licenseUrl",
+      "providerPolicyUrl",
+      "providerTermsUrl"
+    ]) {
+      expect(authenticatedBody.tracks[0]).not.toHaveProperty(field);
+    }
   });
 
   it("redacts thrown internal errors from public responses", async () => {
@@ -1299,6 +1783,7 @@ describe("Music routes", () => {
         listPublicCatalog: async () => {
           throw new Error("secret-token-should-not-leak");
         },
+        listAccountCatalog: async () => ({ ok: true, tracks: [] }),
         createAnonymousRequest: async () => ({ ok: false, reason: "music_request_unavailable" }),
         getTopTracks: async () => ({ ok: true, limit: 10, tracks: [] }),
         replaceTopTracks: async () => ({ ok: true, limit: 10, tracks: [] }),

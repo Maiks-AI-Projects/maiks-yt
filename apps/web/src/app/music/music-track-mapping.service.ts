@@ -1,5 +1,7 @@
 import type {
-  MusicApiCatalogTrack,
+  MusicAccountCatalogTrack,
+  MusicPublicApiCatalogTrack,
+  MusicPublicUiTrack,
   MusicTopTrackPick,
   MusicTrackAdminRecord,
   MusicUiTrack
@@ -8,17 +10,32 @@ import type {
 export const buildMusicUiTrackId = (trackId: string, sourceId: string | null): string =>
   sourceId ? `${trackId}::source::${sourceId}` : trackId;
 
-export const toMusicSelectTrack = (track: MusicApiCatalogTrack): MusicUiTrack => ({
+export const toPublicMusicSelectTrack = (track: MusicPublicApiCatalogTrack): MusicPublicUiTrack => ({
   artist: track.artist,
   attributionCue: track.attributionText,
   durationSeconds: track.durationSeconds,
-  id: buildMusicUiTrackId(track.trackId, track.sourceId),
+  id: track.selectionReference,
   liveSafe: track.liveSafe,
   previewMimeType: track.previewMimeType,
   previewUrl: track.previewUrl,
   provider: track.providerName,
-  providerKey: track.providerKey,
-  sourceId: track.sourceId,
+  selectionReference: track.selectionReference,
+  sourceLabel: track.sourceLabel,
+  title: track.title,
+  vodSafe: track.vodSafe
+});
+
+export const toMusicSelectTrack = (track: MusicAccountCatalogTrack): MusicUiTrack => ({
+  artist: track.artist,
+  attributionCue: track.attributionText,
+  durationSeconds: track.durationSeconds,
+  id: track.trackId,
+  liveSafe: track.liveSafe,
+  previewMimeType: track.previewMimeType,
+  previewUrl: track.previewUrl,
+  provider: track.providerName,
+  providerKey: track.providerName,
+  sourceId: null,
   sourceLabel: track.sourceLabel,
   title: track.title,
   trackId: track.trackId,

@@ -1,6 +1,21 @@
 import type { MusicEligibilityState, MusicReviewState } from "@maiks-yt/domain/music";
 
 export type PublicMusicCatalogTrack = {
+  selectionReference: string;
+  title: string;
+  artist: string;
+  durationSeconds: number | null;
+  providerName: string;
+  sourceLabel: string;
+  liveSafe: boolean;
+  vodSafe: boolean;
+  previewUrl: string | null;
+  previewMimeType: string | null;
+  attributionText: string | null;
+};
+
+export type MusicSelectableTrack = {
+  id: string;
   trackId: string;
   sourceId: string;
   title: string;
@@ -8,31 +23,23 @@ export type PublicMusicCatalogTrack = {
   durationSeconds: number | null;
   providerKey: string;
   providerName: string;
+  sourceType: string;
   sourceLabel: string;
-  liveSafe: boolean;
-  vodSafe: boolean;
+  sourceExternalId: string | null;
   previewUrl: string | null;
   previewMimeType: string | null;
   sourceUrl: string | null;
+  sourceStorageRef: string | null;
+  sourceSha256: string | null;
+  safetyTags: readonly string[];
+  explicitContent: boolean;
+  instrumental: boolean;
   attributionText: string | null;
   licenseName: string;
   licenseKind: string;
   licenseUrl: string | null;
   providerPolicyUrl: string | null;
   providerTermsUrl: string | null;
-};
-
-export type MusicSelectableTrack = PublicMusicCatalogTrack & {
-  id: string;
-  sourceType: string;
-  sourceExternalId: string | null;
-  previewUrl: string | null;
-  previewMimeType: string | null;
-  sourceStorageRef: string | null;
-  sourceSha256: string | null;
-  safetyTags: readonly string[];
-  explicitContent: boolean;
-  instrumental: boolean;
   providerPolicyState: "allowed" | "review-only" | "disabled";
   eligibilityState: MusicEligibilityState;
   reviewState: MusicReviewState;
