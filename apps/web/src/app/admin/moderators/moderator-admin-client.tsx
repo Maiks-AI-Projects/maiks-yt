@@ -15,6 +15,7 @@ import {
   emptyRoleForm,
   getFailureMessage,
   getLoadStateForFailure,
+  roleIsProtectedForEditing,
   toDateTimeInput,
   toPayload,
   toRankPathPayload,
@@ -71,7 +72,7 @@ const ModeratorAdminClient = (): React.ReactNode => {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
 
   const grantableRoles = useMemo(
-    () => roles.filter((role) => role.grantable),
+    () => roles.filter((role) => role.grantable && !roleIsProtectedForEditing(role)),
     [roles]
   );
 
@@ -115,7 +116,9 @@ const ModeratorAdminClient = (): React.ReactNode => {
         setForm((current) => ({
           ...current,
           targetUserId: current.targetUserId || payload.users[0]?.id || "",
-          roleId: current.roleId || payload.roles.find((role) => role.grantable)?.id || ""
+          roleId: current.roleId || payload.roles.find((role) =>
+            role.grantable && !roleIsProtectedForEditing(role)
+          )?.id || ""
         }));
         setLoadState("ready");
         setMessage("Moderator admin loaded.");
@@ -265,7 +268,8 @@ const ModeratorAdminClient = (): React.ReactNode => {
         return;
       }
 
-      setMessage(payload?.ok === false ? payload.reason : `Rank path request failed with ${response.status}.`);
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, reason));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Saving rank path failed.");
     } finally {
@@ -303,7 +307,8 @@ const ModeratorAdminClient = (): React.ReactNode => {
         return;
       }
 
-      setMessage(payload?.ok === false ? payload.reason : `Role request failed with ${response.status}.`);
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(getFailureMessage(response, reason));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Saving role failed.");
     } finally {
@@ -333,9 +338,10 @@ const ModeratorAdminClient = (): React.ReactNode => {
         setMessage("Promotion path removed.");
         return;
       }
-      setMessage(payload?.ok === false && payload.reason === "moderator_admin_rank_path_in_use"
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(reason === "moderator_admin_rank_path_in_use"
         ? "Remove or move every rank in this path first."
-        : payload?.ok === false ? payload.reason : `Promotion path removal failed with ${response.status}.`);
+        : getFailureMessage(response, reason));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Removing promotion path failed.");
     } finally {
@@ -365,12 +371,10 @@ const ModeratorAdminClient = (): React.ReactNode => {
         setMessage("Rank removed.");
         return;
       }
-      const reason = payload?.ok === false ? payload.reason : null;
-      setMessage(reason === "moderator_admin_role_protected"
-        ? "Owner and system ranks cannot be removed."
-        : reason === "moderator_admin_role_in_use"
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setMessage(reason === "moderator_admin_role_in_use"
           ? "This rank is assigned, audited, or referenced by a promotion and cannot be removed."
-          : reason ?? `Rank removal failed with ${response.status}.`);
+          : getFailureMessage(response, reason));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Removing rank failed.");
     } finally {

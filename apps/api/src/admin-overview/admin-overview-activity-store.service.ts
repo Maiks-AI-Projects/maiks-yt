@@ -1,3 +1,4 @@
+import { hasStrictModeratorRoleAuthorityShape } from "@maiks-yt/domain/community";
 import type { DatabasePool } from "@maiks-yt/database";
 
 import type {
@@ -12,8 +13,10 @@ type CountRow = {
 };
 
 type ActiveGrantRow = {
-  roleKey: string;
+  roleKey: unknown;
   rolePermissions: unknown;
+  roleIsOwnerRank: unknown;
+  roleIsSystem: unknown;
   trustLevel: AdminOverviewActiveGrantRecord["trustLevel"];
 };
 
@@ -33,20 +36,52 @@ const toCount = (value: CountRow[keyof CountRow]): number => {
   return 0;
 };
 
-const parseStringArray = (value: unknown): string[] => {
-  const parsed = typeof value === "string"
-    ? (() => {
-      try {
-        return JSON.parse(value) as unknown;
-      } catch {
-        return [];
-      }
-    })()
-    : value;
+const invalidRoleKey = "invalid-role-key";
 
-  return Array.isArray(parsed)
-    ? parsed.filter((entry): entry is string => typeof entry === "string")
-    : [];
+const decodeJsonValue = (value: unknown): unknown => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+};
+
+const decodeRoleFlag = (value: unknown): unknown =>
+  value === 1 ? true : value === 0 ? false : value;
+
+export const mapAdminOverviewActiveGrant = (
+  row: ActiveGrantRow
+): AdminOverviewActiveGrantRecord => {
+  const authority = {
+    key: row.roleKey,
+    permissions: decodeJsonValue(row.rolePermissions),
+    isOwnerRank: decodeRoleFlag(row.roleIsOwnerRank),
+    isSystem: decodeRoleFlag(row.roleIsSystem)
+  };
+
+  if (!hasStrictModeratorRoleAuthorityShape(authority)) {
+    return {
+      roleKey: invalidRoleKey,
+      rolePermissions: [],
+      roleIsOwnerRank: false,
+      roleIsSystem: false,
+      roleAuthorityIntegrity: "invalid",
+      trustLevel: row.trustLevel
+    };
+  }
+
+  return {
+    roleKey: authority.key,
+    rolePermissions: authority.permissions,
+    roleIsOwnerRank: authority.isOwnerRank,
+    roleIsSystem: authority.isSystem,
+    roleAuthorityIntegrity: "valid",
+    trustLevel: row.trustLevel
+  };
 };
 
 const resolveActor = async (
@@ -112,6 +147,8 @@ export const createAdminOverviewActivityRepository = (
         SELECT
           roles.\`key\` AS roleKey,
           roles.permissions AS rolePermissions,
+          roles.is_owner_rank AS roleIsOwnerRank,
+          roles.is_system AS roleIsSystem,
           user_roles.trust_level AS trustLevel
         FROM user_roles
         INNER JOIN users ON users.id = user_roles.user_id
@@ -120,17 +157,12 @@ export const createAdminOverviewActivityRepository = (
           AND user_roles.revoked_at IS NULL
           AND (user_roles.expires_at IS NULL OR user_roles.expires_at > NOW())
           AND user_roles.trust_level <> 'owner'
-          AND roles.\`key\` NOT IN ('owner', 'admin')
         ORDER BY user_roles.assigned_at DESC
       `
     );
 
     return Array.isArray(rows)
-      ? (rows as ActiveGrantRow[]).map((row) => ({
-        roleKey: row.roleKey,
-        rolePermissions: parseStringArray(row.rolePermissions),
-        trustLevel: row.trustLevel
-      }))
+      ? (rows as ActiveGrantRow[]).map(mapAdminOverviewActiveGrant)
       : [];
   }
 });

@@ -4,7 +4,8 @@ import type {
   ModeratorGrantScopeKind,
   ModeratorGrantUpdateInput,
   ModeratorTrustLevel,
-  RoleGrantAuditAction
+  RoleGrantAuditAction,
+  ModeratorRoleAuthorityIntegrity
 } from "@maiks-yt/domain/community";
 
 export type ModeratorAdminActor = {
@@ -36,6 +37,7 @@ export type ModeratorAdminRole = {
   discordRoleId: string | null;
   isOwnerRank: boolean;
   isSystem: boolean;
+  authorityIntegrity: ModeratorRoleAuthorityIntegrity;
   grantable: boolean;
   createdAt: string;
   updatedAt: string;
@@ -81,8 +83,6 @@ export type ModeratorAdminAuditLog = {
   actorUserId: string | null;
   actorDisplayName: string | null;
   action: RoleGrantAuditAction;
-  previousValue: Record<string, unknown> | null;
-  nextValue: Record<string, unknown> | null;
   reason: string | null;
   createdAt: string;
 };
@@ -157,7 +157,8 @@ export type ModeratorAdminRankPathMutationResult =
       | "moderator_admin_forbidden"
       | "moderator_admin_invalid_input"
       | "moderator_admin_rank_path_not_found"
-      | "moderator_admin_rank_path_exists";
+      | "moderator_admin_rank_path_exists"
+      | "moderator_admin_rank_path_protected";
   };
 
 export type ModeratorAdminRoleMutationResult =
@@ -173,7 +174,8 @@ export type ModeratorAdminRoleMutationResult =
       | "moderator_admin_invalid_input"
       | "moderator_admin_role_not_found"
       | "moderator_admin_rank_path_not_found"
-      | "moderator_admin_role_exists";
+      | "moderator_admin_role_exists"
+      | "moderator_admin_role_protected";
   };
 
 export type ModeratorAdminDeleteResult =
@@ -226,9 +228,9 @@ export interface ModeratorAdminRepository {
     auditLog: ModeratorAdminAuditLog;
   } | "not-found">;
   createRankPath(input: ModeratorAdminRankPathInput): Promise<ModeratorAdminRankPath | "exists">;
-  updateRankPath(rankPathId: string, input: ModeratorAdminRankPathInput): Promise<ModeratorAdminRankPath | "not-found" | "exists">;
+  updateRankPath(rankPathId: string, input: ModeratorAdminRankPathInput): Promise<ModeratorAdminRankPath | "not-found" | "exists" | "protected">;
   deleteRankPath(rankPathId: string): Promise<"deleted" | "not-found" | "in-use">;
-  createRole(input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found">;
-  updateRole(roleId: string, input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found">;
+  createRole(input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found" | "protected">;
+  updateRole(roleId: string, input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found" | "protected">;
   deleteRole(roleId: string): Promise<"deleted" | "not-found" | "protected" | "in-use">;
 }

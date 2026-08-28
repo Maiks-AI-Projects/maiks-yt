@@ -60,9 +60,14 @@ export type ModeratorGrantUpdateInput = Partial<Pick<
   "trustLevel" | "scopeKind" | "scopeId" | "availability" | "expiresAt" | "reason"
 >>;
 
+export type ModeratorRoleAuthorityIntegrity = "valid" | "invalid";
+
 export type ModeratorRoleForGrant = {
   key: string;
   permissions: readonly unknown[];
+  isOwnerRank: boolean;
+  isSystem: boolean;
+  authorityIntegrity?: ModeratorRoleAuthorityIntegrity;
 };
 
 export type ModeratorGrantValidationIssue =
@@ -76,6 +81,7 @@ export type ModeratorGrantValidationIssue =
   | "moderator_grant_invalid_expiration"
   | "moderator_grant_reason_too_long"
   | "moderator_grant_owner_admin_role_forbidden"
+  | "moderator_grant_protected_role_forbidden"
   | "moderator_grant_dangerous_permission_forbidden";
 
 export type ModeratorGrantValidationResult = {

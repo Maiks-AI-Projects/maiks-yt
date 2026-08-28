@@ -17,7 +17,8 @@ const grantableTrustLevelSet = new Set<string>(grantableModeratorTrustLevels);
 const scopeKindSet = new Set<string>(moderatorGrantScopeKinds);
 const availabilitySet = new Set<string>(moderatorGrantAvailabilities);
 
-const forbiddenRoleKeys = new Set(["owner", "admin"]);
+const protectedRoleKeys = new Set(["owner", "admin"]);
+const normalizedModeratorRoleKeyPattern = /^[a-z0-9:-]+$/;
 
 const dangerousPermissionExact = new Set([
   "*",
@@ -90,13 +91,93 @@ export const isDangerousModeratorPermission = (permission: unknown): boolean => 
     return false;
   }
 
-  return dangerousPermissionExact.has(permission)
-    || dangerousPermissionPrefixes.some((prefix) => permission.startsWith(prefix));
+  const normalizedPermission = permission.trim();
+
+  return dangerousPermissionExact.has(normalizedPermission)
+    || dangerousPermissionPrefixes.some((prefix) => normalizedPermission.startsWith(prefix));
 };
 
+export const hasModeratorWildcardAuthority = (permissions: readonly unknown[]): boolean =>
+  permissions.some((permission) => typeof permission === "string" && permission.trim() === "*");
+
+export const isReservedModeratorRoleKey = (key: unknown): boolean =>
+  typeof key === "string" && protectedRoleKeys.has(key.trim().toLowerCase());
+
+export const isNormalizedModeratorRoleKey = (key: unknown): key is string =>
+  typeof key === "string"
+  && key.length > 0
+  && key === key.trim().toLowerCase()
+  && normalizedModeratorRoleKeyPattern.test(key);
+
+export type StrictModeratorRoleAuthority = {
+  key: string;
+  permissions: readonly string[];
+  isOwnerRank: boolean;
+  isSystem: boolean;
+  authorityIntegrity?: "valid";
+};
+
+export const hasStrictModeratorRoleAuthorityShape = (
+  role: unknown
+): role is StrictModeratorRoleAuthority => {
+  if (!role || typeof role !== "object" || Array.isArray(role)) {
+    return false;
+  }
+
+  const candidate = role as Record<string, unknown>;
+
+  return isNormalizedModeratorRoleKey(candidate.key)
+    && Array.isArray(candidate.permissions)
+    && candidate.permissions.every((permission) =>
+      typeof permission === "string" && permission.trim().length > 0
+    )
+    && typeof candidate.isOwnerRank === "boolean"
+    && typeof candidate.isSystem === "boolean"
+    && (candidate.authorityIntegrity === undefined || candidate.authorityIntegrity === "valid");
+};
+
+export const isProtectedModeratorRoleAuthority = (
+  role: Pick<ModeratorRoleForGrant, "key" | "permissions" | "isOwnerRank" | "isSystem" | "authorityIntegrity">
+): boolean =>
+  !hasStrictModeratorRoleAuthorityShape(role)
+  || isReservedModeratorRoleKey(role.key)
+  || role.isOwnerRank === true
+  || role.isSystem === true
+  || hasModeratorWildcardAuthority(role.permissions);
+
 export const isModeratorRoleGrantable = (role: ModeratorRoleForGrant): boolean =>
-  !forbiddenRoleKeys.has(role.key)
+  !isProtectedModeratorRoleAuthority(role)
   && !role.permissions.some(isDangerousModeratorPermission);
+
+export const canCreateOrdinaryModeratorRole = (
+  role: Pick<ModeratorRoleForGrant, "key" | "permissions" | "isOwnerRank" | "isSystem" | "authorityIntegrity">
+): boolean =>
+  hasStrictModeratorRoleAuthorityShape(role)
+  && !isProtectedModeratorRoleAuthority(role);
+
+export const canUpdateOrdinaryModeratorRole = (
+  existing: Pick<ModeratorRoleForGrant, "key" | "permissions" | "isOwnerRank" | "isSystem" | "authorityIntegrity">,
+  next: Pick<ModeratorRoleForGrant, "key" | "permissions" | "isOwnerRank" | "isSystem" | "authorityIntegrity">
+): boolean =>
+  hasStrictModeratorRoleAuthorityShape(existing)
+  && hasStrictModeratorRoleAuthorityShape(next)
+  && !isProtectedModeratorRoleAuthority(existing)
+  && !isProtectedModeratorRoleAuthority(next);
+
+export const canDeleteOrdinaryModeratorRole = (
+  role: Pick<ModeratorRoleForGrant, "key" | "permissions" | "isOwnerRank" | "isSystem" | "authorityIntegrity">
+): boolean =>
+  hasStrictModeratorRoleAuthorityShape(role)
+  && !isProtectedModeratorRoleAuthority(role);
+
+export const canUpdateOrdinaryModeratorRankPath = (
+  attachedRoles: unknown
+): boolean =>
+  Array.isArray(attachedRoles)
+  && attachedRoles.every((role) =>
+    hasStrictModeratorRoleAuthorityShape(role)
+    && canDeleteOrdinaryModeratorRole(role)
+  );
 
 export const validateModeratorGrantInput = (
   input: ModeratorGrantInput,
@@ -137,11 +218,15 @@ export const validateModeratorGrantInput = (
   }
 
   if (role) {
-    if (forbiddenRoleKeys.has(role.key)) {
+    if (isReservedModeratorRoleKey(role.key)) {
       issues.push("moderator_grant_owner_admin_role_forbidden");
     }
 
-    if (role.permissions.some(isDangerousModeratorPermission)) {
+    if (!hasStrictModeratorRoleAuthorityShape(role) || isProtectedModeratorRoleAuthority(role)) {
+      issues.push("moderator_grant_protected_role_forbidden");
+    }
+
+    if (Array.isArray(role.permissions) && role.permissions.some(isDangerousModeratorPermission)) {
       issues.push("moderator_grant_dangerous_permission_forbidden");
     }
   }

@@ -1,5 +1,9 @@
-import { isModeratorRoleGrantable } from "@maiks-yt/domain/community";
-import type { ModeratorGrantAvailability, ModeratorGrantScopeKind, ModeratorTrustLevel, RoleGrantAuditAction } from "@maiks-yt/domain/community";
+import {
+  hasStrictModeratorRoleAuthorityShape,
+  isModeratorRoleGrantable,
+  isNormalizedModeratorRoleKey
+} from "@maiks-yt/domain/community";
+import type { ModeratorGrantAvailability, ModeratorGrantScopeKind, ModeratorRoleAuthorityIntegrity, ModeratorTrustLevel, RoleGrantAuditAction } from "@maiks-yt/domain/community";
 import type { DatabasePool } from "@maiks-yt/database";
 import type { ModeratorAdminAuditLog, ModeratorAdminGrant, ModeratorAdminRankPath, ModeratorAdminRole, ModeratorAdminUser } from "./moderator-admin.types.js";
 
@@ -18,7 +22,7 @@ export type ModeratorUserRow = {
 
 export type ModeratorRoleRow = {
   id: string;
-  key: string;
+  key: unknown;
   name: string;
   permissions: unknown;
   rankPathId?: string | null;
@@ -28,8 +32,8 @@ export type ModeratorRoleRow = {
   displayLabel?: string | null;
   nextRoleId?: string | null;
   discordRoleId?: string | null;
-  isOwnerRank?: number | boolean;
-  isSystem?: number | boolean;
+  isOwnerRank?: unknown;
+  isSystem?: unknown;
   createdAt: Date | string;
   updatedAt: Date | string;
 };
@@ -48,9 +52,11 @@ export type ModeratorGrantRow = {
   id: string;
   userId: string;
   roleId: string;
-  roleKey: string;
+  roleKey: unknown;
   roleName: string;
   rolePermissions: unknown;
+  roleIsOwnerRank?: unknown;
+  roleIsSystem?: unknown;
   trustLevel: ModeratorTrustLevel;
   scopeKind: ModeratorGrantScopeKind;
   scopeId?: string | null;
@@ -68,7 +74,7 @@ export type ModeratorAuditLogRow = {
   targetUserId: string;
   targetDisplayName?: string | null;
   roleId: string;
-  roleKey?: string | null;
+  roleKey?: unknown;
   roleName?: string | null;
   actorUserId?: string | null;
   actorDisplayName?: string | null;
@@ -88,40 +94,58 @@ export const toNullableIsoString = (value: Date | string | null | undefined): st
 export const toSqlTimestamp = (value: string | null | undefined): string | null =>
   value ? new Date(value).toISOString().slice(0, 19).replace("T", " ") : null;
 
-export const parseStringArray = (value: unknown): string[] => {
-  const parsed = typeof value === "string"
-    ? (() => {
-      try {
-        return JSON.parse(value) as unknown;
-      } catch {
-        return [];
-      }
-    })()
-    : value;
+const invalidRoleKey = "invalid-role-key";
 
-  return Array.isArray(parsed)
-    ? parsed.filter((entry): entry is string => typeof entry === "string")
-    : [];
-};
-
-export const parseRecord = (value: unknown): Record<string, unknown> | null => {
-  if (value === null || value === undefined) {
-    return null;
+const decodeJsonValue = (value: unknown): unknown => {
+  if (typeof value !== "string") {
+    return value;
   }
 
-  const parsed = typeof value === "string"
-    ? (() => {
-      try {
-        return JSON.parse(value) as unknown;
-      } catch {
-        return null;
-      }
-    })()
-    : value;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+};
 
-  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-    ? parsed as Record<string, unknown>
-    : null;
+const decodeRoleFlag = (value: unknown): unknown =>
+  value === 1 ? true : value === 0 ? false : value;
+
+type MappedRoleAuthority = {
+  key: string;
+  permissions: readonly string[];
+  isOwnerRank: boolean;
+  isSystem: boolean;
+  authorityIntegrity: ModeratorRoleAuthorityIntegrity;
+};
+
+const mapRoleAuthority = (input: {
+  key: unknown;
+  permissions: unknown;
+  isOwnerRank: unknown;
+  isSystem: unknown;
+}): MappedRoleAuthority => {
+  const candidate = {
+    key: input.key,
+    permissions: decodeJsonValue(input.permissions),
+    isOwnerRank: decodeRoleFlag(input.isOwnerRank),
+    isSystem: decodeRoleFlag(input.isSystem)
+  };
+
+  if (!hasStrictModeratorRoleAuthorityShape(candidate)) {
+    return {
+      key: invalidRoleKey,
+      permissions: [],
+      isOwnerRank: false,
+      isSystem: false,
+      authorityIntegrity: "invalid"
+    };
+  }
+
+  return {
+    ...candidate,
+    authorityIntegrity: "valid"
+  };
 };
 
 export const mapUser = (row: ModeratorUserRow): ModeratorAdminUser => ({
@@ -135,11 +159,16 @@ export const mapUser = (row: ModeratorUserRow): ModeratorAdminUser => ({
 });
 
 export const mapRole = (row: ModeratorRoleRow): ModeratorAdminRole => {
+  const authority = mapRoleAuthority({
+    key: row.key,
+    permissions: row.permissions,
+    isOwnerRank: row.isOwnerRank,
+    isSystem: row.isSystem
+  });
   const role = {
     id: row.id,
-    key: row.key,
+    ...authority,
     name: row.name,
-    permissions: parseStringArray(row.permissions),
     rankPathId: row.rankPathId ?? null,
     rankPathKey: row.rankPathKey ?? null,
     rankPathName: row.rankPathName ?? null,
@@ -147,8 +176,6 @@ export const mapRole = (row: ModeratorRoleRow): ModeratorAdminRole => {
     displayLabel: row.displayLabel ?? null,
     nextRoleId: row.nextRoleId ?? null,
     discordRoleId: row.discordRoleId ?? null,
-    isOwnerRank: Boolean(row.isOwnerRank),
-    isSystem: Boolean(row.isSystem),
     createdAt: toIsoString(row.createdAt),
     updatedAt: toIsoString(row.updatedAt)
   };
@@ -183,38 +210,47 @@ export const getGrantStatus = (
   return "active";
 };
 
-export const mapGrant = (row: ModeratorGrantRow): ModeratorAdminGrant => ({
-  id: row.id,
-  userId: row.userId,
-  roleId: row.roleId,
-  roleKey: row.roleKey,
-  roleName: row.roleName,
-  rolePermissions: parseStringArray(row.rolePermissions),
-  trustLevel: row.trustLevel,
-  scopeKind: row.scopeKind,
-  scopeId: row.scopeId ?? null,
-  availability: row.availability,
-  assignedByUserId: row.assignedByUserId ?? null,
-  expiresAt: toNullableIsoString(row.expiresAt),
-  revokedAt: toNullableIsoString(row.revokedAt),
-  revokedByUserId: row.revokedByUserId ?? null,
-  revocationReason: row.revocationReason ?? null,
-  assignedAt: toIsoString(row.assignedAt),
-  status: getGrantStatus(row)
-});
+export const mapGrant = (row: ModeratorGrantRow): ModeratorAdminGrant => {
+  const authority = mapRoleAuthority({
+    key: row.roleKey,
+    permissions: row.rolePermissions,
+    isOwnerRank: row.roleIsOwnerRank,
+    isSystem: row.roleIsSystem
+  });
+
+  return {
+    id: row.id,
+    userId: row.userId,
+    roleId: row.roleId,
+    roleKey: authority.key,
+    roleName: row.roleName,
+    rolePermissions: authority.permissions,
+    trustLevel: row.trustLevel,
+    scopeKind: row.scopeKind,
+    scopeId: row.scopeId ?? null,
+    availability: row.availability,
+    assignedByUserId: row.assignedByUserId ?? null,
+    expiresAt: toNullableIsoString(row.expiresAt),
+    revokedAt: toNullableIsoString(row.revokedAt),
+    revokedByUserId: row.revokedByUserId ?? null,
+    revocationReason: row.revocationReason ?? null,
+    assignedAt: toIsoString(row.assignedAt),
+    status: getGrantStatus(row)
+  };
+};
 
 export const mapAuditLog = (row: ModeratorAuditLogRow): ModeratorAdminAuditLog => ({
   id: row.id,
   targetUserId: row.targetUserId,
   targetDisplayName: row.targetDisplayName ?? null,
   roleId: row.roleId,
-  roleKey: row.roleKey ?? null,
+  roleKey: row.roleKey === null || row.roleKey === undefined
+    ? null
+    : isNormalizedModeratorRoleKey(row.roleKey) ? row.roleKey : invalidRoleKey,
   roleName: row.roleName ?? null,
   actorUserId: row.actorUserId ?? null,
   actorDisplayName: row.actorDisplayName ?? null,
   action: row.action,
-  previousValue: parseRecord(row.previousValue),
-  nextValue: parseRecord(row.nextValue),
   reason: row.reason ?? null,
   createdAt: toIsoString(row.createdAt)
 });
@@ -226,6 +262,8 @@ export const selectGrantFields = `
   roles.key AS roleKey,
   roles.name AS roleName,
   roles.permissions AS rolePermissions,
+  roles.is_owner_rank AS roleIsOwnerRank,
+  roles.is_system AS roleIsSystem,
   user_roles.trust_level AS trustLevel,
   user_roles.scope_kind AS scopeKind,
   user_roles.scope_id AS scopeId,
@@ -271,4 +309,3 @@ export const grantSnapshot = (grant: ModeratorAdminGrant): Record<string, unknow
   assignedAt: grant.assignedAt,
   status: grant.status
 });
-

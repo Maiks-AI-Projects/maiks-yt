@@ -55,7 +55,10 @@ export class AdminOverviewActivityService {
       .filter((grant) => grant.trustLevel !== "owner")
       .filter((grant) => isModeratorRoleGrantable({
         key: grant.roleKey,
-        permissions: grant.rolePermissions
+        permissions: grant.rolePermissions,
+        isOwnerRank: grant.roleIsOwnerRank,
+        isSystem: grant.roleIsSystem,
+        authorityIntegrity: grant.roleAuthorityIntegrity
       }))
       .length;
 

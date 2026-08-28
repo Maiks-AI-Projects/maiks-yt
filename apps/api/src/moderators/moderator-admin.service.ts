@@ -1,5 +1,8 @@
 import {
+  canCreateOrdinaryModeratorRole,
+  canDeleteOrdinaryModeratorRole,
   canManageModerators,
+  canUpdateOrdinaryModeratorRole,
   isModeratorRoleGrantable,
   normalizeModeratorGrantReason,
   normalizeModeratorGrantScopeId,
@@ -62,7 +65,10 @@ export const normalizeModeratorAdminPermissions = (
 
 const toRoleForGrant = (role: ModeratorAdminRole): ModeratorRoleForGrant => ({
   key: role.key,
-  permissions: role.permissions
+  permissions: role.permissions,
+  isOwnerRank: role.isOwnerRank,
+  isSystem: role.isSystem,
+  authorityIntegrity: role.authorityIntegrity
 });
 
 const hasOwnerWildcard = (permissions: readonly string[]): boolean => permissions.includes("*");
@@ -247,6 +253,9 @@ export class ModeratorAdminService {
     if (result === "exists") {
       return { ok: false, reason: "moderator_admin_rank_path_exists" };
     }
+    if (result === "protected") {
+      return { ok: false, reason: "moderator_admin_rank_path_protected" };
+    }
 
     return { ok: true, rankPath: result };
   }
@@ -288,6 +297,10 @@ export class ModeratorAdminService {
       return { ok: false, reason: "moderator_admin_invalid_input" };
     }
 
+    if (!canCreateOrdinaryModeratorRole(normalized)) {
+      return { ok: false, reason: "moderator_admin_role_protected" };
+    }
+
     const result = await this.repository.createRole(normalized);
 
     if (result === "exists") {
@@ -295,6 +308,9 @@ export class ModeratorAdminService {
     }
     if (result === "rank-path-not-found") {
       return { ok: false, reason: "moderator_admin_rank_path_not_found" };
+    }
+    if (result === "protected") {
+      return { ok: false, reason: "moderator_admin_role_protected" };
     }
 
     return { ok: true, role: result };
@@ -317,6 +333,16 @@ export class ModeratorAdminService {
       return { ok: false, reason: "moderator_admin_invalid_input" };
     }
 
+    const existing = await this.repository.getRole(input.roleId.trim());
+
+    if (!existing) {
+      return { ok: false, reason: "moderator_admin_role_not_found" };
+    }
+
+    if (!canUpdateOrdinaryModeratorRole(existing, normalized)) {
+      return { ok: false, reason: "moderator_admin_role_protected" };
+    }
+
     const result = await this.repository.updateRole(input.roleId.trim(), normalized);
 
     if (result === "not-found") {
@@ -327,6 +353,9 @@ export class ModeratorAdminService {
     }
     if (result === "rank-path-not-found") {
       return { ok: false, reason: "moderator_admin_rank_path_not_found" };
+    }
+    if (result === "protected") {
+      return { ok: false, reason: "moderator_admin_role_protected" };
     }
 
     return { ok: true, role: result };
@@ -342,7 +371,18 @@ export class ModeratorAdminService {
       return actor;
     }
 
-    const result = await this.repository.deleteRole(input.roleId.trim());
+    const roleId = input.roleId.trim();
+    const existing = await this.repository.getRole(roleId);
+
+    if (!existing) {
+      return { ok: false, reason: "moderator_admin_role_not_found" };
+    }
+
+    if (!canDeleteOrdinaryModeratorRole(existing)) {
+      return { ok: false, reason: "moderator_admin_role_protected" };
+    }
+
+    const result = await this.repository.deleteRole(roleId);
     if (result === "not-found") {
       return { ok: false, reason: "moderator_admin_role_not_found" };
     }
@@ -353,7 +393,7 @@ export class ModeratorAdminService {
       return { ok: false, reason: "moderator_admin_role_in_use" };
     }
 
-    return { ok: true, id: input.roleId.trim() };
+    return { ok: true, id: roleId };
   }
 
   public async grantRole(input: {
@@ -393,6 +433,7 @@ export class ModeratorAdminService {
         ok: false,
         reason: validation.issues.some((issue) =>
           issue === "moderator_grant_owner_admin_role_forbidden"
+          || issue === "moderator_grant_protected_role_forbidden"
           || issue === "moderator_grant_dangerous_permission_forbidden"
         ) ? "moderator_admin_role_forbidden" : "moderator_admin_invalid_input",
         issues: validation.issues
@@ -462,6 +503,7 @@ export class ModeratorAdminService {
         ok: false,
         reason: validation.issues.some((issue) =>
           issue === "moderator_grant_owner_admin_role_forbidden"
+          || issue === "moderator_grant_protected_role_forbidden"
           || issue === "moderator_grant_dangerous_permission_forbidden"
         ) ? "moderator_admin_role_forbidden" : "moderator_admin_invalid_input",
         issues: validation.issues

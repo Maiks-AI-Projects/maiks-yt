@@ -1,8 +1,20 @@
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
+import { canUpdateOrdinaryModeratorRankPath } from "@maiks-yt/domain/community";
+
 import { registerModeratorAdminRoutes } from "../../src/moderators/moderator-admin.route.js";
 import { ModeratorAdminService } from "../../src/moderators/moderator-admin.service.js";
+import { updateRankPath as updateStoredRankPath } from "../../src/moderators/moderator-admin-store-roles.service.js";
+import {
+  mapAuditLog,
+  mapGrant,
+  mapRole,
+  type ModeratorAuditLogRow,
+  type ModeratorGrantRow,
+  type ModeratorRoleRow,
+  type QueryExecutor
+} from "../../src/moderators/moderator-admin-store-mappers.service.js";
 import type {
   ModeratorAdminActor,
   ModeratorAdminAuditLog,
@@ -18,6 +30,64 @@ import type {
 } from "../../src/moderators/moderator-admin.types.js";
 
 const now = "2026-06-28T10:00:00.000Z";
+
+const createRoleRow = (overrides: Partial<ModeratorRoleRow> = {}): ModeratorRoleRow => ({
+  id: "mapped-role",
+  key: "community-helper",
+  name: "Community helper",
+  permissions: JSON.stringify(["chat:view"]),
+  rankPathId: null,
+  rankPathKey: null,
+  rankPathName: null,
+  rankLevel: null,
+  displayLabel: null,
+  nextRoleId: null,
+  discordRoleId: null,
+  isOwnerRank: 0,
+  isSystem: 0,
+  createdAt: now,
+  updatedAt: now,
+  ...overrides
+});
+
+const createGrantRow = (overrides: Partial<ModeratorGrantRow> = {}): ModeratorGrantRow => ({
+  id: "mapped-grant",
+  userId: "helper-user",
+  roleId: "mapped-role",
+  roleKey: "community-helper",
+  roleName: "Community helper",
+  rolePermissions: JSON.stringify(["chat:view"]),
+  roleIsOwnerRank: 0,
+  roleIsSystem: 0,
+  trustLevel: "full",
+  scopeKind: "global",
+  scopeId: null,
+  availability: "active",
+  assignedByUserId: "owner-user",
+  expiresAt: null,
+  revokedAt: null,
+  revokedByUserId: null,
+  revocationReason: null,
+  assignedAt: now,
+  ...overrides
+});
+
+const createAuditRow = (overrides: Partial<ModeratorAuditLogRow> = {}): ModeratorAuditLogRow => ({
+  id: "mapped-audit",
+  targetUserId: "helper-user",
+  targetDisplayName: "Helper",
+  roleId: "mapped-role",
+  roleKey: "community-helper",
+  roleName: "Community helper",
+  actorUserId: "owner-user",
+  actorDisplayName: "Owner",
+  action: "grant",
+  previousValue: null,
+  nextValue: null,
+  reason: "Approved helper access",
+  createdAt: now,
+  ...overrides
+});
 
 const createUser = (id: string, displayName: string): ModeratorAdminUser => ({
   id,
@@ -47,6 +117,7 @@ const createRole = (
   discordRoleId: null,
   isOwnerRank: key === "owner",
   isSystem: false,
+  authorityIntegrity: "valid",
   grantable: key !== "owner" && key !== "admin" && !permissions.includes("*"),
   createdAt: now,
   updatedAt: now
@@ -260,11 +331,18 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
   public async updateRankPath(
     rankPathId: string,
     input: ModeratorAdminRankPathInput
-  ): Promise<ModeratorAdminRankPath | "not-found" | "exists"> {
+  ): Promise<ModeratorAdminRankPath | "not-found" | "exists" | "protected"> {
     const existing = this.rankPaths.get(rankPathId);
 
     if (!existing) {
       return "not-found";
+    }
+
+    const attachedRoles = [...this.roles.values()]
+      .filter((role) => role.rankPathId === rankPathId);
+
+    if (!canUpdateOrdinaryModeratorRankPath(attachedRoles)) {
+      return "protected";
     }
 
     if ([...this.rankPaths.values()].some((rankPath) => rankPath.id !== rankPathId && rankPath.key === input.key)) {
@@ -281,7 +359,7 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
     return structuredClone(next);
   }
 
-  public async createRole(input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found"> {
+  public async createRole(input: ModeratorAdminRoleInput): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found" | "protected"> {
     if ([...this.roles.values()].some((role) => role.key === input.key)) {
       return "exists";
     }
@@ -304,7 +382,7 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
   public async updateRole(
     roleId: string,
     input: ModeratorAdminRoleInput
-  ): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found"> {
+  ): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found" | "protected"> {
     const existing = this.roles.get(roleId);
 
     if (!existing) {
@@ -359,8 +437,8 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
   private createAuditLog(
     action: ModeratorAdminAuditLog["action"],
     grant: ModeratorAdminGrant,
-    previousValue: Record<string, unknown> | null,
-    nextValue: Record<string, unknown> | null,
+    _previousValue: Record<string, unknown> | null,
+    _nextValue: Record<string, unknown> | null,
     reason: string | null
   ): ModeratorAdminAuditLog {
     const log: ModeratorAdminAuditLog = {
@@ -373,8 +451,6 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
       actorUserId: "owner-user",
       actorDisplayName: "Owner",
       action,
-      previousValue,
-      nextValue,
       reason,
       createdAt: now
     };
@@ -382,6 +458,187 @@ class FakeModeratorAdminRepository implements ModeratorAdminRepository {
     return structuredClone(log);
   }
 }
+
+describe("Moderator rank path repository protection", () => {
+  it("returns protected before issuing SQL mutation for an attached protected role", async () => {
+    const statements: string[] = [];
+    const executor = {
+      execute: async (statement: string) => {
+        statements.push(statement);
+
+        if (statement.includes("FROM role_rank_paths")) {
+          return [[{
+            id: "mod-path",
+            key: "mod",
+            name: "Moderator",
+            description: null,
+            sortOrder: 10,
+            createdAt: now,
+            updatedAt: now
+          }]];
+        }
+
+        if (statement.includes("FROM roles")) {
+          return [[{
+            key: " Admin ",
+            permissions: JSON.stringify(["chat:view"]),
+            isOwnerRank: 0,
+            isSystem: 0
+          }]];
+        }
+
+        throw new Error(`unexpected_statement:${statement}`);
+      }
+    } as unknown as QueryExecutor;
+
+    await expect(updateStoredRankPath(executor, "mod-path", {
+      key: "changed-path",
+      name: "Changed path",
+      description: "Must not persist",
+      sortOrder: 99
+    })).resolves.toBe("protected");
+
+    expect(statements.some((statement) => statement.includes("UPDATE role_rank_paths"))).toBe(false);
+  });
+
+  it("fails closed before SQL mutation for malformed attached authority rows", async () => {
+    const malformedRows = [
+      { key: "", permissions: JSON.stringify(["chat:view"]), isOwnerRank: 0, isSystem: 0 },
+      { key: "bad key", permissions: JSON.stringify(["chat:view"]), isOwnerRank: 0, isSystem: 0 },
+      { key: "helper", permissions: 7, isOwnerRank: 0, isSystem: 0 },
+      { key: "helper", permissions: JSON.stringify(["chat:view", 7]), isOwnerRank: 0, isSystem: 0 },
+      { key: "helper", permissions: "not-json", isOwnerRank: 0, isSystem: 0 },
+      { key: "helper", permissions: JSON.stringify(["chat:view"]), isOwnerRank: "0", isSystem: 0 },
+      { key: "helper", permissions: JSON.stringify(["chat:view"]), isOwnerRank: 0 }
+    ];
+
+    for (const malformedRow of malformedRows) {
+      const statements: string[] = [];
+      const executor = {
+        execute: async (statement: string) => {
+          statements.push(statement);
+
+          if (statement.includes("FROM role_rank_paths")) {
+            return [[{
+              id: "mod-path",
+              key: "mod",
+              name: "Moderator",
+              description: null,
+              sortOrder: 10,
+              createdAt: now,
+              updatedAt: now
+            }]];
+          }
+
+          if (statement.includes("FROM roles")) {
+            return [[malformedRow]];
+          }
+
+          throw new Error(`unexpected_statement:${statement}`);
+        }
+      } as unknown as QueryExecutor;
+
+      await expect(updateStoredRankPath(executor, "mod-path", {
+        key: "changed-path",
+        name: "Changed path",
+        description: "Must not persist",
+        sortOrder: 99
+      })).resolves.toBe("protected");
+      expect(statements.some((statement) => statement.includes("UPDATE role_rank_paths"))).toBe(false);
+    }
+  });
+});
+
+describe("Moderator role authority mapper", () => {
+  it("keeps valid ordinary role authority grantable", () => {
+    expect(mapRole(createRoleRow())).toMatchObject({
+      key: "community-helper",
+      permissions: ["chat:view"],
+      isOwnerRank: false,
+      isSystem: false,
+      authorityIntegrity: "valid",
+      grantable: true
+    });
+  });
+
+  it("sanitizes malformed authority and marks it non-grantable", () => {
+    for (const row of [
+      createRoleRow({ permissions: JSON.stringify({ permission: "chat:view" }) }),
+      createRoleRow({ permissions: JSON.stringify(["chat:view", 7]) }),
+      createRoleRow({ key: "Bad key from database" })
+    ]) {
+      const role = mapRole(row);
+      expect(role).toMatchObject({
+        key: "invalid-role-key",
+        permissions: [],
+        isOwnerRank: false,
+        isSystem: false,
+        authorityIntegrity: "invalid",
+        grantable: false
+      });
+      expect(JSON.stringify(role)).not.toContain("Bad key from database");
+      expect(JSON.stringify(role)).not.toContain("permission\":\"chat:view");
+    }
+  });
+
+  it("sanitizes malformed authority in grant DTOs", () => {
+    const validGrant = mapGrant(createGrantRow());
+    expect(validGrant).toMatchObject({
+      roleKey: "community-helper",
+      rolePermissions: ["chat:view"]
+    });
+
+    for (const row of [
+      createGrantRow({ rolePermissions: JSON.stringify({ permission: "chat:view" }) }),
+      createGrantRow({ rolePermissions: JSON.stringify(["chat:view", 7]) }),
+      createGrantRow({ roleKey: "Bad key from database" })
+    ]) {
+      const grant = mapGrant(row);
+      expect(grant).toMatchObject({
+        roleKey: "invalid-role-key",
+        rolePermissions: []
+      });
+      expect(JSON.stringify(grant)).not.toContain("Bad key from database");
+      expect(JSON.stringify(grant)).not.toContain("permission\":\"chat:view");
+    }
+  });
+});
+
+describe("Moderator audit mapper", () => {
+  it("omits raw snapshots while preserving the finite audit summary", () => {
+    const audit = mapAuditLog(createAuditRow({
+      roleKey: "Bad audit key from database",
+      previousValue: JSON.stringify({
+        roleKey: "snapshot-owner",
+        roleId: "snapshot-role-id-before",
+        permissions: { wildcard: "*" }
+      }),
+      nextValue: {
+        roleKey: "snapshot-admin",
+        targetUserId: "snapshot-user-id-after",
+        permissions: ["chat:view", 7]
+      }
+    }));
+
+    expect(audit).toEqual({
+      id: "mapped-audit",
+      targetUserId: "helper-user",
+      targetDisplayName: "Helper",
+      roleId: "mapped-role",
+      roleKey: "invalid-role-key",
+      roleName: "Community helper",
+      actorUserId: "owner-user",
+      actorDisplayName: "Owner",
+      action: "grant",
+      reason: "Approved helper access",
+      createdAt: now
+    });
+    expect(audit).not.toHaveProperty("previousValue");
+    expect(audit).not.toHaveProperty("nextValue");
+    expect(JSON.stringify(audit)).not.toContain("snapshot-");
+    expect(JSON.stringify(audit)).not.toContain("permissions");
+  });
+});
 
 describe("ModeratorAdminService", () => {
   it("allows owner wildcard and moderators:manage to list and mutate grants with audit rows", async () => {
@@ -545,6 +802,451 @@ describe("ModeratorAdminService", () => {
     expect(repository.auditLogs).toHaveLength(0);
   });
 
+  it("protects flagged and wildcard ranks from ordinary role CRUD", async () => {
+    const repository = new FakeModeratorAdminRepository();
+    const service = new ModeratorAdminService(repository);
+
+    for (const key of [" OWNER ", "AdMiN"]) {
+      await expect(service.createRole({
+        authUserId: "auth-owner",
+        role: {
+          key,
+          name: "Reserved authority",
+          permissions: ["chat:view"],
+          rankPathId: null,
+          rankLevel: null,
+          displayLabel: null,
+          nextRoleId: null,
+          discordRoleId: null,
+          isOwnerRank: false,
+          isSystem: false
+        }
+      })).resolves.toEqual({
+        ok: false,
+        reason: "moderator_admin_role_protected"
+      });
+    }
+    expect([...repository.roles.values()].some((role) => role.key === "admin")).toBe(false);
+
+    await expect(service.createRole({
+      authUserId: "auth-owner",
+      role: {
+        key: "shadow-owner",
+        name: "Shadow Owner",
+        permissions: ["*"],
+        rankPathId: null,
+        rankLevel: null,
+        displayLabel: null,
+        nextRoleId: null,
+        discordRoleId: null,
+        isOwnerRank: false,
+        isSystem: false
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+    expect([...repository.roles.values()].some((role) => role.key === "shadow-owner")).toBe(false);
+
+    await expect(service.createRole({
+      authUserId: "auth-owner",
+      role: {
+        key: "system-helper",
+        name: "System Helper",
+        permissions: ["chat:view"],
+        rankPathId: null,
+        rankLevel: null,
+        displayLabel: null,
+        nextRoleId: null,
+        discordRoleId: null,
+        isOwnerRank: false,
+        isSystem: true
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+
+    await expect(service.updateRole({
+      authUserId: "auth-owner",
+      roleId: "helper-role",
+      role: {
+        key: "community-helper",
+        name: "Community Helper",
+        permissions: ["chat:view", "*"],
+        rankPathId: null,
+        rankLevel: null,
+        displayLabel: null,
+        nextRoleId: null,
+        discordRoleId: null,
+        isOwnerRank: false,
+        isSystem: false
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+    expect(repository.roles.get("helper-role")?.permissions).toEqual(["event-routing:review"]);
+
+    await expect(service.updateRole({
+      authUserId: "auth-owner",
+      roleId: "helper-role",
+      role: {
+        key: " ADMIN ",
+        name: "Community Helper",
+        permissions: ["chat:view"],
+        rankPathId: null,
+        rankLevel: null,
+        displayLabel: null,
+        nextRoleId: null,
+        discordRoleId: null,
+        isOwnerRank: false,
+        isSystem: false
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+    expect(repository.roles.get("helper-role")?.key).toBe("community-helper");
+
+    const inconsistentOwner = repository.roles.get("owner-role")!;
+    repository.roles.set("owner-role", {
+      ...inconsistentOwner,
+      key: "legacy-owner",
+      isOwnerRank: true,
+      permissions: ["chat:view"]
+    });
+
+    await expect(service.updateRole({
+      authUserId: "auth-owner",
+      roleId: "owner-role",
+      role: {
+        key: "legacy-owner",
+        name: "Legacy Owner",
+        permissions: ["chat:view"],
+        rankPathId: null,
+        rankLevel: null,
+        displayLabel: null,
+        nextRoleId: null,
+        discordRoleId: null,
+        isOwnerRank: false,
+        isSystem: false
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+
+    await expect(service.deleteRole({
+      authUserId: "auth-owner",
+      roleId: "owner-role"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+
+    const reservedKeyRole = createRole("reserved-key-role", " Admin ", ["chat:view"]);
+    repository.roles.set(reservedKeyRole.id, {
+      ...reservedKeyRole,
+      isOwnerRank: false,
+      isSystem: false,
+      grantable: true
+    });
+
+    await expect(service.updateRole({
+      authUserId: "auth-owner",
+      roleId: reservedKeyRole.id,
+      role: {
+        key: "community-admin",
+        name: "Community Admin",
+        permissions: ["chat:view"],
+        rankPathId: null,
+        rankLevel: null,
+        displayLabel: null,
+        nextRoleId: null,
+        discordRoleId: null,
+        isOwnerRank: false,
+        isSystem: false
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+    await expect(service.deleteRole({
+      authUserId: "auth-owner",
+      roleId: reservedKeyRole.id
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+    expect(repository.roles.get(reservedKeyRole.id)?.key).toBe(" Admin ");
+    expect(repository.auditLogs).toHaveLength(0);
+  });
+
+  it("blocks grant update and revoke for protected roles without audit side effects", async () => {
+    const repository = new FakeModeratorAdminRepository();
+    const service = new ModeratorAdminService(repository);
+    const protectedRole = createRole("legacy-wildcard-role", "legacy-helper", ["*"]);
+    repository.roles.set(protectedRole.id, {
+      ...protectedRole,
+      isOwnerRank: false,
+      isSystem: false,
+      grantable: true
+    });
+    repository.grants.set("legacy-grant", {
+      id: "legacy-grant",
+      userId: "helper-user",
+      roleId: protectedRole.id,
+      roleKey: protectedRole.key,
+      roleName: protectedRole.name,
+      rolePermissions: protectedRole.permissions,
+      trustLevel: "trusted_operator",
+      scopeKind: "global",
+      scopeId: null,
+      availability: "always",
+      assignedByUserId: "owner-user",
+      expiresAt: null,
+      revokedAt: null,
+      revokedByUserId: null,
+      revocationReason: null,
+      assignedAt: now,
+      status: "active"
+    });
+
+    await expect(service.grantRole({
+      authUserId: "auth-owner",
+      grant: {
+        targetUserId: "helper-user",
+        roleId: protectedRole.id,
+        trustLevel: "trusted_operator",
+        scopeKind: "global",
+        scopeId: null,
+        availability: "always",
+        expiresAt: null,
+        reason: "No wildcard grant"
+      }
+    })).resolves.toMatchObject({
+      ok: false,
+      reason: "moderator_admin_role_forbidden",
+      issues: expect.arrayContaining([
+        "moderator_grant_protected_role_forbidden",
+        "moderator_grant_dangerous_permission_forbidden"
+      ])
+    });
+
+    await expect(service.updateGrant({
+      authUserId: "auth-owner",
+      grantId: "legacy-grant",
+      update: {
+        availability: "live_only",
+        reason: "No wildcard mutation"
+      }
+    })).resolves.toMatchObject({
+      ok: false,
+      reason: "moderator_admin_role_forbidden",
+      issues: expect.arrayContaining([
+        "moderator_grant_protected_role_forbidden",
+        "moderator_grant_dangerous_permission_forbidden"
+      ])
+    });
+
+    await expect(service.revokeGrant({
+      authUserId: "auth-owner",
+      grantId: "legacy-grant",
+      reason: "No wildcard revoke"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "moderator_admin_role_forbidden"
+    });
+
+    expect(repository.grants.get("legacy-grant")).toMatchObject({
+      availability: "always",
+      status: "active"
+    });
+    expect(repository.auditLogs).toHaveLength(0);
+  });
+
+  it("blocks every existing-role mutation for mapper-detected authority-integrity failures", async () => {
+    const malformedRows = [
+      createRoleRow({ id: "object-role", permissions: JSON.stringify({ permission: "chat:view" }) }),
+      createRoleRow({ id: "numeric-role", permissions: JSON.stringify(["chat:view", 7]) }),
+      createRoleRow({ id: "bad-key-role", key: "Bad key from database" })
+    ];
+
+    for (const row of malformedRows) {
+      const repository = new FakeModeratorAdminRepository();
+      const service = new ModeratorAdminService(repository);
+      const role = mapRole(row);
+      const grantId = `grant-${role.id}`;
+      repository.roles.set(role.id, role);
+      repository.grants.set(grantId, {
+        id: grantId,
+        userId: "helper-user",
+        roleId: role.id,
+        roleKey: role.key,
+        roleName: role.name,
+        rolePermissions: role.permissions,
+        trustLevel: "helper",
+        scopeKind: "global",
+        scopeId: null,
+        availability: "always",
+        assignedByUserId: "owner-user",
+        expiresAt: null,
+        revokedAt: null,
+        revokedByUserId: null,
+        revocationReason: null,
+        assignedAt: now,
+        status: "active"
+      });
+
+      await expect(service.updateRole({
+        authUserId: "auth-owner",
+        roleId: role.id,
+        role: {
+          key: "community-helper",
+          name: "Community helper",
+          permissions: ["chat:view"],
+          rankPathId: null,
+          rankLevel: null,
+          displayLabel: null,
+          nextRoleId: null,
+          discordRoleId: null,
+          isOwnerRank: false,
+          isSystem: false
+        }
+      })).resolves.toEqual({
+        ok: false,
+        reason: "moderator_admin_role_protected"
+      });
+      await expect(service.deleteRole({
+        authUserId: "auth-owner",
+        roleId: role.id
+      })).resolves.toEqual({
+        ok: false,
+        reason: "moderator_admin_role_protected"
+      });
+      await expect(service.grantRole({
+        authUserId: "auth-owner",
+        grant: {
+          targetUserId: "helper-user",
+          roleId: role.id,
+          trustLevel: "helper",
+          scopeKind: "global",
+          scopeId: null,
+          availability: "always",
+          expiresAt: null,
+          reason: "Must fail closed"
+        }
+      })).resolves.toMatchObject({
+        ok: false,
+        reason: "moderator_admin_role_forbidden",
+        issues: expect.arrayContaining(["moderator_grant_protected_role_forbidden"])
+      });
+      await expect(service.updateGrant({
+        authUserId: "auth-owner",
+        grantId,
+        update: {
+          availability: "live_only",
+          reason: "Must not update"
+        }
+      })).resolves.toMatchObject({
+        ok: false,
+        reason: "moderator_admin_role_forbidden",
+        issues: expect.arrayContaining(["moderator_grant_protected_role_forbidden"])
+      });
+      await expect(service.revokeGrant({
+        authUserId: "auth-owner",
+        grantId,
+        reason: "Must not revoke"
+      })).resolves.toEqual({
+        ok: false,
+        reason: "moderator_admin_role_forbidden"
+      });
+
+      expect(repository.roles.get(role.id)).toEqual(role);
+      expect(repository.grants.get(grantId)).toMatchObject({
+        availability: "always",
+        status: "active"
+      });
+      expect(repository.auditLogs).toHaveLength(0);
+    }
+  });
+
+  it("blocks rank-path updates with protected attached roles and preserves ordinary updates", async () => {
+    const protectedRoles = [
+      { key: " Owner ", permissions: ["chat:view"], isOwnerRank: false, isSystem: false },
+      { key: "legacy-owner", permissions: ["chat:view"], isOwnerRank: true, isSystem: false },
+      { key: "system-rank", permissions: ["chat:view"], isOwnerRank: false, isSystem: true },
+      { key: "legacy-wildcard", permissions: [" * "], isOwnerRank: false, isSystem: false }
+    ] as const;
+
+    for (const protectedRole of protectedRoles) {
+      const repository = new FakeModeratorAdminRepository();
+      const service = new ModeratorAdminService(repository);
+      const attachedRole = createRole("attached-protected-role", protectedRole.key, protectedRole.permissions);
+      repository.roles.set(attachedRole.id, {
+        ...attachedRole,
+        rankPathId: "mod-path",
+        rankPathKey: "mod",
+        rankPathName: "Moderator",
+        rankLevel: 1,
+        isOwnerRank: protectedRole.isOwnerRank,
+        isSystem: protectedRole.isSystem,
+        grantable: true
+      });
+      const before = structuredClone(repository.rankPaths.get("mod-path"));
+
+      await expect(service.updateRankPath({
+        authUserId: "auth-owner",
+        rankPathId: "mod-path",
+        rankPath: {
+          key: "changed-path",
+          name: "Changed path",
+          description: "Must not persist",
+          sortOrder: 99
+        }
+      })).resolves.toEqual({
+        ok: false,
+        reason: "moderator_admin_rank_path_protected"
+      });
+
+      expect(repository.rankPaths.get("mod-path")).toEqual(before);
+      expect(repository.auditLogs).toHaveLength(0);
+    }
+
+    const repository = new FakeModeratorAdminRepository();
+    const service = new ModeratorAdminService(repository);
+    const helperRole = repository.roles.get("helper-role")!;
+    repository.roles.set(helperRole.id, {
+      ...helperRole,
+      rankPathId: "mod-path",
+      rankPathKey: "mod",
+      rankPathName: "Moderator",
+      rankLevel: 1
+    });
+
+    await expect(service.updateRankPath({
+      authUserId: "auth-owner",
+      rankPathId: "mod-path",
+      rankPath: {
+        key: "community-moderation",
+        name: "Community moderation",
+        description: "Ordinary progression",
+        sortOrder: 20
+      }
+    })).resolves.toMatchObject({
+      ok: true,
+      rankPath: {
+        id: "mod-path",
+        key: "community-moderation",
+        name: "Community moderation",
+        description: "Ordinary progression",
+        sortOrder: 20
+      }
+    });
+    expect(repository.auditLogs).toHaveLength(0);
+  });
+
   it("rejects invalid scoped grants", async () => {
     const repository = new FakeModeratorAdminRepository();
     const service = new ModeratorAdminService(repository);
@@ -615,5 +1317,179 @@ describe("Moderator admin routes", () => {
       ok: false,
       reason: "not_authenticated"
     });
+  });
+
+  it("returns a finite forbidden response for protected role creation", async () => {
+    const repository = new FakeModeratorAdminRepository();
+    const server = Fastify();
+
+    registerModeratorAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new ModeratorAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/moderators/roles",
+      payload: {
+        key: "shadow-owner",
+        name: "Shadow Owner",
+        permissions: ["*"],
+        rankPathId: null,
+        rankLevel: null,
+        displayLabel: null,
+        nextRoleId: null,
+        discordRoleId: null,
+        isOwnerRank: false,
+        isSystem: false
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "moderator_admin_role_protected"
+    });
+    expect([...repository.roles.values()].some((role) => role.key === "shadow-owner")).toBe(false);
+  });
+
+  it("returns only finite sanitized authority state for malformed stored roles", async () => {
+    const repository = new FakeModeratorAdminRepository();
+    const malformedRole = mapRole(createRoleRow({
+      id: "malformed-api-role",
+      key: "Bad key from database",
+      permissions: JSON.stringify(["chat:view", 7])
+    }));
+    repository.roles.set(malformedRole.id, malformedRole);
+    const server = Fastify();
+
+    registerModeratorAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new ModeratorAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/moderators"
+    });
+    const payload = response.json() as {
+      roles: Array<Record<string, unknown>>;
+    };
+
+    expect(response.statusCode).toBe(200);
+    expect(payload.roles.find((role) => role.id === malformedRole.id)).toMatchObject({
+      key: "invalid-role-key",
+      permissions: [],
+      isOwnerRank: false,
+      isSystem: false,
+      authorityIntegrity: "invalid",
+      grantable: false
+    });
+    expect(response.body).not.toContain("Bad key from database");
+    expect(response.body).not.toContain("chat:view");
+  });
+
+  it("does not return raw historical audit snapshots", async () => {
+    const repository = new FakeModeratorAdminRepository();
+    repository.auditLogs.unshift(mapAuditLog(createAuditRow({
+      roleKey: "Bad audit key from database",
+      previousValue: JSON.stringify({
+        roleKey: "snapshot-owner",
+        roleId: "snapshot-role-id-before",
+        permissions: { wildcard: "*" }
+      }),
+      nextValue: JSON.stringify({
+        roleKey: "snapshot-admin",
+        targetUserId: "snapshot-user-id-after",
+        permissions: ["chat:view", 7]
+      })
+    })));
+    const server = Fastify();
+
+    registerModeratorAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new ModeratorAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/moderators"
+    });
+    const payload = response.json() as {
+      auditLogs: Array<Record<string, unknown>>;
+    };
+
+    expect(response.statusCode).toBe(200);
+    expect(payload.auditLogs[0]).toMatchObject({
+      id: "mapped-audit",
+      roleKey: "invalid-role-key",
+      roleName: "Community helper",
+      action: "grant",
+      reason: "Approved helper access",
+      createdAt: now
+    });
+    expect(payload.auditLogs[0]).not.toHaveProperty("previousValue");
+    expect(payload.auditLogs[0]).not.toHaveProperty("nextValue");
+    const serializedAudit = JSON.stringify(payload.auditLogs[0]);
+    expect(serializedAudit).not.toContain("snapshot-");
+    expect(serializedAudit).not.toContain("permissions");
+    expect(serializedAudit).not.toContain("Bad audit key from database");
+  });
+
+  it("returns a finite forbidden response for a protected rank-path update", async () => {
+    const repository = new FakeModeratorAdminRepository();
+    const protectedRole = createRole("reserved-path-role", " Admin ", ["chat:view"]);
+    repository.roles.set(protectedRole.id, {
+      ...protectedRole,
+      rankPathId: "mod-path",
+      rankPathKey: "mod",
+      rankPathName: "Moderator",
+      rankLevel: 1,
+      isOwnerRank: false,
+      isSystem: false,
+      grantable: true
+    });
+    const server = Fastify();
+
+    registerModeratorAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new ModeratorAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "PATCH",
+      url: "/admin/moderators/rank-paths/mod-path",
+      payload: {
+        key: "changed-path",
+        name: "Changed path",
+        description: "Must not persist",
+        sortOrder: 99
+      }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "moderator_admin_rank_path_protected"
+    });
+    expect(repository.rankPaths.get("mod-path")).toMatchObject({
+      key: "mod",
+      name: "Moderator",
+      description: null,
+      sortOrder: 10
+    });
+    expect(repository.auditLogs).toHaveLength(0);
   });
 });

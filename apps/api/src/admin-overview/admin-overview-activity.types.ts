@@ -1,4 +1,4 @@
-import type { ModeratorTrustLevel } from "@maiks-yt/domain/community";
+import type { ModeratorRoleAuthorityIntegrity, ModeratorTrustLevel } from "@maiks-yt/domain/community";
 
 export type AdminOverviewActor = {
   rolePermissionValues: readonly unknown[];
@@ -7,6 +7,9 @@ export type AdminOverviewActor = {
 export type AdminOverviewActiveGrantRecord = {
   roleKey: string;
   rolePermissions: readonly string[];
+  roleIsOwnerRank: boolean;
+  roleIsSystem: boolean;
+  roleAuthorityIntegrity: ModeratorRoleAuthorityIntegrity;
   trustLevel: ModeratorTrustLevel;
 };
 

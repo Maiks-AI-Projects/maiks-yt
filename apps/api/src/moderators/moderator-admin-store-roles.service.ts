@@ -1,8 +1,65 @@
 import { randomUUID } from "node:crypto";
 
+import {
+  canCreateOrdinaryModeratorRole,
+  canDeleteOrdinaryModeratorRole,
+  canUpdateOrdinaryModeratorRankPath,
+  canUpdateOrdinaryModeratorRole
+} from "@maiks-yt/domain/community";
+
 import type { ModeratorAdminRankPath, ModeratorAdminRankPathInput, ModeratorAdminRole, ModeratorAdminRoleInput } from "./moderator-admin.types.js";
 import type { QueryExecutor } from "./moderator-admin-store-mappers.service.js";
 import { readRankPath, readRankPathByKey, readRole, readRoleByKey } from "./moderator-admin-store-queries.service.js";
+
+const decodeAttachedRolePermissions = (value: unknown): unknown => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+};
+
+const decodeAttachedRoleFlag = (value: unknown): unknown =>
+  value === 1 ? true : value === 0 ? false : value;
+
+const canUpdateRankPathWithAttachedRoles = async (
+  executor: QueryExecutor,
+  rankPathId: string
+): Promise<boolean> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        \`key\`,
+        permissions,
+        is_owner_rank AS isOwnerRank,
+        is_system AS isSystem
+      FROM roles
+      WHERE rank_path_id = ?
+    `,
+    [rankPathId]
+  );
+
+  if (!Array.isArray(rows)) {
+    return false;
+  }
+
+  const attachedRoles = (rows as Array<{
+    key?: unknown;
+    permissions?: unknown;
+    isOwnerRank?: unknown;
+    isSystem?: unknown;
+  }>).map((row) => ({
+    key: row.key,
+    permissions: decodeAttachedRolePermissions(row.permissions),
+    isOwnerRank: decodeAttachedRoleFlag(row.isOwnerRank),
+    isSystem: decodeAttachedRoleFlag(row.isSystem)
+  }));
+
+  return canUpdateOrdinaryModeratorRankPath(attachedRoles);
+};
 
 export const createRankPath = async (
   executor: QueryExecutor,
@@ -35,11 +92,15 @@ export const updateRankPath = async (
   executor: QueryExecutor,
   rankPathId: string,
   input: ModeratorAdminRankPathInput
-): Promise<ModeratorAdminRankPath | "not-found" | "exists"> => {
+): Promise<ModeratorAdminRankPath | "not-found" | "exists" | "protected"> => {
   const existing = await readRankPath(executor, rankPathId);
 
   if (!existing) {
     return "not-found";
+  }
+
+  if (!await canUpdateRankPathWithAttachedRoles(executor, rankPathId)) {
+    return "protected";
   }
 
   const duplicate = await readRankPathByKey(executor, input.key);
@@ -101,7 +162,11 @@ export const ensureRoleRankPathExists = async (
 export const createRole = async (
   executor: QueryExecutor,
   input: ModeratorAdminRoleInput
-): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found"> => {
+): Promise<ModeratorAdminRole | "exists" | "rank-path-not-found" | "protected"> => {
+  if (!canCreateOrdinaryModeratorRole(input)) {
+    return "protected";
+  }
+
   if (await readRoleByKey(executor, input.key)) {
     return "exists";
   }
@@ -145,11 +210,15 @@ export const updateRole = async (
   executor: QueryExecutor,
   roleId: string,
   input: ModeratorAdminRoleInput
-): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found"> => {
+): Promise<ModeratorAdminRole | "not-found" | "exists" | "rank-path-not-found" | "protected"> => {
   const existing = await readRole(executor, roleId);
 
   if (!existing) {
     return "not-found";
+  }
+
+  if (!canUpdateOrdinaryModeratorRole(existing, input)) {
+    return "protected";
   }
 
   const duplicate = await readRoleByKey(executor, input.key);
@@ -209,7 +278,7 @@ export const deleteRole = async (
   if (!role) {
     return "not-found";
   }
-  if (role.isOwnerRank || role.isSystem) {
+  if (!canDeleteOrdinaryModeratorRole(role)) {
     return "protected";
   }
 

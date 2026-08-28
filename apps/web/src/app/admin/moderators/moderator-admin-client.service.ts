@@ -1,4 +1,28 @@
-import type { GrantableModeratorTrustLevel, ModeratorGrantAvailability, ModeratorGrantScopeKind, ModeratorTrustLevel, RoleGrantAuditAction } from "@maiks-yt/domain/community";
+import {
+  canUpdateOrdinaryModeratorRankPath,
+  hasStrictModeratorRoleAuthorityShape,
+  isProtectedModeratorRoleAuthority
+} from "@maiks-yt/domain/community";
+import type { GrantableModeratorTrustLevel, ModeratorGrantAvailability, ModeratorGrantScopeKind, ModeratorRoleAuthorityIntegrity, ModeratorTrustLevel, RoleGrantAuditAction } from "@maiks-yt/domain/community";
+
+export type ModeratorAdminFailureReason =
+  | "not_authenticated"
+  | "moderator_admin_unavailable"
+  | "moderator_admin_user_unlinked"
+  | "moderator_admin_forbidden"
+  | "moderator_admin_invalid_input"
+  | "moderator_admin_user_not_found"
+  | "moderator_admin_role_not_found"
+  | "moderator_admin_role_exists"
+  | "moderator_admin_role_forbidden"
+  | "moderator_admin_role_in_use"
+  | "moderator_admin_role_protected"
+  | "moderator_admin_rank_path_not_found"
+  | "moderator_admin_rank_path_exists"
+  | "moderator_admin_rank_path_in_use"
+  | "moderator_admin_rank_path_protected"
+  | "moderator_admin_grant_not_found"
+  | "moderator_admin_grant_exists";
 
 export type ModeratorAdminUser = {
   id: string;
@@ -24,6 +48,7 @@ export type ModeratorAdminRole = {
   discordRoleId: string | null;
   isOwnerRank: boolean;
   isSystem: boolean;
+  authorityIntegrity: ModeratorRoleAuthorityIntegrity;
   grantable: boolean;
   createdAt: string;
   updatedAt: string;
@@ -85,7 +110,7 @@ export type ModeratorAdminListResponse =
   }
   | {
     ok: false;
-    reason: string;
+    reason: ModeratorAdminFailureReason;
   };
 
 export type ModeratorAdminMutationResponse =
@@ -96,7 +121,7 @@ export type ModeratorAdminMutationResponse =
   }
   | {
     ok: false;
-    reason: string;
+    reason: ModeratorAdminFailureReason;
     issues?: readonly string[];
   };
 
@@ -107,7 +132,7 @@ export type RankPathMutationResponse =
   }
   | {
     ok: false;
-    reason: string;
+    reason: ModeratorAdminFailureReason;
   };
 
 export type RoleMutationResponse =
@@ -117,7 +142,7 @@ export type RoleMutationResponse =
   }
   | {
     ok: false;
-    reason: string;
+    reason: ModeratorAdminFailureReason;
   };
 
 export type RankDeleteResponse =
@@ -127,7 +152,7 @@ export type RankDeleteResponse =
   }
   | {
     ok: false;
-    reason: string;
+    reason: ModeratorAdminFailureReason;
   };
 
 export type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
@@ -245,13 +270,21 @@ export const toDateTimeInput = (value: string | null): string =>
 export const toIsoOrNull = (value: string): string | null =>
   value.trim().length > 0 ? new Date(value).toISOString() : null;
 
-export const getFailureMessage = (response: Response, reason?: string, issues?: readonly string[]): string => {
+export const getFailureMessage = (
+  response: Response,
+  reason?: ModeratorAdminFailureReason,
+  issues?: readonly string[]
+): string => {
   if (response.status === 401 || reason === "not_authenticated") {
     return "Sign in before managing helper and moderator grants.";
   }
 
-  if (response.status === 403 || reason === "moderator_admin_forbidden") {
-    return "Your account does not have moderator management permission.";
+  if (reason === "moderator_admin_role_protected") {
+    return "This protected rank cannot be created, changed, or removed here.";
+  }
+
+  if (reason === "moderator_admin_rank_path_protected") {
+    return "This promotion path contains a protected rank and cannot be changed here.";
   }
 
   if (reason === "moderator_admin_role_forbidden") {
@@ -270,10 +303,14 @@ export const getFailureMessage = (response: Response, reason?: string, issues?: 
       : "The grant has invalid or missing fields.";
   }
 
+  if (response.status === 403 || reason === "moderator_admin_forbidden") {
+    return "Your account does not have moderator management permission.";
+  }
+
   return `Moderator admin request failed with ${response.status}.`;
 };
 
-export const getLoadStateForFailure = (response: Response, reason?: string): LoadState => {
+export const getLoadStateForFailure = (response: Response, reason?: ModeratorAdminFailureReason): LoadState => {
   if (response.status === 401 || reason === "not_authenticated") {
     return "signed-out";
   }
@@ -320,6 +357,24 @@ export const parsePermissionText = (value: string): string[] =>
     .map((entry) => entry.trim())
     .filter(Boolean))]
     .sort();
+
+export const roleIsProtectedForEditing = (role: ModeratorAdminRole | null | undefined): boolean => {
+  if (!role) {
+    return false;
+  }
+
+  return !hasStrictModeratorRoleAuthorityShape(role)
+    || isProtectedModeratorRoleAuthority(role);
+};
+
+export const rankPathIsProtectedForEditing = (
+  roles: readonly ModeratorAdminRole[],
+  rankPathId: string | null | undefined
+): boolean =>
+  Boolean(rankPathId)
+  && !canUpdateOrdinaryModeratorRankPath(
+    roles.filter((role) => role.rankPathId === rankPathId)
+  );
 
 export const toRankPathPayload = (form: RankPathFormState) => ({
   key: form.key,

@@ -18,6 +18,8 @@ import {
   availabilityLabels,
   formatDate,
   parsePermissionText,
+  rankPathIsProtectedForEditing,
+  roleIsProtectedForEditing,
   scopeLabels,
   trustLevelLabels,
   type GrantFormState,
@@ -98,8 +100,10 @@ const getPathRoles = (roles: readonly ModeratorAdminRole[], pathId: string): rea
 const getUser = (users: readonly ModeratorAdminUser[], userId: string): ModeratorAdminUser | null =>
   users.find((user) => user.id === userId) ?? null;
 
-const grantIsProtected = (roles: readonly ModeratorAdminRole[], grant: ModeratorAdminGrant): boolean =>
-  !(roles.find((role) => role.id === grant.roleId)?.grantable ?? false);
+const grantIsProtected = (roles: readonly ModeratorAdminRole[], grant: ModeratorAdminGrant): boolean => {
+  const role = roles.find((candidate) => candidate.id === grant.roleId);
+  return !role || !role.grantable || roleIsProtectedForEditing(role);
+};
 
 const PathRail = (props: ModeratorAdminWorkspaceProps): React.ReactNode => (
   <aside className={styles.rail} aria-label="Promotion paths and active grants">
@@ -124,7 +128,7 @@ const PathRail = (props: ModeratorAdminWorkspaceProps): React.ReactNode => (
       {props.grants.filter((grant) => grant.status === "active").slice(0, 4).map((grant) => {
         const user = getUser(props.users, grant.userId);
         if (!user) return null;
-        return <button key={grant.id} type="button" onClick={() => props.onEditGrant(grant)}><Avatar user={user} /><span><strong>{user.displayName}</strong><small>{grant.roleName}</small></span><em data-tone={grant.availability === "live_only" ? "amber" : "mint"}>{availabilityLabels[grant.availability]}</em></button>;
+        return <button key={grant.id} type="button" disabled={grantIsProtected(props.roles, grant)} onClick={() => props.onEditGrant(grant)}><Avatar user={user} /><span><strong>{user.displayName}</strong><small>{grant.roleName}</small></span><em data-tone={grant.availability === "live_only" ? "amber" : "mint"}>{availabilityLabels[grant.availability]}</em></button>;
       })}
       {props.users.filter((user) => !props.grants.some((grant) => grant.userId === user.id && grant.status === "active")).slice(0, 2).map((user) => (
         <button key={user.id} type="button" onClick={() => props.onNewGrant(user.id)}><Avatar user={user} /><span><strong>{user.displayName}</strong><small>No helper grant</small></span><em data-tone="muted">None</em></button>
@@ -146,7 +150,8 @@ const PromotionTrack = ({ pathRoles, roles, selectedRole }: { pathRoles: readonl
 
 const RightsMatrix = ({ role, permissionText, options, busy, setRoleForm }: { role: ModeratorAdminRole | null; permissionText: string; options: readonly string[]; busy: boolean; setRoleForm: Dispatch<SetStateAction<RoleFormState>> }): React.ReactNode => {
   const selected = new Set(parsePermissionText(permissionText));
-  const protectedOwner = role?.isOwnerRank ?? false;
+  const protectedRole = roleIsProtectedForEditing(role);
+  const wildcardAuthority = role?.permissions.some((permission) => permission.trim() === "*") ?? false;
   const toggle = (permission: string, enabled: boolean): void => setRoleForm((current) => {
     const next = new Set(parsePermissionText(current.permissions));
     if (enabled) next.add(permission); else next.delete(permission);
@@ -159,15 +164,15 @@ const RightsMatrix = ({ role, permissionText, options, busy, setRoleForm }: { ro
   ] as const;
 
   return <div className={styles.rights}>
-    {groups.filter(([, permissions]) => permissions.length > 0).map(([label, permissions]) => <div className={styles.rightGroup} key={label}><strong>{label}</strong><div>{permissions.map((permission) => <label key={permission}><input type="checkbox" checked={protectedOwner || selected.has(permission)} disabled={busy || protectedOwner} onChange={(event) => toggle(permission, event.target.checked)} /><span>{permissionLabels[permission] ?? permission}</span>{permission === "chat:emergency-clear" ? <em>sensitive</em> : null}</label>)}</div></div>)}
+    {groups.filter(([, permissions]) => permissions.length > 0).map(([label, permissions]) => <div className={styles.rightGroup} key={label}><strong>{label}</strong><div>{permissions.map((permission) => <label key={permission}><input type="checkbox" checked={wildcardAuthority || selected.has(permission)} disabled={busy || protectedRole} onChange={(event) => toggle(permission, event.target.checked)} /><span>{permissionLabels[permission] ?? permission}</span>{permission === "chat:emergency-clear" ? <em>sensitive</em> : null}</label>)}</div></div>)}
     <p>Rights are checked individually. Rank labels never grant access by themselves.</p>
-    {protectedOwner ? <div className={styles.lockNote}><FiLock /> Owner has all rights (*) and cannot be reduced from this page.</div> : null}
+    {protectedRole ? <div className={styles.lockNote}><FiLock /> This protected rank cannot be changed from this page.</div> : null}
   </div>;
 };
 
 const RoleEditor = (props: ModeratorAdminWorkspaceProps & { selectedRole: ModeratorAdminRole | null }): React.ReactNode => {
   const [customRight, setCustomRight] = useState("");
-  const protectedOwner = props.selectedRole?.isOwnerRank ?? false;
+  const protectedRole = roleIsProtectedForEditing(props.selectedRole);
   const addRight = (): void => {
     if (!customRight.trim()) return;
     props.setRoleForm((current) => ({ ...current, permissions: [...new Set([...parsePermissionText(current.permissions), customRight.trim()])].sort().join("\n") }));
@@ -176,28 +181,31 @@ const RoleEditor = (props: ModeratorAdminWorkspaceProps & { selectedRole: Modera
   return <form className={styles.editor} onSubmit={props.onSaveRole}>
     <div className={styles.headingRow}><h2>{props.roleForm.id ? "Edit rank" : "New rank"}</h2></div>
     {!props.roleForm.id ? <label>Key<input value={props.roleForm.key} onChange={(event) => props.setRoleForm((current) => ({ ...current, key: event.target.value }))} required maxLength={80} /></label> : null}
-    <label>Name<input value={props.roleForm.name} onChange={(event) => props.setRoleForm((current) => ({ ...current, name: event.target.value }))} required maxLength={191} /></label>
-    <label>Display label<input value={props.roleForm.displayLabel} onChange={(event) => props.setRoleForm((current) => ({ ...current, displayLabel: event.target.value }))} maxLength={191} /></label>
-    <div className={styles.twoCols}><label>Path<select value={props.roleForm.rankPathId} onChange={(event) => props.setRoleForm((current) => ({ ...current, rankPathId: event.target.value }))}><option value="">No path</option>{props.rankPaths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}</select></label><label>Level<input type="number" min={1} value={props.roleForm.rankLevel} onChange={(event) => props.setRoleForm((current) => ({ ...current, rankLevel: event.target.value }))} /></label></div>
-    <label>Next promotion<select value={props.roleForm.nextRoleId} onChange={(event) => props.setRoleForm((current) => ({ ...current, nextRoleId: event.target.value }))}><option value="">None</option>{props.roles.filter((role) => role.id !== props.roleForm.id).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
-    <label>Discord role ID<input value={props.roleForm.discordRoleId} onChange={(event) => props.setRoleForm((current) => ({ ...current, discordRoleId: event.target.value }))} maxLength={80} /><small>Future mapping only · sync is not active</small></label>
-    <label className={styles.check}><input type="checkbox" checked={props.roleForm.isSystem} onChange={(event) => props.setRoleForm((current) => ({ ...current, isSystem: event.target.checked }))} /> System/default rank</label>
-    <label className={styles.check}><input type="checkbox" checked={props.roleForm.isOwnerRank} disabled={protectedOwner} onChange={(event) => props.setRoleForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} /> Owner rank {protectedOwner ? <FiLock /> : null}</label>
-    {!protectedOwner ? <div className={styles.addRight}><label>Custom right<input value={customRight} onChange={(event) => setCustomRight(event.target.value)} placeholder="area:action" /></label><button type="button" onClick={addRight} disabled={!customRight.trim()}>Add</button></div> : null}
+    <label>Name<input value={props.roleForm.name} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, name: event.target.value }))} required maxLength={191} /></label>
+    <label>Display label<input value={props.roleForm.displayLabel} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, displayLabel: event.target.value }))} maxLength={191} /></label>
+    <div className={styles.twoCols}><label>Path<select value={props.roleForm.rankPathId} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, rankPathId: event.target.value }))}><option value="">No path</option>{props.rankPaths.map((path) => <option key={path.id} value={path.id}>{path.name}</option>)}</select></label><label>Level<input type="number" min={1} value={props.roleForm.rankLevel} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, rankLevel: event.target.value }))} /></label></div>
+    <label>Next promotion<select value={props.roleForm.nextRoleId} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, nextRoleId: event.target.value }))}><option value="">None</option>{props.roles.filter((role) => role.id !== props.roleForm.id).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
+    <label>Discord role ID<input value={props.roleForm.discordRoleId} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, discordRoleId: event.target.value }))} maxLength={80} /><small>Future mapping only · sync is not active</small></label>
+    <label className={styles.check}><input type="checkbox" checked={props.roleForm.isSystem} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, isSystem: event.target.checked }))} /> System/default rank</label>
+    <label className={styles.check}><input type="checkbox" checked={props.roleForm.isOwnerRank} disabled={protectedRole} onChange={(event) => props.setRoleForm((current) => ({ ...current, isOwnerRank: event.target.checked }))} /> Owner rank {protectedRole ? <FiLock /> : null}</label>
+    {!protectedRole ? <div className={styles.addRight}><label>Custom right<input value={customRight} onChange={(event) => setCustomRight(event.target.value)} placeholder="area:action" /></label><button type="button" onClick={addRight} disabled={!customRight.trim()}>Add</button></div> : null}
     <div className={styles.note}><strong>Grant settings</strong><p>Trust, scope, availability and expiry are chosen on each grant.</p></div>
-    <span className={styles.formActions}>{props.roleForm.id ? <button className={styles.danger} type="button" onClick={props.onDeleteRole} disabled={props.busy || protectedOwner || props.selectedRole?.isSystem}>Remove rank</button> : null}<button className={styles.primary} type="submit" disabled={props.busy || protectedOwner}>{props.busy ? "Saving…" : "Save rank"}</button><button type="button" onClick={props.onCancelRole} disabled={props.busy}>Cancel</button></span>
+    <span className={styles.formActions}>{props.roleForm.id ? <button className={styles.danger} type="button" onClick={props.onDeleteRole} disabled={props.busy || protectedRole}>Remove rank</button> : null}<button className={styles.primary} type="submit" disabled={props.busy || protectedRole}>{props.busy ? "Saving…" : "Save rank"}</button><button type="button" onClick={props.onCancelRole} disabled={props.busy}>Cancel</button></span>
   </form>;
 };
 
-const PathEditor = (props: ModeratorAdminWorkspaceProps): React.ReactNode => <form className={styles.editor} onSubmit={props.onSavePath}>
-  <div className={styles.headingRow}><h2>{props.rankPathForm.id ? "Edit path" : "New path"}</h2></div>
-  <label>Key<input value={props.rankPathForm.key} onChange={(event) => props.setRankPathForm((current) => ({ ...current, key: event.target.value }))} required maxLength={80} /></label>
-  <label>Name<input value={props.rankPathForm.name} onChange={(event) => props.setRankPathForm((current) => ({ ...current, name: event.target.value }))} required maxLength={191} /></label>
-  <label>Description<textarea rows={4} value={props.rankPathForm.description} onChange={(event) => props.setRankPathForm((current) => ({ ...current, description: event.target.value }))} maxLength={280} /></label>
-  <label>Sort order<input type="number" min={0} value={props.rankPathForm.sortOrder} onChange={(event) => props.setRankPathForm((current) => ({ ...current, sortOrder: event.target.value }))} /></label>
-  <div className={styles.note}><strong>Promotion path</strong><p>Ranks inside this path define their own level and next promotion.</p></div>
-  <span className={styles.formActions}>{props.rankPathForm.id ? <button className={styles.danger} type="button" onClick={props.onDeletePath} disabled={props.busy}>Remove path</button> : null}<button className={styles.primary} type="submit" disabled={props.busy}>{props.busy ? "Saving…" : "Save path"}</button></span>
-</form>;
+const PathEditor = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
+  const protectedPath = rankPathIsProtectedForEditing(props.roles, props.rankPathForm.id);
+  return <form className={styles.editor} onSubmit={props.onSavePath}>
+    <div className={styles.headingRow}><h2>{props.rankPathForm.id ? "Edit path" : "New path"}</h2></div>
+    <label>Key<input value={props.rankPathForm.key} disabled={protectedPath} onChange={(event) => props.setRankPathForm((current) => ({ ...current, key: event.target.value }))} required maxLength={80} /></label>
+    <label>Name<input value={props.rankPathForm.name} disabled={protectedPath} onChange={(event) => props.setRankPathForm((current) => ({ ...current, name: event.target.value }))} required maxLength={191} /></label>
+    <label>Description<textarea rows={4} value={props.rankPathForm.description} disabled={protectedPath} onChange={(event) => props.setRankPathForm((current) => ({ ...current, description: event.target.value }))} maxLength={280} /></label>
+    <label>Sort order<input type="number" min={0} value={props.rankPathForm.sortOrder} disabled={protectedPath} onChange={(event) => props.setRankPathForm((current) => ({ ...current, sortOrder: event.target.value }))} /></label>
+    <div className={styles.note}><strong>Promotion path</strong><p>Ranks inside this path define their own level and next promotion.</p></div>
+    <span className={styles.formActions}>{props.rankPathForm.id ? <button className={styles.danger} type="button" onClick={props.onDeletePath} disabled={props.busy || protectedPath}>Remove path</button> : null}<button className={styles.primary} type="submit" disabled={props.busy || protectedPath}>{props.busy ? "Saving…" : "Save path"}</button></span>
+  </form>;
+};
 
 const SelectedGrant = (props: ModeratorAdminWorkspaceProps & { grant: ModeratorAdminGrant | null }): React.ReactNode => {
   if (!props.grant) return null;
@@ -210,6 +218,7 @@ const SelectedGrant = (props: ModeratorAdminWorkspaceProps & { grant: ModeratorA
 const RankSetup = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
   const path = props.rankPaths.find((candidate) => candidate.id === props.selectedRankPathId) ?? props.rankPaths[0] ?? null;
   const pathRoles = path ? getPathRoles(props.roles, path.id) : [];
+  const protectedPath = rankPathIsProtectedForEditing(props.roles, path?.id);
   const selectedRole = props.selectedRoleId
     ? props.roles.find((role) => role.id === props.selectedRoleId) ?? null
     : null;
@@ -225,7 +234,7 @@ const RankSetup = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
   return <div className={styles.rankLayout}>
     <PathRail {...props} />
     <main className={styles.detail}>
-      <div className={styles.titleRow}><span><h2>{path?.name ?? "Rank"} path</h2><p>{path?.description ?? "Reusable ranks and promotion steps."}</p></span>{path ? <button className={styles.linkButton} type="button" onClick={() => props.onEditPath(path)}>Edit path</button> : null}</div>
+      <div className={styles.titleRow}><span><h2>{path?.name ?? "Rank"} path</h2><p>{path?.description ?? "Reusable ranks and promotion steps."}</p></span>{path ? <button className={styles.linkButton} type="button" disabled={protectedPath} onClick={() => props.onEditPath(path)}>Edit path</button> : null}</div>
       <PromotionTrack pathRoles={pathRoles} roles={props.roles} selectedRole={selectedRole} />
       <p className={styles.trackNote}>Each rank points to its next allowed promotion.</p>
       <div className={styles.headingRow}><h2>Ranks in this path</h2><button className={styles.textButton} type="button" onClick={props.onNewRole}><FiPlus /> New rank</button></div>
@@ -239,7 +248,7 @@ const RankSetup = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
 };
 
 const GrantEditor = (props: ModeratorAdminWorkspaceProps): React.ReactNode => {
-  const grantableRoles = props.roles.filter((role) => role.grantable);
+  const grantableRoles = props.roles.filter((role) => role.grantable && !roleIsProtectedForEditing(role));
   return <form className={styles.editor} onSubmit={props.onSaveGrant}>
     <div className={styles.headingRow}><h2>{props.editingGrantId ? "Edit grant" : "Add grant"}</h2>{props.editingGrantId ? <button className={styles.iconButton} type="button" onClick={props.onCancelGrant}><FiX /></button> : null}</div>
     <label>Person<select value={props.grantForm.targetUserId} disabled={Boolean(props.editingGrantId)} onChange={(event) => props.setGrantForm((current) => ({ ...current, targetUserId: event.target.value }))}>{props.users.map((user) => <option key={user.id} value={user.id}>{user.displayName}{user.authEmail ? ` · ${user.authEmail}` : ""}</option>)}</select></label>
