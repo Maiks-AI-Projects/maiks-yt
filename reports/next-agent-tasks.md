@@ -1,5 +1,11 @@
 # Next Agent Tasks
 
+## Public Profiles hygiene gate
+
+- The current public Profile pages are static demonstrations with nonfunctional search and unimplemented provider/supporter/donation/perk claims. Do not present them as live product behavior.
+- Create one representative desktop/mobile production-style image for a truthful `/profiles` planned state and the minimal private example. Obtain Michael's approval before materially changing the page.
+- After approval, remove fake search semantics and unimplemented claims while preserving the exact private text and no-image behavior. Do not implement handles, real search, image routing, assignment, migration, backfill, or provider-derived identity until the separate choice list is submitted.
+
 ## Public Music browser contract deployed
 
 - Production revision `e5f0dd84d6d40a99809cfc3ebfed7289a8581d0c` is deployed to Web and API on provenance-labelled image `sha256:94ad53a68e7c7d2041bd63cb839893db1e02a29a2690c113fb3aabca4ab2718b`. Do not repeat the deployment.

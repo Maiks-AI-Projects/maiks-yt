@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-28 public Profiles production-hygiene audit
+
+- `/profiles`, `/profiles/michael-public`, and `/profiles/michael-private` are static demonstrations. Search input does not control results; the two Michael examples are always returned. The public mock advertises provider identities, verification, role sync, supporter rank, claimable contributions, donations, verified game names, and future perks that are not production behavior.
+- The three static pages do not render raw internal or provider ids. The real account image endpoint still uses a domain-user UUID in its URL; private images fail closed with an indistinguishable no-store `404`, but replacing that public identifier belongs to the reviewed handle runtime rather than this cleanup.
+- A safe cleanup can remove fake search semantics and unimplemented capability claims while preserving the settled private example: account name plus `This account is set to private`, with no image. Because that materially changes the public surface, the implementation must first receive image-first approval.
+- Real `/profiles/:handle` routing, search, image routing, assignment, migration, provider-derived identity, recognition, and perks remain behind the unsubmitted Owner choice and their separate persistence/consent gates. Tracker issue `d5aa216b50a06cfd` and work item `c07316dcaf46fca1` record the truthful planned-state slice. No source, runtime, database, deployment, or live account change occurred during the audit.
+
 ## 2026-08-28 production public Music contract minimization `e5f0dd8`
 
 - Anonymous `GET /music/catalog` no longer exposes track/source database ids, provider keys, source URLs, license/policy internals, review state, or storage metadata. A deterministic opaque `musicref_v1_...` reference identifies the exact public track/source selection without disclosing either id. Anonymous requests accept only that reference.
