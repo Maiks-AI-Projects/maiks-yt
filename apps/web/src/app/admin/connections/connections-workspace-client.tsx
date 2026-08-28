@@ -2,6 +2,7 @@
 
 import {
   eventRegistry,
+  isProductionEventRoutingRuleEventKind,
   listEventActionCatalogEntries,
   listProviderActionCapabilities,
   listProviderEventCatalogEntries
@@ -15,6 +16,7 @@ import type { ConnectionsSource } from "./connections.types";
 import ProviderIntakeRecentClient from "./provider-intake-recent-client";
 
 type WorkspaceTab = "intake" | "catalogue" | "actions";
+type CatalogueMode = "production" | "non-production";
 
 type SourceOption = {
   icon: IconType;
@@ -47,6 +49,10 @@ const sourceLabels: Record<Exclude<ConnectionsSource, "any">, string> = {
   youtube: "YouTube"
 };
 
+const productionCatalogueExcludedEventKinds = new Set<string>([
+  "website.free-tts-request"
+]);
+
 const providerSafety = (
   entry: ReturnType<typeof listProviderEventCatalogEntries>[number]
 ): string[] => {
@@ -75,7 +81,20 @@ const registrySafety = (entry: (typeof eventRegistry)[number]): string[] => {
   return badges.length > 0 ? badges : ["internal default"];
 };
 
-const buildCatalogueRows = (): CatalogueRow[] => {
+const isProductionConnectionsWebsiteEvent = (
+  entry: (typeof eventRegistry)[number]
+): boolean =>
+  (entry.sourcePlatforms as readonly string[]).includes("website")
+  && isProductionEventRoutingRuleEventKind(entry.kind)
+  && !productionCatalogueExcludedEventKinds.has(entry.kind);
+
+const isWebsiteEvent = (
+  entry: (typeof eventRegistry)[number]
+): boolean => (entry.sourcePlatforms as readonly string[]).includes("website");
+
+export const buildCatalogueRows = (
+  mode: CatalogueMode = process.env.NODE_ENV === "production" ? "production" : "non-production"
+): CatalogueRow[] => {
   const providerRows = listProviderEventCatalogEntries().map((entry) => ({
     eventName: entry.providerEventName,
     key: `${entry.platform}:${entry.mechanism}:${entry.providerEventName}`,
@@ -87,7 +106,7 @@ const buildCatalogueRows = (): CatalogueRow[] => {
   } satisfies CatalogueRow));
 
   const websiteRows = eventRegistry
-    .filter((entry) => (entry.sourcePlatforms as readonly string[]).includes("website"))
+    .filter(mode === "production" ? isProductionConnectionsWebsiteEvent : isWebsiteEvent)
     .map((entry) => ({
       eventName: entry.kind,
       key: `website:${entry.kind}`,
