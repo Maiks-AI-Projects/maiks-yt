@@ -5,6 +5,13 @@
 - `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` is a Candidate / Owner approval required, not an approved implementation reference.
 - Do not implement the candidate until explicit Owner approval. The gated next behavior is the compact master/detail presentation, local unsaved preview using the public row presentation while saved `/links` stays authoritative, and owner-only unpublished-draft deletion with exact-title confirmation. Preserve inventory-only ordering and keep Funding/support protected and unavailable.
 
+## Production Operator Copy Slices: Source Complete
+
+- Admin Overview now uses finite allowlisted operator copy and fails closed on non-2xx, malformed, incomplete, or producer-contradictory health payloads. Counts and ratios are bounded, Money transactions use the Domain validator, and real links, tones, refresh behavior, and valid states remain intact.
+- Page Creator now uses finite reserved-path and unavailable copy. Raw HTTP status and caught exception text no longer reach the owner UI; its existing editor, retry, validation, preview, and publication behavior is unchanged.
+- Independent final review found zero standards and zero specification findings. `pnpm check:review` passes with 159 Domain, 635 API, 227 Web, and 16 Local Agent tests plus the production Web build and required type, architecture, and diff checks.
+- Neither slice is deployed or live/browser/auth-session verified. Deploy and verify only in a separately authorized production window. Desktop and GUI verification remain forbidden by the Owner stop order.
+
 ## Production Operator Contracts: Deploy And Verify Separately
 
 - Provider-intake review references, finite provider status, bounded Session administration, minimized Page Creator responses, and minimized Games suggestion-review responses are code-complete and independently reviewed with zero standards and zero specification findings.

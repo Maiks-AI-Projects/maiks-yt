@@ -6,6 +6,16 @@
 - The candidate preserves the production admin shell and proposes a compact master/detail Creator Links editor with inventory-only ordering, a selected draft editor, local draft preview using the public row presentation, authoritative saved `/links` preview, and owner-only draft deletion with exact-title confirmation. Funding/support remains protected and unavailable.
 - Current production behavior remains unchanged: database-backed owner controls, dirty-edit protection, inventory ordering, pre-save icon/purpose feedback, public draft exclusion, and the authoritative saved `/links` view. No code/runtime, migration, deployment, server, GUI/browser, or live state changed.
 
+## 2026-08-28 production operator-contract review
+
+- Admin Overview finite health-copy boundary is implemented in exactly `apps/web/src/app/admin/admin-dashboard-client.tsx`, `apps/web/src/app/admin/admin-dashboard.rules.ts`, and `apps/web/src/app/admin/admin-dashboard.rules.test.ts`. It projects finite allowlisted operator copy, rejects malformed/non-2xx/impossible payloads, uses real Money domain validation, handles provider and backup inventories plus backup producer consistency, bounds counts and ratios, preserves real state/links/refresh, and independent review found zero standards and zero specification findings.
+- Page Creator finite copy cleanup is implemented in exactly `apps/web/src/app/admin/pages/page-creator-admin-client.tsx`, `apps/web/src/app/admin/pages/page-creator-admin.rules.ts`, and `apps/web/src/app/admin/pages/page-creator-admin.rules.test.ts`. Reserved-path and unavailable copy is finite, raw HTTP status and caught exception text no longer reach the UI, existing behavior was preserved, and independent review found zero standards and zero specification findings.
+- Coordinator `pnpm check:review` passed with 159 Domain tests, 635 API tests, 227 Web tests, the production Web build, Overlay / Control / DB / API / Web / Local Agent typechecks, architecture, and diff checks.
+- Neither slice is deployed or live/browser/auth-session verified, and desktop/GUI verification remains forbidden by Owner stop order.
+- The Creator Links admin candidate remains an Owner approval gate at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`; do not mark it implemented.
+- Public Progress truthfulness copy has been investigated but still needs Owner approval for the exact public wording; do not mark it implemented.
+- The next highest-value authorized gate is Owner approval or revision of the Creator Links image. Separate deployment and live verification stay a later gate.
+
 ## 2026-08-28 production homepage featured-Update integration
 
 - The production homepage now starts the real public schedule, project, and public Updates loaders concurrently, once each, before deriving homepage slots.

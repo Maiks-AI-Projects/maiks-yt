@@ -31,6 +31,8 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Generate and review a migration for durable single-use YouTube consent state before implementing the OAuth callback flow. The approved design uses a hashed random state bound to provider, purpose, owner, redirect URI, requested scopes, expiry, and one atomic consume transition.
 - [ ] Deploy the completed operator-contract slices in a separately authorized production window.
 - [ ] Verify the signed-in owner provider-intake review, Page Creator lifecycle, Games suggestion review, and account-scoped Session recovery against the live production database after deployment.
+- 2026-08-28 reviewed source slices now also include the finite Admin Overview health-copy boundary and the finite Page Creator copy cleanup. Both passed independent review with zero standards and zero specification findings, and neither slice is deployed or live/browser/auth-session verified.
+- 2026-08-28 the Creator Links admin image candidate remains an Owner approval gate at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`, and Public Progress truthfulness copy still needs Owner-approved wording.
 
 ## 0. Organize the Idea Base
 
