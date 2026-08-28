@@ -19,8 +19,30 @@ class FakeProviderIntegrationStatusRepository implements ProviderIntegrationStat
   }
 }
 
+const forbiddenMarkers = [
+  "sdk",
+  "readOnly",
+  "env",
+  "issues",
+  "boundaries",
+  "lastError",
+  "reconnectCount",
+  "disconnectsInWindow",
+  "reconnectSuppressed",
+  "autoStartEnabled",
+  "TWITCH_CLIENT_SECRET",
+  "YOUTUBE_API_KEY",
+  "DISCORD_BOT_TOKEN",
+  "secret-twitch-value",
+  "secret-youtube-value",
+  "secret-discord-value",
+  "@twurple",
+  "discord.js",
+  "googleapis"
+] as const;
+
 describe("ProviderIntegrationStatusService", () => {
-  it("returns sanitized configured and missing provider status for owner wildcard", async () => {
+  it("returns the allowlisted owner operator status for owner wildcard", async () => {
     const service = new ProviderIntegrationStatusService(
       new FakeProviderIntegrationStatusRepository(),
       {
@@ -30,40 +52,85 @@ describe("ProviderIntegrationStatusService", () => {
           YOUTUBE_API_KEY: "secret-youtube-value",
           DISCORD_BOT_TOKEN: "secret-discord-value"
         },
-        now: () => new Date("2026-06-29T12:00:00.000Z")
+        now: () => new Date("2026-06-29T12:00:00.000Z"),
+        runtimeState: () => ({
+          twitchChatIntakeState: "connected",
+          youtubeLiveChatIntakeState: "waiting",
+          discordChatIntakeState: "stopped"
+        })
       }
     );
 
     const result = await service.getStatus({ authUserId: "auth-owner" });
     const serialized = JSON.stringify(result);
 
-    expect(result).toMatchObject({
+    expect(result).toEqual({
       ok: true,
-      readOnly: true,
       generatedAt: "2026-06-29T12:00:00.000Z",
       providers: [
         {
           id: "twitch",
-          state: "configured"
+          label: "Twitch",
+          readiness: "ready",
+          capabilities: [
+            { key: "twitch_api_access", label: "Twitch API access", state: "available" },
+            { key: "twitch_chat_intake", label: "Twitch chat intake", state: "available" },
+            { key: "twitch_eventsub_intake", label: "Twitch event intake", state: "needs_setup" }
+          ],
+          runtime: {
+            state: "connected",
+            accountSummary: null,
+            connectedAt: null,
+            lastActivityAt: null,
+            nextRetryAt: null
+          },
+          guidance: null
         },
         {
           id: "youtube",
-          state: "configured"
+          label: "YouTube",
+          readiness: "ready",
+          capabilities: [
+            { key: "youtube_data_access", label: "YouTube data access", state: "available" },
+            { key: "youtube_owner_consent", label: "YouTube owner consent", state: "needs_setup" },
+            { key: "youtube_live_chat_intake", label: "YouTube live chat intake", state: "available" }
+          ],
+          runtime: {
+            state: "waiting",
+            accountSummary: null,
+            connectedAt: null,
+            lastActivityAt: null,
+            nextRetryAt: null
+          },
+          guidance: null
         },
         {
           id: "discord",
-          state: "configured"
+          label: "Discord",
+          readiness: "ready",
+          capabilities: [
+            { key: "discord_bot_access", label: "Discord bot access", state: "available" },
+            { key: "discord_guild_target", label: "Discord guild target", state: "needs_setup" },
+            { key: "discord_webhook_intake", label: "Discord webhook intake", state: "needs_setup" },
+            { key: "discord_chat_intake", label: "Discord chat intake", state: "available" }
+          ],
+          runtime: {
+            state: "stopped",
+            accountSummary: null,
+            connectedAt: null,
+            lastActivityAt: null,
+            nextRetryAt: null
+          },
+          guidance: "Start intake when this provider should capture live activity."
         }
       ]
     });
-    expect(serialized).not.toContain("secret-twitch-value");
-    expect(serialized).not.toContain("secret-youtube-value");
-    expect(serialized).not.toContain("secret-discord-value");
-    expect(serialized).toContain("TWITCH_CLIENT_SECRET");
-    expect(serialized).toContain("DISCORD_BOT_TOKEN");
+    for (const marker of forbiddenMarkers) {
+      expect(serialized).not.toContain(marker);
+    }
   });
 
-  it("reports missing env vars safely instead of crashing", async () => {
+  it("reports missing setup without environment variable names", async () => {
     const service = new ProviderIntegrationStatusService(
       new FakeProviderIntegrationStatusRepository(),
       {
@@ -73,27 +140,31 @@ describe("ProviderIntegrationStatusService", () => {
     );
 
     const result = await service.getStatus({ authUserId: "auth-owner" });
+    const serialized = JSON.stringify(result);
 
     expect(result).toMatchObject({
       ok: true,
       providers: [
         {
           id: "twitch",
-          state: "missing",
-          issues: ["TWITCH_CLIENT_ID is missing.", "TWITCH_CLIENT_SECRET is missing."]
+          readiness: "needs_setup",
+          guidance: "Finish Twitch setup before starting chat or event intake."
         },
         {
           id: "youtube",
-          state: "missing",
-          issues: []
+          readiness: "needs_setup",
+          guidance: "Finish YouTube owner-consent setup before starting live-chat polling."
         },
         {
           id: "discord",
-          state: "missing",
-          issues: ["DISCORD_BOT_TOKEN is missing."]
+          readiness: "needs_setup",
+          guidance: "Finish Discord bot and guild setup before starting intake."
         }
       ]
     });
+    expect(serialized).not.toContain("TWITCH_CLIENT_ID");
+    expect(serialized).not.toContain("TWITCH_CLIENT_SECRET");
+    expect(serialized).not.toContain("DISCORD_BOT_TOKEN");
   });
 
   it("denies unlinked and non-owner users", async () => {
@@ -141,6 +212,30 @@ describe("Provider integration status routes", () => {
     });
   });
 
+  it("returns the finite unavailable reason when authentication fails", async () => {
+    const server = Fastify();
+
+    registerProviderIntegrationStatusRoutes(server, {
+      getAuthSession: async () => {
+        throw new Error("auth unavailable");
+      },
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      }
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/status"
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "provider_integrations_unavailable"
+    });
+  });
+
   it("returns 403 for authenticated users without owner wildcard", async () => {
     const server = Fastify();
     const repository = new FakeProviderIntegrationStatusRepository();
@@ -169,7 +264,7 @@ describe("Provider integration status routes", () => {
     });
   });
 
-  it("returns sanitized provider status for authenticated owner access", async () => {
+  it("returns the finite unavailable reason when status lookup fails", async () => {
     const server = Fastify();
 
     registerProviderIntegrationStatusRoutes(server, {
@@ -177,109 +272,26 @@ describe("Provider integration status routes", () => {
       getDatabasePool: () => {
         throw new Error("database should not be used");
       },
-      createService: () => new ProviderIntegrationStatusService(
-        new FakeProviderIntegrationStatusRepository(),
-        {
-          env: {
-            TWITCH_CLIENT_ID: "twitch-client",
-            TWITCH_CLIENT_SECRET: "secret-twitch-value",
-            DISCORD_BOT_TOKEN: "secret-discord-value"
-          },
-          now: () => new Date("2026-06-29T12:00:00.000Z")
+      createService: () => ({
+        getStatus: async () => {
+          throw new Error("status unavailable");
         }
-      )
-    });
-
-    const response = await server.inject({
-      method: "GET",
-      url: "/admin/provider-integrations/status"
-    });
-    const body = response.json();
-    const serialized = JSON.stringify(body);
-
-    expect(response.statusCode).toBe(200);
-    expect(body).toMatchObject({
-      ok: true,
-      readOnly: true,
-      providers: [
-        {
-          id: "twitch",
-          state: "configured"
-        },
-        {
-          id: "youtube",
-          state: "missing"
-        },
-        {
-          id: "discord",
-          state: "configured"
-        }
-      ]
-    });
-    expect(serialized).not.toContain("secret-twitch-value");
-    expect(serialized).not.toContain("secret-discord-value");
-  });
-
-  it("includes sanitized Twitch chat runtime state when provided", async () => {
-    const server = Fastify();
-
-    registerProviderIntegrationStatusRoutes(server, {
-      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
-      getDatabasePool: () => {
-        throw new Error("database should not be used");
-      },
-      getRuntimeState: () => ({
-        twitchChatIntakeState: "connected"
-      }),
-      createService: () => new ProviderIntegrationStatusService(
-        new FakeProviderIntegrationStatusRepository(),
-        {
-          env: {
-            TWITCH_CLIENT_ID: "twitch-client",
-            TWITCH_CLIENT_SECRET: "secret-twitch-value"
-          },
-          now: () => new Date("2026-06-29T12:00:00.000Z"),
-          runtimeState: () => ({
-            twitchChatIntake: {
-              channelName: "maiksmc",
-              channelNames: ["maiksmc"],
-              connectedAt: "2026-06-29T12:00:00.000Z",
-              disconnectsInWindow: 0,
-              lastDisconnectAt: null,
-              lastError: null,
-              lastMessageAt: "2026-06-29T12:05:00.000Z",
-              nextReconnectAt: null,
-              recentMessages: [],
-              reconnectSuppressed: false,
-              state: "connected"
-            }
-          })
-        }
-      )
-    });
-
-    const response = await server.inject({
-      method: "GET",
-      url: "/admin/provider-integrations/status"
-    });
-    const body = response.json();
-    const twitch = body.providers.find((provider: { id: string }) => provider.id === "twitch");
-
-    expect(response.statusCode).toBe(200);
-    expect(twitch.capabilities).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        key: "twitch-chat-runtime",
-        runtime: expect.objectContaining({
-          accountSummary: "maiksmc",
-          connectionState: "connected",
-          lastMessageAt: "2026-06-29T12:05:00.000Z"
-        }),
-        state: "configured"
       })
-    ]));
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/status"
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "provider_integrations_unavailable"
+    });
   });
 
-  it("returns stopped and reconnect telemetry without leaking secrets or provider ids", async () => {
+  it("returns sanitized runtime status for authenticated owner access", async () => {
     const server = Fastify();
 
     registerProviderIntegrationStatusRoutes(server, {
@@ -292,11 +304,11 @@ describe("Provider integration status routes", () => {
         {
           env: {
             DISCORD_BOT_TOKEN: "secret-discord-value",
-            DISCORD_CHAT_AUTO_START: "false",
             DISCORD_GUILD_ID: "987654321098765432",
-            TWITCH_CHAT_AUTO_START: "false",
             TWITCH_CLIENT_ID: "twitch-client",
-            TWITCH_CLIENT_SECRET: "secret-twitch-value"
+            TWITCH_CLIENT_SECRET: "secret-twitch-value",
+            YOUTUBE_CLIENT_ID: "youtube-client",
+            YOUTUBE_CLIENT_SECRET: "secret-youtube-value"
           },
           now: () => new Date("2026-06-29T12:00:00.000Z"),
           runtimeState: () => ({
@@ -316,15 +328,15 @@ describe("Provider integration status routes", () => {
             twitchChatIntake: {
               channelName: "maiksmc",
               channelNames: ["maiksmc"],
-              connectedAt: null,
+              connectedAt: "2026-06-29T11:00:00.000Z",
               disconnectsInWindow: 0,
               lastDisconnectAt: null,
               lastError: null,
-              lastMessageAt: null,
+              lastMessageAt: "2026-06-29T11:55:00.000Z",
               nextReconnectAt: null,
               recentMessages: [],
               reconnectSuppressed: false,
-              state: "stopped"
+              state: "connected"
             },
             youtubeLiveChatIntake: {
               activeLiveChatId: null,
@@ -333,9 +345,9 @@ describe("Provider integration status routes", () => {
               connectedAt: null,
               lastError: null,
               lastMessageAt: null,
-              nextPollAt: null,
+              nextPollAt: "2026-06-29T12:01:00.000Z",
               recentMessages: [],
-              state: "stopped"
+              state: "waiting"
             }
           })
         }
@@ -348,38 +360,43 @@ describe("Provider integration status routes", () => {
     });
     const body = response.json();
     const serialized = JSON.stringify(body);
-    const twitch = body.providers.find((provider: { id: string }) => provider.id === "twitch");
-    const discord = body.providers.find((provider: { id: string }) => provider.id === "discord");
 
     expect(response.statusCode).toBe(200);
-    expect(twitch.capabilities).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        key: "twitch-chat-runtime",
-        runtime: expect.objectContaining({
-          accountSummary: "maiksmc",
-          autoStartEnabled: false,
-          connectionState: "stopped"
-        }),
-        state: "available"
-      })
-    ]));
-    expect(discord.capabilities).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        key: "discord-chat-runtime",
-        runtime: expect.objectContaining({
-          accountSummary: "1 configured channels",
-          autoStartEnabled: false,
-          connectionState: "stopped",
-          lastDisconnectAt: "2026-06-29T11:59:00.000Z",
-          reconnectCount: 10,
-          reconnectSuppressed: true
-        }),
-        state: "available"
-      })
-    ]));
-    expect(serialized).not.toContain("\"state\":\"not_enabled\"");
-    expect(serialized).not.toContain("secret-discord-value");
-    expect(serialized).not.toContain("secret-twitch-value");
+    expect(body).toMatchObject({
+      ok: true,
+      providers: [
+        {
+          id: "twitch",
+          readiness: "ready",
+          runtime: {
+            state: "connected",
+            accountSummary: "maiksmc",
+            lastActivityAt: "2026-06-29T11:55:00.000Z"
+          }
+        },
+        {
+          id: "youtube",
+          readiness: "ready",
+          runtime: {
+            state: "waiting",
+            accountSummary: "MaiksMC",
+            nextRetryAt: null
+          }
+        },
+        {
+          id: "discord",
+          readiness: "ready",
+          runtime: {
+            state: "stopped",
+            accountSummary: "1 configured channels",
+            lastActivityAt: "2026-06-29T11:58:00.000Z"
+          }
+        }
+      ]
+    });
+    for (const marker of forbiddenMarkers) {
+      expect(serialized).not.toContain(marker);
+    }
     expect(serialized).not.toContain("987654321098765432");
     expect(serialized).not.toContain("123456789012345678");
     expect(serialized).not.toContain("UC1234567890123456789012");

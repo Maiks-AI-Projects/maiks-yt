@@ -9,11 +9,24 @@ export type ProviderIntegrationStatusActor = {
   rolePermissionValues: readonly unknown[];
 };
 
+export type ProviderIntegrationStatusBrowserDto = ProviderIntegrationStatusSnapshot;
+
+export type ProviderIntegrationStatusFailureReason =
+  | "not_authenticated"
+  | "provider_integrations_unavailable"
+  | "provider_integrations_user_unlinked"
+  | "provider_integrations_forbidden";
+
+export type ProviderIntegrationStatusServiceFailureReason = Extract<
+  ProviderIntegrationStatusFailureReason,
+  "provider_integrations_user_unlinked" | "provider_integrations_forbidden"
+>;
+
 export type ProviderIntegrationStatusResult =
-  | ProviderIntegrationStatusSnapshot
+  | ProviderIntegrationStatusBrowserDto
   | {
     ok: false;
-    reason: "provider_integrations_user_unlinked" | "provider_integrations_forbidden";
+    reason: ProviderIntegrationStatusServiceFailureReason;
   };
 
 export interface ProviderIntegrationStatusRepository {

@@ -7,7 +7,8 @@ import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-tok
 import {
   getFailureMessage,
   getLoadStateForFailure,
-  parseJson
+  parseJson,
+  parseProviderIntegrationsStatusResponse
 } from "./provider-integrations-status.service";
 import ProviderIntegrationsWorkspace from "./provider-integrations-workspace";
 import {
@@ -58,7 +59,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<ProviderIntegrationsStatusResponse>(response);
+      const payload = parseProviderIntegrationsStatusResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setSnapshot(payload);

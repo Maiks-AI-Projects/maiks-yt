@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import { ProviderIntegrationStatusService } from "./provider-integration-status.service.js";
 import { createProviderIntegrationStatusRepository } from "./provider-integration-status-store.service.js";
+import type { ProviderIntegrationStatusFailureReason } from "./provider-integration-status.types.js";
 
 type ProviderIntegrationStatusAuthSession = {
   user: {
@@ -17,6 +18,11 @@ type ProviderIntegrationStatusRouteDependencies = {
   getRuntimeState?: () => ProviderIntegrationRuntimeState;
   createService?: () => Pick<ProviderIntegrationStatusService, "getStatus">;
 };
+
+const createFailureResponse = (reason: ProviderIntegrationStatusFailureReason) => ({
+  ok: false as const,
+  reason
+});
 
 export const registerProviderIntegrationStatusRoutes = (
   server: FastifyInstance,
@@ -57,10 +63,9 @@ export const registerProviderIntegrationStatusRoutes = (
     const session = await getSession(request, reply);
 
     if (!session) {
-      return {
-        ok: false,
-        reason: reply.statusCode === 503 ? "provider_integrations_unavailable" : "not_authenticated"
-      };
+      return createFailureResponse(
+        reply.statusCode === 503 ? "provider_integrations_unavailable" : "not_authenticated"
+      );
     }
 
     try {
@@ -74,10 +79,7 @@ export const registerProviderIntegrationStatusRoutes = (
     } catch (error) {
       server.log.warn({ err: error }, "Provider integration status lookup failed.");
       reply.code(503);
-      return {
-        ok: false,
-        reason: "provider_integrations_unavailable"
-      };
+      return createFailureResponse("provider_integrations_unavailable");
     }
   });
 };

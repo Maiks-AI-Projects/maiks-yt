@@ -82,30 +82,30 @@ const providerLabels = {
 } as const;
 
 const runtimeIsActive = (state: string | null | undefined): boolean =>
-  state === "connected" || state === "connecting" || state === "waiting";
+  state === "connected" || state === "connecting" || state === "retrying" || state === "waiting";
 
 const runtimeLabel = (state: ProviderRuntimeConnectionState | null | undefined): string => {
   if (!state) return "Unknown";
   if (state === "connected") return "Connected";
   if (state === "connecting") return "Connecting";
+  if (state === "retrying") return "Retrying";
   if (state === "waiting") return "Waiting for live chat";
   if (state === "unconfigured") return "Not configured";
   return "Stopped";
 };
 
 const providerStateLabel = (provider: ProviderIntegrationStatus | undefined): string => {
-  if (!provider) return "Checking credentials";
-  if (provider.state === "configured") return "Credentials ready";
-  if (provider.state === "missing") return "Credentials missing";
-  if (provider.state === "invalid") return "Credentials invalid";
-  if (provider.state === "disabled") return "Disabled";
-  return "Configuration error";
+  if (!provider) return "Checking";
+  if (provider.readiness === "ready") return "Ready";
+  if (provider.readiness === "needs_setup") return "Needs setup";
+  if (provider.readiness === "needs_attention") return "Needs attention";
+  return "Disabled";
 };
 
 const stateTone = (state: string | null | undefined): "ready" | "warning" | "error" | "neutral" => {
-  if (state === "connected" || state === "configured" || state === "active") return "ready";
-  if (state === "error" || state === "invalid" || state === "revoked" || state === "unconfigured") return "error";
-  if (state === "stopped" || state === "connecting" || state === "waiting" || state === "missing") return "warning";
+  if (state === "connected" || state === "ready" || state === "active" || state === "available") return "ready";
+  if (state === "error" || state === "needs_attention" || state === "revoked" || state === "unconfigured") return "error";
+  if (state === "connecting" || state === "stopped" || state === "retrying" || state === "waiting" || state === "needs_setup") return "warning";
   return "neutral";
 };
 
@@ -138,9 +138,6 @@ const eventGroupLabel = (state: ReturnType<typeof getEventGroupState>): string =
 };
 
 const formatOptionalDate = (value: string | null): string => value ? formatDate(value) : "None";
-
-const formatOptionalBoolean = (value: boolean | null, trueLabel: string, falseLabel: string): string =>
-  value === null ? "Not reported" : value ? trueLabel : falseLabel;
 
 const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps): React.ReactNode => {
   const [selectedProvider, setSelectedProvider] = useState<ProviderId>("twitch");
@@ -177,7 +174,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
   const twitchProblemCount = props.twitchEventSubDefaults.filter((entry) => entry.state === "problem").length;
   const youtubeConsentActive = props.youtubeCredential?.status === "active";
   const discordWebhookMissing = providers.get("discord")?.capabilities.some(
-    (capability) => capability.key === "discord-webhook-events" && capability.state === "missing"
+    (capability) => capability.key === "discord_webhook_intake" && capability.state === "needs_setup"
   ) ?? false;
 
   const selectProvider = (provider: ProviderId): void => {
@@ -188,7 +185,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
   const renderProviderDetail = (): React.ReactNode => {
     const provider = providers.get(selectedProvider);
     const runtime = runtimeViews.get(selectedProvider);
-    const lastError = runtime?.lastError ?? null;
+    const guidance = runtime?.guidance ?? provider?.guidance ?? null;
 
     if (selectedProvider === "twitch") {
       const groups = [
@@ -200,7 +197,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
       ] as const;
       const tabs = [
         { id: "primary", label: "Subscriptions" },
-        { id: "errors", label: "Recent errors" },
+        { id: "errors", label: "Next action" },
         { id: "setup", label: "Setup" }
       ];
 
@@ -241,11 +238,11 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
             </div>
           </div>
           <dl className="provider-workspace-state-table">
-            <div><dt><FiShield aria-hidden="true" />Credentials</dt><dd className={provider?.state === "configured" ? "ready" : "error"}>{providerStateLabel(provider)}</dd></div>
+            <div><dt><FiShield aria-hidden="true" />Provider readiness</dt><dd className={stateTone(provider?.readiness)}>{providerStateLabel(provider)}</dd></div>
             <div><dt><FiUser aria-hidden="true" />Owner consent</dt><dd>Not required</dd></div>
             <div><dt><FiActivity aria-hidden="true" />Runtime intake</dt><dd className={stateTone(runtime?.connectionState)}>{runtimeLabel(runtime?.connectionState)}</dd></div>
             <div><dt><FiBell aria-hidden="true" />Event subscriptions</dt><dd className={twitchMissingCount || twitchProblemCount ? "warning" : twitchSubscriptionsLoaded ? "ready" : "neutral"}>{twitchSubscriptionsLoaded ? `${twitchEnabledCount} active · ${twitchMissingCount} missing${twitchProblemCount ? ` · ${twitchProblemCount} problem` : ""}` : "Checking subscriptions"}</dd></div>
-            <div><dt><FiAlertCircle aria-hidden="true" />Reconnect / error</dt><dd className={lastError ? "error" : "ready"}>{lastError ?? "No recent error"}</dd></div>
+            <div><dt><FiAlertCircle aria-hidden="true" />Next action</dt><dd className={guidance ? "warning" : "ready"}>{guidance ?? "No action needed"}</dd></div>
           </dl>
           <nav className="provider-workspace-tabs" aria-label="Twitch details">
             {tabs.map((tab) => <button aria-current={detailTab === tab.id ? "page" : undefined} key={tab.id} onClick={() => setDetailTab(tab.id)} type="button">{tab.label}</button>)}
@@ -260,8 +257,8 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
             </div>
           ) : detailTab === "errors" ? (
             <div className="provider-workspace-detail-copy">
-              <h3>{lastError ? "Latest runtime error" : "No recent Twitch error"}</h3>
-              <p>{lastError ?? "No sanitized runtime error reported."}</p>
+              <h3>{guidance ? "Twitch action" : "No Twitch action"}</h3>
+              <p>{guidance ?? "Runtime status does not need owner action."}</p>
             </div>
           ) : (
             <div className="provider-workspace-detail-copy">
@@ -269,7 +266,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
               <p>Channel: {targetLabels.twitch}</p>
               <p>Provider subscriptions reported: {props.twitchEventSubSubscriptionCount}</p>
               <p>EventSub callback: {props.twitchEventSubCallbackUrl ? "Configured" : "Not available"}</p>
-              {provider?.issues.map((issue) => <p className="error" key={issue}>{issue}</p>)}
+              {provider?.guidance ? <p className="error">{provider.guidance}</p> : null}
             </div>
           )}
           <p className="provider-workspace-boundary"><FiShield aria-hidden="true" />Verified log-only EventSub intake · no chat or moderation writes</p>
@@ -300,11 +297,11 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
             </div>
           </div>
           <dl className="provider-workspace-state-table">
-            <div><dt><FiShield aria-hidden="true" />Client credentials</dt><dd className={provider?.state === "configured" ? "ready" : "error"}>{providerStateLabel(provider)}</dd></div>
+            <div><dt><FiShield aria-hidden="true" />Provider readiness</dt><dd className={stateTone(provider?.readiness)}>{providerStateLabel(provider)}</dd></div>
             <div><dt><FiUser aria-hidden="true" />Owner consent</dt><dd className={youtubeConsentActive ? "ready" : "error"}>{youtubeConsentActive ? "Connected" : "Disconnected"}</dd></div>
             <div><dt><FiActivity aria-hidden="true" />Runtime intake</dt><dd className={stateTone(runtime?.connectionState)}>{runtimeLabel(runtime?.connectionState)}</dd></div>
             <div><dt><FiBell aria-hidden="true" />PubSub target</dt><dd className={props.youtubePubSubSubscription ? "ready" : "warning"}>{props.youtubePubSubSubscription ? "Ready" : "Not ready"}</dd></div>
-            <div><dt><FiAlertCircle aria-hidden="true" />Reconnect / error</dt><dd className={lastError || !youtubeConsentActive ? "error" : "ready"}>{lastError ?? (youtubeConsentActive ? "No recent error" : "Consent required")}</dd></div>
+            <div><dt><FiAlertCircle aria-hidden="true" />Next action</dt><dd className={guidance || !youtubeConsentActive ? "warning" : "ready"}>{guidance ?? (youtubeConsentActive ? "No action needed" : "Consent required")}</dd></div>
           </dl>
           <nav className="provider-workspace-tabs" aria-label="YouTube details">
             {tabs.map((tab) => <button aria-current={detailTab === tab.id ? "page" : undefined} key={tab.id} onClick={() => setDetailTab(tab.id)} type="button">{tab.label}</button>)}
@@ -313,8 +310,8 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
             <div className="provider-workspace-detail-copy">
               <h3>Live-chat polling</h3>
               <p>Selected channel: {targetLabels.youtube}</p>
-              <p>Last message: {formatOptionalDate(runtime?.lastMessageAt ?? null)}</p>
-              <p>Auto-start: {formatOptionalBoolean(runtime?.autoStartEnabled ?? null, "Enabled", "Disabled")}</p>
+              <p>Last activity: {formatOptionalDate(runtime?.lastActivityAt ?? null)}</p>
+              <p>Next retry: {formatOptionalDate(runtime?.nextRetryAt ?? null)}</p>
               {runtimeIsActive(runtime?.connectionState) ? <button className="secondary-action" onClick={() => props.onYouTubeLiveChatAction("stop")} type="button">Stop polling</button> : null}
             </div>
           ) : detailTab === "channels" ? (
@@ -345,7 +342,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
               <h3>Owner-authorized YouTube setup</h3>
               <p>Consent scope: <code>{props.youtubeRequiredScope}</code></p>
               <p>Redirect URI: <code>{props.youtubeRedirectUri}</code></p>
-              {provider?.issues.map((issue) => <p className="error" key={issue}>{issue}</p>)}
+              {provider?.guidance ? <p className="error">{provider.guidance}</p> : null}
             </div>
           )}
           <p className="provider-workspace-boundary"><FiShield aria-hidden="true" />Private intake by default · provider writes remain separately gated</p>
@@ -355,7 +352,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
 
     const tabs = [
       { id: "primary", label: "Runtime" },
-      { id: "errors", label: "Reconnect & errors" },
+      { id: "errors", label: "Retry" },
       { id: "setup", label: "Setup" }
     ];
     return (
@@ -369,11 +366,11 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
           </div>
         </div>
         <dl className="provider-workspace-state-table">
-          <div><dt><FiShield aria-hidden="true" />Credentials</dt><dd className={provider?.state === "configured" ? "ready" : "error"}>{providerStateLabel(provider)}</dd></div>
+          <div><dt><FiShield aria-hidden="true" />Provider readiness</dt><dd className={stateTone(provider?.readiness)}>{providerStateLabel(provider)}</dd></div>
           <div><dt><FiUser aria-hidden="true" />Owner consent</dt><dd>Not required</dd></div>
           <div><dt><FiActivity aria-hidden="true" />Runtime intake</dt><dd className={stateTone(runtime?.connectionState)}>{runtimeLabel(runtime?.connectionState)}</dd></div>
           <div><dt><FiBell aria-hidden="true" />Webhook events</dt><dd className={discordWebhookMissing ? "warning" : "ready"}>{discordWebhookMissing ? "Public key missing" : "Configured"}</dd></div>
-          <div><dt><FiAlertCircle aria-hidden="true" />Reconnect / error</dt><dd className={lastError ? "error" : "ready"}>{lastError ?? "No recent error"}</dd></div>
+          <div><dt><FiAlertCircle aria-hidden="true" />Next action</dt><dd className={guidance ? "warning" : "ready"}>{guidance ?? "No action needed"}</dd></div>
         </dl>
         <nav className="provider-workspace-tabs" aria-label="Discord details">
           {tabs.map((tab) => <button aria-current={detailTab === tab.id ? "page" : undefined} key={tab.id} onClick={() => setDetailTab(tab.id)} type="button">{tab.label}</button>)}
@@ -382,21 +379,19 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
           <div className="provider-workspace-detail-copy">
             <h3>Gateway message intake</h3>
             <p>Target: {targetLabels.discord}</p>
-            <p>Last message: {formatOptionalDate(runtime?.lastMessageAt ?? null)}</p>
-            <p>Auto-start: {formatOptionalBoolean(runtime?.autoStartEnabled ?? null, "Enabled", "Disabled")}</p>
+            <p>Last activity: {formatOptionalDate(runtime?.lastActivityAt ?? null)}</p>
+            <p>Next retry: {formatOptionalDate(runtime?.nextRetryAt ?? null)}</p>
           </div>
         ) : detailTab === "errors" ? (
           <div className="provider-workspace-detail-copy">
-            <h3>Reconnect state</h3>
-            <p>Reconnect count: {runtime?.reconnectCount ?? "Not reported"}</p>
+            <h3>Retry state</h3>
             <p>Next reconnect: {formatOptionalDate(runtime?.nextRetryAt ?? null)}</p>
-            <p>Reconnect suppressed: {formatOptionalBoolean(runtime?.reconnectSuppressed ?? null, "Yes", "No")}</p>
-            {lastError ? <p className="error">{lastError}</p> : <p>No recent error.</p>}
+            {guidance ? <p className="error">{guidance}</p> : <p>No retry action needed.</p>}
           </div>
         ) : (
           <div className="provider-workspace-detail-copy">
             <h3>Read-only Discord setup</h3>
-            {provider?.capabilities.map((capability) => <p key={capability.key}><strong>{capability.label}:</strong> {capability.detail}</p>)}
+            {provider?.capabilities.map((capability) => <p key={capability.key}><strong>{capability.label}:</strong> {capability.state.replace("_", " ")}</p>)}
           </div>
         )}
         <p className="provider-workspace-boundary"><FiShield aria-hidden="true" />Private Gateway intake · no provider writes</p>
@@ -439,7 +434,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
                 <ProviderMark provider={providerId} />
                 <span className="provider-workspace-provider-copy">
                   <strong>{providerLabels[providerId]}</strong><small>{targetLabels[providerId]}</small>
-                  <span><StatusDot tone={provider?.state === "configured" ? "ready" : "error"} />{providerId === "youtube" && provider?.state === "configured" ? "Client configured" : providerStateLabel(provider)}</span>
+                  <span><StatusDot tone={stateTone(provider?.readiness)} />{providerStateLabel(provider)}</span>
                   <span className={consentDisconnected ? "error" : "warning"}><StatusDot tone={consentDisconnected ? "error" : stateTone(runtime)} />{consentDisconnected ? "Consent disconnected" : `Runtime ${runtimeLabel(runtime).toLowerCase()}`}</span>
                 </span>
                 <small className="provider-workspace-provider-summary">{secondary}</small>
@@ -461,15 +456,11 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
                       <span className={stateTone(runtime?.connectionState)}><StatusDot tone={stateTone(runtime?.connectionState)} />{runtimeLabel(runtime?.connectionState)}</span>
                     </header>
                     <dl>
-                      <div><dt>Auto-start</dt><dd>{formatOptionalBoolean(runtime?.autoStartEnabled ?? null, "Enabled", "Disabled")}</dd></div>
                       <div><dt>Connected</dt><dd>{formatOptionalDate(runtime?.connectedAt ?? null)}</dd></div>
-                      <div><dt>Last disconnect</dt><dd>{formatOptionalDate(runtime?.lastDisconnectAt ?? null)}</dd></div>
-                      <div><dt>Last message</dt><dd>{formatOptionalDate(runtime?.lastMessageAt ?? null)}</dd></div>
-                      <div><dt>Reconnect count</dt><dd>{runtime?.reconnectCount ?? "Not reported"}</dd></div>
+                      <div><dt>Last activity</dt><dd>{formatOptionalDate(runtime?.lastActivityAt ?? null)}</dd></div>
                       <div><dt>Next retry</dt><dd>{formatOptionalDate(runtime?.nextRetryAt ?? null)}</dd></div>
-                      <div><dt>Reconnect suppressed</dt><dd>{formatOptionalBoolean(runtime?.reconnectSuppressed ?? null, "Yes", "No")}</dd></div>
                     </dl>
-                    <p className={runtime?.lastError ? "error" : "ready"}>{runtime?.lastError ?? "No sanitized runtime error reported."}</p>
+                    <p className={runtime?.guidance ? "warning" : "ready"}>{runtime?.guidance ?? "No owner action needed."}</p>
                   </article>
                 );
               })}

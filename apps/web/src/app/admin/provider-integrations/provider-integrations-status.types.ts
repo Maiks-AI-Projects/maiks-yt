@@ -1,64 +1,64 @@
-export type ProviderIntegrationState = "configured" | "missing" | "invalid" | "disabled" | "error";
-export type ProviderCapabilityState = "available" | "configured" | "missing" | "not_enabled" | "gated";
+export type ProviderIntegrationReadiness = "ready" | "needs_setup" | "needs_attention" | "disabled";
+export type ProviderCapabilityState = "available" | "needs_setup" | "needs_attention" | "disabled";
 
 export type ProviderRuntimeConnectionState =
-  | "stopped"
+  | "connected"
   | "connecting"
   | "waiting"
-  | "connected"
+  | "retrying"
+  | "stopped"
   | "unconfigured";
 
-export type ProviderRuntimeTelemetry = {
-  connectionState: ProviderRuntimeConnectionState;
+export type ProviderRuntimeStatus = {
+  state: ProviderRuntimeConnectionState;
   accountSummary: string | null;
   connectedAt: string | null;
-  lastDisconnectAt: string | null;
-  lastMessageAt: string | null;
-  reconnectCount: number | null;
+  lastActivityAt: string | null;
   nextRetryAt: string | null;
-  reconnectSuppressed: boolean | null;
-  lastError: string | null;
-  autoStartEnabled: boolean;
 };
 
-export type ProviderEnvironmentVariableStatus = {
-  name: string;
-  kind: "identifier" | "secret";
-  required: boolean;
-  configured: boolean;
-  valid: boolean;
-};
+export type ProviderCapabilityKey =
+  | "twitch_api_access"
+  | "twitch_chat_intake"
+  | "twitch_eventsub_intake"
+  | "youtube_data_access"
+  | "youtube_owner_consent"
+  | "youtube_live_chat_intake"
+  | "discord_bot_access"
+  | "discord_guild_target"
+  | "discord_webhook_intake"
+  | "discord_chat_intake";
 
 export type ProviderCapabilityStatus = {
-  key: string;
+  key: ProviderCapabilityKey;
   label: string;
   state: ProviderCapabilityState;
-  detail: string;
-  runtime?: ProviderRuntimeTelemetry;
 };
 
 export type ProviderIntegrationStatus = {
   id: "twitch" | "youtube" | "discord";
   label: string;
-  state: ProviderIntegrationState;
-  sdk: string;
-  readOnly: true;
-  env: readonly ProviderEnvironmentVariableStatus[];
-  issues: readonly string[];
+  readiness: ProviderIntegrationReadiness;
   capabilities: readonly ProviderCapabilityStatus[];
+  runtime: ProviderRuntimeStatus;
+  guidance: string | null;
 };
+
+export type ProviderIntegrationStatusFailureReason =
+  | "not_authenticated"
+  | "provider_integrations_unavailable"
+  | "provider_integrations_user_unlinked"
+  | "provider_integrations_forbidden";
 
 export type ProviderIntegrationsStatusResponse =
   | {
     ok: true;
     generatedAt: string;
-    readOnly: true;
     providers: readonly ProviderIntegrationStatus[];
-    boundaries: readonly string[];
   }
   | {
     ok: false;
-    reason: string;
+    reason: ProviderIntegrationStatusFailureReason;
   };
 
 export type TwitchChatProjectedMessage = {

@@ -4,6 +4,10 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { parseAccountSession } from "./account/account-session.service";
+import {
+  parseJson,
+  parseProviderIntegrationsStatusResponse
+} from "./admin/provider-integrations/provider-integrations-status.service";
 import { createApiHeaders } from "./dev-auth-token";
 import styles from "./site-shell.module.css";
 
@@ -63,9 +67,12 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
           credentials: "include",
           headers: createApiHeaders()
         });
+        const ownerStatus = parseProviderIntegrationsStatusResponse(
+          await parseJson<unknown>(ownerResponse)
+        );
 
         if (active) {
-          setHasOwnerAccess(ownerResponse.ok);
+          setHasOwnerAccess(ownerResponse.ok && ownerStatus?.ok === true);
         }
       } catch {
         // The primary account panel owns session error feedback. Navigation fails closed.

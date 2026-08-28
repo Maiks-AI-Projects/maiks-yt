@@ -2,6 +2,7 @@ import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminAccessProvider, useAdminAccess } from "./admin-access";
+import { createValidProviderIntegrationsStatusPayload } from "./provider-integrations/provider-integrations-status-test-data";
 
 vi.mock("../dev-auth-token", () => ({
   captureDevAuthTokenFromUrl: vi.fn(),
@@ -25,7 +26,11 @@ const AccessProbe = ({
   return null;
 };
 
-const renderAdminAccess = async (sessionBody: unknown): Promise<{
+const renderAdminAccess = async (
+  sessionBody: unknown,
+  ownerStatusBody: unknown = createValidProviderIntegrationsStatusPayload(),
+  ownerStatusCode = 200
+): Promise<{
   fetchMock: ReturnType<typeof vi.fn>;
   snapshot: AdminAccessSnapshot;
 }> => {
@@ -44,7 +49,7 @@ const renderAdminAccess = async (sessionBody: unknown): Promise<{
     }
 
     if (url.endsWith("/admin/provider-integrations/status")) {
-      return jsonResponse({ ok: true });
+      return jsonResponse(ownerStatusBody, ownerStatusCode);
     }
 
     throw new Error(`Unexpected request: ${url}`);
@@ -163,5 +168,56 @@ describe("admin account session boundary", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/account/session");
+  });
+
+  it.each([
+    ["malformed status", {}],
+    ["legacy status", {
+      ok: true,
+      readOnly: true,
+      providers: []
+    }],
+    ["extra-field status", {
+      ...createValidProviderIntegrationsStatusPayload(),
+      sdk: "secret-provider-library"
+    }]
+  ])("denies owner access for %s while preserving signed-in identity", async (_label, ownerStatusBody) => {
+    const { fetchMock, snapshot } = await renderAdminAccess({
+      ok: true,
+      signedIn: true,
+      currentUser: {
+        name: "Michael",
+        email: "owner@example.test",
+        imageUrl: null
+      }
+    }, ownerStatusBody);
+
+    expect(snapshot).toEqual({
+      accessState: "none",
+      accountIdentity: {
+        avatarUrl: null,
+        displayName: "Michael",
+        email: "owner@example.test",
+        isSignedIn: true,
+        sessionName: "Michael"
+      },
+      devAuthToken: null
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("requires a successful HTTP response as well as an exact success body", async () => {
+    const { snapshot } = await renderAdminAccess({
+      ok: true,
+      signedIn: true,
+      currentUser: {
+        name: "Michael",
+        email: "owner@example.test",
+        imageUrl: null
+      }
+    }, createValidProviderIntegrationsStatusPayload(), 403);
+
+    expect(snapshot.accessState).toBe("none");
+    expect(snapshot.accountIdentity.isSignedIn).toBe(true);
   });
 });

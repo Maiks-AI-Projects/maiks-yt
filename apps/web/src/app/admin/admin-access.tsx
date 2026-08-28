@@ -4,6 +4,10 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { parseAccountSession, type AccountSession } from "../account/account-session.service";
 import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken } from "../dev-auth-token";
+import {
+  parseJson,
+  parseProviderIntegrationsStatusResponse
+} from "./provider-integrations/provider-integrations-status.service";
 
 export type AdminAccessState = "checking" | "owner" | "none";
 
@@ -115,9 +119,12 @@ export const AdminAccessProvider = ({ children }: AdminAccessProviderProps): Rea
           ? await domainResponse.json() as DomainProfileResponse
           : null;
         const domainUser = domainProfile?.ok ? domainProfile.domainUser : null;
+        const ownerStatus = parseProviderIntegrationsStatusResponse(
+          await parseJson<unknown>(ownerResponse)
+        );
 
         setAccountIdentity(buildIdentity(session, domainUser));
-        setAccessState(ownerResponse.ok ? "owner" : "none");
+        setAccessState(ownerResponse.ok && ownerStatus?.ok === true ? "owner" : "none");
       } catch {
         if (active) {
           setAccessState("none");

@@ -11,13 +11,9 @@ export type ProviderWorkspaceRuntimeView = {
   connectionState: ProviderRuntimeConnectionState | null;
   accountSummary: string | null;
   connectedAt: string | null;
-  lastDisconnectAt: string | null;
-  lastMessageAt: string | null;
-  reconnectCount: number | null;
+  lastActivityAt: string | null;
   nextRetryAt: string | null;
-  reconnectSuppressed: boolean | null;
-  lastError: string | null;
-  autoStartEnabled: boolean | null;
+  guidance: string | null;
 };
 
 export type YouTubeChannelOptionView = {
@@ -43,31 +39,17 @@ export const providerIntegrationInitialLoadOperations = [
 export const getProviderIntegrationInitialLoadPaths = (): readonly string[] =>
   providerIntegrationInitialLoadOperations.map((operation) => providerIntegrationRequestPaths[operation]);
 
-const runtimeCapabilityKeys: Record<ProviderWorkspaceId, string> = {
-  twitch: "twitch-chat-runtime",
-  youtube: "youtube-live-chat-runtime",
-  discord: "discord-chat-runtime"
-};
-
 export const getProviderWorkspaceRuntimeView = (
   provider: ProviderIntegrationStatus
 ): ProviderWorkspaceRuntimeView => {
-  const runtime = provider.capabilities.find(
-    (capability) => capability.key === runtimeCapabilityKeys[provider.id]
-  )?.runtime;
-
   return {
     provider: provider.id,
-    connectionState: runtime?.connectionState ?? null,
-    accountSummary: runtime?.accountSummary ?? null,
-    connectedAt: runtime?.connectedAt ?? null,
-    lastDisconnectAt: runtime?.lastDisconnectAt ?? null,
-    lastMessageAt: runtime?.lastMessageAt ?? null,
-    reconnectCount: runtime?.reconnectCount ?? null,
-    nextRetryAt: runtime?.nextRetryAt ?? null,
-    reconnectSuppressed: runtime?.reconnectSuppressed ?? null,
-    lastError: runtime?.lastError ?? null,
-    autoStartEnabled: runtime?.autoStartEnabled ?? null
+    connectionState: provider.runtime.state,
+    accountSummary: provider.runtime.accountSummary,
+    connectedAt: provider.runtime.connectedAt,
+    lastActivityAt: provider.runtime.lastActivityAt,
+    nextRetryAt: provider.runtime.nextRetryAt,
+    guidance: provider.guidance
   };
 };
 
