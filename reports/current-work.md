@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 production homepage real-schedule integration
+
+- The production homepage now reads the real public schedule once on the server path and feeds one public-safe projection into both the hero stream-status slot and the "Up next" panel, so those slots cannot disagree.
+- Selection follows the public schedule semantics: a currently `live` entry wins, with earliest `startsAt` used as the deterministic live tie-break; otherwise the homepage chooses the earliest valid `planned` entry by `startsAt` regardless of API array order. Cancelled and completed entries are not promoted.
+- Loaded-empty schedules and unavailable or malformed schedule data keep distinct finite fallback copy. Existing homepage layout, classes, links, responsive behavior, and non-schedule content were preserved.
+- Independent final review reports zero standards and zero specification findings. `pnpm check:review` passes with 158 Domain tests, 635 API tests, 153 Web tests, the Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture checks, and diff checks.
+- No deployment, server state, GUI, browser, screenshot, live user workflow, or production runtime verification was performed. Deployment and real homepage verification remain separate gates.
+
 ## 2026-08-28 production project-update Event Routing schema gate
 
 - Confirmed `website.project-update-published` is a Project update producer from `project_updates`, not the generic public Updates posts, recaps, or announcements under `/updates`.

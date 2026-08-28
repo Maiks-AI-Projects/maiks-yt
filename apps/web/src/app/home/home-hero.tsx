@@ -1,6 +1,27 @@
 import styles from "../home.module.css";
+import type { HomeScheduleSlot } from "./home-schedule-data";
 
-export const HomeHero = (): React.ReactNode => (
+type HomeHeroProps = {
+  scheduleSlot: HomeScheduleSlot;
+};
+
+const getHeroStatusCopy = (scheduleSlot: HomeScheduleSlot): string => {
+  if (scheduleSlot.status === "live") {
+    return `Live now: ${scheduleSlot.title}`;
+  }
+
+  if (scheduleSlot.status === "planned") {
+    return `Next stream: ${scheduleSlot.title}`;
+  }
+
+  if (scheduleSlot.status === "unavailable") {
+    return "Schedule is temporarily unavailable";
+  }
+
+  return "Next stream is being scheduled";
+};
+
+export const HomeHero = ({ scheduleSlot }: HomeHeroProps): React.ReactNode => (
   <section className={styles.hero} aria-labelledby="home-title">
     <div className={styles.heroInner}>
       <p className={styles.eyebrow}>Michael's independent creator platform</p>
@@ -19,8 +40,13 @@ export const HomeHero = (): React.ReactNode => (
       </div>
       <div className={styles.heroStatus} aria-label="Current status">
         <span className={styles.statusItem}>
-          <span className={`${styles.statusDot} ${styles.statusWaiting}`} aria-hidden="true" />
-          Next stream is being scheduled
+          <span
+            className={`${styles.statusDot} ${
+              scheduleSlot.status === "live" ? styles.statusBuilding : styles.statusWaiting
+            }`}
+            aria-hidden="true"
+          />
+          {getHeroStatusCopy(scheduleSlot)}
         </span>
         <a className={styles.statusItem} href="/progress">
           <span className={`${styles.statusDot} ${styles.statusBuilding}`} aria-hidden="true" />
