@@ -42,6 +42,32 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
       expiresAt: "2026-07-10T09:00:00.000Z",
       isCurrent: false,
       isExpired: false
+    },
+    {
+      id: "session-admin-current",
+      authUserId: "auth-session-admin",
+      userName: "Helper",
+      userEmail: "helper@example.test",
+      ipAddress: "198.51.100.8",
+      userAgent: "Delegated Browser",
+      createdAt: "2026-07-09T08:00:00.000Z",
+      updatedAt: "2026-07-09T08:30:00.000Z",
+      expiresAt: "2026-07-10T08:00:00.000Z",
+      isCurrent: false,
+      isExpired: false
+    },
+    {
+      id: "session-admin-other",
+      authUserId: "auth-session-admin",
+      userName: "Helper",
+      userEmail: "helper@example.test",
+      ipAddress: "198.51.100.9",
+      userAgent: "Delegated Phone",
+      createdAt: "2026-07-09T07:00:00.000Z",
+      updatedAt: "2026-07-09T07:30:00.000Z",
+      expiresAt: "2026-07-10T07:00:00.000Z",
+      isCurrent: false,
+      isExpired: false
     }
   ];
 
@@ -49,15 +75,22 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
     return this.actor ? structuredClone(this.actor) : null;
   }
 
-  public async listSessions(currentSessionId: string | null): Promise<readonly SessionAdminRecord[]> {
-    return structuredClone(this.sessions.map((session) => ({
-      ...session,
-      isCurrent: session.id === currentSessionId
-    })));
+  public async listSessions(
+    authUserId: string,
+    currentSessionId: string | null
+  ): Promise<readonly SessionAdminRecord[]> {
+    return structuredClone(this.sessions
+      .filter((session) => session.authUserId === authUserId)
+      .map((session) => ({
+        ...session,
+        isCurrent: session.id === currentSessionId
+      })));
   }
 
-  public async revokeSession(id: string): Promise<boolean> {
-    const index = this.sessions.findIndex((session) => session.id === id);
+  public async revokeSession(authUserId: string, id: string): Promise<boolean> {
+    const index = this.sessions.findIndex((session) =>
+      session.authUserId === authUserId && session.id === id
+    );
 
     if (index < 0) {
       return false;
@@ -67,9 +100,19 @@ class FakeSessionAdminRepository implements SessionAdminRepository {
     return true;
   }
 
-  public async revokeOtherSessions(currentSessionId: string): Promise<number> {
+  public async revokeOtherSessions(authUserId: string, currentSessionId: string): Promise<number> {
+    const currentSession = this.sessions.find((session) =>
+      session.authUserId === authUserId && session.id === currentSessionId
+    );
+
+    if (!currentSession) {
+      return 0;
+    }
+
     const before = this.sessions.length;
-    const remaining = this.sessions.filter((session) => session.id === currentSessionId);
+    const remaining = this.sessions.filter((session) =>
+      session.authUserId !== authUserId || session.id === currentSessionId
+    );
     this.sessions.splice(0, this.sessions.length, ...remaining);
 
     return before - this.sessions.length;
@@ -97,6 +140,15 @@ describe("SessionAdminService", () => {
         }
       ]
     });
+    const result = await service.listSessions({
+      authUserId: "auth-owner",
+      currentSessionId: "session-current"
+    });
+
+    expect(result.ok ? result.sessions.map((session) => session.id) : []).toEqual([
+      "session-current",
+      "session-other"
+    ]);
   });
 
   it("allows active delegated session admins without owner wildcard", async () => {
@@ -109,20 +161,40 @@ describe("SessionAdminService", () => {
 
     await expect(service.listSessions({
       authUserId: "auth-session-admin",
-      currentSessionId: "session-current"
+      currentSessionId: "session-admin-current"
     })).resolves.toMatchObject({
       ok: true,
       sessions: [
         {
-          id: "session-current",
+          id: "session-admin-current",
           isCurrent: true
         },
         {
-          id: "session-other",
+          id: "session-admin-other",
           isCurrent: false
         }
       ]
     });
+  });
+
+  it("does not let a delegated session admin enumerate another auth account", async () => {
+    const repository = new FakeSessionAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-session-admin",
+      rolePermissionValues: [JSON.stringify(["sessions:manage"])]
+    };
+    const service = new SessionAdminService(repository);
+
+    const result = await service.listSessions({
+      authUserId: "auth-session-admin",
+      currentSessionId: "session-admin-current"
+    });
+
+    expect(result.ok ? result.sessions.map((session) => session.authUserId) : []).toEqual([
+      "auth-session-admin",
+      "auth-session-admin"
+    ]);
+    expect(result.ok ? result.sessions.map((session) => session.id) : []).not.toContain("session-other");
   });
 
   it("denies users without session permissions", async () => {
@@ -151,7 +223,11 @@ describe("SessionAdminService", () => {
     })).resolves.toEqual({
       ok: true
     });
-    expect(repository.sessions.map((session) => session.id)).toEqual(["session-current"]);
+    expect(repository.sessions.map((session) => session.id)).toEqual([
+      "session-current",
+      "session-admin-current",
+      "session-admin-other"
+    ]);
 
     await expect(service.revokeSession({
       authUserId: "auth-owner",
@@ -160,6 +236,24 @@ describe("SessionAdminService", () => {
       ok: false,
       reason: "session_admin_not_found"
     });
+  });
+
+  it("does not let a delegated session admin revoke another auth account session", async () => {
+    const repository = new FakeSessionAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-session-admin",
+      rolePermissionValues: [JSON.stringify(["sessions:manage"])]
+    };
+    const service = new SessionAdminService(repository);
+
+    await expect(service.revokeSession({
+      authUserId: "auth-session-admin",
+      id: "session-other"
+    })).resolves.toEqual({
+      ok: false,
+      reason: "session_admin_not_found"
+    });
+    expect(repository.sessions.map((session) => session.id)).toContain("session-other");
   });
 
   it("does not revoke dev owner token pseudo sessions", async () => {
@@ -186,7 +280,52 @@ describe("SessionAdminService", () => {
       ok: true,
       revokedCount: 1
     });
-    expect(repository.sessions.map((session) => session.id)).toEqual(["session-current"]);
+    expect(repository.sessions.map((session) => session.id)).toEqual([
+      "session-current",
+      "session-admin-current",
+      "session-admin-other"
+    ]);
+  });
+
+  it("revokes only same-account other sessions for delegated session admins", async () => {
+    const repository = new FakeSessionAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-session-admin",
+      rolePermissionValues: [JSON.stringify(["sessions:manage"])]
+    };
+    const service = new SessionAdminService(repository);
+
+    await expect(service.revokeOtherSessions({
+      authUserId: "auth-session-admin",
+      currentSessionId: "session-admin-current"
+    })).resolves.toEqual({
+      ok: true,
+      revokedCount: 1
+    });
+    expect(repository.sessions.map((session) => session.id)).toEqual([
+      "session-current",
+      "session-other",
+      "session-admin-current"
+    ]);
+  });
+
+  it("does not revoke same-account sessions when the current session belongs to another auth account", async () => {
+    const repository = new FakeSessionAdminRepository();
+    const service = new SessionAdminService(repository);
+
+    await expect(service.revokeOtherSessions({
+      authUserId: "auth-owner",
+      currentSessionId: "session-admin-current"
+    })).resolves.toEqual({
+      ok: true,
+      revokedCount: 0
+    });
+    expect(repository.sessions.map((session) => session.id)).toEqual([
+      "session-current",
+      "session-other",
+      "session-admin-current",
+      "session-admin-other"
+    ]);
   });
 
   it("rejects revoke-others without a real current browser session id", async () => {
@@ -250,6 +389,77 @@ describe("session admin mysql authorization boundary", () => {
       reason: "session_admin_forbidden"
     });
   });
+
+  it("filters listed Better Auth sessions by authenticated auth user", async () => {
+    let listSql = "";
+    let listParams: readonly unknown[] = [];
+    const repository = createSessionAdminRepository({
+      execute: async (sql: string, params?: readonly unknown[]) => {
+        listSql = sql;
+        listParams = params ?? [];
+        return [[{
+          id: "session-current",
+          authUserId: "auth-owner",
+          userName: "Michael",
+          userEmail: "michael@example.test",
+          ipAddress: "127.0.0.1",
+          userAgent: "Vitest Browser",
+          createdAt: "2026-07-09T10:00:00.000Z",
+          updatedAt: "2026-07-09T11:00:00.000Z",
+          expiresAt: "2026-07-10T10:00:00.000Z"
+        }]];
+      }
+    } as unknown as DatabasePool);
+
+    const sessions = await repository.listSessions("auth-owner", "session-current");
+
+    expect(listSql).toContain("WHERE auth_sessions.user_id = ?");
+    expect(listParams).toEqual(["auth-owner"]);
+    expect(sessions.map((session) => session.id)).toEqual(["session-current"]);
+  });
+
+  it("deletes selected Better Auth sessions only for the authenticated auth user", async () => {
+    let revokeSql = "";
+    let revokeParams: readonly unknown[] = [];
+    const repository = createSessionAdminRepository({
+      execute: async (sql: string, params?: readonly unknown[]) => {
+        revokeSql = sql;
+        revokeParams = params ?? [];
+        return [{ affectedRows: 1 }];
+      }
+    } as unknown as DatabasePool);
+
+    await expect(repository.revokeSession("auth-owner", "session-other")).resolves.toBe(true);
+
+    expect(revokeSql).toContain("DELETE FROM auth_sessions WHERE user_id = ? AND id = ?");
+    expect(revokeParams).toEqual(["auth-owner", "session-other"]);
+  });
+
+  it("deletes other Better Auth sessions only after proving the current session is in the same auth account", async () => {
+    let revokeOthersSql = "";
+    let revokeOthersParams: readonly unknown[] = [];
+    const repository = createSessionAdminRepository({
+      execute: async (sql: string, params?: readonly unknown[]) => {
+        revokeOthersSql = sql;
+        revokeOthersParams = params ?? [];
+        return [{ affectedRows: 2 }];
+      }
+    } as unknown as DatabasePool);
+
+    await expect(repository.revokeOtherSessions("auth-owner", "session-current")).resolves.toBe(2);
+
+    expect(revokeOthersSql).toContain("DELETE session_to_revoke");
+    expect(revokeOthersSql).toContain("INNER JOIN auth_sessions AS current_session");
+    expect(revokeOthersSql).toContain("current_session.user_id = ?");
+    expect(revokeOthersSql).toContain("session_to_revoke.user_id = ?");
+    expect(revokeOthersSql).toContain("session_to_revoke.id <> ?");
+    expect(revokeOthersParams).toEqual([
+      "auth-owner",
+      "session-current",
+      "auth-owner",
+      "session-current"
+    ]);
+  });
 });
 
 describe("session admin API", () => {
@@ -309,6 +519,10 @@ describe("session admin API", () => {
         })
       ])
     });
+    expect(response.json().sessions.map((session: SessionAdminRecord) => session.id)).toEqual([
+      "session-current",
+      "session-other"
+    ]);
   });
 
   it("revokes sessions for an owner", async () => {
@@ -339,7 +553,11 @@ describe("session admin API", () => {
     expect(response.json()).toEqual({
       ok: true
     });
-    expect(repository.sessions.map((session) => session.id)).toEqual(["session-current"]);
+    expect(repository.sessions.map((session) => session.id)).toEqual([
+      "session-current",
+      "session-admin-current",
+      "session-admin-other"
+    ]);
   });
 
   it("revokes all other sessions for an owner with a real current session", async () => {
@@ -371,6 +589,57 @@ describe("session admin API", () => {
       ok: true,
       revokedCount: 1
     });
-    expect(repository.sessions.map((session) => session.id)).toEqual(["session-current"]);
+    expect(repository.sessions.map((session) => session.id)).toEqual([
+      "session-current",
+      "session-admin-current",
+      "session-admin-other"
+    ]);
+  });
+
+  it("does not let a delegated session admin list or revoke another auth account over HTTP", async () => {
+    const repository = new FakeSessionAdminRepository();
+    repository.actor = {
+      domainUserId: "domain-session-admin",
+      rolePermissionValues: [JSON.stringify(["sessions:manage"])]
+    };
+    const server = Fastify();
+    registerSessionAdminRoutes(server, {
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-session-admin"
+        },
+        session: {
+          id: "session-admin-current",
+          userId: "auth-session-admin"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new SessionAdminService(repository)
+    });
+
+    const listResponse = await server.inject({
+      method: "GET",
+      url: "/admin/sessions"
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json().sessions.map((session: SessionAdminRecord) => session.id)).toEqual([
+      "session-admin-current",
+      "session-admin-other"
+    ]);
+
+    const revokeResponse = await server.inject({
+      method: "POST",
+      url: "/admin/sessions/session-other/revoke"
+    });
+
+    expect(revokeResponse.statusCode).toBe(404);
+    expect(revokeResponse.json()).toEqual({
+      ok: false,
+      reason: "session_admin_not_found"
+    });
+    expect(repository.sessions.map((session) => session.id)).toContain("session-other");
   });
 });

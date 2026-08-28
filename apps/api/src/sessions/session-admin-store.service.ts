@@ -94,7 +94,7 @@ export const createSessionAdminRepository = (
     return await resolveActor(pool, authUserId);
   },
 
-  async listSessions(currentSessionId) {
+  async listSessions(authUserId, currentSessionId) {
     const [rows] = await pool.execute(
       `
         SELECT
@@ -109,9 +109,11 @@ export const createSessionAdminRepository = (
           auth_sessions.expires_at AS expiresAt
         FROM auth_sessions
         INNER JOIN auth_users ON auth_users.id = auth_sessions.user_id
+        WHERE auth_sessions.user_id = ?
         ORDER BY auth_sessions.updated_at DESC, auth_sessions.created_at DESC
         LIMIT 100
-      `
+      `,
+      [authUserId]
     );
 
     return Array.isArray(rows)
@@ -119,10 +121,10 @@ export const createSessionAdminRepository = (
       : [];
   },
 
-  async revokeSession(id) {
+  async revokeSession(authUserId, id) {
     const [result] = await pool.execute(
-      "DELETE FROM auth_sessions WHERE id = ?",
-      [id]
+      "DELETE FROM auth_sessions WHERE user_id = ? AND id = ?",
+      [authUserId, id]
     );
 
     return typeof result === "object"
@@ -132,10 +134,18 @@ export const createSessionAdminRepository = (
       && result.affectedRows > 0;
   },
 
-  async revokeOtherSessions(currentSessionId) {
+  async revokeOtherSessions(authUserId, currentSessionId) {
     const [result] = await pool.execute(
-      "DELETE FROM auth_sessions WHERE id <> ?",
-      [currentSessionId]
+      `
+        DELETE session_to_revoke
+        FROM auth_sessions AS session_to_revoke
+        INNER JOIN auth_sessions AS current_session
+          ON current_session.user_id = ?
+          AND current_session.id = ?
+        WHERE session_to_revoke.user_id = ?
+          AND session_to_revoke.id <> ?
+      `,
+      [authUserId, currentSessionId, authUserId, currentSessionId]
     );
 
     return typeof result === "object"

@@ -56,7 +56,7 @@ export class SessionAdminService {
 
     return {
       ok: true,
-      sessions: await this.repository.listSessions(input.currentSessionId ?? null)
+      sessions: await this.repository.listSessions(input.authUserId, input.currentSessionId ?? null)
     };
   }
 
@@ -79,7 +79,7 @@ export class SessionAdminService {
       };
     }
 
-    const revoked = await this.repository.revokeSession(id);
+    const revoked = await this.repository.revokeSession(input.authUserId, id);
 
     return revoked
       ? { ok: true }
@@ -122,7 +122,7 @@ export class SessionAdminService {
 
     return {
       ok: true,
-      revokedCount: await this.repository.revokeOtherSessions(currentSessionId)
+      revokedCount: await this.repository.revokeOtherSessions(input.authUserId, currentSessionId)
     };
   }
 

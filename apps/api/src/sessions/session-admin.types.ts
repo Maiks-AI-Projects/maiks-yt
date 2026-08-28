@@ -42,7 +42,7 @@ export type SessionAdminMutationResult =
 
 export interface SessionAdminRepository {
   resolveActor(authUserId: string): Promise<SessionAdminActor | null>;
-  listSessions(currentSessionId: string | null): Promise<readonly SessionAdminRecord[]>;
-  revokeSession(id: string): Promise<boolean>;
-  revokeOtherSessions(currentSessionId: string): Promise<number>;
+  listSessions(authUserId: string, currentSessionId: string | null): Promise<readonly SessionAdminRecord[]>;
+  revokeSession(authUserId: string, id: string): Promise<boolean>;
+  revokeOtherSessions(authUserId: string, currentSessionId: string): Promise<number>;
 }
