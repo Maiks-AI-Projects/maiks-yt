@@ -60,9 +60,29 @@ const publicMilestoneStatuses = new Set<NonNullable<PublicProjectSummary["nextMi
   "active",
   "completed"
 ]);
+const projectSummaryKeys = [
+  "slug",
+  "title",
+  "summary",
+  "type",
+  "category",
+  "status",
+  "milestoneCount",
+  "itemCount",
+  "updateCount",
+  "nextMilestone",
+  "updatedAt"
+] as const;
+const milestoneKeys = ["title", "status", "description"] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const hasOnlyKeys = (value: Record<string, unknown>, allowedKeys: readonly string[]): boolean =>
+  Object.keys(value).every((key) => allowedKeys.includes(key));
+
+const hasRequiredKeys = (value: Record<string, unknown>, requiredKeys: readonly string[]): boolean =>
+  requiredKeys.every((key) => Object.hasOwn(value, key));
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -97,7 +117,8 @@ const hasValidOptionalMilestone = (value: unknown): boolean => {
   }
 
   return isRecord(value)
-    && isNonEmptyString(value.id)
+    && hasOnlyKeys(value, milestoneKeys)
+    && hasRequiredKeys(value, ["title", "status"])
     && isNonEmptyString(value.title)
     && isPublicMilestoneStatus(value.status)
     && (value.description === undefined || typeof value.description === "string");
@@ -105,7 +126,18 @@ const hasValidOptionalMilestone = (value: unknown): boolean => {
 
 const isHomeProjectListItem = (project: unknown): project is HomeProjectListItem =>
   isRecord(project)
-  && isNonEmptyString(project.id)
+  && hasOnlyKeys(project, projectSummaryKeys)
+  && hasRequiredKeys(project, [
+    "slug",
+    "title",
+    "summary",
+    "type",
+    "category",
+    "status",
+    "milestoneCount",
+    "itemCount",
+    "updateCount"
+  ])
   && isProjectType(project.type)
   && isProjectCategory(project.category)
   && isPublicProjectStatus(project.status)

@@ -66,14 +66,12 @@ export type ProjectReadModelSource = {
 };
 
 export type PublicProjectMilestone = {
-  id: string;
   title: string;
   status: Exclude<MilestoneStatus, "cancelled">;
   description?: string;
 };
 
 export type PublicProjectItem = {
-  id: string;
   title: string;
   kind: ProjectItemKind;
   status: Exclude<ProjectItemStatus, "removed">;
@@ -86,7 +84,6 @@ export type PublicProjectItem = {
 };
 
 export type PublicProjectItemLink = {
-  id: string;
   provider: string;
   url: string;
   label: string;
@@ -96,7 +93,6 @@ export type PublicProjectItemLink = {
 };
 
 export type PublicProjectUpdate = {
-  id: string;
   title: string;
   body: string;
   isPinned: boolean;
@@ -105,7 +101,6 @@ export type PublicProjectUpdate = {
 };
 
 export type PublicProjectSummary = {
-  id: string;
   slug: string;
   title: string;
   summary: string;

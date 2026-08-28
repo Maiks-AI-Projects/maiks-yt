@@ -38,6 +38,21 @@ class FakeProjectReadRepository implements ProjectReadRepository {
   }
 }
 
+const collectObjectKeys = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.flatMap(collectObjectKeys);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, nestedValue]) => [
+      key,
+      ...collectObjectKeys(nestedValue)
+    ]);
+  }
+
+  return [];
+};
+
 describe("public project read API", () => {
   it("returns only public available projects in stable order", async () => {
     const repository = new FakeProjectReadRepository([
@@ -45,7 +60,7 @@ describe("public project read API", () => {
       createProject("completed", { status: "completed", category: "hobby" }),
       createProject("cancelled", { status: "cancelled" }),
       createProject("planning", { status: "planning", category: "community" }),
-      createProject("active", { status: "active" })
+      createProject("active", { id: "raw-active-project-id", status: "active" })
     ]);
     const server = Fastify();
 
@@ -70,22 +85,25 @@ describe("public project read API", () => {
         { slug: "completed", status: "completed" }
       ]
     });
+    expect(collectObjectKeys(response.json())).not.toContain("id");
+    expect(JSON.stringify(response.json())).not.toContain("raw-active-project-id");
     await server.close();
   });
 
   it("returns project detail with public milestones, items, and published updates", async () => {
     const repository = new FakeProjectReadRepository([
       createProject("maiks-yt-v2", {
+        id: "raw-project-id",
         status: "active",
         milestones: [
           {
-            id: "foundation",
+            id: "raw-foundation-milestone-id",
             title: "Foundation",
             status: "completed",
             sortOrder: 1
           },
           {
-            id: "read-slice",
+            id: "raw-read-slice-milestone-id",
             title: "Read-only projects",
             status: "active",
             sortOrder: 2
@@ -93,7 +111,7 @@ describe("public project read API", () => {
         ],
         items: [
           {
-            id: "api",
+            id: "raw-api-item-id",
             title: "Public API",
             description: "Read-only endpoints.",
             kind: "task",
@@ -105,7 +123,7 @@ describe("public project read API", () => {
         ],
         updates: [
           {
-            id: "published-update",
+            id: "raw-published-update-id",
             title: "Published update",
             body: "This is visible.",
             status: "published",
@@ -114,7 +132,7 @@ describe("public project read API", () => {
             sortOrder: 1
           },
           {
-            id: "draft-update",
+            id: "raw-draft-update-id",
             title: "Draft update",
             body: "This should not leak.",
             status: "draft",
@@ -145,27 +163,33 @@ describe("public project read API", () => {
       project: {
         slug: "maiks-yt-v2",
         nextMilestone: {
-          id: "read-slice"
+          title: "Read-only projects"
         },
         milestones: [
-          { id: "foundation" },
-          { id: "read-slice" }
+          { title: "Foundation" },
+          { title: "Read-only projects" }
         ],
         items: [
           {
-            id: "api",
+            title: "Public API",
             kind: "task",
             status: "active"
           }
         ],
         updates: [
           {
-            id: "published-update",
             title: "Published update"
           }
         ]
       }
     });
+    expect(collectObjectKeys(response.json())).not.toContain("id");
+    expect(JSON.stringify(response.json())).not.toContain("raw-project-id");
+    expect(JSON.stringify(response.json())).not.toContain("raw-foundation-milestone-id");
+    expect(JSON.stringify(response.json())).not.toContain("raw-read-slice-milestone-id");
+    expect(JSON.stringify(response.json())).not.toContain("raw-api-item-id");
+    expect(JSON.stringify(response.json())).not.toContain("raw-published-update-id");
+    expect(JSON.stringify(response.json())).not.toContain("raw-draft-update-id");
     expect(JSON.stringify(response.json())).not.toContain("minorAmount");
     expect(JSON.stringify(response.json())).not.toContain("This should not leak");
     await server.close();

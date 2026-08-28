@@ -32,7 +32,6 @@ const createProject = (
   slug: string,
   overrides: Partial<PublicProjectSummary> = {}
 ): PublicProjectSummary => ({
-  id: `project-${slug}`,
   slug,
   title: `Project ${slug}`,
   summary: `Summary for ${slug}`,
@@ -184,7 +183,6 @@ describe("home project slot", () => {
       createProject("with-milestone", {
         status: "active",
         nextMilestone: {
-          id: "raw-milestone-id",
           title: "Wire real project data",
           status: "active",
           description: "Internal milestone note."
@@ -209,8 +207,7 @@ describe("home project slot", () => {
   });
 
   it.each([
-    ["missing id", { id: undefined }],
-    ["blank id", { id: " " }],
+    ["extra raw id", { id: "raw-project-id" }],
     ["bad slug", { slug: "bad slug" }],
     ["blank title", { title: " " }],
     ["missing summary", { summary: undefined }],
@@ -223,29 +220,28 @@ describe("home project slot", () => {
     ["bad updatedAt", { updatedAt: "not-a-date" }],
     ["null updatedAt", { updatedAt: null }],
     ["null milestone", { nextMilestone: null }],
-    ["missing milestone id", {
+    ["extra milestone id", {
       nextMilestone: {
+        id: "raw-milestone-id",
         title: "Current work",
         status: "active"
       }
     }],
-    ["blank milestone id", {
+    ["extra milestone database field", {
       nextMilestone: {
-        id: " ",
         title: "Current work",
-        status: "active"
+        status: "active",
+        sortOrder: 1
       }
     }],
     ["bad milestone status", {
       nextMilestone: {
-        id: "milestone",
         title: "Current work",
         status: "cancelled"
       }
     }],
     ["null milestone description", {
       nextMilestone: {
-        id: "milestone",
         title: "Current work",
         status: "active",
         description: null
@@ -253,7 +249,6 @@ describe("home project slot", () => {
     }],
     ["numeric milestone description", {
       nextMilestone: {
-        id: "milestone",
         title: "Current work",
         status: "active",
         description: 123
@@ -313,7 +308,6 @@ describe("home project slot", () => {
   it("renders the current project card with encoded detail link and no raw project fields", () => {
     const slot = getHomeProjectSlot(projectLoaded([
       createProject("maiks-yt-v2", {
-        id: "raw-project-id-123",
         title: "  Build Maiks.yt V2  ",
         summary: "  Public summary only.  ",
         type: "subscription",
@@ -324,7 +318,6 @@ describe("home project slot", () => {
         updateCount: 73,
         updatedAt: "2099-01-01T00:00:00.000Z",
         nextMilestone: {
-          id: "raw-milestone-id-123",
           title: "  Current public milestone  ",
           status: "active",
           description: "Raw milestone description."

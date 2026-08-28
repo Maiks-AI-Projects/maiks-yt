@@ -83,7 +83,6 @@ const createProject = (
   slug: string,
   overrides: Partial<PublicProjectSummary> = {}
 ): PublicProjectSummary => ({
-  id: `project-${slug}`,
   slug,
   title: `Project ${slug}`,
   summary: `Summary for ${slug}`,

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ProjectItemList } from "../project-item-list";
+import { getPublicProjectMilestoneKey, getPublicProjectUpdateKey } from "../project-public-keys.rules";
 import { formatProjectLabel, getPublicProject } from "../project-read-data";
 import styles from "../projects.module.css";
 
@@ -71,8 +72,8 @@ const ProjectDetailPage = async ({ params }: ProjectPageProps): Promise<React.Re
           <p className={styles.emptyCopy}>No public milestones are available yet.</p>
         ) : (
           <ol className={styles.milestoneList}>
-            {project.milestones.map((milestone) => (
-              <li className={styles.milestone} key={milestone.id}>
+            {project.milestones.map((milestone, index) => (
+              <li className={styles.milestone} key={getPublicProjectMilestoneKey(project.slug, milestone, index)}>
                 <div className={styles.milestoneHeader}>
                   <strong>{milestone.title}</strong>
                   <span>{formatProjectLabel(milestone.status)}</span>
@@ -101,8 +102,8 @@ const ProjectDetailPage = async ({ params }: ProjectPageProps): Promise<React.Re
           <p className={styles.emptyCopy}>No public updates have been published yet.</p>
         ) : (
           <ol className={styles.updateList}>
-            {project.updates.map((update) => (
-              <li className={styles.update} key={update.id}>
+            {project.updates.map((update, index) => (
+              <li className={styles.update} key={getPublicProjectUpdateKey(project.slug, update, index)}>
                 <div className={styles.updateHeader}>
                   <div>
                     {update.isPinned ? <span className={styles.updateBadge}>Pinned update</span> : null}

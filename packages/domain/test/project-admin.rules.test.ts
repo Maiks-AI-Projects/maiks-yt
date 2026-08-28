@@ -211,9 +211,9 @@ describe("project admin public preview", () => {
 
     if (preview.ok) {
       expect(preview.project.slug).toBe("draft");
-      expect(preview.project.milestones.map((milestone) => milestone.id)).toEqual(["live"]);
-      expect(preview.project.items.map((item) => item.id)).toEqual(["visible"]);
-      expect(preview.project.updates.map((update) => update.id)).toEqual(["public-update"]);
+      expect(preview.project.milestones.map((milestone) => milestone.title)).toEqual(["Live milestone"]);
+      expect(preview.project.items.map((item) => item.title)).toEqual(["Visible item"]);
+      expect(preview.project.updates.map((update) => update.title)).toEqual(["Public update"]);
     }
   });
 

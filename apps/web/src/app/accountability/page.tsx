@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { getPublicProjectSummaryKey } from "../projects/project-public-keys.rules";
 import { getPublicProjects } from "../projects/project-read-data";
 import styles from "./accountability.module.css";
 
@@ -97,7 +98,7 @@ const AccountabilityPage = async (): Promise<React.ReactNode> => {
         ) : (
           <div className={styles.recordList}>
             {completedProjects.map((project) => (
-              <article className={styles.recordRow} key={project.id}>
+              <article className={styles.recordRow} key={getPublicProjectSummaryKey(project)}>
                 <div className={styles.recordIdentity}>
                   <p className={styles.recordStatus}>Completed project</p>
                   <h3><a href={`/projects/${project.slug}`}>{project.title}</a></h3>

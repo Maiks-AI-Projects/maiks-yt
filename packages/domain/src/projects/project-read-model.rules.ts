@@ -77,7 +77,6 @@ const toPublicProjectMilestone = (
   }
 
   return {
-    id: milestone.id,
     title: milestone.title,
     status: milestone.status,
     ...(milestone.description ? { description: milestone.description } : {})
@@ -93,7 +92,6 @@ const createPublicProjectItem = (
   }
 
   return {
-    id: item.id,
     title: item.title,
     kind: item.kind,
     status: item.status,
@@ -115,7 +113,6 @@ const createPublicProjectItem = (
 const toPublicProjectItemLink = (
   link: ProjectReadItemLinkSource
 ): PublicProjectItemLink => ({
-  id: link.id,
   provider: link.provider,
   url: link.url,
   label: link.label,
@@ -151,7 +148,6 @@ const toPublicProjectUpdate = (
   }
 
   return {
-    id: update.id,
     title: update.title,
     body: update.body,
     isPinned: update.isPinned,
@@ -182,7 +178,6 @@ export const buildPublicProjectDetail = (
     ?? milestones.find((milestone) => milestone.status === "planned");
 
   return {
-    id: project.id,
     slug: project.slug,
     title: project.title,
     summary: project.summary?.trim() || "No project summary is available yet.",

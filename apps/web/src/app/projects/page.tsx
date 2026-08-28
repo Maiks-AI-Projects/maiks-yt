@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { getPublicProjectSummaryKey } from "./project-public-keys.rules";
 import { getPublicProjects } from "./project-read-data";
 import { ProjectSummaryRow } from "./project-summary-row";
 import styles from "./projects.module.css";
@@ -51,7 +52,7 @@ const ProjectsPage = async (): Promise<React.ReactNode> => {
           </div>
           <div className={styles.projectList}>
             {result.projects.map((project, index) => (
-              <ProjectSummaryRow index={index} key={project.id} project={project} />
+              <ProjectSummaryRow index={index} key={getPublicProjectSummaryKey(project)} project={project} />
             ))}
           </div>
         </section>

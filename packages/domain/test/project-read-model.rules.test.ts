@@ -158,19 +158,101 @@ describe("project public read models", () => {
       ]
     }));
 
-    expect(detail?.milestones.map((milestone) => milestone.id)).toEqual([
-      "done",
-      "active",
-      "planned"
+    expect(detail?.milestones.map((milestone) => milestone.title)).toEqual([
+      "Foundation",
+      "Current slice",
+      "Next slice"
     ]);
-    expect(detail?.nextMilestone?.id).toBe("active");
+    expect(detail?.nextMilestone?.title).toBe("Current slice");
     expect(detail?.items).toHaveLength(1);
-    expect(detail?.items[0]?.id).toBe("parent");
+    expect(detail?.items[0]?.title).toBe("Parent task");
     expect(detail?.items[0]?.estimatedMinorAmount).toBe(12345);
     expect(detail?.items[0]?.currencyCode).toBe("EUR");
     expect(detail?.items[0]?.links[0]?.label).toBe("Wishlist entry");
-    expect(detail?.items[0]?.children[0]?.id).toBe("child");
+    expect(detail?.items[0]?.children[0]?.title).toBe("Child task");
     expect(detail?.itemCount).toBe(2);
+  });
+
+  it("omits raw source identifiers from every public projection level", () => {
+    const detail = buildPublicProjectDetail(createProject("raw-project-id", {
+      slug: "public-project",
+      title: "Public project",
+      summary: "Public project summary.",
+      status: "active",
+      milestones: [
+        {
+          id: "raw-milestone-id",
+          title: "Public milestone",
+          status: "active",
+          sortOrder: 1
+        }
+      ],
+      items: [
+        {
+          id: "raw-item-id",
+          title: "Public item",
+          kind: "task",
+          status: "active",
+          quantity: 1,
+          sortOrder: 1,
+          links: [
+            {
+              id: "raw-link-id",
+              provider: "manual",
+              url: "https://example.com/reference",
+              label: "Reference",
+              relationship: "reference"
+            }
+          ]
+        },
+        {
+          id: "raw-child-id",
+          parentItemId: "raw-item-id",
+          title: "Public child item",
+          kind: "task",
+          status: "planned",
+          quantity: 1,
+          sortOrder: 1,
+          links: []
+        }
+      ],
+      updates: [
+        {
+          id: "raw-update-id",
+          title: "Public update",
+          body: "Published public update.",
+          status: "published",
+          isVisible: true,
+          isPinned: false,
+          sortOrder: 1
+        }
+      ]
+    }));
+    const summary = buildPublicProjectSummaryList([
+      createProject("raw-summary-id", {
+        slug: "summary-project",
+        title: "Summary project",
+        summary: "Public summary.",
+        status: "active"
+      })
+    ])[0];
+
+    expect(detail).not.toBeNull();
+    expect(summary).toBeDefined();
+    expect(JSON.stringify(detail)).not.toContain("raw-project-id");
+    expect(JSON.stringify(detail)).not.toContain("raw-milestone-id");
+    expect(JSON.stringify(detail)).not.toContain("raw-item-id");
+    expect(JSON.stringify(detail)).not.toContain("raw-child-id");
+    expect(JSON.stringify(detail)).not.toContain("raw-link-id");
+    expect(JSON.stringify(detail)).not.toContain("raw-update-id");
+    expect(JSON.stringify(summary)).not.toContain("raw-summary-id");
+    expect(Object.hasOwn(detail ?? {}, "id")).toBe(false);
+    expect(Object.hasOwn(summary ?? {}, "id")).toBe(false);
+    expect(Object.hasOwn(detail?.milestones[0] ?? {}, "id")).toBe(false);
+    expect(Object.hasOwn(detail?.items[0] ?? {}, "id")).toBe(false);
+    expect(Object.hasOwn(detail?.items[0]?.children[0] ?? {}, "id")).toBe(false);
+    expect(Object.hasOwn(detail?.items[0]?.links[0] ?? {}, "id")).toBe(false);
+    expect(Object.hasOwn(detail?.updates[0] ?? {}, "id")).toBe(false);
   });
 
   it("does not build a detail model for a private project", () => {
@@ -227,7 +309,7 @@ describe("project public read models", () => {
       ]
     }));
 
-    expect(detail?.updates.map((update) => update.id)).toEqual(["pinned", "newer"]);
+    expect(detail?.updates.map((update) => update.title)).toEqual(["Pinned update", "Newer update"]);
     expect(detail?.updateCount).toBe(2);
     expect(JSON.stringify(detail)).not.toContain("Hidden draft");
     expect(JSON.stringify(detail)).not.toContain("Published but hidden");
