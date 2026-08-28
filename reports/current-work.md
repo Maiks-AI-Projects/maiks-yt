@@ -525,7 +525,7 @@
 - `pnpm check:review` passed after integration. A final focused pass after the copy correction also passed the control-panel typecheck, web build, architecture check, and `git diff --check`.
 - Local synthetic visual and interaction evidence is in `reports/visual-qa/production-pwa-redesign/README.md`. The redesign is deployed at `501613c`; installed-window access and real provider/moderation/music/overlay behavior remain unverified.
 - Added a bounded access retry foundation for Control, Chat, and Moderation. Temporary token/session API failures retry after 2, 5, 10, 20, then at most 30 seconds; returning online or foreground triggers an immediate silent check; a visible Try again action remains available. Stale overlapping checks cannot replace newer access state.
-- A dedicated main-site OAuth recovery page is still pending visual approval. Its candidate image is `/home/michael/.codex/generated_images/019ee64d-d00e-7c42-8341-b394df487b64/exec-a75e7750-246a-42ae-9d00-6c050eacc448.png`. No recovery-page code remains in the production patch before that approval.
+- A dedicated main-site OAuth recovery page is still pending visual approval. The compact production-style candidate is `reports/visual-concepts/production-pwa-access-recovery/access-recovery-candidate-v1.png`; its record explicitly preserves the launch-token-plus-session boundary and avoids promising that a stored token is still valid. No recovery-page code remains in production before that approval.
 
 ## 2026-08-27 production-line reconciliation
 
