@@ -25,9 +25,12 @@ This is the working checklist. We should work down it in order unless a new idea
 ## Production Operator Contract Pass - 2026-08-28
 
 - [x] Remove simulation-only and test-system event kinds from the production Connections catalogue while preserving real Website, Twitch, YouTube, and Discord entries.
-- [ ] Replace provider-intake browser rows with an allowlisted projection and owner-bound opaque review reference.
-- [ ] Replace provider-integration diagnostics with finite operator DTOs and design durable single-use YouTube consent state before implementation.
-- [ ] Minimize remaining Page Creator, Games, and Session admin browser contracts in production after exact-target delegation is re-established.
+- [x] Replace provider-intake browser rows with an allowlisted projection and owner-bound opaque review reference, including transactional internal-history mapping and strict canonical reference parsing.
+- [x] Minimize Page Creator, Games suggestion-review, and Session admin browser contracts while preserving their existing owner workflows and internal audit identity.
+- [ ] Replace provider-integration diagnostics with finite operator DTOs.
+- [ ] Generate and review a migration for durable single-use YouTube consent state before implementing the OAuth callback flow. The approved design uses a hashed random state bound to provider, purpose, owner, redirect URI, requested scopes, expiry, and one atomic consume transition.
+- [ ] Deploy the completed operator-contract slices in a separately authorized production window.
+- [ ] Verify the signed-in owner provider-intake review, Page Creator lifecycle, Games suggestion review, and account-scoped Session recovery against the live production database after deployment.
 
 ## 0. Organize the Idea Base
 

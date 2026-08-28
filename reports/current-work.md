@@ -1,5 +1,15 @@
 # Current Work
 
+## 2026-08-28 production operator-contract tranche
+
+- Provider-intake rows now expose an exact allowlisted browser projection and an owner-bound AES-256-GCM review reference instead of raw database, provider, actor, or event identifiers. Review mapping uses one MariaDB transaction, rolls back failed or raced writes, and rejects malformed, noncanonical, tampered, or cross-owner references with the same fail-closed not-found behavior.
+- Session administration omits account identifiers and user profile data, reads at most 101 rows, and reports a truthful bounded `shownCount` plus `hasMore` instead of implying a global total. The existing same-account list and revoke boundary remains intact.
+- Page Creator admin responses retain only editor and publication fields. Reserved-route enforcement and audit identity remain server-side, while raw creator/updater ids, route scope, and creation timestamps no longer cross into the browser.
+- Games suggestion review retains its user-facing decision workflow and internal reviewer audit, but omits suggester/reviewer ids, visibility internals, and creation/update audit timestamps from the browser contract.
+- Independent GPT-5.5 reviews report zero standards and zero specification findings after correcting provider-review transactionality and strict opaque-reference decoding. `pnpm check:review` passes with 158 Domain tests, 635 API tests, 107 Web tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- A durable one-time YouTube OAuth consent state still needs an approved migration. The reviewed design stores only a SHA-256 hash of a random state, binds it to provider, purpose, owner, redirect URI and scopes, expires it, and consumes it atomically. No migration was generated or applied.
+- No deployment, server state, database rehearsal, GUI, browser, screenshot, or live signed-in workflow verification was performed. Deployment and verification remain separate gates.
+
 ## 2026-08-28 production Connections catalogue boundary
 
 - Production `/admin/connections` now applies the existing production event-kind policy to its catalogue. `test/system`, simulated-only support money, and the development-only free-TTS request are omitted, while real Website, Twitch, YouTube, and Discord event kinds remain available. Non-production catalogue behavior is unchanged.

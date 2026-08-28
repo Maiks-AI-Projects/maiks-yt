@@ -1,5 +1,14 @@
 # Next Agent Tasks
 
+## Production Operator Contracts: Deploy And Verify Separately
+
+- Provider-intake review references, bounded Session administration, minimized Page Creator responses, and minimized Games suggestion-review responses are code-complete and independently reviewed with zero standards and zero specification findings.
+- `pnpm check:review` passes with 158 Domain, 635 API, 107 Web, and 16 Local Agent tests plus the production Web build and required type, architecture, and diff checks.
+- Deploy only in a deliberate verification window. Then prove owner-bound provider review and transaction rollback against MariaDB, truthful Session truncation and same-account recovery, Page Creator draft/preview/publish behavior, and Games suggestion review without raw audit identifiers in browser responses.
+- The next no-schema contract slice is the provider-integration status/diagnostics DTO. Keep it finite and operator-oriented; do not return raw provider ids, callback material, credentials, runtime errors, or implementation metrics.
+- YouTube consent-state implementation is blocked on a separately reviewed migration. Generate but do not apply a `provider_oauth_consent_states` migration only when that schema slice is explicitly assigned.
+- Desktop, browser, screenshot, Computer Use, Wayland, pointer, keyboard, window, and GUI automation remain forbidden until Michael explicitly lifts the stop order.
+
 ## Exact-Target Gate For Further Delegation
 
 - Before any further SubAgent edits, require a read-only provenance response proving `pwd`, `git rev-parse --show-toplevel`, and branch are exactly `/home/michael/Documents/Codex/maiks-yt-production` and `production`. Send the implementation brief only after that proof.
