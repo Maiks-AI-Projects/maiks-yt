@@ -3,8 +3,9 @@
 ## Public writing decisions
 
 - `/about/health` is deployed and public-HTTP verified at commit `93c353c`. Keep the pre-tumor broken-hand and unrelated head-injury history source-only unless Michael explicitly changes that boundary.
-- Wait for Michael's submitted writing-style answer at `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df` before proposing a site-wide copy pass. Preserve authentic quirks; never manufacture typos or fake mistakes.
-- The current AI decision is the dedicated-page choice at `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. It supersedes the earlier paragraph-only direction. After submission, prepare purpose, navigation, and short page copy for approval before implementation. Do not create or deploy `/about/ai` from the choice alone.
+- Michael selected the direct, warm, matter-of-fact writing voice at `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df`. Preserve authentic quirks; never manufacture typos or fake mistakes. The result authorizes page-by-page review, not a blind whole-site rewrite.
+- Michael selected a dedicated AI-use page at `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. Exact copy and desktop/mobile references are prepared. The implementation decision is now in `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`; do not implement before that list is submitted.
+- The same focused list asks whether to approve the reviewed profile-handle proposal and whether to generate migration files for review. Generating files does not authorize applying them or assigning a live handle.
 - Keep any Linus Torvalds reference minimal and primary-source linked. The verified personal-choice follow-up is `https://lore.kernel.org/linux-media/CAHk-%3Dwi7KN9_DYdmaE2chC92EhTrO%3DWtx1bPBER-EQfAZ8FREg%40mail.gmail.com/`; Michael's explanation must remain his own.
 
 ## Production deployment policy

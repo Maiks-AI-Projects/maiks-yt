@@ -1,5 +1,10 @@
 # Current Work
 
+## 2026-08-28 prepared production approval gate
+
+- Published one focused Owner list at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`. It asks whether to implement the exact prepared `/about/ai` copy and desktop/mobile references, and whether to keep, approve, or advance the reviewed profile-handle proposal to migration-file generation.
+- The list is an authorization boundary, not delivery evidence. It does not implement or deploy `/about/ai`, generate or apply a migration, assign `/profiles/maiks`, change a live account, enable live AI behavior, call a provider, or start a stream.
+
 ## 2026-08-28 production Provider Integrations browser-contract hardening `96a5db7`
 
 - Minimized every supporting Provider Integrations browser contract used by the owner workspace. Chat control, YouTube credential/channel selection, Twitch EventSub, YouTube PubSub, and YouTube activity responses now expose only finite operator state and controls; raw provider/database ids, message bodies, callback/hub/topic URLs, scope lists, raw errors, condition maps, reconnect counters, and storage diagnostics remain server-internal.
