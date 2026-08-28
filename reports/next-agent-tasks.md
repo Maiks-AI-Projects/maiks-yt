@@ -26,6 +26,11 @@
 - The reviewed Updates editor, Account contracts, Chat/Moderation status projection, Event Routing operator truthfulness, correctness tranche, active-grant enforcement, provider-review/operator contracts, Page Creator cleanup, Games review contract, Admin Overview cleanup, Backup Health UI, and production route hygiene are deployed as source or preserved by later runtime revisions. Their real signed-in, installed, provider-backed, MariaDB-backed, visual, OBS, and audio verification remains separate.
 - Local Agent source is current, but the streaming-PC installation, credentials, VLC/PipeWire routing, reconnect, command expiry, and browser fallback remain unverified. OBS companion/source installation and live bridge fallback also remain unverified. Do not interpret source deployment as installed-host proof.
 
+## Real profile decision gate
+
+- Michael's settled privacy behavior is not up for re-litigation: private accounts remain searchable, render only the account name and `This account is set to private`, and expose no profile image.
+- The remaining handle choices are published at `https://choices.mmc.onl/p/maiks-yt/l/e5b5dc8c09ec15a8`. Wait for a submitted answer before designing the migration. Submission authorizes a schema and migration proposal for review only; do not generate, apply, or backfill a live migration from the choice alone.
+
 ## Twitch chat-reply readiness deployed
 
 - Commit `30adb56` is deployed to Web and API. Provider Integrations now exposes the finite `twitch_chat_replies` capability through a bounded, cached, read-only Twitch token validation; it does not refresh, rotate, log, return, or use the credential for a provider write.
