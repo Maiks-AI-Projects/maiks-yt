@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
-import type {
-  ProjectReadModelSource
+import {
+  isPublicProjectStatus,
+  type ProjectReadModelSource,
+  type ProjectStatus
 } from "@maiks-yt/domain/projects";
 
 import { createProjectReadRepository } from "./project-read-store.service.js";
@@ -18,6 +20,15 @@ import type {
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
 type SqlValue = string | number | boolean | null;
+const projectStatusCandidates = Object.keys({
+  planning: true,
+  active: true,
+  completed: true,
+  mothballed: true,
+  cancelled: true
+} satisfies Record<ProjectStatus, true>) as ProjectStatus[];
+const publicProjectStatuses = projectStatusCandidates.filter(isPublicProjectStatus);
+const publicProjectStatusPlaceholders = publicProjectStatuses.map(() => "?").join(", ");
 
 const firstRow = <Row>(rows: unknown): Row | null =>
   Array.isArray(rows) && rows.length > 0 ? rows[0] as Row : null;
@@ -151,9 +162,10 @@ const updateProjectFields = async (
   pool: DatabasePool,
   id: string,
   input: ProjectAdminProjectUpdateInput
-): Promise<"not-found" | "slug-conflict" | ProjectReadModelSource> => {
+): Promise<"not-found" | "slug-conflict" | "unpublishable-status" | ProjectReadModelSource> => {
   const fields: string[] = [];
   const values: SqlValue[] = [];
+  const requiresPublicStatus = input.isPublic === true && input.status === undefined;
 
   if (input.slug !== undefined) {
     fields.push("slug = ?");
@@ -178,10 +190,21 @@ const updateProjectFields = async (
   if (input.status !== undefined) {
     fields.push("status = ?");
     values.push(input.status);
-  }
-  if (input.isPublic !== undefined) {
+    fields.push(
+      `is_public = CASE WHEN ? IN (${publicProjectStatusPlaceholders}) THEN ${input.isPublic === undefined ? "is_public" : "?"} ELSE FALSE END`
+    );
+    values.push(input.status, ...publicProjectStatuses);
+    if (input.isPublic !== undefined) {
+      values.push(input.isPublic);
+    }
+  } else if (input.isPublic !== undefined) {
     fields.push("is_public = ?");
     values.push(input.isPublic);
+  } else if (fields.length > 0) {
+    fields.push(
+      `is_public = CASE WHEN status IN (${publicProjectStatusPlaceholders}) THEN is_public ELSE FALSE END`
+    );
+    values.push(...publicProjectStatuses);
   }
 
   if (fields.length === 0) {
@@ -190,14 +213,18 @@ const updateProjectFields = async (
 
   try {
     const [result] = await pool.execute(
-      `UPDATE projects SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ?`,
-      [...values, id]
+      `UPDATE projects SET ${fields.join(", ")}, updated_at = NOW() WHERE id = ?${requiresPublicStatus ? ` AND status IN (${publicProjectStatusPlaceholders})` : ""}`,
+      [...values, id, ...(requiresPublicStatus ? publicProjectStatuses : [])]
     );
 
     if (typeof result === "object"
       && result !== null
       && "affectedRows" in result
       && result.affectedRows === 0) {
+      if (requiresPublicStatus && await projectExists(pool, id)) {
+        return "unpublishable-status";
+      }
+
       return "not-found";
     }
   } catch (error) {
@@ -433,7 +460,7 @@ export const createProjectAdminRepository = (
           input.type,
           input.category,
           input.status,
-          input.isPublic,
+          input.isPublic && isPublicProjectStatus(input.status),
           input.actorUserId
         ]
       );

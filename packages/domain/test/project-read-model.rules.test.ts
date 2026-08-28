@@ -1,6 +1,8 @@
 import {
   buildPublicProjectDetail,
   buildPublicProjectSummaryList,
+  isPublicProjectSource,
+  isPublicProjectStatus,
   type ProjectReadModelSource
 } from "../src/projects/index.js";
 import { describe, expect, it } from "vitest";
@@ -24,6 +26,18 @@ const createProject = (
 });
 
 describe("project public read models", () => {
+  it("defines the shared public project status predicate", () => {
+    expect(isPublicProjectStatus("planning")).toBe(true);
+    expect(isPublicProjectStatus("active")).toBe(true);
+    expect(isPublicProjectStatus("completed")).toBe(true);
+    expect(isPublicProjectStatus("mothballed")).toBe(false);
+    expect(isPublicProjectStatus("cancelled")).toBe(false);
+    expect(isPublicProjectSource(createProject("archived", {
+      isPublic: true,
+      status: "mothballed"
+    }))).toBe(false);
+  });
+
   it("keeps private and unavailable projects out of the public summary list", () => {
     const summaries = buildPublicProjectSummaryList([
       createProject("completed", { status: "completed", category: "hobby" }),

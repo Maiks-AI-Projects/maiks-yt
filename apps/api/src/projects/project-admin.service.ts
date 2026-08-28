@@ -29,7 +29,8 @@ import {
   isValidProjectAdminItemLinkUpdateInput,
   isValidProjectAdminMilestoneInput,
   isValidProjectAdminProjectInput,
-  isValidProjectAdminUpdateInput
+  isValidProjectAdminUpdateInput,
+  isPublicProjectStatus
 } from "@maiks-yt/domain/projects";
 
 const validProjectUpdateFallback = {
@@ -212,6 +213,13 @@ export class ProjectAdminService {
       };
     }
 
+    if (input.project.isPublic && !isPublicProjectStatus(input.project.status)) {
+      return {
+        ok: false,
+        reason: "project_admin_unpublishable_status"
+      };
+    }
+
     try {
       return {
         ok: true,
@@ -247,6 +255,15 @@ export class ProjectAdminService {
       return {
         ok: false,
         reason: "project_admin_invalid_input"
+      };
+    }
+
+    if (input.project.isPublic === true
+      && input.project.status !== undefined
+      && !isPublicProjectStatus(input.project.status)) {
+      return {
+        ok: false,
+        reason: "project_admin_unpublishable_status"
       };
     }
 
@@ -607,6 +624,11 @@ export class ProjectAdminService {
         return {
           ok: false,
           reason: "project_slug_conflict"
+        };
+      case "unpublishable-status":
+        return {
+          ok: false,
+          reason: "project_admin_unpublishable_status"
         };
     }
   }

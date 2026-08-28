@@ -139,6 +139,7 @@ export type ProjectAdminMutationResult =
       | "project_item_link_not_found"
       | "project_update_not_found"
       | "project_item_parent_not_found"
+      | "project_admin_unpublishable_status"
       | "project_admin_invalid_input"
       | "project_slug_conflict";
   };
@@ -147,7 +148,7 @@ export interface ProjectAdminRepository {
   resolveActor(authUserId: string): Promise<ProjectAdminActor | null>;
   listProjects(): Promise<readonly ProjectReadModelSource[]>;
   createProject(input: ProjectAdminProjectInput & { actorUserId: string }): Promise<ProjectReadModelSource>;
-  updateProject(id: string, input: ProjectAdminProjectUpdateInput): Promise<ProjectReadModelSource | "not-found" | "slug-conflict">;
+  updateProject(id: string, input: ProjectAdminProjectUpdateInput): Promise<ProjectReadModelSource | "not-found" | "slug-conflict" | "unpublishable-status">;
   createMilestone(projectId: string, input: ProjectAdminMilestoneInput): Promise<ProjectReadModelSource | "project-not-found">;
   updateMilestone(projectId: string, milestoneId: string, input: ProjectAdminMilestoneUpdateInput): Promise<ProjectReadModelSource | "project-not-found" | "milestone-not-found">;
   reorderMilestones(projectId: string, input: ProjectAdminReorderInput): Promise<ProjectReadModelSource | "project-not-found" | "milestone-not-found">;

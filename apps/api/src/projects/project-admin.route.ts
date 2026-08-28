@@ -164,6 +164,7 @@ const sendAdminMutationResult = (
     || result.reason === "project_admin_forbidden"
     ? 403
     : result.reason === "project_admin_invalid_input"
+      || result.reason === "project_admin_unpublishable_status"
       ? 400
       : result.reason === "project_slug_conflict"
         ? 409

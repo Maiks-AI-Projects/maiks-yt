@@ -2,6 +2,7 @@ import type { DatabasePool } from "@maiks-yt/database";
 import type {
   ProjectReadModelSource
 } from "@maiks-yt/domain/projects";
+import { isPublicProjectStatus } from "@maiks-yt/domain/projects";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -20,6 +21,8 @@ import type {
   ProjectAdminUpdateUpdateInput,
   ProjectAdminRepository
 } from "../../src/projects/project-admin.types.js";
+
+const publicProjectStatuses = ["planning", "active", "completed"] as const;
 
 const createProject = (
   id: string,
@@ -91,10 +94,19 @@ class FakeProjectAdminRepository implements ProjectAdminRepository {
       return "slug-conflict" as const;
     }
 
+    const nextStatus = input.status ?? project.status;
+
+    if (input.isPublic === true && !isPublicProjectStatus(nextStatus)) {
+      return "unpublishable-status" as const;
+    }
+
     this.lastProjectUpdate = structuredClone(input);
     const updated = {
       ...project,
-      ...input
+      ...input,
+      isPublic: isPublicProjectStatus(nextStatus)
+        ? input.isPublic ?? project.isPublic
+        : false
     };
     this.projects.set(id, updated);
     return structuredClone(updated);
@@ -421,6 +433,72 @@ describe("ProjectAdminService", () => {
     });
   });
 
+  it("rejects publishing projects whose status is hidden from public reads", async () => {
+    const repository = new FakeProjectAdminRepository();
+    const service = new ProjectAdminService(repository);
+
+    await expect(service.createProject({
+      authUserId: "auth-user",
+      project: {
+        slug: "cancelled-public",
+        title: "Cancelled Public",
+        type: "milestone-only",
+        category: "software-project",
+        status: "cancelled",
+        isPublic: true
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "project_admin_unpublishable_status"
+    });
+
+    repository.projects.set("mothballed", createProject("mothballed", {
+      status: "mothballed",
+      isPublic: false
+    }));
+
+    await expect(service.updateProject({
+      authUserId: "auth-user",
+      projectId: "mothballed",
+      project: {
+        isPublic: true
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "project_admin_unpublishable_status"
+    });
+    expect(repository.lastProjectUpdate).toBeNull();
+  });
+
+  it("unpublishes a public project when changing it to a hidden status", async () => {
+    const repository = new FakeProjectAdminRepository();
+    const service = new ProjectAdminService(repository);
+
+    repository.projects.set("published", createProject("published", {
+      status: "active",
+      isPublic: true
+    }));
+
+    const result = await service.updateProject({
+      authUserId: "auth-user",
+      projectId: "published",
+      project: {
+        status: "mothballed"
+      }
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      project: {
+        status: "mothballed",
+        isPublic: false
+      }
+    });
+    expect(repository.lastProjectUpdate).toEqual({
+      status: "mothballed"
+    });
+  });
+
   it("creates milestones, non-money items, and reorder updates", async () => {
     const repository = new FakeProjectAdminRepository();
     const service = new ProjectAdminService(repository);
@@ -653,6 +731,10 @@ describe("Project admin route boundary", () => {
         statusCode: 400
       },
       {
+        result: { ok: false, reason: "project_admin_unpublishable_status" } as const,
+        statusCode: 400
+      },
+      {
         result: { ok: false, reason: "project_not_found" } as const,
         statusCode: 404
       },
@@ -703,6 +785,37 @@ describe("Project admin route boundary", () => {
       await server.close();
     }
   });
+
+  it("fails closed when the admin route tries to publish a hidden-status project", async () => {
+    const repository = new FakeProjectAdminRepository();
+    const server = Fastify();
+
+    registerProjectAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new ProjectAdminService(repository)
+    });
+
+    const response = await server.inject({
+      method: "PATCH",
+      url: "/admin/projects/project",
+      payload: {
+        status: "cancelled",
+        isPublic: true
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "project_admin_unpublishable_status"
+    });
+    expect(repository.lastProjectUpdate).toBeNull();
+
+    await server.close();
+  });
 });
 
 describe("Project admin mysql authorization boundary", () => {
@@ -746,5 +859,79 @@ describe("Project admin mysql authorization boundary", () => {
       ok: false,
       reason: "project_admin_forbidden"
     });
+  });
+});
+
+describe("Project admin mysql publication boundary", () => {
+  it("predicates publish-only updates on the stored public status and fails closed on a miss", async () => {
+    const calls: Array<{ sql: string; values: readonly unknown[] }> = [];
+    const repository = createProjectAdminRepository({
+      execute: async (sql: string, values: readonly unknown[] = []) => {
+        calls.push({ sql, values });
+
+        return calls.length === 1
+          ? [{ affectedRows: 0 }]
+          : [[{ id: "mothballed-project" }]];
+      }
+    } as unknown as DatabasePool);
+
+    await expect(repository.updateProject("mothballed-project", {
+      isPublic: true
+    })).resolves.toBe("unpublishable-status");
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.sql).toContain("WHERE id = ? AND status IN (?, ?, ?)");
+    expect(calls[0]?.values).toEqual([
+      true,
+      "mothballed-project",
+      ...publicProjectStatuses
+    ]);
+    expect(calls[1]?.sql).toContain("SELECT id FROM projects WHERE id = ? LIMIT 1");
+  });
+
+  it("clears publication in the same SQL statement that stores an ineligible status", async () => {
+    const calls: Array<{ sql: string; values: readonly unknown[] }> = [];
+    const repository = createProjectAdminRepository({
+      execute: async (sql: string, values: readonly unknown[] = []) => {
+        calls.push({ sql, values });
+        return [{ affectedRows: 0 }];
+      }
+    } as unknown as DatabasePool);
+
+    await expect(repository.updateProject("published-project", {
+      status: "cancelled"
+    })).resolves.toBe("not-found");
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sql).toContain("status = ?, is_public = CASE WHEN ? IN (?, ?, ?) THEN is_public ELSE FALSE END");
+    expect(calls[0]?.sql).not.toContain("AND status IN");
+    expect(calls[0]?.values).toEqual([
+      "cancelled",
+      "cancelled",
+      ...publicProjectStatuses,
+      "published-project"
+    ]);
+  });
+
+  it("normalizes stale hidden-status publication during other project updates", async () => {
+    const calls: Array<{ sql: string; values: readonly unknown[] }> = [];
+    const repository = createProjectAdminRepository({
+      execute: async (sql: string, values: readonly unknown[] = []) => {
+        calls.push({ sql, values });
+        return [{ affectedRows: 0 }];
+      }
+    } as unknown as DatabasePool);
+
+    await expect(repository.updateProject("stale-project", {
+      title: "Updated title"
+    })).resolves.toBe("not-found");
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sql).toContain("title = ?, is_public = CASE WHEN status IN (?, ?, ?) THEN is_public ELSE FALSE END");
+    expect(calls[0]?.values).toEqual([
+      "Updated title",
+      ...publicProjectStatuses,
+      "stale-project"
+    ]);
   });
 });

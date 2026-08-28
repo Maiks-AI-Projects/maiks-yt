@@ -8,7 +8,7 @@ import type {
   ProjectReadModelSource,
 } from "@maiks-yt/domain/projects";
 import type { ProjectReadUpdateSource } from "@maiks-yt/domain/projects";
-import { buildProjectAdminPublicPreview } from "@maiks-yt/domain/projects";
+import { buildProjectAdminPublicPreview, isPublicProjectSource } from "@maiks-yt/domain/projects";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { ItemsPanel, ManualUpdatesPanel, MilestonesPanel } from "./project-admin-edit-panels";
@@ -23,6 +23,7 @@ import {
 } from "./project-admin-layout-panels";
 import {
   apiBaseUrl,
+  canPublishProject,
   defaultItemLinkForm,
   defaultItemForm,
   defaultMilestoneForm,
@@ -229,6 +230,11 @@ const ProjectAdminClient = (): React.ReactNode => {
   const saveVisibility = async (isPublic: boolean): Promise<void> => {
     if (!selectedProject) {
       setMessage("Choose a project before changing visibility.");
+      return;
+    }
+
+    if (isPublic && !canPublishProject(selectedProject)) {
+      setMessage("Only planning, active, or completed projects can be published.");
       return;
     }
 
@@ -544,7 +550,8 @@ const ProjectAdminClient = (): React.ReactNode => {
             />
 
             <PublicPreviewPanel
-              isPublished={selectedProject?.isPublic === true}
+              isPublished={selectedProject ? isPublicProjectSource(selectedProject) : false}
+              status={projectForm.status}
               previewSource={previewSource}
               publicPreview={publicPreview}
             />

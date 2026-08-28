@@ -3,7 +3,12 @@ import type { Dispatch, FormEvent, SetStateAction } from "react";
 
 import { formatProjectLabel } from "../../projects/project-read-data";
 import {
+  canPublishProject,
   getProjectPublicHref,
+  getProjectPublicationCopy,
+  getProjectPublicationLabel,
+  getProjectPublicPreviewCopy,
+  isProjectPublishable,
   isPublicRouteVisible,
   projectCategories,
   projectStatuses,
@@ -73,7 +78,7 @@ export const ProjectSidebar = ({
             onClick={() => onSelectProject(project.id)}
           >
             <strong>{project.title}</strong>
-            <span>{project.isPublic ? "Public" : "Private"} / {formatProjectLabel(project.status)}</span>
+            <span>{getProjectPublicationLabel(project)} / {formatProjectLabel(project.status)}</span>
           </button>
         ))}
       </div>
@@ -97,13 +102,7 @@ export const VisibilityPanel = ({
   <section className="project-admin-panel visibility-panel">
     <div>
       <h2>Visibility</h2>
-      <p>
-        {selectedProject
-          ? selectedProject.isPublic
-            ? "This project is public on the website."
-            : "This project is private and only visible here."
-          : "New projects can be created as private drafts before publishing."}
-      </p>
+      <p>{getProjectPublicationCopy(selectedProject)}</p>
     </div>
     {selectedProject ? (
       <div className="project-admin-actions">
@@ -118,7 +117,7 @@ export const VisibilityPanel = ({
         <button type="button" className="secondary-action" onClick={onArchiveProject} disabled={busyAction !== null || (!selectedProject.isPublic && selectedProject.status === "mothballed")}>
           Archive
         </button>
-        <button type="button" onClick={() => onSaveVisibility(true)} disabled={busyAction !== null || selectedProject.isPublic}>
+        <button type="button" onClick={() => onSaveVisibility(true)} disabled={busyAction !== null || !canPublishProject(selectedProject)}>
           Publish
         </button>
       </div>
@@ -175,13 +174,21 @@ export const ProjectBasicsForm = ({
       </label>
       <label>
         Status
-        <select value={projectForm.status} onChange={(event) => setProjectForm((current) => ({ ...current, status: event.target.value as ProjectStatus }))}>
+        <select value={projectForm.status} onChange={(event) => {
+          const status = event.target.value as ProjectStatus;
+
+          setProjectForm((current) => ({
+            ...current,
+            status,
+            isPublic: isProjectPublishable({ status }) ? current.isPublic : false
+          }));
+        }}>
           {projectStatuses.map((status) => <option key={status} value={status}>{formatProjectLabel(status)}</option>)}
         </select>
       </label>
       <label className="project-admin-checkbox">
-        <input type="checkbox" checked={projectForm.isPublic} onChange={(event) => setProjectForm((current) => ({ ...current, isPublic: event.target.checked }))} />
-        Public after save
+        <input type="checkbox" checked={projectForm.isPublic} disabled={!isProjectPublishable(projectForm)} onChange={(event) => setProjectForm((current) => ({ ...current, isPublic: event.target.checked }))} />
+        Publish after save
       </label>
     </div>
   </form>
@@ -189,12 +196,14 @@ export const ProjectBasicsForm = ({
 
 type PublicPreviewPanelProps = {
   isPublished: boolean;
+  status: ProjectStatus;
   previewSource: ProjectReadModelSource | null;
   publicPreview: ReturnType<typeof import("@maiks-yt/domain/projects").buildProjectAdminPublicPreview> | null;
 };
 
 export const PublicPreviewPanel = ({
   isPublished,
+  status,
   previewSource,
   publicPreview
 }: PublicPreviewPanelProps): React.ReactNode => (
@@ -206,9 +215,12 @@ export const PublicPreviewPanel = ({
       </span>
     </div>
     <p>
-      {isPublished
-        ? "This preview includes unsaved basic field edits; the public page keeps showing the last saved public version."
-        : "This preview shows the public page shape before publishing; public routes still hide this project."}
+      {getProjectPublicPreviewCopy({
+        isPublished,
+        status,
+        hasPreviewSource: previewSource !== null,
+        hasPublicPreview: publicPreview?.ok === true
+      })}
     </p>
     {!previewSource ? (
       <p className="project-muted">Add a slug and title to preview the public page shape.</p>

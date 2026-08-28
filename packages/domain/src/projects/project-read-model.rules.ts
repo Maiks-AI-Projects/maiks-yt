@@ -60,8 +60,11 @@ const compareUpdates = (
     || compareText(left.title, right.title);
 };
 
+export const isPublicProjectStatus = (status: ProjectStatus): status is PublicProjectStatus =>
+  publicProjectStatuses.has(status);
+
 export const isPublicProjectSource = (project: ProjectReadModelSource): boolean =>
-  project.isPublic && publicProjectStatuses.has(project.status);
+  project.isPublic && isPublicProjectStatus(project.status);
 
 export const isPublicProjectUpdateSource = (update: ProjectReadUpdateSource): boolean =>
   update.status === "published" && update.isVisible;

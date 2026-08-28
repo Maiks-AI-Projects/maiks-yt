@@ -1,5 +1,5 @@
 import type { ProjectCategory, ProjectItemKind, ProjectItemLinkRelationship, ProjectItemStatus, ProjectReadModelSource, ProjectReadUpdateSource, ProjectStatus, ProjectUpdateStatus, ProjectType, MilestoneStatus } from "@maiks-yt/domain/projects";
-import { buildProjectAdminPublicPreview } from "@maiks-yt/domain/projects";
+import { isPublicProjectSource, isPublicProjectStatus } from "@maiks-yt/domain/projects";
 
 export type AdminProjectsResponse =
   | {
@@ -169,6 +169,10 @@ export const getFailureMessage = (response: Response, reason?: string): string =
     return "The project admin request has invalid or missing fields.";
   }
 
+  if (reason === "project_admin_unpublishable_status") {
+    return "Only planning, active, or completed projects can be published.";
+  }
+
   if (reason?.includes("not_found")) {
     return "That project record could not be found.";
   }
@@ -195,7 +199,7 @@ export const toProjectForm = (project: ProjectReadModelSource): ProjectFormState
   type: project.type,
   category: project.category,
   status: project.status,
-  isPublic: project.isPublic
+  isPublic: isPublicProjectSource(project)
 });
 
 export const toUpdateForm = (update: ProjectReadUpdateSource): UpdateFormState => ({
@@ -252,7 +256,66 @@ export const getProjectPublicHref = (project: ProjectReadModelSource): string =>
   `/projects/${encodeURIComponent(project.slug)}`;
 
 export const isPublicRouteVisible = (project: ProjectReadModelSource): boolean =>
-  buildProjectAdminPublicPreview(project).ok && project.isPublic;
+  isPublicProjectSource(project);
+
+export const isProjectPublishable = (project: Pick<ProjectReadModelSource, "status">): boolean =>
+  isPublicProjectStatus(project.status);
+
+export const canPublishProject = (project: ProjectReadModelSource): boolean =>
+  isProjectPublishable(project) && !isPublicProjectSource(project);
+
+export const getProjectPublicationLabel = (project: ProjectReadModelSource): string =>
+  isPublicProjectSource(project)
+    ? "Published"
+    : project.isPublic
+      ? "Hidden"
+      : "Private";
+
+export const getProjectPublicationCopy = (project: ProjectReadModelSource | null): string => {
+  if (!project) {
+    return "New projects can be created as private drafts before publishing.";
+  }
+
+  if (isPublicProjectSource(project)) {
+    return "This project is published on the website.";
+  }
+
+  if (project.isPublic) {
+    return "Marked public, but this status is hidden from public routes.";
+  }
+
+  return isProjectPublishable(project)
+    ? "This project is private and only visible here."
+    : "This status cannot be published.";
+};
+
+export const getProjectPublicPreviewCopy = ({
+  isPublished,
+  status,
+  hasPreviewSource,
+  hasPublicPreview
+}: {
+  isPublished: boolean;
+  status: ProjectStatus;
+  hasPreviewSource: boolean;
+  hasPublicPreview: boolean;
+}): string => {
+  if (isPublished) {
+    return "This preview includes unsaved basic field edits; the public page keeps showing the last saved public version.";
+  }
+
+  if (!isProjectPublishable({ status })) {
+    return "This status is hidden from public project routes.";
+  }
+
+  if (!hasPreviewSource) {
+    return "Complete the required project fields to preview the public page shape.";
+  }
+
+  return hasPublicPreview
+    ? "This preview shows the public page shape before publishing; public routes still hide this project."
+    : "Public preview is unavailable for this draft.";
+};
 
 export const flattenItemOptions = (
   project: ProjectReadModelSource
