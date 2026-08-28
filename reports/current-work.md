@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-28 production project-update Event Routing schema gate
+
+- Confirmed `website.project-update-published` is a Project update producer from `project_updates`, not the generic public Updates posts, recaps, or announcements under `/updates`.
+- The producer must emit only when a Project update becomes publicly readable from a previously non-public-readable state: create-as-published under a public eligible Project, draft to published while visible on a public eligible Project, hidden to visible while published on a public eligible Project, a Project visibility/status change that makes existing published visible updates public, or a later genuine re-publish after unpublish.
+- Current persistence is not enough for a retry-stable occurrence identity. `project_updates.published_at` is second-precision and may be caller-supplied or reused across visibility/project-public transitions; `event_history.source_event_id` records routed events but does not create a durable producer occurrence. Same-second unpublish/re-publish can collide.
+- No implementation, migration, deployment, server state, or live verification was performed. The smallest safe future task is a coordinator-approved publication occurrence/outbox design, likely a `project_update_publication_events`-style record with a monotonic sequence and unique deterministic `sourceEventId`, before any producer implementation.
+
 ## 2026-08-28 production provider-status operator contract
 
 - The owner provider-status endpoint now returns a finite operator DTO: provider identity and readiness, exact provider-specific capability states, truthful runtime state, bounded safe account/channel summary, relevant activity/retry timestamps, and concise action guidance. Environment-variable names, SDK/library labels, implementation boundaries, raw errors, reconnect counters, provider ids beyond the public provider key, credentials, scopes, callback material, and arbitrary objects no longer cross into the browser status contract.
