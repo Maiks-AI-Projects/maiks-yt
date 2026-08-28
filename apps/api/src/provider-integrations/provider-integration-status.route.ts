@@ -28,9 +28,14 @@ export const registerProviderIntegrationStatusRoutes = (
   server: FastifyInstance,
   dependencies: ProviderIntegrationStatusRouteDependencies
 ): void => {
-  const getService = (): Pick<ProviderIntegrationStatusService, "getStatus"> =>
-    dependencies.createService?.()
-    ?? new ProviderIntegrationStatusService(
+  let defaultService: Pick<ProviderIntegrationStatusService, "getStatus"> | null = null;
+
+  const getService = (): Pick<ProviderIntegrationStatusService, "getStatus"> => {
+    if (dependencies.createService) {
+      return dependencies.createService();
+    }
+
+    defaultService ??= new ProviderIntegrationStatusService(
       createProviderIntegrationStatusRepository(dependencies.getDatabasePool()),
       dependencies.getRuntimeState
         ? {
@@ -38,6 +43,9 @@ export const registerProviderIntegrationStatusRoutes = (
         }
         : {}
     );
+
+    return defaultService;
+  };
 
   const getSession = async (
     request: FastifyRequest,

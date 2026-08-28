@@ -9,6 +9,7 @@ export const createValidProviderIntegrationsStatusPayload = () => ({
       capabilities: [
         { key: "twitch_api_access", label: "Twitch API access", state: "available" },
         { key: "twitch_chat_intake", label: "Twitch chat intake", state: "available" },
+        { key: "twitch_chat_replies", label: "Twitch chat replies", state: "available" },
         { key: "twitch_eventsub_intake", label: "Twitch event intake", state: "needs_setup" }
       ],
       runtime: {

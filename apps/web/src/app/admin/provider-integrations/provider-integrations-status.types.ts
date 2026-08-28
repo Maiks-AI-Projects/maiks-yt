@@ -20,6 +20,7 @@ export type ProviderRuntimeStatus = {
 export type ProviderCapabilityKey =
   | "twitch_api_access"
   | "twitch_chat_intake"
+  | "twitch_chat_replies"
   | "twitch_eventsub_intake"
   | "youtube_data_access"
   | "youtube_owner_consent"

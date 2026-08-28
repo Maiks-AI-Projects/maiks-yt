@@ -15,6 +15,8 @@ export * from "./discord-webhook-events.types.js";
 export * from "./twitch-chat-intake.rules.js";
 export * from "./twitch-chat-intake.service.js";
 export * from "./twitch-chat-intake.types.js";
+export * from "./twitch-chat-reply-readiness.service.js";
+export * from "./twitch-chat-reply-readiness.types.js";
 export * from "./twitch-chat-moderation.service.js";
 export * from "./twitch-chat-warning.rules.js";
 export * from "./twitch-chat-warning.service.js";

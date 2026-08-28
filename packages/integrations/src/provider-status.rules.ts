@@ -1,4 +1,5 @@
 import type { DiscordChatIntakeStatus } from "./discord-chat-intake.types.js";
+import type { TwitchChatReplyReadinessStatus } from "./twitch-chat-reply-readiness.types.js";
 import type { TwitchChatIntakeStatus } from "./twitch-chat-intake.types.js";
 import type { YouTubeLiveChatIntakeStatus } from "./youtube-live-chat-intake.types.js";
 
@@ -11,6 +12,7 @@ export type ProviderCapabilityState = "available" | "needs_setup" | "needs_atten
 export type ProviderCapabilityKey =
   | "twitch_api_access"
   | "twitch_chat_intake"
+  | "twitch_chat_replies"
   | "twitch_eventsub_intake"
   | "youtube_data_access"
   | "youtube_owner_consent"
@@ -68,6 +70,10 @@ export type ProviderIntegrationRuntimeState = {
   youtubeLiveChatIntakeState?: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
 };
 
+export type ProviderIntegrationCapabilityReadiness = {
+  twitchChatReplies?: TwitchChatReplyReadinessStatus;
+};
+
 type ProviderEnvironmentVariableStatus = {
   configured: boolean;
   valid: boolean;
@@ -114,6 +120,14 @@ const createEnvStatus = (
 ): ProviderEnvironmentVariableStatus => ({
   configured: isPresent(env[name]) && isUsableValue(env[name]),
   valid: !isPresent(env[name]) || isUsableValue(env[name])
+});
+
+const createAnyEnvStatus = (
+  env: ProviderIntegrationEnvironment,
+  names: readonly string[]
+): ProviderEnvironmentVariableStatus => ({
+  configured: names.some((name) => isPresent(env[name]) && isUsableValue(env[name])),
+  valid: names.every((name) => !isPresent(env[name]) || isUsableValue(env[name]))
 });
 
 const hasDisabledFlag = (
@@ -368,25 +382,144 @@ const guidanceFrom = ({
   return null;
 };
 
+const defaultTwitchChatReplyReadiness = (
+  config: ProviderConfigStatus,
+  clientId: ProviderEnvironmentVariableStatus,
+  botAccessToken: ProviderEnvironmentVariableStatus
+): TwitchChatReplyReadinessStatus => {
+  if (config.disabled) {
+    return {
+      issue: null,
+      state: "disabled"
+    };
+  }
+
+  if (!clientId.valid || !botAccessToken.valid) {
+    return {
+      issue: "validation_unavailable",
+      state: "needs_attention"
+    };
+  }
+
+  if (!clientId.configured || !botAccessToken.configured) {
+    return {
+      issue: "missing_configuration",
+      state: "needs_setup"
+    };
+  }
+
+  return {
+    issue: "validation_unavailable",
+    state: "needs_attention"
+  };
+};
+
+const twitchReadinessFrom = ({
+  chatReplies,
+  config,
+  runtime
+}: {
+  chatReplies: TwitchChatReplyReadinessStatus;
+  config: ProviderConfigStatus;
+  runtime: ProviderRuntimeStatus;
+}): ProviderIntegrationReadiness => {
+  if (config.disabled) {
+    return "disabled";
+  }
+
+  if (config.invalid || runtime.state === "retrying" || chatReplies.state === "needs_attention") {
+    return "needs_attention";
+  }
+
+  if (!config.configured || runtime.state === "unconfigured" || chatReplies.state === "needs_setup") {
+    return "needs_setup";
+  }
+
+  return "ready";
+};
+
+const twitchChatReplyGuidance = (
+  chatReplies: TwitchChatReplyReadinessStatus
+): string | null => {
+  if (chatReplies.state === "available" || chatReplies.state === "disabled") {
+    return null;
+  }
+
+  if (chatReplies.issue === "missing_configuration") {
+    return "Add Twitch bot access-token and client setup before command replies are enabled.";
+  }
+
+  if (chatReplies.issue === "invalid_access_token") {
+    return "Reconnect the Twitch bot access token; validation says it is invalid or expired.";
+  }
+
+  if (chatReplies.issue === "missing_scope") {
+    return "Reconnect Twitch bot consent with chat:read and chat:edit before command replies are enabled.";
+  }
+
+  if (chatReplies.issue === "client_mismatch") {
+    return "Reconnect Twitch bot consent for the configured Twitch app before command replies are enabled.";
+  }
+
+  return "Twitch bot token validation could not be proven right now; retry before relying on command replies.";
+};
+
+const twitchGuidanceFrom = ({
+  chatReplies,
+  config,
+  runtime
+}: {
+  chatReplies: TwitchChatReplyReadinessStatus;
+  config: ProviderConfigStatus;
+  runtime: ProviderRuntimeStatus;
+}): string | null => {
+  if (config.disabled) {
+    return "Enable this provider only when production intake should resume.";
+  }
+
+  if (config.invalid) {
+    return "Review the provider setup; one or more configured values are unusable.";
+  }
+
+  if (!config.configured) {
+    return "Finish Twitch setup before starting chat or event intake.";
+  }
+
+  return twitchChatReplyGuidance(chatReplies)
+    ?? guidanceFrom({
+      config,
+      runtime,
+      setupGuidance: "Finish Twitch setup before starting chat or event intake."
+    });
+};
+
 const buildTwitchStatus = (
   env: ProviderIntegrationEnvironment,
   runtimeState: ProviderIntegrationRuntimeState,
-  now: Date
+  now: Date,
+  capabilityReadiness: ProviderIntegrationCapabilityReadiness
 ): ProviderIntegrationStatus => {
   const clientId = createEnvStatus(env, "TWITCH_CLIENT_ID");
   const clientSecret = createEnvStatus(env, "TWITCH_CLIENT_SECRET");
   const eventSubSecret = createEnvStatus(env, "TWITCH_EVENTSUB_WEBHOOK_SECRET");
+  const botAccessToken = createAnyEnvStatus(env, [
+    "TWITCH_CHAT_BOT_ACCESS_TOKEN",
+    "TWITCH_BOT_ACCESS_TOKEN",
+    "TWITCH_ACCESS_TOKEN"
+  ]);
   const config = {
     disabled: hasDisabledFlag(env, "twitch"),
     configured: clientId.configured && clientSecret.configured,
-    invalid: !clientId.valid || !clientSecret.valid || !eventSubSecret.valid
+    invalid: !clientId.valid || !clientSecret.valid || !eventSubSecret.valid || !botAccessToken.valid
   };
   const runtime = twitchRuntimeStatus(runtimeState, now);
+  const chatReplies = capabilityReadiness.twitchChatReplies
+    ?? defaultTwitchChatReplyReadiness(config, clientId, botAccessToken);
 
   return {
     id: "twitch",
     label: "Twitch",
-    readiness: readinessFrom({ config, runtime }),
+    readiness: twitchReadinessFrom({ chatReplies, config, runtime }),
     capabilities: [
       {
         key: "twitch_api_access",
@@ -399,17 +532,18 @@ const buildTwitchStatus = (
         state: config.disabled ? "disabled" : runtimeCapabilityState(runtime)
       },
       {
+        key: "twitch_chat_replies",
+        label: "Twitch chat replies",
+        state: config.disabled ? "disabled" : chatReplies.state
+      },
+      {
         key: "twitch_eventsub_intake",
         label: "Twitch event intake",
         state: config.disabled ? "disabled" : eventSubSecret.valid && eventSubSecret.configured ? "available" : "needs_setup"
       }
     ],
     runtime,
-    guidance: guidanceFrom({
-      config,
-      runtime,
-      setupGuidance: "Finish Twitch setup before starting chat or event intake."
-    })
+    guidance: twitchGuidanceFrom({ chatReplies, config, runtime })
   };
 };
 
@@ -535,12 +669,13 @@ const buildDiscordStatus = (
 export const getProviderIntegrationStatusSnapshot = (
   env: ProviderIntegrationEnvironment = process.env,
   now = new Date(),
-  runtimeState: ProviderIntegrationRuntimeState = {}
+  runtimeState: ProviderIntegrationRuntimeState = {},
+  capabilityReadiness: ProviderIntegrationCapabilityReadiness = {}
 ): ProviderIntegrationStatusSnapshot => ({
   ok: true,
   generatedAt: now.toISOString(),
   providers: [
-    buildTwitchStatus(env, runtimeState, now),
+    buildTwitchStatus(env, runtimeState, now, capabilityReadiness),
     buildYouTubeStatus(env, runtimeState, now),
     buildDiscordStatus(env, runtimeState, now)
   ]

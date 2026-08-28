@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
+import type { DatabasePool } from "@maiks-yt/database";
 
 import { registerProviderIntegrationStatusRoutes } from "../../src/provider-integrations/provider-integration-status.route.js";
 import { ProviderIntegrationStatusService } from "../../src/provider-integrations/provider-integration-status.service.js";
@@ -19,6 +20,11 @@ class FakeProviderIntegrationStatusRepository implements ProviderIntegrationStat
   }
 }
 
+const validateReadyTwitchChatReplies = async () => ({
+  issue: null,
+  state: "available" as const
+});
+
 const forbiddenMarkers = [
   "sdk",
   "readOnly",
@@ -30,10 +36,12 @@ const forbiddenMarkers = [
   "disconnectsInWindow",
   "reconnectSuppressed",
   "autoStartEnabled",
+  "TWITCH_CHAT_BOT_ACCESS_TOKEN",
   "TWITCH_CLIENT_SECRET",
   "YOUTUBE_API_KEY",
   "DISCORD_BOT_TOKEN",
   "secret-twitch-value",
+  "secret-twitch-access-token",
   "secret-youtube-value",
   "secret-discord-value",
   "@twurple",
@@ -47,6 +55,7 @@ describe("ProviderIntegrationStatusService", () => {
       new FakeProviderIntegrationStatusRepository(),
       {
         env: {
+          TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
           TWITCH_CLIENT_ID: "twitch-client",
           TWITCH_CLIENT_SECRET: "secret-twitch-value",
           YOUTUBE_API_KEY: "secret-youtube-value",
@@ -57,7 +66,8 @@ describe("ProviderIntegrationStatusService", () => {
           twitchChatIntakeState: "connected",
           youtubeLiveChatIntakeState: "waiting",
           discordChatIntakeState: "stopped"
-        })
+        }),
+        validateTwitchChatReplyReadiness: validateReadyTwitchChatReplies
       }
     );
 
@@ -75,6 +85,7 @@ describe("ProviderIntegrationStatusService", () => {
           capabilities: [
             { key: "twitch_api_access", label: "Twitch API access", state: "available" },
             { key: "twitch_chat_intake", label: "Twitch chat intake", state: "available" },
+            { key: "twitch_chat_replies", label: "Twitch chat replies", state: "available" },
             { key: "twitch_eventsub_intake", label: "Twitch event intake", state: "needs_setup" }
           ],
           runtime: {
@@ -186,9 +197,193 @@ describe("ProviderIntegrationStatusService", () => {
       reason: "provider_integrations_forbidden"
     });
   });
+
+  it("caches Twitch chat reply readiness within the configured TTL", async () => {
+    let cacheNow = 1_000;
+    let validationCalls = 0;
+    const service = new ProviderIntegrationStatusService(
+      new FakeProviderIntegrationStatusRepository(),
+      {
+        env: {
+          TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
+          TWITCH_CLIENT_ID: "twitch-client"
+        },
+        twitchChatReplyReadinessCacheNow: () => cacheNow,
+        twitchChatReplyReadinessCacheTtlMs: 60_000,
+        validateTwitchChatReplyReadiness: async () => {
+          validationCalls += 1;
+          return {
+            issue: null,
+            state: "available"
+          };
+        }
+      }
+    );
+
+    await service.getStatus({ authUserId: "auth-owner" });
+    cacheNow = 60_999;
+    await service.getStatus({ authUserId: "auth-owner" });
+
+    expect(validationCalls).toBe(1);
+  });
+
+  it("deduplicates concurrent Twitch chat reply readiness validation", async () => {
+    let validationCalls = 0;
+    let resolveValidation!: (status: { issue: null; state: "available" }) => void;
+    const pendingValidation = new Promise<{ issue: null; state: "available" }>((resolve) => {
+      resolveValidation = resolve;
+    });
+    const service = new ProviderIntegrationStatusService(
+      new FakeProviderIntegrationStatusRepository(),
+      {
+        env: {
+          TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
+          TWITCH_CLIENT_ID: "twitch-client"
+        },
+        validateTwitchChatReplyReadiness: async () => {
+          validationCalls += 1;
+          return pendingValidation;
+        }
+      }
+    );
+
+    const firstStatus = service.getStatus({ authUserId: "auth-owner" });
+    const secondStatus = service.getStatus({ authUserId: "auth-owner" });
+    await Promise.resolve();
+
+    expect(validationCalls).toBe(1);
+    resolveValidation({ issue: null, state: "available" });
+    const [firstResult, secondResult] = await Promise.all([firstStatus, secondStatus]);
+
+    expect(firstResult).toMatchObject({ ok: true });
+    expect(secondResult).toMatchObject({ ok: true });
+  });
+
+  it("revalidates Twitch chat reply readiness after the cache expires", async () => {
+    let cacheNow = 5_000;
+    let validationCalls = 0;
+    const service = new ProviderIntegrationStatusService(
+      new FakeProviderIntegrationStatusRepository(),
+      {
+        env: {
+          TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
+          TWITCH_CLIENT_ID: "twitch-client"
+        },
+        twitchChatReplyReadinessCacheNow: () => cacheNow,
+        twitchChatReplyReadinessCacheTtlMs: 60_000,
+        validateTwitchChatReplyReadiness: async () => {
+          validationCalls += 1;
+          return {
+            issue: null,
+            state: "available"
+          };
+        }
+      }
+    );
+
+    await service.getStatus({ authUserId: "auth-owner" });
+    cacheNow = 65_000;
+    await service.getStatus({ authUserId: "auth-owner" });
+
+    expect(validationCalls).toBe(2);
+  });
+
+  it("stays bound to its construction-time environment snapshot", async () => {
+    const env: Record<string, string | undefined> = {
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "original-secret-access-token",
+      TWITCH_CLIENT_ID: "original-client-id",
+      TWITCH_CLIENT_SECRET: "original-secret-client-secret"
+    };
+    let validationCalls = 0;
+    const service = new ProviderIntegrationStatusService(
+      new FakeProviderIntegrationStatusRepository(),
+      {
+        env,
+        validateTwitchChatReplyReadiness: async (effectiveEnv) => {
+          validationCalls += 1;
+          expect(Object.isFrozen(effectiveEnv)).toBe(true);
+          expect(effectiveEnv).toMatchObject({
+            TWITCH_CHAT_BOT_ACCESS_TOKEN: "original-secret-access-token",
+            TWITCH_CLIENT_ID: "original-client-id",
+            TWITCH_CLIENT_SECRET: "original-secret-client-secret"
+          });
+
+          return {
+            issue: null,
+            state: "available"
+          };
+        }
+      }
+    );
+
+    env.TWITCH_CHAT_BOT_ACCESS_TOKEN = "replacement-secret-access-token";
+    env.TWITCH_CLIENT_ID = "replacement-client-id";
+    env.TWITCH_CLIENT_SECRET = "replacement-secret-client-secret";
+    env.TWITCH_INTEGRATION_DISABLED = "true";
+
+    const firstResult = await service.getStatus({ authUserId: "auth-owner" });
+    const secondResult = await service.getStatus({ authUserId: "auth-owner" });
+    const serialized = JSON.stringify([firstResult, secondResult]);
+    const firstTwitch = firstResult.ok
+      ? firstResult.providers.find((provider) => provider.id === "twitch")
+      : null;
+    const secondTwitch = secondResult.ok
+      ? secondResult.providers.find((provider) => provider.id === "twitch")
+      : null;
+
+    expect(validationCalls).toBe(1);
+    expect(firstTwitch?.capabilities).toContainEqual({
+      key: "twitch_chat_replies",
+      label: "Twitch chat replies",
+      state: "available"
+    });
+    expect(firstTwitch?.readiness).not.toBe("disabled");
+    expect(secondTwitch).toEqual(firstTwitch);
+    expect(serialized).not.toContain("original-secret-access-token");
+    expect(serialized).not.toContain("original-secret-client-secret");
+    expect(serialized).not.toContain("replacement-secret-access-token");
+    expect(serialized).not.toContain("replacement-secret-client-secret");
+  });
 });
 
 describe("Provider integration status routes", () => {
+  it("reuses the lazily created default status service across requests", async () => {
+    const server = Fastify();
+    let poolRequests = 0;
+    let actorQueries = 0;
+    const pool = {
+      execute: async () => {
+        actorQueries += 1;
+        return [[{
+          domainUserId: "helper-user",
+          rolePermissions: ["notifications:manage"]
+        }]];
+      }
+    } as unknown as DatabasePool;
+
+    registerProviderIntegrationStatusRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-helper" } }),
+      getDatabasePool: () => {
+        poolRequests += 1;
+        return pool;
+      }
+    });
+
+    const firstResponse = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/status"
+    });
+    const secondResponse = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/status"
+    });
+
+    expect(firstResponse.statusCode).toBe(403);
+    expect(secondResponse.statusCode).toBe(403);
+    expect(poolRequests).toBe(1);
+    expect(actorQueries).toBe(2);
+  });
+
   it("returns 401 for unauthenticated access", async () => {
     const server = Fastify();
 
@@ -305,6 +500,7 @@ describe("Provider integration status routes", () => {
           env: {
             DISCORD_BOT_TOKEN: "secret-discord-value",
             DISCORD_GUILD_ID: "987654321098765432",
+            TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
             TWITCH_CLIENT_ID: "twitch-client",
             TWITCH_CLIENT_SECRET: "secret-twitch-value",
             YOUTUBE_CLIENT_ID: "youtube-client",
@@ -349,7 +545,8 @@ describe("Provider integration status routes", () => {
               recentMessages: [],
               state: "waiting"
             }
-          })
+          }),
+          validateTwitchChatReplyReadiness: validateReadyTwitchChatReplies
         }
       )
     });
@@ -401,5 +598,61 @@ describe("Provider integration status routes", () => {
     expect(serialized).not.toContain("123456789012345678");
     expect(serialized).not.toContain("UC1234567890123456789012");
     expect(serialized).not.toContain("payload={raw}");
+  });
+
+  it("returns sanitized Twitch chat reply readiness from the injected validator", async () => {
+    const server = Fastify();
+
+    registerProviderIntegrationStatusRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-owner" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => new ProviderIntegrationStatusService(
+        new FakeProviderIntegrationStatusRepository(),
+        {
+          env: {
+            TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
+            TWITCH_CHAT_BOT_REFRESH_TOKEN: "secret-refresh-token",
+            TWITCH_CLIENT_ID: "twitch-client",
+            TWITCH_CLIENT_SECRET: "secret-twitch-value"
+          },
+          now: () => new Date("2026-06-29T12:00:00.000Z"),
+          runtimeState: () => ({
+            twitchChatIntakeState: "connected"
+          }),
+          validateTwitchChatReplyReadiness: async () => {
+            throw new Error("raw validation failure containing secret-twitch-access-token");
+          }
+        }
+      )
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/admin/provider-integrations/status"
+    });
+    const body = response.json() as {
+      providers: Array<{
+        capabilities: Array<{ key: string; label: string; state: string }>;
+        guidance: string | null;
+        id: string;
+        readiness: string;
+      }>;
+    };
+    const twitch = body.providers.find((provider) => provider.id === "twitch");
+    const serialized = JSON.stringify(body);
+
+    expect(response.statusCode).toBe(200);
+    expect(twitch?.capabilities).toContainEqual({
+      key: "twitch_chat_replies",
+      label: "Twitch chat replies",
+      state: "needs_attention"
+    });
+    expect(twitch?.readiness).toBe("needs_attention");
+    expect(twitch?.guidance).toBe("Twitch bot token validation could not be proven right now; retry before relying on command replies.");
+    expect(serialized).not.toContain("secret-twitch-access-token");
+    expect(serialized).not.toContain("secret-refresh-token");
+    expect(serialized).not.toContain("raw validation failure");
   });
 });

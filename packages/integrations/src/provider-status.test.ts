@@ -5,6 +5,8 @@ import {
   type ProviderIntegrationEnvironment,
   type ProviderIntegrationRuntimeState
 } from "./provider-status.rules.js";
+import { validateTwitchChatReplyReadiness } from "./twitch-chat-reply-readiness.service.js";
+import type { TwitchChatReplyReadinessStatus } from "./twitch-chat-reply-readiness.types.js";
 
 const getProvider = (
   env: ProviderIntegrationEnvironment,
@@ -17,6 +19,7 @@ const providerKeys = (value: object): readonly string[] => Object.keys(value).so
 const configuredEnv = {
   DISCORD_BOT_TOKEN: "secret-discord-token-value",
   DISCORD_GUILD_ID: "987654321098765432",
+  TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
   TWITCH_CLIENT_ID: "twitch-client",
   TWITCH_CLIENT_SECRET: "secret-twitch-value",
   YOUTUBE_CLIENT_ID: "youtube-client",
@@ -76,11 +79,20 @@ const createDiscordRuntimeStatus = (
   ...overrides
 } as DiscordRuntimeStatus);
 
-const getConfiguredSnapshot = (runtimeState: ProviderIntegrationRuntimeState) =>
+const availableTwitchChatReplies = {
+  issue: null,
+  state: "available"
+} as const satisfies TwitchChatReplyReadinessStatus;
+
+const getConfiguredSnapshot = (
+  runtimeState: ProviderIntegrationRuntimeState,
+  twitchChatReplies: TwitchChatReplyReadinessStatus = availableTwitchChatReplies
+) =>
   getProviderIntegrationStatusSnapshot(
     configuredEnv,
     new Date("2026-07-04T10:00:00.000Z"),
-    runtimeState
+    runtimeState,
+    { twitchChatReplies }
   );
 
 describe("provider integration status", () => {
@@ -116,12 +128,15 @@ describe("provider integration status", () => {
   it("omits diagnostic and implementation fields from configured providers", () => {
     const env = {
       TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
       TWITCH_CLIENT_SECRET: "super-secret-twitch",
       YOUTUBE_API_KEY: "super-secret-youtube",
       DISCORD_BOT_TOKEN: "super-secret-discord",
       DISCORD_APPLICATION_ID: "discord-app"
     };
-    const snapshot = getProviderIntegrationStatusSnapshot(env, new Date("2026-06-29T10:00:00.000Z"));
+    const snapshot = getProviderIntegrationStatusSnapshot(env, new Date("2026-06-29T10:00:00.000Z"), {}, {
+      twitchChatReplies: availableTwitchChatReplies
+    });
     const serialized = JSON.stringify(snapshot);
 
     expect(snapshot.providers.map((provider) => [provider.id, provider.readiness, provider.runtime.state])).toEqual([
@@ -130,6 +145,7 @@ describe("provider integration status", () => {
       ["discord", "needs_setup", "unconfigured"]
     ]);
     expect(serialized).not.toContain("super-secret-twitch");
+    expect(serialized).not.toContain("secret-twitch-access-token");
     expect(serialized).not.toContain("super-secret-youtube");
     expect(serialized).not.toContain("super-secret-discord");
     expect(serialized).not.toContain("TWITCH_CLIENT_SECRET");
@@ -171,8 +187,11 @@ describe("provider integration status", () => {
   it("keeps library/config availability distinct from runtime connection", () => {
     const snapshot = getProviderIntegrationStatusSnapshot({
       TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
       TWITCH_CLIENT_SECRET: "super-secret-twitch"
-    }, new Date("2026-06-29T10:00:00.000Z"));
+    }, new Date("2026-06-29T10:00:00.000Z"), {}, {
+      twitchChatReplies: availableTwitchChatReplies
+    });
     const twitch = snapshot.providers.find((provider) => provider.id === "twitch");
 
     expect(twitch?.capabilities).toEqual(expect.arrayContaining([
@@ -185,6 +204,11 @@ describe("provider integration status", () => {
         key: "twitch_chat_intake",
         label: "Twitch chat intake",
         state: "needs_setup"
+      },
+      {
+        key: "twitch_chat_replies",
+        label: "Twitch chat replies",
+        state: "available"
       }
     ]));
     expect(twitch?.runtime.state).toBe("unconfigured");
@@ -195,6 +219,7 @@ describe("provider integration status", () => {
     const snapshot = getProviderIntegrationStatusSnapshot({
       DISCORD_BOT_TOKEN: "super-secret-discord-bot",
       TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
       TWITCH_CLIENT_SECRET: "super-secret-twitch",
       YOUTUBE_CLIENT_ID: "youtube-client",
       YOUTUBE_CLIENT_SECRET: "super-secret-youtube"
@@ -236,7 +261,7 @@ describe("provider integration status", () => {
         recentMessages: [],
         state: "waiting"
       }
-    });
+    }, { twitchChatReplies: availableTwitchChatReplies });
     const serialized = JSON.stringify(snapshot);
     const twitch = snapshot.providers.find((provider) => provider.id === "twitch");
     const youtube = snapshot.providers.find((provider) => provider.id === "youtube");
@@ -417,6 +442,7 @@ describe("provider integration status", () => {
     const snapshot = getProviderIntegrationStatusSnapshot({
       DISCORD_BOT_TOKEN: "super-secret-discord-bot",
       TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
       TWITCH_CLIENT_SECRET: "secret-twitch-value",
       YOUTUBE_CLIENT_ID: "youtube-client",
       YOUTUBE_CLIENT_SECRET: "super-secret-youtube"
@@ -458,7 +484,7 @@ describe("provider integration status", () => {
         recentMessages: [],
         state: "stopped"
       }
-    });
+    }, { twitchChatReplies: availableTwitchChatReplies });
     const twitch = snapshot.providers.find((provider) => provider.id === "twitch");
     const youtube = snapshot.providers.find((provider) => provider.id === "youtube");
     const discord = snapshot.providers.find((provider) => provider.id === "discord");
@@ -476,6 +502,7 @@ describe("provider integration status", () => {
     ];
     const getTwitchWithChannels = (channelNames: readonly string[]) => getProviderIntegrationStatusSnapshot({
       TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
       TWITCH_CLIENT_SECRET: "secret-twitch-value"
     }, new Date("2026-07-04T10:00:00.000Z"), {
       twitchChatIntake: {
@@ -491,7 +518,7 @@ describe("provider integration status", () => {
         reconnectSuppressed: false,
         state: "connected"
       }
-    }).providers[0];
+    }, { twitchChatReplies: availableTwitchChatReplies }).providers[0];
     const exactBoundaryTwitch = getTwitchWithChannels(exactBoundaryChannelNames);
     const overflowTwitch = getTwitchWithChannels([
       "a".repeat(25),
@@ -519,5 +546,243 @@ describe("provider integration status", () => {
     expect(twitch?.readiness).toBe("disabled");
     expect(twitch?.capabilities.every((capability) => capability.state === "disabled")).toBe(true);
     expect(twitch?.guidance).toBe("Enable this provider only when production intake should resume.");
+  });
+
+  it("reports missing Twitch chat reply configuration without treating refresh material as proof", () => {
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      TWITCH_CHAT_BOT_REFRESH_TOKEN: "secret-refresh-token",
+      TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CLIENT_SECRET: "secret-twitch-value"
+    }, new Date("2026-07-04T10:00:00.000Z"), {
+      twitchChatIntake: createTwitchRuntimeStatus({ state: "connected" })
+    });
+    const twitch = snapshot.providers.find((provider) => provider.id === "twitch");
+
+    expect(twitch?.capabilities.find((capability) => capability.key === "twitch_chat_replies")).toEqual({
+      key: "twitch_chat_replies",
+      label: "Twitch chat replies",
+      state: "needs_setup"
+    });
+    expect(twitch?.readiness).toBe("needs_setup");
+    expect(twitch?.guidance).toBe("Add Twitch bot access-token and client setup before command replies are enabled.");
+    expect(JSON.stringify(snapshot)).not.toContain("secret-refresh-token");
+  });
+
+  it.each([
+    [
+      "invalid access token",
+      { issue: "invalid_access_token", state: "needs_attention" },
+      { issue: "invalid_access_token", state: "needs_attention" },
+      "Reconnect the Twitch bot access token; validation says it is invalid or expired."
+    ],
+    [
+      "missing chat reply scope",
+      { issue: "missing_scope", state: "needs_attention" },
+      { issue: "missing_scope", state: "needs_attention" },
+      "Reconnect Twitch bot consent with chat:read and chat:edit before command replies are enabled."
+    ],
+    [
+      "unproven validation",
+      { issue: "validation_unavailable", state: "needs_attention" },
+      { issue: "validation_unavailable", state: "needs_attention" },
+      "Twitch bot token validation could not be proven right now; retry before relying on command replies."
+    ]
+  ] as const)("reports Twitch chat replies as %s", (_case, readiness, expected, guidance) => {
+    const snapshot = getProviderIntegrationStatusSnapshot({
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-twitch-access-token",
+      TWITCH_CLIENT_ID: "twitch-client",
+      TWITCH_CLIENT_SECRET: "secret-twitch-value"
+    }, new Date("2026-07-04T10:00:00.000Z"), {
+      twitchChatIntake: createTwitchRuntimeStatus({ state: "connected" })
+    }, { twitchChatReplies: readiness });
+    const twitch = snapshot.providers.find((provider) => provider.id === "twitch");
+
+    expect(twitch?.capabilities.find((capability) => capability.key === "twitch_chat_replies")).toEqual({
+      key: "twitch_chat_replies",
+      label: "Twitch chat replies",
+      state: expected.state
+    });
+    expect(twitch?.readiness).toBe("needs_attention");
+    expect(twitch?.guidance).toBe(guidance);
+    expect(JSON.stringify(snapshot)).not.toContain("secret-twitch-access-token");
+  });
+});
+
+describe("Twitch chat reply readiness validation", () => {
+  it("validates the configured access token with the read-only Twitch endpoint and required Twurple chat scopes", async () => {
+    const fetchCalls: Array<{ headers: Record<string, string>; method: string; url: string }> = [];
+    const result = await validateTwitchChatReplyReadiness({
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-access-token",
+        TWITCH_CLIENT_ID: "twitch-client-id",
+        TWITCH_CLIENT_SECRET: "secret-client-secret"
+      },
+      fetchFn: async (url, init) => {
+        fetchCalls.push({ headers: init.headers, method: init.method, url });
+
+        return {
+          json: async () => ({
+            client_id: "twitch-client-id",
+            expires_in: 3600,
+            login: "maiksmc",
+            scopes: ["chat:read", "chat:edit"],
+            user_id: "123456789012345678"
+          }),
+          ok: true,
+          status: 200
+        };
+      }
+    });
+
+    expect(result).toEqual({
+      issue: null,
+      state: "available"
+    });
+    expect(fetchCalls).toEqual([{
+      headers: {
+        Authorization: "OAuth secret-access-token"
+      },
+      method: "GET",
+      url: "https://id.twitch.tv/oauth2/validate"
+    }]);
+    expect(JSON.stringify(result)).not.toContain("secret-access-token");
+    expect(JSON.stringify(result)).not.toContain("123456789012345678");
+  });
+
+  it("does not treat a refresh token as proof that chat replies can work", async () => {
+    let fetchCalled = false;
+    const result = await validateTwitchChatReplyReadiness({
+      env: {
+        TWITCH_CHAT_BOT_REFRESH_TOKEN: "secret-refresh-token",
+        TWITCH_CLIENT_ID: "twitch-client-id"
+      },
+      fetchFn: async () => {
+        fetchCalled = true;
+        throw new Error("should not fetch without an access token");
+      }
+    });
+
+    expect(result).toEqual({
+      issue: "missing_configuration",
+      state: "needs_setup"
+    });
+    expect(fetchCalled).toBe(false);
+  });
+
+  it("does not fetch when Twitch integration is disabled", async () => {
+    let fetchCalled = false;
+    const result = await validateTwitchChatReplyReadiness({
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-access-token",
+        TWITCH_CLIENT_ID: "twitch-client-id",
+        TWITCH_INTEGRATION_DISABLED: "true"
+      },
+      fetchFn: async () => {
+        fetchCalled = true;
+        throw new Error("disabled validation should not fetch");
+      }
+    });
+
+    expect(result).toEqual({
+      issue: null,
+      state: "disabled"
+    });
+    expect(fetchCalled).toBe(false);
+  });
+
+  it("fails attention-closed for a malformed successful validation payload", async () => {
+    const result = await validateTwitchChatReplyReadiness({
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-access-token",
+        TWITCH_CLIENT_ID: "twitch-client-id"
+      },
+      fetchFn: async () => ({
+        json: async () => ({
+          client_id: "twitch-client-id",
+          scopes: ["chat:read", { scope: "chat:edit" }]
+        }),
+        ok: true,
+        status: 200
+      })
+    });
+
+    expect(result).toEqual({
+      issue: "validation_unavailable",
+      state: "needs_attention"
+    });
+  });
+
+  it.each([
+    ["invalid access token", 401, { status: 401, message: "invalid access token" }, {
+      issue: "invalid_access_token",
+      state: "needs_attention"
+    }],
+    ["missing scope", 200, {
+      client_id: "twitch-client-id",
+      expires_in: 3600,
+      scopes: ["chat:read"]
+    }, {
+      issue: "missing_scope",
+      state: "needs_attention"
+    }],
+    ["client mismatch", 200, {
+      client_id: "other-client-id",
+      expires_in: 3600,
+      scopes: ["chat:read", "chat:edit"]
+    }, {
+      issue: "client_mismatch",
+      state: "needs_attention"
+    }]
+  ] as const)("sanitizes %s validation failures", async (_case, status, payload, expected) => {
+    const result = await validateTwitchChatReplyReadiness({
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-access-token",
+        TWITCH_CLIENT_ID: "twitch-client-id"
+      },
+      fetchFn: async () => ({
+        json: async () => payload,
+        ok: status === 200,
+        status
+      })
+    });
+
+    expect(result).toEqual(expected);
+    expect(JSON.stringify(result)).not.toContain("secret-access-token");
+    expect(JSON.stringify(result)).not.toContain("invalid access token");
+  });
+
+  it("fails attention-closed when validation cannot complete", async () => {
+    await expect(validateTwitchChatReplyReadiness({
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-access-token",
+        TWITCH_CLIENT_ID: "twitch-client-id"
+      },
+      fetchFn: async () => {
+        throw new Error("network details with secret-access-token");
+      },
+      timeoutMs: 10
+    })).resolves.toEqual({
+      issue: "validation_unavailable",
+      state: "needs_attention"
+    });
+  });
+
+  it("bounds token validation with an abortable timeout", async () => {
+    const result = await validateTwitchChatReplyReadiness({
+      env: {
+        TWITCH_CHAT_BOT_ACCESS_TOKEN: "secret-access-token",
+        TWITCH_CLIENT_ID: "twitch-client-id"
+      },
+      fetchFn: async (_url, init) => await new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new Error("aborted secret-access-token")));
+      }),
+      timeoutMs: 1
+    });
+
+    expect(result).toEqual({
+      issue: "validation_unavailable",
+      state: "needs_attention"
+    });
+    expect(JSON.stringify(result)).not.toContain("secret-access-token");
   });
 });

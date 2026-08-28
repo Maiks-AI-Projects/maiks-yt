@@ -1,5 +1,6 @@
 import type {
   ProviderIntegrationEnvironment,
+  TwitchChatReplyReadinessStatus,
   ProviderIntegrationRuntimeState,
   ProviderIntegrationStatusSnapshot
 } from "@maiks-yt/integrations";
@@ -36,5 +37,10 @@ export interface ProviderIntegrationStatusRepository {
 export type ProviderIntegrationStatusOptions = {
   env?: ProviderIntegrationEnvironment;
   now?: () => Date;
+  twitchChatReplyReadinessCacheNow?: () => number;
+  twitchChatReplyReadinessCacheTtlMs?: number;
   runtimeState?: () => ProviderIntegrationRuntimeState;
+  validateTwitchChatReplyReadiness?: (
+    env: ProviderIntegrationEnvironment
+  ) => Promise<TwitchChatReplyReadinessStatus>;
 };

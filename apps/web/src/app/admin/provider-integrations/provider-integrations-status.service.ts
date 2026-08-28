@@ -41,6 +41,7 @@ const providerCapabilities = {
   twitch: [
     { key: "twitch_api_access", label: "Twitch API access" },
     { key: "twitch_chat_intake", label: "Twitch chat intake" },
+    { key: "twitch_chat_replies", label: "Twitch chat replies" },
     { key: "twitch_eventsub_intake", label: "Twitch event intake" }
   ],
   youtube: [

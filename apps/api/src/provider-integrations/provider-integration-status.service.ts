@@ -1,4 +1,8 @@
-import { getProviderIntegrationStatusSnapshot } from "@maiks-yt/integrations";
+import {
+  getProviderIntegrationStatusSnapshot,
+  validateTwitchChatReplyReadiness,
+  type TwitchChatReplyReadinessStatus
+} from "@maiks-yt/integrations";
 
 import type {
   ProviderIntegrationStatusActor,
@@ -43,11 +47,24 @@ export const normalizeProviderIntegrationPermissions = (
 const canViewProviderIntegrations = (actor: ProviderIntegrationStatusActor): boolean =>
   normalizeProviderIntegrationPermissions(actor.rolePermissionValues).includes("*");
 
+const defaultTwitchChatReplyReadinessCacheTtlMs = 60_000;
+
 export class ProviderIntegrationStatusService {
+  private readonly env: NonNullable<ProviderIntegrationStatusOptions["env"]>;
+
+  private twitchChatReplyReadinessCache: {
+    expiresAt: number;
+    status: TwitchChatReplyReadinessStatus;
+  } | null = null;
+
+  private twitchChatReplyReadinessInFlight: Promise<TwitchChatReplyReadinessStatus> | null = null;
+
   public constructor(
     private readonly repository: ProviderIntegrationStatusRepository,
     private readonly options: ProviderIntegrationStatusOptions = {}
-  ) {}
+  ) {
+    this.env = Object.freeze({ ...(options.env ?? process.env) });
+  }
 
   public async getStatus(input: { authUserId: string }): Promise<ProviderIntegrationStatusResult> {
     const actor = await this.repository.resolveActor(input.authUserId);
@@ -66,10 +83,64 @@ export class ProviderIntegrationStatusService {
       };
     }
 
+    const twitchChatReplies = await this.resolveTwitchChatReplyReadiness();
+
     return getProviderIntegrationStatusSnapshot(
-      this.options.env ?? process.env,
+      this.env,
       this.options.now?.() ?? new Date(),
-      this.options.runtimeState?.()
+      this.options.runtimeState?.(),
+      { twitchChatReplies }
     );
+  }
+
+  private async resolveTwitchChatReplyReadiness(): Promise<TwitchChatReplyReadinessStatus> {
+    const cacheNow = this.options.twitchChatReplyReadinessCacheNow ?? Date.now;
+    const now = cacheNow();
+    const cachedReadiness = this.twitchChatReplyReadinessCache;
+
+    if (cachedReadiness && cachedReadiness.expiresAt > now) {
+      return cachedReadiness.status;
+    }
+
+    if (this.twitchChatReplyReadinessInFlight) {
+      return this.twitchChatReplyReadinessInFlight;
+    }
+
+    const validation = this.runTwitchChatReplyReadinessValidation().then((status) => {
+      const configuredTtl = this.options.twitchChatReplyReadinessCacheTtlMs
+        ?? defaultTwitchChatReplyReadinessCacheTtlMs;
+      const ttlMs = Number.isFinite(configuredTtl) ? Math.max(0, configuredTtl) : 0;
+
+      this.twitchChatReplyReadinessCache = {
+        expiresAt: cacheNow() + ttlMs,
+        status
+      };
+
+      return status;
+    });
+
+    this.twitchChatReplyReadinessInFlight = validation;
+
+    try {
+      return await validation;
+    } finally {
+      if (this.twitchChatReplyReadinessInFlight === validation) {
+        this.twitchChatReplyReadinessInFlight = null;
+      }
+    }
+  }
+
+  private async runTwitchChatReplyReadinessValidation(): Promise<TwitchChatReplyReadinessStatus> {
+    try {
+      return await (
+        this.options.validateTwitchChatReplyReadiness?.(this.env)
+        ?? validateTwitchChatReplyReadiness({ env: this.env })
+      );
+    } catch {
+      return {
+        issue: "validation_unavailable",
+        state: "needs_attention"
+      };
+    }
   }
 }
