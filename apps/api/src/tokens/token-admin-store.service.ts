@@ -216,8 +216,10 @@ export const createUrlAccessTokenAdminRepository = (
       const [result] = await pool.execute(
         `
         UPDATE url_access_tokens
-        SET token_hash = ?, revoked_at = NULL, last_used_at = NULL, updated_at = NOW()
+        SET token_hash = ?, last_used_at = NULL, updated_at = NOW()
         WHERE id = ?
+          AND revoked_at IS NULL
+          AND (expires_at IS NULL OR expires_at > NOW())
       `,
         [tokenHash, id]
       );
@@ -226,7 +228,9 @@ export const createUrlAccessTokenAdminRepository = (
         && result !== null
         && "affectedRows" in result
         && result.affectedRows === 0) {
-        return "not-found";
+        const existingToken = await readToken(pool, id, options);
+
+        return existingToken ? "terminal" : "not-found";
       }
 
       const token = await readToken(pool, id, options);

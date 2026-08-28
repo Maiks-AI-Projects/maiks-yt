@@ -54,6 +54,9 @@ const sendMutationResult = (
     : result.reason === "url_token_admin_invalid_input"
       ? 400
       : result.reason === "url_token_unsupported_target"
+        || result.reason === "url_token_revoked"
+        || result.reason === "url_token_expired"
+        || result.reason === "url_token_terminal"
         ? 409
         : 404;
 

@@ -273,10 +273,28 @@ describe("UrlAccessTokenAdminService", () => {
     }
   });
 
-  it("rotates with a one-time raw URL and revokes lost tokens", async () => {
+  it("rotates active future-expiry and long-lived tokens with a one-time raw URL", async () => {
     const repository = new FakeUrlAccessTokenAdminRepository("development");
+    repository.tokens.set("future-token", createToken({
+      id: "future-token",
+      label: "Future overlay",
+      expiresAt: "2999-01-01T00:00:00.000Z"
+    }));
     const service = new UrlAccessTokenAdminService(repository, {
       launchEnvironment: "development"
+    });
+
+    await expect(service.rotateToken({
+      authUserId: "auth-user",
+      id: "future-token"
+    })).resolves.toMatchObject({
+      ok: true,
+      token: {
+        id: "future-token",
+        rawToken: expect.any(String),
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        launchUrl: expect.stringMatching(/^https:\/\/overlay-dev\.maiks\.yt\/\?accessToken=/)
+      }
     });
 
     const rotateResult = await service.rotateToken({
@@ -306,6 +324,44 @@ describe("UrlAccessTokenAdminService", () => {
     });
   });
 
+  it("rejects revoked and expired tokens before rotation material is generated", async () => {
+    const repository = new FakeUrlAccessTokenAdminRepository("production");
+    repository.tokens.set("revoked-token", createToken({
+      id: "revoked-token",
+      label: "Revoked overlay",
+      revokedAt: "2026-06-20T11:00:00.000Z"
+    }));
+    repository.tokens.set("expired-token", createToken({
+      id: "expired-token",
+      label: "Expired overlay",
+      expiresAt: "2000-01-01T00:00:00.000Z"
+    }));
+    const service = new UrlAccessTokenAdminService(repository, {
+      launchEnvironment: "production"
+    });
+
+    const revokedResult = await service.rotateToken({
+      authUserId: "auth-user",
+      id: "revoked-token"
+    });
+    const expiredResult = await service.rotateToken({
+      authUserId: "auth-user",
+      id: "expired-token"
+    });
+
+    expect(revokedResult).toEqual({
+      ok: false,
+      reason: "url_token_revoked"
+    });
+    expect(expiredResult).toEqual({
+      ok: false,
+      reason: "url_token_expired"
+    });
+    expect(JSON.stringify({ revokedResult, expiredResult })).not.toContain("rawToken");
+    expect(JSON.stringify({ revokedResult, expiredResult })).not.toContain("launchUrl");
+    expect(repository.lastRotatedHash).toBeNull();
+  });
+
   it("denies unlinked and non-token admins", async () => {
     const repository = new FakeUrlAccessTokenAdminRepository();
     const service = new UrlAccessTokenAdminService(repository);
@@ -332,6 +388,81 @@ describe("UrlAccessTokenAdminService", () => {
 });
 
 describe("URL access token admin mysql authorization boundary", () => {
+  it("predicates rotation updates to active tokens without clearing revocation", async () => {
+    let updateSql = "";
+    const repository = createUrlAccessTokenAdminRepository({
+      execute: async (sql: string) => {
+        if (sql.includes("UPDATE url_access_tokens")) {
+          updateSql = sql;
+          return [{
+            affectedRows: 1
+          }];
+        }
+
+        if (sql.includes("FROM url_access_tokens")) {
+          return [[{
+            id: "token-1",
+            label: "Main OBS overlay",
+            surface: "overlay",
+            scopes: JSON.stringify(["overlay:connect"]),
+            requiresLogin: 0,
+            expiresAt: null,
+            revokedAt: null,
+            lastUsedAt: null,
+            createdAt: new Date("2026-06-20T10:00:00.000Z"),
+            updatedAt: new Date("2026-06-20T11:00:00.000Z")
+          }]];
+        }
+
+        throw new Error("unexpected token rotation query");
+      }
+    } as unknown as DatabasePool, {
+      launchEnvironment: "production"
+    });
+
+    await expect(repository.rotateToken("token-1", "a".repeat(64))).resolves.toMatchObject({
+      id: "token-1",
+      revokedAt: null
+    });
+    expect(updateSql).toContain("SET token_hash = ?, last_used_at = NULL, updated_at = NOW()");
+    expect(updateSql).not.toContain("revoked_at = NULL");
+    expect(updateSql).toContain("AND revoked_at IS NULL");
+    expect(updateSql).toContain("AND (expires_at IS NULL OR expires_at > NOW())");
+  });
+
+  it("reports terminal when a defensive active-token update loses a race", async () => {
+    const repository = createUrlAccessTokenAdminRepository({
+      execute: async (sql: string) => {
+        if (sql.includes("UPDATE url_access_tokens")) {
+          return [{
+            affectedRows: 0
+          }];
+        }
+
+        if (sql.includes("FROM url_access_tokens")) {
+          return [[{
+            id: "token-1",
+            label: "Main OBS overlay",
+            surface: "overlay",
+            scopes: JSON.stringify(["overlay:connect"]),
+            requiresLogin: 0,
+            expiresAt: null,
+            revokedAt: new Date("2026-06-20T11:00:00.000Z"),
+            lastUsedAt: null,
+            createdAt: new Date("2026-06-20T10:00:00.000Z"),
+            updatedAt: new Date("2026-06-20T11:00:00.000Z")
+          }]];
+        }
+
+        throw new Error("unexpected token rotation query");
+      }
+    } as unknown as DatabasePool, {
+      launchEnvironment: "production"
+    });
+
+    await expect(repository.rotateToken("token-1", "a".repeat(64))).resolves.toBe("terminal");
+  });
+
   it("excludes revoked and expired role grants while preserving active delegated access", async () => {
     let actorSql = "";
     const repository = createUrlAccessTokenAdminRepository({
@@ -468,5 +599,58 @@ describe("URL access token admin route boundary", () => {
         rawToken: expect.any(String)
       }
     });
+  });
+
+  it("rejects revoked and expired token rotation without one-time token material", async () => {
+    const repository = new FakeUrlAccessTokenAdminRepository("production");
+    repository.tokens.set("revoked-token", createToken({
+      id: "revoked-token",
+      label: "Revoked overlay",
+      revokedAt: "2026-06-20T11:00:00.000Z"
+    }));
+    repository.tokens.set("expired-token", createToken({
+      id: "expired-token",
+      label: "Expired overlay",
+      expiresAt: "2000-01-01T00:00:00.000Z"
+    }));
+    const server = Fastify();
+    registerUrlAccessTokenAdminRoutes(server, {
+      launchEnvironment: "production",
+      getAuthSession: async () => ({
+        user: {
+          id: "auth-user"
+        }
+      }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new UrlAccessTokenAdminService(repository, {
+        launchEnvironment: "production"
+      })
+    });
+
+    const revokedResponse = await server.inject({
+      method: "POST",
+      url: "/admin/tokens/revoked-token/rotate"
+    });
+    const expiredResponse = await server.inject({
+      method: "POST",
+      url: "/admin/tokens/expired-token/rotate"
+    });
+
+    expect(revokedResponse.statusCode).toBe(409);
+    expect(revokedResponse.json()).toEqual({
+      ok: false,
+      reason: "url_token_revoked"
+    });
+    expect(expiredResponse.statusCode).toBe(409);
+    expect(expiredResponse.json()).toEqual({
+      ok: false,
+      reason: "url_token_expired"
+    });
+    expect(JSON.stringify({
+      revoked: revokedResponse.json(),
+      expired: expiredResponse.json()
+    })).not.toMatch(/rawToken|launchUrl|accessToken/);
   });
 });

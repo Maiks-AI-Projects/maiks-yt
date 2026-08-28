@@ -24,6 +24,16 @@ const hashToken = (token: string): string =>
 
 const generateRawToken = (): string => randomBytes(32).toString("base64url");
 
+const isExpiredUrlAccessToken = (expiresAt: string | null, now: Date): boolean => {
+  if (!expiresAt) {
+    return false;
+  }
+
+  const expiresAtTime = Date.parse(expiresAt);
+
+  return Number.isNaN(expiresAtTime) || expiresAtTime <= now.getTime();
+};
+
 const parsePermissionArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
     return value;
@@ -168,6 +178,20 @@ export class UrlAccessTokenAdminService {
       };
     }
 
+    if (existing.revokedAt) {
+      return {
+        ok: false,
+        reason: "url_token_revoked"
+      };
+    }
+
+    if (isExpiredUrlAccessToken(existing.expiresAt, new Date())) {
+      return {
+        ok: false,
+        reason: "url_token_expired"
+      };
+    }
+
     const rawToken = generateRawToken();
     const rotatedToken = await this.repository.rotateToken(input.id, hashToken(rawToken));
 
@@ -175,6 +199,13 @@ export class UrlAccessTokenAdminService {
       return {
         ok: false,
         reason: "url_token_not_found"
+      };
+    }
+
+    if (rotatedToken === "terminal") {
+      return {
+        ok: false,
+        reason: "url_token_terminal"
       };
     }
 

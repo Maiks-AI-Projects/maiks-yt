@@ -69,7 +69,10 @@ export type UrlAccessTokenAdminMutationResult =
       | "url_token_admin_forbidden"
       | "url_token_admin_invalid_input"
       | "url_token_not_found"
-      | "url_token_unsupported_target";
+      | "url_token_unsupported_target"
+      | "url_token_revoked"
+      | "url_token_expired"
+      | "url_token_terminal";
   };
 
 export type UrlAccessTokenAdminRevokeResult =
@@ -90,6 +93,6 @@ export interface UrlAccessTokenAdminRepository {
   listTokens(): Promise<readonly UrlAccessTokenAdminListItem[]>;
   getToken(id: string): Promise<UrlAccessTokenAdminListItem | null>;
   createToken(input: UrlAccessTokenAdminInsertInput): Promise<UrlAccessTokenAdminListItem>;
-  rotateToken(id: string, tokenHash: string): Promise<UrlAccessTokenAdminListItem | "not-found">;
+  rotateToken(id: string, tokenHash: string): Promise<UrlAccessTokenAdminListItem | "not-found" | "terminal">;
   revokeToken(id: string): Promise<UrlAccessTokenAdminListItem | "not-found">;
 }
