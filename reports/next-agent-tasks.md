@@ -2,10 +2,10 @@
 
 ## Public Profiles hygiene gate
 
-- Choices list `fc1c6e1363e3d9f6` has both answers entered but is still open and unsubmitted. Do not treat the entered `/about/ai` or profile-handle selections as final authorization until the list status is `submitted`.
-- The current public Profile pages are static demonstrations with nonfunctional search and unimplemented provider/supporter/donation/perk claims. Do not present them as live product behavior.
-- Desktop and mobile candidates are registered at `reports/visual-concepts/production-profiles-planned-state/`. Obtain Michael's approval before materially changing the page. The generated navigation/footer are placeholders; preserve the real production shell.
-- After approval, remove fake search semantics and unimplemented claims while preserving the exact private text and no-image behavior. Do not implement handles, real search, image routing, assignment, migration, backfill, or provider-derived identity until the separate choice list is submitted.
+- Choices list `fc1c6e1363e3d9f6` was submitted and completed at `2026-08-28T19:48:05Z`. Treat `/about/ai` as approved for the exact prepared page and the profile-handle answer as `Generate files` only, which authorizes migration generation but not application, live assignment, provider exposure, or account mutation.
+- The first Profiles planned-state candidates are rejected and superseded. The active direction is real DB-backed example profiles named `maiks` and `maiks-private` with standard `Public`/`Private` labels; public `maiks` is the rich safe example, Michael's examples rank first below 100 users, and the private boundary stays name plus private label/message with no image or other details.
+- The current public Profile pages remain static demonstrations until the reviewed UI is replaced. Do not present them as live product behavior.
+- A new visual proposal and exact Owner approval are required before profile UI implementation. Do not implement handles, real search, image routing, assignment, migration application, backfill, provider-derived identity, or account mutation until that happens.
 
 ## Public Music browser contract deployed
 
@@ -38,17 +38,17 @@
 
 - `/about/health` is deployed and public-HTTP verified at commit `93c353c`. Keep the pre-tumor broken-hand and unrelated head-injury history source-only unless Michael explicitly changes that boundary.
 - Michael selected the direct, warm, matter-of-fact writing voice at `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df`. Preserve authentic quirks; never manufacture typos or fake mistakes. The result authorizes page-by-page review, not a blind whole-site rewrite.
-- Michael selected a dedicated AI-use page at `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. Exact copy and desktop/mobile references are prepared. The implementation decision is now in `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`; do not implement before that list is submitted.
-- The same focused list asks whether to approve the reviewed profile-handle proposal and whether to generate migration files for review. Generating files does not authorize applying them or assigning a live handle.
+- Michael selected a dedicated AI-use page at `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. The exact prepared `/about/ai` page was implemented, deployed, and publicly verified at source `127d1a3218d336938be66b255f87e7158a1bb003`.
+- The same focused list selected `Generate files` for the profile-handle gate. Migration `0030_certain_abomination.sql` and its reviewed schema/snapshot files were generated and committed at `fcf1c8f2e23f265692c82efc15494161d11a3e08`. Do not apply or deploy it, assign a live handle, expose provider data, or mutate accounts without the separate gate.
 - Keep any Linus Torvalds reference minimal and primary-source linked. The verified personal-choice follow-up is `https://lore.kernel.org/linux-media/CAHk-%3Dwi7KN9_DYdmaE2chC92EhTrO%3DWtx1bPBER-EQfAZ8FREg%40mail.gmail.com/`; Michael's explanation must remain his own.
 
 ## Reviewed profile-handle audit gate
 
-- `reports/profile-handle-audit-event-store-proposal.md` is reviewed and ready as a design. It does not authorize schema or migration generation, application, live account changes, or `/profiles/maiks` assignment.
+- `reports/profile-handle-audit-event-store-proposal.md` is the reviewed design behind generated migration `0030_certain_abomination.sql`. Generation is complete; application, deployment, live account changes, and `/profiles/maiks` assignment remain unauthorized.
 - Preserve the operation-header plus exact ordered-detail model. Successful canonical `profile_handles` mutations and audit rows must commit in one transaction. Same-key same-request retries replay the complete stored operation; key reuse with different input rejects without mutation.
 - First release is Owner-only. Do not add system actors, account-deletion transitions, self-claim, provider-derived identity, or delegated assignment as shortcuts. Public and browser DTOs must reject all raw operation, event, domain-user, auth, and provider ids.
 - Migration generation must prove an enforceable append-only database boundary and the exact operation/detail cardinality constraints. If neither reviewed writer privileges nor rejection triggers can guarantee immutability, stop before generating SQL.
-- The active Owner gate is `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`; it is currently open and unsubmitted.
+- Choice `fc1c6e1363e3d9f6` is complete and its generation-only result has been carried out at `fcf1c8f`. The active gates are migration application, live assignment, provider exposure, and exact visual approval for the replacement profile UI.
 
 ## Production deployment policy
 
@@ -79,7 +79,7 @@
 ## Real profile decision gate
 
 - Michael's settled privacy behavior is not up for re-litigation: private accounts remain searchable, render only the account name and `This account is set to private`, and expose no profile image.
-- Michael already settled the address, reuse, and manual-assignment choices. The reviewed read-model and audit/event-store proposals are now complete. The current next-step choice is at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`; wait for submission before generating migration files. Generating files would still not authorize applying them, reserving or assigning `maiks`, backfilling users, or changing live accounts.
+- Michael already settled the address, reuse, and manual-assignment choices. The reviewed read-model and audit/event-store proposals are complete, and migration files were generated at `fcf1c8f`. Do not apply them, reserve or assign `maiks`, backfill users, or change live accounts. The next UI gate is exact Owner approval of the replacement navigation/account/profile images.
 
 ## Twitch chat-reply readiness deployed
 

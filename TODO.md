@@ -22,12 +22,14 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Deploy this correctness tranche through the normal reviewed production procedure with target and rollback evidence (`c98486f`, preserved by later service-specific rollouts).
 - [ ] Verify same-account session recovery, terminal token rotation, multi-link Schedule editing, and Project publish/status concurrency against the live production database after deployment.
 - [x] Reconcile the production Drizzle ledger with the 30 migrations already applied live. Commit `49c0b23` restores historical game-catalog migrations 0027/0028, preserves the unchanged music migration as 0029, repairs the snapshot chain to 67 tables, and passes independent review plus two no-op disposable generation checks. No live migration or service change was required.
-- [x] Design and independently review the separate profile-handle audit/event store required before any handle transition ships. `reports/profile-handle-audit-event-store-proposal.md` now defines an Owner-only operation/detail model, atomic canonical-state and audit writes, append-only enforcement gates, finite replay/rejection behavior, and strict private identity boundaries. This is design evidence only; no schema or migration was generated.
+- [x] Design and independently review the separate profile-handle audit/event store required before any handle transition ships. `reports/profile-handle-audit-event-store-proposal.md` defines the Owner-only operation/detail model, atomic canonical-state and audit writes, append-only enforcement gates, finite replay/rejection behavior, and strict private identity boundaries used by generated migration `0030`. Application and live handle work remain separate.
 - [x] Remove raw internal ids from anonymous Project list/detail contracts, reject unrecognized response shapes in Web consumers, preserve private admin mutation ids, and deploy/live-verify the bounded Web/API slice (`ab2682f`).
 - [x] Split the anonymous Schedule contract from the private admin model, remove every schedule/project/game-link/game id and operator-only field, add strict bounded Web parsing, and deploy/live-verify the bounded Web/API slice (`c6b32aa`).
 - [x] Remove the raw game database id from the anonymous Games contract, keep slug as the unique public identity, reject duplicate/malformed public payloads, preserve private admin and suggestion ids, and deploy/live-verify the bounded Web/API slice (`87cb83c`).
 - [x] Replace anonymous Music catalog track/source database ids with opaque public references, resolve requests server-side in the request transaction, add strict finite Web parsing, and preserve every private admin/playback/VLC identifier and behavior (`e5f0dd8`).
-- [ ] Submit the prepared production approval list at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6` before implementing `/about/ai` or generating the profile-handle migration files.
+- [x] Submit the prepared production approval list at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`; it was submitted and completed on 2026-08-28T19:48:05Z. `/about/ai` exact prepared page implementation is authorized, and the profile-handle answer is `Generate files`, which authorizes migration generation only and not application, live assignment, provider exposure, or account mutation.
+- [x] Implement, independently review, deploy, and publicly verify the approved `/about/ai` page (`127d1a3`; deployed image config `sha256:d1fd3479c7d5586dfbcb18d0065500ed837237214b1cc6771d15425cd6345860`).
+- [x] Generate and independently review the profile-handle persistence migration files without applying them (`fcf1c8f`; `0030_certain_abomination.sql`).
 
 ## Production Operator Contract Pass - 2026-08-28
 
@@ -327,8 +329,8 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Build the first general `/about` draft as a mostly text-led page about who Michael is now.
 - [x] Build the first general `/about/health` draft with the approved temporary MRI image.
   - 2026-08-28 commit `93c353c` rewrites the live page as practical current context for fellow creators and viewers. It keeps current tumor, brain-damage, ADHD, and daily effects public while retaining old fractures and an unrelated head injury as source-only recoverable history.
-- [ ] Choose the site-wide public writing direction before a page-by-page copy proposal. Decision: `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df`.
-- [ ] Decide whether to propose a dedicated short `/about/ai` page. Decision: `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. A Yes answer authorizes a reviewed proposal, not automatic implementation or deployment.
+- [x] Choose the site-wide public writing direction before page-by-page copy work. Michael selected **Direct, warm, and matter-of-fact** at `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df`.
+- [x] Add the approved dedicated short `/about/ai` page and deploy it at `127d1a3`. The page is a disclosure only and adds no AI runtime behavior.
 - [x] Add a public-safe yearly medical summary using major events, deduplicated scan counts, and lower-bound laboratory collection counts from the currently available records.
 - [x] Build `/about/history` as a long page-scroll vertical timeline, initially containing only Michael's birth and completed birthdays.
 - [x] Add privacy-trimmed government residence history to `/about/history`, using dates and municipality/place names only while omitting exact addresses and administrative non-moves.
@@ -341,10 +343,11 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Redesign `/community-rules` as the production Community participation guide.
   - [x] Replace the `/profiles` placeholder with a search mock plus separate searchable public and private Michael profile examples while live profile, identity, and recognition work continues separately.
   - [x] Audit the real profile data boundary: current safe public fields are display name, visibility, and managed avatar only; linked accounts, auth rows, roles, provider identities, recognition, perks, and verified game names remain private/unmodelled.
-  - [x] Approve the real-profile handle gate: `/profiles/maiks`, one-year retired-handle hold, and manual Owner assignment for existing accounts.
+  - [x] Approve the real-profile handle gate: `/profiles/maiks`, one-year retired-handle hold, manual Owner assignment for existing accounts, and the DB-backed example-profile direction (`maiks` / `maiks-private`) with standard `Public` / `Private` labels.
   - [x] Add the reviewed Domain contract for profile-handle normalization, reserved-name rules, atomic transitions, safe public identifiers, and minimized public/private projections. Commit `a752c67` has no runtime consumer and was not deployed.
   - [x] Complete the read-only production MariaDB preflight and correct the proposal so user-reference columns match `users.id` at `utf8mb4_general_ci` while handles remain `ascii_bin`.
-  - [ ] Resolve audit storage, the `maiks` reservation data action, public image routing, and protected backup/restore proof; then obtain separate approval before generating or applying the one-table profile-handle migration.
+  - [x] Resolve and review the first profile-handle persistence/audit design, then generate migration `0030_certain_abomination.sql` at `fcf1c8f` without applying it.
+  - [ ] Complete the protected backup/restore and application gate before applying migration `0030`, reserving or assigning `maiks`, backfilling users, or changing live accounts.
   - [ ] After the migration gate, add the real public search/detail API and UI and replace the labelled static demonstrations without publishing operational identity data.
   - [x] Remove legacy development identity/status routes from the production API route table and move the real Connections provider list to an authenticated minimal account endpoint. Deployment remains separate.
   - [x] Replace one-year immutable managed-avatar caching with bounded revalidation for minimal/public profiles and `private, no-store` for private/denied image responses. Deployment remains separate.
@@ -367,6 +370,17 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Redesign `/updates`, `/updates/[slug]`, and `/feed.xml` over a typed public updates API; keep labelled fixtures outside production and publish only real records on production.
 - [ ] Keep `/progress` synchronized as planned destinations become real pages.
 - [x] Give unfinished public destinations compact plan pages at their intended URLs, backed by the same data as `/progress` and linked to the matching roadmap item.
+- [ ] Later: add a public `/tour` page after the current navigation, account, and real-profile work is settled enough to depict accurately.
+  - Start with a clear image-based guide to the real channel pages, live participation, accounts and profiles, TTS, Music, projects, schedule, games, and other member features that exist by then.
+  - Mark available, account-required, planned, and temporarily unavailable features truthfully. Do not invent screenshots, activity, controls, scarcity, or capabilities.
+  - Later, replace or supplement image sections with short themed videos. Michael may publish each video through the matching YouTube channel or account; the Tour page should collect every relevant version in one place.
+  - Keep this outside the active production queue until the current navigation/account/profile direction is approved and stable.
+- [ ] Later: generate a production-derived human-designer handoff kit after the navigation/account/profile tranche is complete.
+  - Current foundations are partial: Web CSS is split across global and module files, Overlay has typed `default` and `satisfactory` themes, Vite already produces app-specific static bundles, visual smoke covers selected live surfaces, and a few visual-contract and asset-manifest examples exist. There is no Storybook-style catalogue, production-wide CSS export, catalogue-wide theme switcher, complete state inventory, deterministic handoff command, or unified asset/source map.
+  - Generate one portable compiled CSS bundle and one standalone HTML catalogue from current production-owned sources. Cover the shared website foundation, every supported theme, reusable visual element, representative page section, responsive variant, and loading, empty, error, locked, and disabled state with synthetic public-safe fixtures only.
+  - Include visible theme labels and switching plus a machine-readable asset/source map that identifies safe design edits and preserves production behavior and accessibility boundaries. The production React applications remain authoritative for interaction behavior.
+  - Add deterministic offline `handoff:build` and `handoff:check` commands. Two clean builds must be byte-identical with matching SHA-256 values. Checks must fail on missing theme variables, unmapped components or assets, missing required states or viewports, external URLs, sensitive fixture keys, broken local links or assets, accessibility-contract failures, or generated-output drift.
+  - Do not reuse tokenized live visual-smoke URLs or private/live screenshots in the portable kit. Explicitly classify personal assets before inclusion.
 
 ## 9A. Manual Admin Content Tools
 

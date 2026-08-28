@@ -2,19 +2,19 @@
 
 ## Status
 
-Candidate v1 for Michael's approval. These images do not authorize source implementation, handle persistence, search, image routing, migration, deployment, or live account changes.
+Rejected and superseded. These candidate v1 images remain archival evidence of the old direction only and do not authorize source implementation, handle persistence, search, image routing, migration, deployment, or live account changes.
 
 The generated navigation labels, footer links, and copyright year are placeholders. The implementation must preserve the exact current production public shell, navigation, footer, logo, and responsive behavior. Approval applies to the body layout, density, copy direction, and private-profile projection only.
 
 ## Acceptance direction
 
-- Replace the fake search and static public-profile results with an honest planned state.
-- Say plainly that the old examples were not connected to real accounts.
-- Do not advertise provider verification, role sync, supporter ranks, donations, contributions, verified games, or perks before those capabilities exist.
-- Keep the planned state compact, text-led, and visually consistent with the current public Maiks.yt site.
-- Keep the private example searchable in the future, but expose only the account name and `This account is set to private`.
-- Render no profile image, provider identity, account metadata, recognition, or other detail for a private account.
-- Do not implement real handles, search, image routing, assignment, migration, backfill, or provider-derived identity in this cleanup.
+- The active direction is real DB-backed example profiles named `maiks` and `maiks-private` with standard `Public` and `Private` labels.
+- Public `maiks` should be the rich safe example of connectable services, games, accounts, and social links, with Michael's examples ranked first below 100 users.
+- Private `maiks-private` should remain name plus private label/message only, with no image, provider identity, account metadata, recognition, or other detail.
+- Keep the implementation compact, text-led, and visually consistent with the current public Maiks.yt site.
+- Preserve the exact current production public shell, navigation, footer, logo, and responsive behavior.
+- Do not implement handles, search, image routing, assignment, migration, backfill, provider-derived identity, or live account changes from these superseded candidates.
+- A new visual proposal and exact Owner approval are required before profile UI implementation begins.
 
 ## Artifacts
 
@@ -36,4 +36,4 @@ Both were generated with the built-in ImageGen tool on 2026-08-28.
 
 ## Gate
 
-Michael must approve or correct both candidates before the Profiles cleanup begins. Approval authorizes only a bounded implementation against this record. Implementation, independent review, deployment, and live verification remain separate delivery states.
+Michael already rejected this candidate pair in favor of the revised DB-backed example-profile direction. Keep these files as superseded references only. Implementation, independent review, deployment, and live verification remain separate delivery states after the new visual proposal and exact Owner approval.

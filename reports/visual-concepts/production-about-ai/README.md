@@ -2,7 +2,7 @@
 
 ## Status
 
-Candidate v1 for Michael's approval. These images do not authorize source implementation, deployment, public navigation changes, or any AI runtime behavior.
+Approved and delivered for the exact prepared `/about/ai` page. Source `127d1a3218d336938be66b255f87e7158a1bb003` was deployed and publicly verified. These images do not authorize any new AI runtime behavior or broader public navigation changes.
 
 The exact proposed public copy and its factual boundaries remain authoritative in `reports/production-about-ai-page-proposal.md`. Image-generated body text is representative layout content, not approved final wording.
 
@@ -35,4 +35,4 @@ Both were generated with the built-in ImageGen tool on 2026-08-28.
 
 ## Gate
 
-Michael must approve or correct the desktop and mobile direction before `/about/ai` implementation begins. Approval of these images will approve layout direction only; exact copy still follows the proposal, and implementation, deployment, and live verification remain separate delivery states.
+Michael approved the desktop and mobile direction for the exact prepared page. Source `127d1a3` implemented it and the public route was deployed and verified. The exact copy still follows the proposal; broader AI behavior and navigation remain separate work.
