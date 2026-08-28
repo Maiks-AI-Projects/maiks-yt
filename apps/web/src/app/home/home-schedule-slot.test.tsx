@@ -1,5 +1,8 @@
 import type { PublicProjectSummary } from "@maiks-yt/domain/projects";
-import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
+import type {
+  StreamScheduleEntry,
+  StreamScheduleGameLink
+} from "@maiks-yt/domain/schedule";
 import type { PublicUpdateSummary } from "@maiks-yt/domain/updates";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectListLoadResult } from "../projects/project-read-data";
 import type { StreamScheduleLoadResult } from "../schedule/stream-schedule-data";
 import type { PublicUpdateListLoadResult } from "../updates/public-update-data";
+import { HomeCurrentSection } from "./home-current-section";
+import type { HomeProjectSlot } from "./home-project-data";
 import { getHomeScheduleSlot } from "./home-schedule-data";
 
 const getPublicProjects = vi.hoisted(() => vi.fn());
@@ -49,6 +54,23 @@ const createStream = (
   cancellationReason: null,
   createdAt: "2026-08-28T12:00:00.000Z",
   updatedAt: "2026-08-28T12:00:00.000Z",
+  ...overrides
+});
+
+const createGameLink = (
+  id: string,
+  overrides: Partial<StreamScheduleGameLink> = {}
+): StreamScheduleGameLink => ({
+  id,
+  gameId: `game-${id}`,
+  slug: id,
+  title: `Game ${id}`,
+  platformLabel: null,
+  ownershipStatus: "owned",
+  interestStatus: "currently-playing",
+  relationship: "current",
+  publicNote: null,
+  sortOrder: 0,
   ...overrides
 });
 
@@ -98,6 +120,14 @@ const updateLoaded = (updates: readonly PublicUpdateSummary[]): PublicUpdateList
   updates
 });
 
+const emptyProjectSlot: HomeProjectSlot = { status: "empty" };
+
+const renderSchedulePanel = (
+  scheduleSlot: ReturnType<typeof getHomeScheduleSlot>
+): string => renderToStaticMarkup(
+  <HomeCurrentSection projectSlot={emptyProjectSlot} scheduleSlot={scheduleSlot} />
+);
+
 describe("home schedule slot", () => {
   beforeEach(() => {
     vi.resetModules();
@@ -125,6 +155,52 @@ describe("home schedule slot", () => {
     ]))).toEqual({
       status: "live",
       title: "Live production notes",
+      timeLabel: "formatted 2026-08-28T18:00:00.000Z"
+    });
+  });
+
+  it("projects the first ordered valid game focus for the selected stream", () => {
+    const slot = getHomeScheduleSlot(loaded([
+      createStream("with-games", {
+        title: "Stream with game focus",
+        gameLinks: [
+          createGameLink("first-game", {
+            title: "First public game",
+            platformLabel: "Steam"
+          }),
+          createGameLink("second-game", {
+            title: "Second public game",
+            platformLabel: "Xbox"
+          })
+        ]
+      })
+    ]));
+
+    expect(Object.keys(slot)).toEqual(["status", "title", "timeLabel", "gameFocus"]);
+    expect(slot.status === "planned" ? Object.keys(slot.gameFocus ?? {}) : []).toEqual([
+      "title",
+      "platformLabel"
+    ]);
+    expect(slot).toEqual({
+      status: "planned",
+      title: "Stream with game focus",
+      timeLabel: "formatted 2026-08-28T18:00:00.000Z",
+      gameFocus: {
+        title: "First public game",
+        platformLabel: "Steam"
+      }
+    });
+  });
+
+  it("omits game focus when the selected stream has no games", () => {
+    const slot = getHomeScheduleSlot(loaded([
+      createStream("without-games")
+    ]));
+
+    expect(Object.keys(slot)).toEqual(["status", "title", "timeLabel"]);
+    expect(slot).toEqual({
+      status: "planned",
+      title: "Stream without-games",
       timeLabel: "formatted 2026-08-28T18:00:00.000Z"
     });
   });
@@ -179,6 +255,113 @@ describe("home schedule slot", () => {
     } as unknown as StreamScheduleLoadResult;
 
     expect(getHomeScheduleSlot(result)).toEqual({ status: "unavailable" });
+  });
+
+  it("omits malformed or missing game links without making the schedule unavailable", () => {
+    expect(getHomeScheduleSlot(loaded([
+      createStream("not-array", {
+        gameLinks: null as unknown as StreamScheduleEntry["gameLinks"]
+      })
+    ]))).toEqual({
+      status: "planned",
+      title: "Stream not-array",
+      timeLabel: "formatted 2026-08-28T18:00:00.000Z"
+    });
+
+    const slot = getHomeScheduleSlot(loaded([
+      createStream("malformed-link", {
+        gameLinks: [
+          {
+            title: "Broken game",
+            platformLabel: "Leaky platform",
+            steamAppId: "123"
+          },
+          createGameLink("valid-after-broken", {
+            title: "Valid game"
+          })
+        ] as unknown as StreamScheduleEntry["gameLinks"]
+      })
+    ]));
+
+    expect(slot).toEqual({
+      status: "planned",
+      title: "Stream malformed-link",
+      timeLabel: "formatted 2026-08-28T18:00:00.000Z",
+      gameFocus: {
+        title: "Valid game"
+      }
+    });
+  });
+
+  it("bounds game focus copy and omits absent platform labels", () => {
+    const longGameSlot = getHomeScheduleSlot(loaded([
+      createStream("long-game", {
+        gameLinks: [
+          createGameLink("long-game-focus", {
+            title: `${"G".repeat(96)}tail`,
+            platformLabel: `${"P".repeat(64)}tail`
+          })
+        ]
+      })
+    ]));
+    const noPlatformSlot = getHomeScheduleSlot(loaded([
+      createStream("no-platform", {
+        gameLinks: [
+          createGameLink("no-platform-focus", {
+            title: "No platform game",
+            platformLabel: null
+          })
+        ]
+      })
+    ]));
+
+    expect(longGameSlot.status).toBe("planned");
+    expect(longGameSlot.status === "planned" ? longGameSlot.gameFocus?.title : "").toHaveLength(96);
+    expect(longGameSlot.status === "planned" ? longGameSlot.gameFocus?.platformLabel : "").toHaveLength(64);
+    expect(longGameSlot.status === "planned" ? longGameSlot.gameFocus?.title : "").not.toContain("tail");
+    expect(longGameSlot.status === "planned" ? longGameSlot.gameFocus?.platformLabel : "").not.toContain("tail");
+    expect(noPlatformSlot.status === "planned" ? Object.keys(noPlatformSlot.gameFocus ?? {}) : []).toEqual(["title"]);
+  });
+
+  it("appends game focus to live and planned schedule body copy without leaking raw game fields", () => {
+    const plannedMarkup = renderSchedulePanel(getHomeScheduleSlot(loaded([
+      createStream("planned-game", {
+        gameLinks: [
+          {
+            ...createGameLink("planned-focus", {
+              title: "Public planned game",
+              platformLabel: "Steam",
+              publicNote: "Raw public note",
+              sortOrder: 42
+            }),
+            steamAppId: "999",
+            storeUrl: "https://store.example/game",
+            artworkUrl: "https://cdn.example/art.png"
+          } as unknown as StreamScheduleGameLink
+        ]
+      })
+    ])));
+    const liveMarkup = renderSchedulePanel(getHomeScheduleSlot(loaded([
+      createStream("live-game", {
+        status: "live",
+        gameLinks: [
+          createGameLink("live-focus", {
+            title: "Public live game",
+            platformLabel: null
+          })
+        ]
+      })
+    ])));
+
+    expect(plannedMarkup).toContain("Game: Public planned game / Steam.");
+    expect(liveMarkup).toContain("Game: Public live game.");
+    expect(plannedMarkup).not.toContain("planned-focus");
+    expect(plannedMarkup).not.toContain("game-planned-focus");
+    expect(plannedMarkup).not.toContain("Raw public note");
+    expect(plannedMarkup).not.toContain("42");
+    expect(plannedMarkup).not.toContain("999");
+    expect(plannedMarkup).not.toContain("store.example");
+    expect(plannedMarkup).not.toContain("cdn.example");
   });
 
   it("uses the unavailable fallback when schedule streams are not an array", () => {

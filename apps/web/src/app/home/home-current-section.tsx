@@ -21,18 +21,26 @@ const getSchedulePanelCopy = (scheduleSlot: HomeScheduleSlot): {
   eyebrow: string;
 } => {
   if (scheduleSlot.status === "live") {
+    const gameCopy = scheduleSlot.gameFocus
+      ? ` Game: ${scheduleSlot.gameFocus.title}${scheduleSlot.gameFocus.platformLabel ? ` / ${scheduleSlot.gameFocus.platformLabel}` : ""}.`
+      : "";
+
     return {
       eyebrow: "Live now",
       heading: scheduleSlot.title,
-      body: `Started ${scheduleSlot.timeLabel}. The schedule has the latest status.`
+      body: `Started ${scheduleSlot.timeLabel}. The schedule has the latest status.${gameCopy}`
     };
   }
 
   if (scheduleSlot.status === "planned") {
+    const gameCopy = scheduleSlot.gameFocus
+      ? ` Game: ${scheduleSlot.gameFocus.title}${scheduleSlot.gameFocus.platformLabel ? ` / ${scheduleSlot.gameFocus.platformLabel}` : ""}.`
+      : "";
+
     return {
       eyebrow: "Up next",
       heading: scheduleSlot.title,
-      body: `${scheduleSlot.timeLabel}. Plans can still change, so the schedule stays authoritative.`
+      body: `${scheduleSlot.timeLabel}. Plans can still change, so the schedule stays authoritative.${gameCopy}`
     };
   }
 

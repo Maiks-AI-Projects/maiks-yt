@@ -8,6 +8,14 @@
 - Independent final review reports zero standards and zero specification findings. Narrow checks pass with 159 Domain tests, 202 Web tests, Web typecheck/build, architecture checks, and diff checks. Full `pnpm check:review` remains a coordinator rerun.
 - No deployment, server state, GUI, browser, screenshot, live user workflow, mobile rendered-fit proof, or production runtime verification was performed. Deployment and real homepage verification remain separate gates.
 
+## 2026-08-28 production homepage scheduled-game focus
+
+- The existing homepage live/planned schedule panel now optionally appends the first ordered valid public game title and optional platform label from the selected schedule entry. No extra fetch was added.
+- The schedule projection validates each `StreamScheduleGameLink` before use, but exposes only bounded game title and optional bounded platform label. Malformed optional game links are omitted without making an otherwise usable schedule unavailable.
+- Empty/unavailable fallback copy, layout, classes, CSS, project behavior, and featured-Update behavior were preserved.
+- Independent final review reports zero standards and zero specification findings. Narrow checks pass with 159 Domain tests, 207 Web tests, Web typecheck/build, architecture checks, and diff checks. Full `pnpm check:review` remains a coordinator rerun.
+- No deployment, server state, GUI, browser, screenshot, live user workflow, rendered-fit proof, or production runtime verification was performed. Deployment and real homepage verification remain separate gates.
+
 ## 2026-08-28 production homepage real-project integration
 
 - The production homepage now starts the real public schedule and project loaders concurrently, once each, before deriving the homepage slots.
