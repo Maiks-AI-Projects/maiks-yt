@@ -77,7 +77,7 @@ This is DDL intent for the later migration-generation task. It is not authorizat
 create table profile_handles (
   handle varchar(32) character set ascii collate ascii_bin not null,
   state enum('active', 'reserved', 'retired') not null,
-  user_id varchar(36) null,
+  user_id varchar(36) character set utf8mb4 collate utf8mb4_general_ci null,
   reserved_at timestamp null,
   assigned_at timestamp null,
   retired_at timestamp null,
@@ -91,7 +91,7 @@ create table profile_handles (
     'deleted_user',
     'admin_retired'
   ) not null,
-  operator_user_id varchar(36) null,
+  operator_user_id varchar(36) character set utf8mb4 collate utf8mb4_general_ci null,
   created_at timestamp not null default current_timestamp,
   updated_at timestamp not null default current_timestamp on update current_timestamp,
   primary key (handle),
@@ -133,61 +133,36 @@ create table profile_handles (
       and transition_kind in ('renamed', 'deleted_user', 'admin_retired')
     )
   )
-) engine = InnoDB;
+) engine = InnoDB default character set utf8mb4 collate utf8mb4_general_ci;
 ```
 
 DDL notes:
 
 - `character set ascii collate ascii_bin` is part of the proposal, not a nice-to-have. It keeps handle equality byte-oriented for the allowed ASCII set and makes case-only variants collide after normalization.
+- `user_id` and the proposed `operator_user_id` explicitly use `character set utf8mb4 collate utf8mb4_general_ci` to match production `users.id`. Do not let either column inherit the handle collation or another table/database default.
+- `engine = InnoDB default character set utf8mb4 collate utf8mb4_general_ci` is explicit. The handle column remains the deliberate per-column `ascii_bin` exception.
 - `varchar(32)` is the stored handle length. Domain normalization accepts 3 to 32 characters after removing one optional leading `@`.
 - The primary key on `handle` makes one state row authoritative.
 - `unique key profile_handles_user_id_uidx (user_id)` allows many `NULL` values in MariaDB while limiting a domain user to one active handle. The state check prevents reserved or retired rows from carrying a `user_id`.
 - The one-year hold is both a database check and a domain rule. The domain rule must compute `reusable_after` as `retired_at + interval 1 year` or later.
-- If Drizzle cannot express the charset/collation or check clauses exactly, the migration-generation task must stop for reviewed SQL adjustment. It must not silently emit default-collation `varchar(32)`.
+- If Drizzle cannot express the engine, table default, per-column charset/collation, nullable unique key, or check clauses exactly, the migration-generation task must stop for reviewed SQL adjustment. It must not silently emit inherited-collation identifier columns or a default-collation handle.
 
-## MariaDB preflight gate
+## Completed MariaDB preflight
 
-I did not query the live database. The exact live MariaDB version, check enforcement, and available ASCII binary collation still need a read-only coordinator preflight before migration generation.
+The coordinator completed the production MariaDB preflight before this revision. This report records the supplied result; this proposal task did not reconnect to or modify the database.
 
-Required read-only preflight:
+- Production runs MariaDB `10.11.16` and enforces `CHECK` constraints.
+- The `ascii_bin` collation is available.
+- Nullable `UNIQUE` behavior and the proposed `SELECT ... FOR UPDATE` locking pattern are compatible with the production server.
+- The transaction isolation level is `REPEATABLE-READ`.
+- The system time zone and observed current timestamps are UTC.
+- Existing production timestamp columns use precision `0`. The proposed unqualified `timestamp` columns therefore match existing precision.
+- Production `users.id` uses `utf8mb4_general_ci`. Both proposed user-reference columns must use `character set utf8mb4 collate utf8mb4_general_ci` explicitly.
+- No `profile_handles` table, `profile_handle_locks` table, or `users.profile_handle` column exists.
+- A session-temporary inherited-collation join probe reproduced `ERROR 1267`, proving that inherited incompatible collations can break the proposed user join.
+- The preflight left no persistent preflight table behind.
 
-```sql
-select
-  version() as version,
-  @@version_comment as version_comment,
-  @@character_set_database as database_charset,
-  @@collation_database as database_collation,
-  @@sql_mode as sql_mode;
-
-show collation
-where Charset = 'ascii'
-  and Collation = 'ascii_bin';
-
-select
-  _ascii'Maiks' collate ascii_bin regexp '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$' as mixed_case_matches,
-  _ascii'maiks' collate ascii_bin regexp '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$' as lowercase_matches,
-  _ascii'ma--iks' collate ascii_bin regexp '--' as double_hyphen_matches;
-
-select table_name
-from information_schema.tables
-where table_schema = database()
-  and table_name in ('profile_handles', 'profile_handle_locks');
-
-select column_name
-from information_schema.columns
-where table_schema = database()
-  and table_name = 'users'
-  and column_name = 'profile_handle';
-```
-
-Required result before migration generation:
-
-- `version_comment` proves MariaDB, and `version()` proves MariaDB 10.2.1 or newer so `CHECK` constraints are enforced by the server family this proposal relies on.
-- `show collation` returns exactly one row for charset `ascii` and collation `ascii_bin`.
-- `mixed_case_matches = 0`, `lowercase_matches = 1`, and `double_hyphen_matches = 1`.
-- No existing `profile_handles`, `profile_handle_locks`, or `users.profile_handle` production state exists. If any exists, stop and reconcile it first.
-
-If the live target cannot prove those results safely, stop before migration generation.
+This closes the version, check-enforcement, collation-availability, nullable-unique, locking, isolation, timezone, timestamp-precision, and conflicting-schema preflight questions. It does not authorize migration generation or application. If the production target, MariaDB version, `users.id` definition, isolation level, or relevant server settings change before migration generation, stop and repeat the read-only preflight.
 
 ## Handle normalization and reserved words
 
@@ -388,10 +363,10 @@ Rules:
 This is the proposed order for later approved work:
 
 1. Review and approve this proposal.
-2. Run the MariaDB preflight above. Stop if the exact results are not proven.
+2. Retain the completed MariaDB preflight evidence above. Repeat it if the production target or relevant server/schema settings change.
 3. Add domain handle normalization, availability, transition, and projection tests without touching the database.
-4. Generate a migration for `profile_handles` only. Stop for review. Do not apply it from the generator task.
-5. Review generated SQL for exact ASCII/binary collation, handle length, state checks, nullable unique user ownership, and unwanted table changes.
+4. Only after separate migration-generation authorization, generate a migration for `profile_handles` only. Stop for review. Do not apply it from the generator task.
+5. Review generated SQL for `InnoDB`, the explicit `utf8mb4_general_ci` table default and user-reference columns, exact handle `ascii_bin`, handle length, enforced state checks, nullable unique user ownership, timestamp precision, and unwanted changes.
 6. Prove a protected database backup and disposable restore/staging migration path.
 7. Apply the reviewed schema migration only through the coordinator migration gate.
 8. Keep all existing users without handles.
@@ -409,12 +384,13 @@ Stop before migration generation if any item below is true:
 - Target provenance differs from `/home/michael/Documents/Codex/maiks-yt-production` on branch `production`.
 - The reviewer rejects one canonical `profile_handles` table.
 - A proposal or generated migration adds `users.profile_handle` or `profile_handle_locks`.
-- The exact live MariaDB preflight is not completed or does not return the required result.
+- The completed production preflight no longer matches the target MariaDB version, `users.id` definition, isolation level, timezone behavior, timestamp precision, or relevant server settings.
+- Generated SQL omits `engine = InnoDB`, the `utf8mb4_general_ci` table default, explicit `utf8mb4_general_ci` on `user_id` or `operator_user_id`, handle `ascii_bin`, the nullable unique `user_id` key, or either enforced `CHECK` constraint.
 - Drizzle cannot express the exact DDL intent and no reviewed SQL adjustment is prepared.
 - The reviewer wants self-service handle claiming in the first slice. This proposal covers manual Owner assignment for existing accounts.
 - The reviewer wants automatic first-handle backfill for existing non-deleted accounts. The approved decision says first handles are Owner-assigned.
 - `/profiles/maiks` cannot be reserved before any public handle claim or assignment path ships.
-- Any generated migration would touch auth tables, provider credential tables, linked-account provider identity fields, money tables, moderation enforcement tables, secrets, deployment config, Docker/Cloudflare config, runtime code, or unrelated reports.
+- Any proposal, generated SQL, or migration would touch auth, money, moderation, provider identity or credential data, secrets, deployment or Docker/Cloudflare configuration, runtime code, `users.profile_handle`, `profile_handle_locks`, or unrelated reports.
 - A preflight finds existing handle schema or production handle data that must be reconciled first.
 - A preflight finds `maiks` already active or reserved for a non-owner purpose.
 - Public profile/image design still uses raw domain, auth, provider, or linked-account ids.
@@ -452,9 +428,12 @@ Database/migration review tests:
 
 - Generated migration adds only `profile_handles`.
 - Generated SQL uses `varchar(32) character set ascii collate ascii_bin`.
+- Generated SQL uses `engine = InnoDB default character set utf8mb4 collate utf8mb4_general_ci`.
+- Generated SQL pins `user_id` and the proposed `operator_user_id` to `character set utf8mb4 collate utf8mb4_general_ci`.
 - Generated SQL has primary key `handle`.
 - Generated SQL has nullable unique `user_id`.
-- Generated SQL has finite `state`, `transition_kind`, and state-shape checks.
+- Generated SQL has finite `state`, `transition_kind`, and enforced state-shape checks on MariaDB 10.11.16.
+- Generated timestamp columns retain precision `0`.
 - Existing users remain untouched with no automatic first-handle assignment.
 - Unique active user ownership fails for a second active handle.
 - Active handle collision fails.
@@ -502,12 +481,11 @@ Live verification, coordinator only:
 - Reviewer must decide whether the `maiks` reservation is a separate reviewed data step or deterministic seed data inside the reviewed migration.
 - Reviewer must approve handle-based versus opaque public image routing before real profiles go live.
 - Reviewer must decide if future new accounts can self-claim handles, or if all handle assignment stays Owner/admin-only for the first production release.
-- Coordinator must prove the live MariaDB preflight results before migration generation.
 - A protected backup and restore/migration drill must pass before production migration application.
 
 ## Reviewer risks
 
-- MariaDB risk: generated SQL must preserve `ascii_bin` and enforced checks. Default collation would reopen case-folding and pattern ambiguities.
+- MariaDB risk: generated SQL must preserve handle `ascii_bin`, both `utf8mb4_general_ci` user-reference columns, the explicit table default, `InnoDB`, nullable uniqueness, and enforced checks. The preflight's `ERROR 1267` reproduction shows that an inherited incompatible user-id collation would break the join.
 - Privacy risk: a handle can identify a person. Deletion must clear `user_id` and retire only the handle string plus timestamps needed for the one-year hold.
 - Image-route risk: raw domain/auth/provider ids in public image URLs would violate the reviewed public-identifier boundary.
 - Backfill risk: automatically assigning handles to existing accounts would violate the approved manual-first decision.

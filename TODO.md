@@ -333,8 +333,11 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
   - [x] Redesign `/community-rules` as the production Community participation guide.
   - [x] Replace the `/profiles` placeholder with a search mock plus separate searchable public and private Michael profile examples while live profile, identity, and recognition work continues separately.
   - [x] Audit the real profile data boundary: current safe public fields are display name, visibility, and managed avatar only; linked accounts, auth rows, roles, provider identities, recognition, perks, and verified game names remain private/unmodelled.
-  - [ ] Approve the real-profile handle gate: permanent/no-reuse policy, owner handle, and whether every existing non-deleted user becomes searchable during backfill.
-  - [ ] After approval, add normalized unique `users.profile_handle`, reserved-name rules, safe backfill/account creation, public search/detail projections, and replace the labelled static demonstrations without publishing operational identity data.
+  - [x] Approve the real-profile handle gate: `/profiles/maiks`, one-year retired-handle hold, and manual Owner assignment for existing accounts.
+  - [x] Add the reviewed Domain contract for profile-handle normalization, reserved-name rules, atomic transitions, safe public identifiers, and minimized public/private projections. Commit `a752c67` has no runtime consumer and was not deployed.
+  - [x] Complete the read-only production MariaDB preflight and correct the proposal so user-reference columns match `users.id` at `utf8mb4_general_ci` while handles remain `ascii_bin`.
+  - [ ] Resolve audit storage, the `maiks` reservation data action, public image routing, and protected backup/restore proof; then obtain separate approval before generating or applying the one-table profile-handle migration.
+  - [ ] After the migration gate, add the real public search/detail API and UI and replace the labelled static demonstrations without publishing operational identity data.
   - [x] Remove legacy development identity/status routes from the production API route table and move the real Connections provider list to an authenticated minimal account endpoint. Deployment remains separate.
   - [x] Replace one-year immutable managed-avatar caching with bounded revalidation for minimal/public profiles and `private, no-store` for private/denied image responses. Deployment remains separate.
   - [x] Make missing Web, Control, Overlay, YouTube callback, Twitch EventSub, and YouTube PubSub runtime configuration fall back to production origins instead of the retired dev origins. Explicit environment configuration still wins; deployment remains separate.

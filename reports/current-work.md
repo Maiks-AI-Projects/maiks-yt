@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-28 reviewed profile-handle Domain contract `a752c67`
+
+- Added and pushed the production Domain contract for profile-handle normalization, reserved-name decisions, atomic state transitions, public-identifier validation, and minimized public/private profile projections. The private projection is limited to the account name and the exact private-account message; it exposes no image, profile path, provider identity, auth id, or raw domain id.
+- Three independent review passes closed reserved-handle, timestamp-validation, identifier-shape, and private-projection findings. The final senior review reported no findings. `pnpm check:review` passes with 173 Domain tests, 647 API tests, 320 Web tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, 15 production-image provenance tests, architecture rules, and the diff check.
+- The read-only production MariaDB preflight is complete. Production runs MariaDB `10.11.16`, enforces `CHECK` constraints, supports `ascii_bin`, nullable uniqueness, and the proposed locking pattern, and uses `utf8mb4_general_ci` for `users.id`. A temporary inherited-collation probe reproduced `ERROR 1267`, so the proposal now pins both user-reference columns and the table default to `utf8mb4_general_ci` while retaining `ascii_bin` for the handle.
+- Commit `a752c67` has no runtime consumer and was not deployed. No migration exists. Migration generation/application, protected backup and restore proof, audit storage, the `maiks` reservation data action, public image routing, API/UI integration, live account changes, and real verification remain separate gates.
+
 ## 2026-08-28 production PWA access recovery deployment `fcfdd05`
 
 - Pushed production through `fcfdd05450cdd3615a1327afe7c05a3a1b410180` and built `maiks-yt-production:local` through the repository's provenance-enforcing Node entry point. The image config is `sha256:4ad4731576f74fc7364b440c6b6ef7e95d55f0789ffa018a9e2495923957bd1b`, the BuildKit manifest is `sha256:35f93ea5ab1a0d4dbd3f32663cbc78c5ca9b771a77d9380e224af4563619579d`, and OCI labels carry the exact revision, source `https://github.com/Maiks-AI-Projects/maiks-yt`, and created timestamp `2026-08-28T12:25:45Z`.
@@ -16,7 +23,7 @@
 - Signed-out Notifications now offers a clean `Renew sign-in` path with the fixed return target `https://maiks.yt/tools/notifications`. It reads no current query, fragment, token, or storage state and preserves the existing read, archive, push, and authenticated tool layout behavior.
 - Independent GPT-5.5 review found no behavior or security findings. Its one architecture finding was corrected by renaming the Notifications helper to the required `.rules.ts` suffix. `pnpm check:full` passes with all 13 builds, all typechecks, 173 Domain tests, 647 API tests, 320 Web tests, 70 Control tests, production-image provenance tests, architecture rules, and the diff check.
 - Reviewed source commit `b686792` contains the bounded PWA recovery implementation and is deployed through production revision `fcfdd05`. Real OAuth return, installed-PWA recovery, signed-in create/rotate, revoked-token handling, and recovery in less than one minute remain live gates.
-- The corrected canonical profile-handle proposal passed senior re-review for the next domain-rules-only stage. The proposal now defines complete atomic transitions for reserved assignment, expired reuse, active retirement, rename, and reservation release/change. Profile normalization, transition decisions, and public/private projection rules are implemented in Domain and are under independent final review. Migration generation remains forbidden; MariaDB preflight, audit storage, the `maiks` reservation data action, image routing, backup, and restore proof remain later gates.
+- The corrected canonical profile-handle proposal passed senior re-review. Profile normalization, transition decisions, and public/private projection rules are reviewed and pushed in `a752c67`; the completed MariaDB preflight and collation correction are recorded in the proposal. Migration generation remains forbidden; audit storage, the `maiks` reservation data action, image routing, backup, restore proof, API/UI integration, and live account changes remain later gates.
 
 ## 2026-08-28 public copy, AI-page, and profile decisions
 
