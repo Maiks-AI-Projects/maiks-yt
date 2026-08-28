@@ -1,5 +1,15 @@
 # Current Work
 
+## 2026-08-28 production Twitch chat-reply readiness rollout `30adb56`
+
+- Reviewed production commit `30adb56` (`feat: expose Twitch chat reply readiness`) is pushed to `origin/production` and deployed to Web and API as image `sha256:f4cd685a613fb98c265b530394d74484511652ffce350126e0145c9fc232aa27`. Overlay and Control remain on the previously verified `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836` image.
+- Provider Integrations now exposes a finite `twitch_chat_replies` capability backed by Twitch's read-only OAuth validation endpoint. It requires the `chat:read` and `chat:edit` scopes used by the current Twurple reply path, never refreshes or returns credentials, and fails closed on invalid tokens, missing scopes, client mismatch, timeout, malformed responses, or unavailable validation.
+- The readiness probe uses a 60-second process-local cache with concurrent request deduplication. Each service instance is bound to an immutable provider-environment snapshot, so ordinary authenticated navigation does not repeatedly wait on Twitch and no readiness result can cross configurations within one instance.
+- Independent final GPT-5.5 review reports Standards 0 / Specification 0. `pnpm check:full` passed with 159 Domain tests, 646 API tests, 247 Web tests, 296 Integrations tests, 16 Local Agent tests, all builds/typechecks, architecture rules, and whitespace checks.
+- Before replacement, the previous Web/API image was retained as `maiks-yt-production:rollback-30adb56-web-before` and `maiks-yt-production:rollback-30adb56-api-before`. After replacement, Web, API, Overlay, and Control were healthy with zero restarts; recent Web/API logs had no matching error, fatal, unhandled, or 5xx lines. Home, Provider Integrations, API health, Control, and Overlay returned `200`; a synthetic missing Web route returned `404`; unauthenticated Provider Integrations status returned `401`.
+- A sanitized read-only validation from the live API runtime returned `needs_attention` with `invalid_access_token`. The status contract and live diagnosis are verified; credential reauthorization, signed-in owner rendering, a real `!commands` reply, and end-to-end MaiksPlays rehearsal remain open. No schema, migration, provider write, token refresh, secret change, external message, or GUI/browser action occurred.
+- Runtime provenance for the earlier `c98486f` rollout was reconciled as intended. Project Tracker issue `47a660c41b580ccc` records the future build improvement to embed immutable OCI source-revision metadata; no rebuild or live mutation was performed solely for that finding.
+
 ## 2026-08-28 production rollout `c98486f`
 
 - Reviewed production commit `c98486f` (`feat: rebuild Creator Links admin`) is pushed to `origin/production` and deployed across Web, API, Overlay, and Control as image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`. The remote checkout is clean on branch `production` at the same revision.

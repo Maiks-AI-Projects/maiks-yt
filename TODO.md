@@ -28,6 +28,9 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Replace provider-intake browser rows with an allowlisted projection and owner-bound opaque review reference, including transactional internal-history mapping and strict canonical reference parsing.
 - [x] Minimize Page Creator, Games suggestion-review, and Session admin browser contracts while preserving their existing owner workflows and internal audit identity.
 - [x] Replace provider-integration diagnostics with finite operator DTOs, exact provider-specific capability sets, truthful connecting/retrying state, bounded safe summaries, finite failures, and fail-closed parsing in every Web consumer.
+- [x] Deploy finite Twitch chat-reply readiness with bounded read-only validation, caching, exact parsing, rollback evidence, and sanitized live proof (`30adb56`).
+- [ ] Reauthorize the production Twitch bot credential, then verify signed-in status and one harmless `!commands` reply on MaiksPlays.
+- [ ] Embed immutable OCI source revision/source metadata in the normal production image build so runtime provenance is artifact-verifiable (Tracker issue `47a660c41b580ccc`).
 - [ ] Generate and review a migration for durable single-use YouTube consent state before implementing the OAuth callback flow. The approved design uses a hashed random state bound to provider, purpose, owner, redirect URI, requested scopes, expiry, and one atomic consume transition.
 - [x] Deploy the completed operator-contract slices through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence (`c98486f`).
 - [ ] Verify the signed-in owner provider-intake review, Page Creator lifecycle, Games suggestion review, and account-scoped Session recovery against the live production database after deployment.

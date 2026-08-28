@@ -10,13 +10,14 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Current result: NOT READY for a live stream.
 - Healthy: production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen.
-- Gaps: provider and tunnel runtime telemetry is still insufficient, Twitch bot replies and `!commands` are blocked by a `401` bot token validation, YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and the verification token exposed before request-log redaction still needs rotation.
+- Gaps: revision `30adb56` now exposes truthful Twitch chat-reply readiness, and a sanitized live runtime probe confirms the bot access token is invalid, so replies and `!commands` remain blocked until reauthorization. YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and the verification token exposed before request-log redaction still needs rotation.
 
 ## Evidence Base
 
 ### Deployed
 
 - Production revision `c98486f` is deployed across Web, API, Overlay, and Control as image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`; it includes the approved Creator Links admin and accumulated reviewed production source through that revision. No migration was applied.
+- Production revision `30adb56` is deployed to Web and API as image `sha256:f4cd685a613fb98c265b530394d74484511652ffce350126e0145c9fc232aa27`; Overlay and Control remain on the prior image. The previous Web/API image is retained under `rollback-30adb56-*-before`. No migration was applied.
 - Production revision `501613c` is deployed across web, API, overlay, and control.
 - Web-only revision `986a48b` is deployed for the not-found status correction.
 - Revision `f12c98d` is deployed to API and Control for Control-token session enforcement; Web and Overlay were not recreated.

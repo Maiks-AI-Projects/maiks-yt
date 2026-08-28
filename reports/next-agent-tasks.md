@@ -8,6 +8,13 @@
 - Real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, and starting a public stream retain their specific gates.
 - Desktop and GUI automation remain forbidden, but non-GUI HTTP/API/service verification is expected and must not be treated as blocked by that restriction.
 
+## Twitch chat-reply readiness deployed
+
+- Commit `30adb56` is deployed to Web and API. Provider Integrations now exposes the finite `twitch_chat_replies` capability through a bounded, cached, read-only Twitch token validation; it does not refresh, rotate, log, return, or use the credential for a provider write.
+- Live container, HTTP, health, restart, log, owner-gate, and rollback checks passed. The sanitized live runtime result is `needs_attention / invalid_access_token`.
+- Next work is credential reauthorization under the existing secret-change gate, followed by signed-in owner status verification and one harmless real `!commands`/viewer-command rehearsal on MaiksPlays. Do not mistake the completed readiness plumbing for a working reply credential.
+- Add immutable OCI source revision/source metadata to the normal production image build under Project Tracker issue `47a660c41b580ccc`; do not rebuild production solely for that metadata fix.
+
 ## Production Creator Links deployed implementation reference
 
 - Michael approved `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` on 2026-08-28 as the source-level acceptance reference.
