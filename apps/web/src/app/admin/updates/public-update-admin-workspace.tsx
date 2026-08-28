@@ -1,7 +1,10 @@
 import {
   FiCheck,
   FiExternalLink,
-  FiEye
+  FiEye,
+  FiInfo,
+  FiSave,
+  FiSend
 } from "react-icons/fi";
 
 import PublicUpdateAdminEditorForm from "./public-update-admin-editor-form";
@@ -25,7 +28,6 @@ const PublicUpdateAdminWorkspace = ({
     formIsDirty,
     formIssue,
     interactionIsLocked,
-    lineCount,
     loadPreview,
     message,
     preview,
@@ -37,8 +39,7 @@ const PublicUpdateAdminWorkspace = ({
     selectedIsPublished,
     selectedUpdate,
     unpublishUpdate,
-    updateForm,
-    wordCount
+    updateForm
   } = controller;
 
   return (
@@ -54,10 +55,10 @@ const PublicUpdateAdminWorkspace = ({
                 data-published={selectedIsPublished}
               >
                 {selectedUpdate?.isExample
-                  ? "Example · Protected"
+                  ? "Protected"
                   : selectedIsPublished
-                    ? "Published · Public"
-                    : "Draft · Hidden"}
+                    ? "Published"
+                    : "Draft"}
               </span>
               {formIsDirty ? <span className={styles.dirtyPill}>Unsaved</span> : null}
             </div>
@@ -94,7 +95,8 @@ const PublicUpdateAdminWorkspace = ({
                 onClick={() => void publishUpdate()}
                 type="button"
               >
-                Publish
+                <FiSend aria-hidden="true" />
+                <span>Publish</span>
               </button>
             )}
           </div>
@@ -129,15 +131,18 @@ const PublicUpdateAdminWorkspace = ({
               </span>
             </div>
           </div>
-          <span className={styles.workflowHint}>
-            {selectedUpdate?.isExample
-              ? "Example records are protected and cannot be republished."
-              : selectedIsPublished
-                ? "Published updates must be unpublished before editing."
-                : previewIsCurrent
-                  ? "The saved preview is current. Publishing is unlocked."
-                  : "Publish unlocks after the latest saved draft is previewed."}
-          </span>
+          <div className={styles.workflowHint}>
+            <FiInfo aria-hidden="true" />
+            <span>
+              {selectedUpdate?.isExample
+                ? "Example records are protected and cannot be republished."
+                : selectedIsPublished
+                  ? "Published updates must be unpublished before editing."
+                  : previewIsCurrent
+                    ? "The saved preview is current. Publishing is unlocked."
+                    : "Publish unlocks after the latest saved draft is previewed."}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -147,11 +152,9 @@ const PublicUpdateAdminWorkspace = ({
           form={form}
           formIssue={formIssue}
           interactionIsLocked={interactionIsLocked}
-          lineCount={lineCount}
           onSaveDraft={saveDraft}
           onUpdateForm={updateForm}
           selectedUpdate={selectedUpdate}
-          wordCount={wordCount}
         />
         {preview ? (
           <PublicUpdateAdminPreview preview={preview} previewIsCurrent={previewIsCurrent} />
@@ -159,25 +162,23 @@ const PublicUpdateAdminWorkspace = ({
       </div>
 
       <footer className={styles.workspaceFooter}>
-        <div className={styles.footerStart}>
+        <p aria-live="polite" className={styles.message}>{message}</p>
+        <div className={styles.footerActions}>
           <button
-            className="secondary-action"
+            className={styles.discardAction}
             disabled={busyAction !== null || !formIsDirty}
             onClick={discardChanges}
             type="button"
           >
-            Discard
+            Discard changes
           </button>
-          <p aria-live="polite" className={styles.message}>{message}</p>
-        </div>
-        <div className={styles.footerActions}>
           <button
-            className="secondary-action"
             disabled={busyAction !== null || editorIsReadOnly || Boolean(formIssue)}
             form="public-update-editor-form"
             type="submit"
           >
-            {busyAction ? "Working..." : "Save draft"}
+            <FiSave aria-hidden="true" />
+            <span>{busyAction ? "Working..." : "Save draft"}</span>
           </button>
         </div>
       </footer>

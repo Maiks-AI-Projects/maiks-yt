@@ -12,13 +12,11 @@ import {
 import styles from "./public-update-admin.module.css";
 
 type PublicUpdateAdminInventoryProps = {
-  draftCount: number;
   filter: UpdateFilter;
   interactionIsLocked: boolean;
   onFilterChange: (filter: UpdateFilter) => void;
   onSearchChange: (query: string) => void;
   onSelect: (update: PublicUpdateSource) => void;
-  publishedCount: number;
   searchQuery: string;
   selectedId: string;
   updates: readonly PublicUpdateSource[];
@@ -26,13 +24,11 @@ type PublicUpdateAdminInventoryProps = {
 };
 
 const PublicUpdateAdminInventory = ({
-  draftCount,
   filter,
   interactionIsLocked,
   onFilterChange,
   onSearchChange,
   onSelect,
-  publishedCount,
   searchQuery,
   selectedId,
   updates,
@@ -51,9 +47,9 @@ const PublicUpdateAdminInventory = ({
     </label>
     <div className={styles.filterList} role="group" aria-label="Update filters">
       {([
-        ["all", `All ${updates.length}`],
-        ["draft", `Drafts ${draftCount}`],
-        ["published", `Published ${publishedCount}`]
+        ["all", "All"],
+        ["draft", "Drafts"],
+        ["published", "Published"]
       ] as readonly (readonly [UpdateFilter, string])[]).map(([nextFilter, label]) => (
         <button
           aria-pressed={filter === nextFilter}
@@ -90,7 +86,7 @@ const PublicUpdateAdminInventory = ({
           <span className={styles.updateIdentity}>
             <strong>{update.title}</strong>
             <span className={styles.updateRowKind}>
-              {formatUpdateKind(update.kind)}
+              <span>{formatUpdateKind(update.kind)}</span>
               {update.isPinned ? (
                 <span className={styles.pinnedLabel}>
                   <FiStar aria-hidden="true" />
@@ -101,7 +97,6 @@ const PublicUpdateAdminInventory = ({
           </span>
           <span className={styles.updateRowMeta}>
             <span className={styles.statusLabel} data-published={isPublishedUpdate(update)}>
-              <span className={styles.stateDot} aria-hidden="true" />
               {getUpdateStatusLabel(update)}
             </span>
             <span className={styles.updateDate}>{formatShortDate(getUpdateSortTime(update))}</span>
@@ -109,9 +104,6 @@ const PublicUpdateAdminInventory = ({
         </button>
       ))}
     </div>
-    <footer className={styles.inventoryFooter}>
-      <span>Drafts stay hidden until previewed and published.</span>
-    </footer>
   </aside>
 );
 

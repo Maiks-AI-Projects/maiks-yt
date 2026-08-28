@@ -16,12 +16,10 @@ export const PublicUpdateAdminView = ({
   controller
 }: PublicUpdateAdminViewProps): React.ReactNode => {
   const {
-    draftCount,
     filter,
     interactionIsLocked,
     loadState,
     message,
-    publishedCount,
     refreshUpdates,
     searchQuery,
     selectRow,
@@ -65,13 +63,11 @@ export const PublicUpdateAdminView = ({
       {loadState === "ready" ? (
         <div className={styles.layout}>
           <PublicUpdateAdminInventory
-            draftCount={draftCount}
             filter={filter}
             interactionIsLocked={interactionIsLocked}
             onFilterChange={setFilter}
             onSearchChange={setSearchQuery}
             onSelect={selectRow}
-            publishedCount={publishedCount}
             searchQuery={searchQuery}
             selectedId={selectedId}
             updates={updates}

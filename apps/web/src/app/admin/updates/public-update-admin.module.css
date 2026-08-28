@@ -1,6 +1,6 @@
 .updatesAdmin {
   display: grid;
-  gap: 0.7rem;
+  gap: 0;
   min-width: 0;
 }
 
@@ -11,7 +11,8 @@
   gap: 1rem;
   justify-content: space-between;
   min-width: 0;
-  padding: 0.15rem 0 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.2rem 0 0.7rem 0.35rem;
 }
 
 .headerCopy,
@@ -27,9 +28,8 @@
 .headerActions,
 .workspaceActions,
 .footerActions,
-.footerStart,
 .previewMeta,
-.publishControls,
+.pinField,
 .updateRowKind {
   align-items: center;
   display: flex;
@@ -75,11 +75,10 @@
 
 .layout {
   background: var(--admin-surface);
-  border: 1px solid var(--admin-line);
-  border-radius: 8px;
   display: grid;
-  grid-template-columns: minmax(20rem, 23.5rem) minmax(0, 1fr);
-  min-height: calc(100vh - 8.8rem);
+  grid-template-columns: minmax(20rem, 23.75rem) minmax(0, 1fr);
+  height: calc(100vh - 7.5rem);
+  min-height: 42rem;
   min-width: 0;
   overflow: hidden;
 }
@@ -87,13 +86,13 @@
 .inventory {
   border-right: 1px solid var(--admin-line);
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   min-height: 0;
   min-width: 0;
 }
 
 .searchWrap {
-  padding: 0.85rem 0.9rem 0.55rem;
+  padding: 0.85rem 0.35rem 0.55rem;
   position: relative;
 }
 
@@ -111,7 +110,7 @@
 .searchIcon {
   color: var(--admin-quiet);
   height: 1rem;
-  left: 1.65rem;
+  left: 1.1rem;
   pointer-events: none;
   position: absolute;
   top: 50%;
@@ -126,27 +125,24 @@
 }
 
 .filterList {
-  background: var(--admin-surface-raised);
-  border: 1px solid var(--admin-line);
-  border-radius: 6px;
-  display: grid;
-  gap: 0.2rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0 0.9rem 0.7rem;
-  padding: 0.18rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0.35rem 0.7rem;
 }
 
 .filterButton {
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 4px !important;
+  background: var(--admin-surface-raised) !important;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 5px !important;
   color: var(--admin-muted) !important;
-  min-height: 1.9rem !important;
-  padding: 0.3rem 0.42rem !important;
+  min-height: 2.2rem !important;
+  padding: 0.38rem 0.72rem !important;
 }
 
 .filterButton[data-active="true"] {
   background: var(--admin-surface-active) !important;
+  border-color: #2f6958 !important;
   color: var(--admin-text) !important;
 }
 
@@ -155,11 +151,10 @@
   border-top: 1px solid var(--admin-line);
   color: var(--admin-muted);
   display: grid;
-  font-size: 0.68rem;
-  font-weight: 800;
+  font-size: 0.72rem;
+  font-weight: 650;
   grid-template-columns: minmax(0, 1fr) auto;
   padding: 0.46rem 0.78rem;
-  text-transform: uppercase;
 }
 
 .columnHeader span:last-child {
@@ -184,8 +179,8 @@
   display: grid !important;
   gap: 0.7rem;
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 4.2rem !important;
-  padding: 0.6rem 0.75rem !important;
+  min-height: 3.65rem !important;
+  padding: 0.45rem 0.75rem !important;
   text-align: left;
   width: 100%;
 }
@@ -211,6 +206,7 @@
 
 .updateIdentity strong {
   font-size: 0.88rem;
+  font-weight: 650;
 }
 
 .updateIdentity > span,
@@ -221,6 +217,14 @@
 
 .updateRowKind {
   gap: 0.45rem;
+}
+
+.updateRowKind > :first-child {
+  background: #203443;
+  border-radius: 3px;
+  color: #bcd7e8;
+  line-height: 1.45;
+  padding: 0 0.35rem;
 }
 
 .updateRowMeta {
@@ -241,22 +245,11 @@
   font-weight: 850;
   gap: 0.32rem;
   letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.stateDot {
-  background: #e1a928;
-  border-radius: 50%;
-  height: 0.48rem;
-  width: 0.48rem;
+  text-transform: none;
 }
 
 .statusLabel[data-published="true"] {
   color: var(--admin-mint);
-}
-
-.statusLabel[data-published="true"] .stateDot {
-  background: var(--admin-mint);
 }
 
 .pinnedLabel {
@@ -269,20 +262,13 @@
   width: 0.72rem;
 }
 
-.inventoryFooter,
 .listEmpty,
 .fieldHint,
 .workflowHint,
 .message,
-.wordCount,
 .previewHeading p {
   color: var(--admin-muted);
   font-size: 0.78rem;
-}
-
-.inventoryFooter {
-  border-top: 1px solid var(--admin-line);
-  padding: 0.72rem 0.9rem;
 }
 
 .listEmpty {
@@ -301,8 +287,7 @@
 .workspaceHeader {
   border-bottom: 1px solid var(--admin-line);
   display: grid;
-  gap: 0.8rem;
-  padding: 0.85rem 1rem 0.8rem;
+  gap: 0;
 }
 
 .workspaceHeaderTop {
@@ -310,6 +295,8 @@
   display: flex;
   gap: 1rem;
   justify-content: space-between;
+  min-height: 3.95rem;
+  padding: 0.75rem 1rem 0.75rem 2rem;
 }
 
 .titleLine {
@@ -321,63 +308,65 @@
 
 .workspaceTitle h2 {
   font-size: 1.2rem;
+  line-height: 1.2;
 }
 
 .statusPill,
 .dirtyPill,
 .previewHeading > span {
-  border: 1px solid #8b6d25;
-  border-radius: 999px;
+  background: #2b2514;
+  border: 0;
+  border-radius: 4px;
   color: #f0bd46;
-  padding: 0.12rem 0.42rem;
+  padding: 0.18rem 0.48rem;
 }
 
 .statusPill[data-published="true"],
 .previewHeading > span[data-current="true"] {
-  border-color: #2f6958;
+  background: var(--admin-surface-active);
   color: var(--admin-mint);
 }
 
 .statusPill[data-example="true"] {
-  border-color: var(--admin-line-strong);
+  background: var(--admin-surface-raised);
   color: var(--admin-muted);
 }
 
 .dirtyPill {
-  border-color: #486675;
+  background: #203443;
   color: #cce5ef;
 }
 
 .workflowArea {
   display: grid;
-  gap: 0.5rem;
+  gap: 0;
 }
 
 .workflow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 4.6rem;
+  padding: 0.85rem 2.5rem 0.75rem;
   width: 100%;
 }
 
 .workflowStep {
+  align-items: center;
   color: var(--admin-quiet);
-  display: grid;
-  gap: 0.28rem;
-  justify-items: center;
+  display: flex;
+  gap: 0.65rem;
   min-width: 0;
-  padding: 0 0.25rem;
+  padding: 0 1rem 0 0;
   position: relative;
-  text-align: center;
+  text-align: left;
 }
 
 .workflowStep:not(:last-child)::after {
   background: var(--admin-line-strong);
   content: "";
   height: 1px;
-  left: calc(50% + 0.75rem);
-  position: absolute;
-  right: calc(-50% + 0.75rem);
-  top: 0.73rem;
+  margin-left: auto;
+  min-width: 2.5rem;
 }
 
 .workflowMarker {
@@ -388,33 +377,34 @@
   display: inline-flex;
   font-size: 0.68rem;
   font-weight: 850;
-  height: 1.5rem;
+  flex: 0 0 2.1rem;
+  height: 2.1rem;
   justify-content: center;
   position: relative;
-  width: 1.5rem;
+  width: 2.1rem;
   z-index: 1;
 }
 
 .workflowMarker svg {
-  height: 0.85rem;
-  width: 0.85rem;
+  height: 1rem;
+  width: 1rem;
 }
 
 .workflowCopy {
   display: grid;
   gap: 0.08rem;
-  justify-items: center;
   min-width: 0;
 }
 
 .workflowCopy strong {
   color: inherit;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .workflowCopy small {
   color: var(--admin-muted);
-  font-size: 0.67rem;
+  font-size: 0.7rem;
   font-weight: 500;
   line-height: 1.25;
 }
@@ -436,16 +426,40 @@
 }
 
 .workflowHint {
-  text-align: center;
+  align-items: center;
+  background: #101b21;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 4px;
+  color: var(--admin-muted);
+  display: flex;
+  font-size: 0.76rem;
+  gap: 0.55rem;
+  margin: 0 1rem 0 1.65rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
+.workflowHint svg {
+  color: #75a9ff;
+  flex: 0 0 1rem;
+  height: 1rem;
+  width: 1rem;
 }
 
 .editorBody {
   min-height: 0;
   overflow-y: auto;
-  padding: 0.85rem 1rem 1rem;
+  padding: 0.65rem 1rem 0.8rem 1.65rem;
 }
 
-.form,
+.form {
+  align-content: start;
+  display: grid;
+  gap: 0.58rem;
+  min-width: 0;
+}
+
 .previewPanel {
   align-content: start;
   display: grid;
@@ -455,18 +469,27 @@
 
 .field,
 .bodyField {
+  align-items: start;
   color: var(--admin-text);
   display: grid;
   font-size: 0.8rem;
-  font-weight: 750;
-  gap: 0.28rem;
+  font-weight: 650;
+  gap: 0.25rem 0.8rem;
+  grid-template-columns: 6.4rem minmax(0, 1fr);
   min-width: 0;
+}
+
+.fieldLabel {
+  line-height: 1.25;
+  padding-top: 0.58rem;
 }
 
 .field input,
 .field select,
 .field textarea,
-.bodyField textarea {
+.bodyField textarea,
+.readOnlyField {
+  grid-column: 2;
   min-height: 2.25rem;
   width: 100%;
 }
@@ -477,33 +500,70 @@
   resize: vertical;
 }
 
+.field textarea {
+  min-height: 3.35rem;
+}
+
 .bodyField textarea {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
   min-height: 18rem;
 }
 
-.wordCount {
-  align-items: center;
-  border-top: 1px solid var(--admin-line);
-  display: flex;
-  justify-content: space-between;
-  margin-top: -0.28rem;
-  padding: 0.36rem 0;
+.fieldHint {
+  grid-column: 2;
+  line-height: 1.25;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.publishControls {
-  border-top: 1px solid var(--admin-line);
-  gap: 0.7rem;
-  justify-content: space-between;
-  padding-top: 0.72rem;
+.fieldHintValue {
+  color: var(--admin-mint);
+}
+
+.readOnlyField {
+  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  position: relative;
+}
+
+.readOnlyField svg {
+  color: var(--admin-quiet);
+  height: 0.9rem;
+  left: 0.8rem;
+  pointer-events: none;
+  position: absolute;
+  width: 0.9rem;
+  z-index: 1;
+}
+
+.readOnlyField input {
+  color: var(--admin-quiet);
+  padding-left: 2.2rem;
+}
+
+.pinField {
+  display: grid;
+  font-size: 0.8rem;
+  gap: 0.8rem;
+  grid-template-columns: 6.4rem minmax(0, 1fr) auto;
+  min-height: 2.3rem;
+  width: 100%;
+}
+
+.pinField .fieldLabel {
+  padding-top: 0.48rem;
+}
+
+.pinHint {
+  align-self: center;
+  color: var(--admin-muted);
 }
 
 .switchField {
   align-items: center;
-  display: grid;
-  gap: 0.65rem;
-  grid-template-columns: auto minmax(0, 1fr);
-  min-width: min(100%, 24rem);
+  display: flex;
+  justify-self: end;
 }
 
 .switchField input {
@@ -543,18 +603,10 @@
   opacity: 0.55;
 }
 
-.switchField span {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.switchField small {
-  color: var(--admin-muted);
-}
-
 .formIssue {
   color: #f0bd46;
   font-size: 0.75rem;
+  margin-left: 7.2rem;
 }
 
 .previewPanel {
@@ -640,12 +692,25 @@
   display: flex;
   gap: 0.75rem;
   justify-content: space-between;
-  padding: 0.65rem 1rem;
+  min-height: 4.75rem;
+  padding: 0.75rem 1rem;
 }
 
-.footerStart {
-  gap: 0.75rem;
-  min-width: 0;
+.footerActions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.footerActions button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+button.discardAction {
+  background: transparent;
+  border-color: transparent;
+  color: var(--admin-text);
 }
 
 .message {
@@ -675,6 +740,15 @@
   .workspaceHeaderTop {
     align-items: stretch;
     flex-direction: column;
+    padding-left: 1rem;
+  }
+
+  .workflow {
+    padding-inline: 1rem;
+  }
+
+  .workflowStep:not(:last-child)::after {
+    min-width: 1rem;
   }
 }
 
@@ -688,6 +762,7 @@
 
   .layout {
     display: block;
+    height: auto;
     min-height: 0;
   }
 
@@ -695,21 +770,6 @@
     border-bottom: 1px solid var(--admin-line);
     border-right: 0;
     max-height: 23rem;
-  }
-
-  .workflowStep {
-    padding: 0 0.12rem;
-  }
-
-  .workflowMarker {
-    height: 1.3rem;
-    width: 1.3rem;
-  }
-
-  .workflowStep:not(:last-child)::after {
-    left: calc(50% + 0.65rem);
-    right: calc(-50% + 0.65rem);
-    top: 0.63rem;
   }
 
   .workflowCopy strong {
@@ -720,15 +780,85 @@
     font-size: 0.62rem;
   }
 
-  .footerStart {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.35rem;
+  .footerActions {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 560px) {
+  .header {
+    padding-left: 0;
   }
 
-  .wordCount {
-    align-items: flex-start;
+  .workspaceHeaderTop,
+  .editorBody {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .workflow {
+    padding-inline: 0.5rem;
+  }
+
+  .workflowStep {
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.35rem;
+    padding: 0 0.15rem;
+    text-align: center;
+  }
+
+  .workflowStep:not(:last-child)::after {
+    left: calc(50% + 1.25rem);
+    margin: 0;
+    min-width: 0;
+    position: absolute;
+    right: calc(-50% + 1.25rem);
+    top: 1.05rem;
+  }
+
+  .workflowCopy strong {
+    white-space: normal;
+  }
+
+  .workflowHint {
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+  }
+
+  .field,
+  .bodyField {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fieldLabel {
+    padding-top: 0;
+  }
+
+  .field input,
+  .field select,
+  .field textarea,
+  .bodyField textarea,
+  .readOnlyField,
+  .fieldHint {
+    grid-column: 1;
+  }
+
+  .pinField {
+    gap: 0.35rem 0.75rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pinField .fieldLabel,
+  .pinHint {
+    grid-column: 1;
+  }
+
+  .switchField {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .formIssue {
+    margin-left: 0;
   }
 }

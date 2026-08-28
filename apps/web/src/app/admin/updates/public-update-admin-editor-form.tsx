@@ -4,6 +4,7 @@ import {
   publicUpdateTitleMaxLength
 } from "@maiks-yt/domain/updates";
 import type { PublicUpdateSource } from "@maiks-yt/domain/updates";
+import { FiCalendar } from "react-icons/fi";
 
 import {
   formatDateTime,
@@ -18,11 +19,9 @@ type PublicUpdateAdminEditorFormProps = {
   form: UpdateFormState;
   formIssue: string | null;
   interactionIsLocked: boolean;
-  lineCount: number;
   onSaveDraft: () => Promise<void>;
   onUpdateForm: (updater: (current: UpdateFormState) => UpdateFormState) => void;
   selectedUpdate: PublicUpdateSource | null;
-  wordCount: number;
 };
 
 const slugMaxLength = 191;
@@ -32,11 +31,9 @@ const PublicUpdateAdminEditorForm = ({
   form,
   formIssue,
   interactionIsLocked,
-  lineCount,
   onSaveDraft,
   onUpdateForm,
-  selectedUpdate,
-  wordCount
+  selectedUpdate
 }: PublicUpdateAdminEditorFormProps): React.ReactNode => (
   <form
     className={styles.form}
@@ -47,7 +44,7 @@ const PublicUpdateAdminEditorForm = ({
     }}
   >
     <label className={styles.field}>
-      Type
+      <span className={styles.fieldLabel}>Type</span>
       <select
         disabled={editorIsReadOnly || interactionIsLocked}
         onChange={(event) => onUpdateForm((current) => ({
@@ -63,7 +60,7 @@ const PublicUpdateAdminEditorForm = ({
     </label>
 
     <label className={styles.field}>
-      Title
+      <span className={styles.fieldLabel}>Title</span>
       <input
         disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={publicUpdateTitleMaxLength}
@@ -75,7 +72,7 @@ const PublicUpdateAdminEditorForm = ({
     </label>
 
     <label className={styles.field}>
-      Slug
+      <span className={styles.fieldLabel}>Slug</span>
       <input
         disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={slugMaxLength}
@@ -84,11 +81,13 @@ const PublicUpdateAdminEditorForm = ({
         required
         value={form.slug}
       />
-      <span className={styles.fieldHint}>Used in the public update URL.</span>
+      <span className={styles.fieldHint}>
+        Used in the URL: <span className={styles.fieldHintValue}>maiks.yt/updates/{form.slug || "new-update"}</span>
+      </span>
     </label>
 
     <label className={styles.field}>
-      Summary
+      <span className={styles.fieldLabel}>Summary</span>
       <textarea
         disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={publicUpdateSummaryMaxLength}
@@ -98,11 +97,11 @@ const PublicUpdateAdminEditorForm = ({
         rows={3}
         value={form.summary}
       />
-      <span className={styles.fieldHint}>{form.summary.trim().length} / {publicUpdateSummaryMaxLength} characters</span>
+      <span className={styles.fieldHint}>{form.summary.trim().length} characters</span>
     </label>
 
     <label className={styles.bodyField}>
-      Body
+      <span className={styles.fieldLabel}>Body (Markdown)</span>
       <textarea
         disabled={editorIsReadOnly || interactionIsLocked}
         maxLength={publicUpdateBodyMaxLength}
@@ -112,20 +111,22 @@ const PublicUpdateAdminEditorForm = ({
         rows={12}
         value={form.body}
       />
-      <span className={styles.wordCount}>
-        <span>{wordCount} {wordCount === 1 ? "word" : "words"} · {lineCount} {lineCount === 1 ? "line" : "lines"}</span>
-        <span>{publicUpdateBodyMaxLength.toLocaleString()} character limit</span>
-      </span>
     </label>
 
     <label className={styles.field}>
-      Published date
-      <input readOnly value={formatDateTime(selectedUpdate?.publishedAt ?? null)} />
+      <span className={styles.fieldLabel}>Published date</span>
+      <span className={styles.readOnlyField}>
+        <FiCalendar aria-hidden="true" />
+        <input readOnly value={formatDateTime(selectedUpdate?.publishedAt ?? null)} />
+      </span>
       <span className={styles.fieldHint}>Set automatically when published.</span>
     </label>
 
-    <div className={styles.publishControls}>
+    <div className={styles.pinField}>
+      <span className={styles.fieldLabel}>Pin this update</span>
+      <span className={styles.pinHint}>Show at the top of the updates list</span>
       <label className={styles.switchField}>
+        <span className={styles.visuallyHidden}>Pin this update</span>
         <input
           checked={form.isPinned}
           disabled={editorIsReadOnly || interactionIsLocked}
@@ -133,13 +134,9 @@ const PublicUpdateAdminEditorForm = ({
           role="switch"
           type="checkbox"
         />
-        <span>
-          <strong>Pin this update</strong>
-          <small>Show at the top of the public updates list.</small>
-        </span>
       </label>
-      {formIssue ? <span className={styles.formIssue} role="status">{formIssue}</span> : null}
     </div>
+    {formIssue ? <span className={styles.formIssue} role="status">{formIssue}</span> : null}
   </form>
 );
 
