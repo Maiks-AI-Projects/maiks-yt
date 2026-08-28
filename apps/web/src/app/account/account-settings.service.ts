@@ -7,7 +7,7 @@ import { captureDevAuthTokenFromUrl, createApiHeaders } from "../dev-auth-token"
 import type {
   AccountConnectionProvidersResponse,
   AuthAccount,
-  AuthSession,
+  AuthAccountsResponse,
   DomainAccountSnapshot,
   DomainUserProfile,
   LinkSocialResponse,
@@ -17,6 +17,7 @@ import type {
   ProfileVisibility,
   StreamVisibilityPreferencesSnapshot
 } from "./account.types";
+import { parseAccountSession, type AccountSession } from "./account-session.service";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
@@ -42,7 +43,7 @@ type UseAccountSettingsResult = {
   providerProfileOptions: readonly ProviderProfileOption[];
   savingProfile: boolean;
   savingStreamScope: StreamVisibilityPreferenceScope | null;
-  session: AuthSession;
+  session: AccountSession;
   setMessage: (message: string) => void;
   streamSnapshot: StreamVisibilityPreferencesSnapshot | null;
   syncing: boolean;
@@ -60,7 +61,7 @@ export const useAccountSettingsData = ({
   loadStream = false,
   linkCallbackPath = "/account/connections"
 }: UseAccountSettingsOptions = {}): UseAccountSettingsResult => {
-  const [session, setSession] = useState<AuthSession>(null);
+  const [session, setSession] = useState<AccountSession>(null);
   const [accounts, setAccounts] = useState<AuthAccount[]>([]);
   const [configuredProviders, setConfiguredProviders] = useState<OAuthProviderId[]>([]);
   const [domainSnapshot, setDomainSnapshot] = useState<DomainAccountSnapshot | null>(null);
@@ -119,7 +120,7 @@ export const useAccountSettingsData = ({
         throw new Error("We could not check your sign-in right now.");
       }
 
-      const nextSession = await sessionResponse.json() as AuthSession;
+      const nextSession = parseAccountSession(await sessionResponse.json());
       setSession(nextSession);
 
       if (configurationResponse?.ok) {
@@ -148,7 +149,8 @@ export const useAccountSettingsData = ({
             throw new Error("We could not load your connected accounts.");
           }
 
-          setAccounts(await response.json() as AuthAccount[]);
+          const result = await response.json() as AuthAccountsResponse;
+          setAccounts(result.ok ? result.accounts : []);
         }));
       }
 

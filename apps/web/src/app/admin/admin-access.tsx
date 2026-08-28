@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
+import { parseAccountSession, type AccountSession } from "../account/account-session.service";
 import { captureDevAuthTokenFromUrl, createApiHeaders, getDevAuthToken } from "../dev-auth-token";
 
 export type AdminAccessState = "checking" | "owner" | "none";
@@ -28,15 +29,6 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt
 
 const AdminAccessContext = createContext<AdminAccessContextValue | null>(null);
 
-type AuthSessionResponse = {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-  };
-} | null;
-
 type DomainProfileResponse = {
   ok: true;
   domainUser: {
@@ -57,15 +49,15 @@ const signedOutIdentity: AdminAccountIdentity = {
 };
 
 const buildIdentity = (
-  session: Exclude<AuthSessionResponse, null>,
+  session: Exclude<AccountSession, null>,
   domainUser: Extract<DomainProfileResponse, { ok: true }>["domainUser"]
 ): AdminAccountIdentity => {
-  const sessionName = session.user.name?.trim() || null;
-  const sessionEmail = session.user.email?.trim() || null;
+  const sessionName = session.currentUser.name?.trim() || null;
+  const sessionEmail = session.currentUser.email?.trim() || null;
   const displayName = domainUser?.displayName.trim() || sessionName || sessionEmail || "Account";
 
   return {
-    avatarUrl: domainUser?.avatarUrl ?? session.user.image ?? null,
+    avatarUrl: domainUser?.avatarUrl ?? session.currentUser.imageUrl ?? null,
     displayName,
     email: sessionEmail,
     isSignedIn: true,
@@ -91,7 +83,9 @@ export const AdminAccessProvider = ({ children }: AdminAccessProviderProps): Rea
           headers: createApiHeaders()
         });
 
-        const session = sessionResponse.ok ? await sessionResponse.json() as AuthSessionResponse : null;
+        const session = sessionResponse.ok
+          ? parseAccountSession(await sessionResponse.json())
+          : null;
 
         if (!session) {
           if (active) {

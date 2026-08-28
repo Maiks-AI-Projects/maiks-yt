@@ -24,6 +24,21 @@ type ProfileUpdateResponse = {
   reason: string;
 };
 
+type ProviderProfileSelection = "name" | "image" | "both";
+
+export const buildProviderProfileSelectionPayload = (
+  option: ProviderProfileOption,
+  selection: ProviderProfileSelection
+): {
+  profileOptionRef: string;
+  useDisplayName: boolean;
+  useImage: boolean;
+} => ({
+  profileOptionRef: option.profileOptionRef,
+  useDisplayName: selection === "name" || selection === "both",
+  useImage: selection === "image" || selection === "both"
+});
+
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 const providerLabels: Readonly<Record<string, string>> = {
@@ -62,7 +77,7 @@ const ProfileIdentitySettings = ({
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [savingName, setSavingName] = useState(false);
   const [savingImage, setSavingImage] = useState(false);
-  const [applyingProviderAccountId, setApplyingProviderAccountId] = useState<string | null>(null);
+  const [applyingProviderOptionRef, setApplyingProviderOptionRef] = useState<string | null>(null);
 
   useEffect(() => {
     setDisplayName(profile.displayName);
@@ -154,20 +169,16 @@ const ProfileIdentitySettings = ({
 
   const applyProviderProfile = async (
     option: ProviderProfileOption,
-    selection: "name" | "image" | "both"
+    selection: ProviderProfileSelection
   ): Promise<void> => {
-    setApplyingProviderAccountId(option.accountId);
+    setApplyingProviderOptionRef(option.profileOptionRef);
 
     try {
       const response = await fetch(`${apiBaseUrl}/account/domain/provider-profile`, {
         method: "PUT",
         headers: createApiHeaders({ "Content-Type": "application/json" }),
         credentials: "include",
-        body: JSON.stringify({
-          accountId: option.accountId,
-          useDisplayName: selection === "name" || selection === "both",
-          useImage: selection === "image" || selection === "both"
-        })
+        body: JSON.stringify(buildProviderProfileSelectionPayload(option, selection))
       });
       const result = await response.json() as ProfileUpdateResponse;
 
@@ -180,7 +191,7 @@ const ProfileIdentitySettings = ({
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Could not use that connected account profile.");
     } finally {
-      setApplyingProviderAccountId(null);
+      setApplyingProviderOptionRef(null);
     }
   };
 
@@ -246,10 +257,10 @@ const ProfileIdentitySettings = ({
         {loadingProviderOptions ? (
           <p>Checking connected accounts...</p>
         ) : providerOptions.length > 0 ? providerOptions.map((option) => {
-          const applying = applyingProviderAccountId === option.accountId;
+          const applying = applyingProviderOptionRef === option.profileOptionRef;
 
           return (
-            <article className={styles.providerProfileChoice} key={option.accountId}>
+            <article className={styles.providerProfileChoice} key={option.profileOptionRef}>
               {option.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img alt="" src={option.imageUrl} />
@@ -266,7 +277,7 @@ const ProfileIdentitySettings = ({
                 <button
                   type="button"
                   className={styles.textButton}
-                  disabled={applyingProviderAccountId !== null}
+                  disabled={applyingProviderOptionRef !== null}
                   onClick={() => void applyProviderProfile(option, "name")}
                 >
                   Use name
@@ -274,7 +285,7 @@ const ProfileIdentitySettings = ({
                 <button
                   type="button"
                   className={styles.textButton}
-                  disabled={!option.imageUrl || applyingProviderAccountId !== null}
+                  disabled={!option.imageUrl || applyingProviderOptionRef !== null}
                   onClick={() => void applyProviderProfile(option, "image")}
                 >
                   Use image
@@ -282,7 +293,7 @@ const ProfileIdentitySettings = ({
                 <button
                   type="button"
                   className={styles.actionButton}
-                  disabled={!option.imageUrl || applyingProviderAccountId !== null}
+                  disabled={!option.imageUrl || applyingProviderOptionRef !== null}
                   onClick={() => void applyProviderProfile(option, "both")}
                 >
                   {applying ? "Saving..." : "Use both"}

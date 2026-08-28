@@ -33,7 +33,6 @@ export type StreamVisibilityPreferenceUpdate = {
 export type StreamVisibilityPreferencesResult =
   | {
     ok: true;
-    domainUser: StreamVisibilityPreferencesDomainUser;
     preferences: readonly StreamVisibilityPreferenceValue[];
   }
   | {
@@ -51,4 +50,3 @@ export interface StreamVisibilityPreferencesRepository {
     preferences: readonly StreamVisibilityPreferenceUpdate[];
   }): Promise<void>;
 }
-

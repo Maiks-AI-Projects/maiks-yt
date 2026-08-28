@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { getApiPublicBaseUrl } from "../api-public-base-url.rules.js";
+import { projectDomainUser } from "./account-response-projection.service.js";
 import type { AuthSessionSnapshot } from "./auth-session.types.js";
 import { getDomainUserForAuthUser } from "./domain-identity.service.js";
 import {
@@ -19,6 +20,11 @@ import {
   fetchProviderProfileOption,
   type ProviderProfileAccount
 } from "./provider-profile-options.service.js";
+import {
+  createProviderProfileOptionRef,
+  getProviderProfileOptionRefSecret,
+  resolveProviderProfileOptionRef
+} from "./provider-profile-option-ref.service.js";
 
 const profileUpdateSchema = z.object({
   displayName: z.string()
@@ -46,7 +52,7 @@ const replyWithProfileImageNotFound = (reply: FastifyReply): {
 };
 
 const providerProfileApplySchema = z.object({
-  accountId: z.string().min(1).max(191),
+  profileOptionRef: z.string().min(1).max(128),
   useDisplayName: z.boolean(),
   useImage: z.boolean()
 }).strict().refine((value) => value.useDisplayName || value.useImage);
@@ -73,15 +79,34 @@ export const registerAccountProfileRoutes = (
 
     try {
       const pool = dependencies.getDatabasePool();
+      const secret = getProviderProfileOptionRefSecret();
+
+      if (!secret) {
+        reply.code(503);
+        return { ok: false, reason: "provider_profile_unavailable" };
+      }
+
       const [rows] = await pool.execute(
-        "SELECT id, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
+        "SELECT id, account_id AS accountId, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
         [session.user.id]
       );
       const accounts = Array.isArray(rows) ? rows as ProviderProfileAccount[] : [];
-      const options = await Promise.all(accounts.map(async (account) =>
-        await fetchProviderProfileOption(account, {
+      const options = await Promise.all(accounts.map(async (account) => {
+        const option = await fetchProviderProfileOption(account, {
           twitchClientId: process.env.TWITCH_CLIENT_ID
-        })));
+        });
+
+        return option
+          ? {
+            ...option,
+            profileOptionRef: createProviderProfileOptionRef({
+              account,
+              authUserId: session.user.id,
+              secret
+            })
+          }
+          : null;
+      }));
 
       return {
         ok: true,
@@ -112,12 +137,19 @@ export const registerAccountProfileRoutes = (
     try {
       const pool = dependencies.getDatabasePool();
       const [rows] = await pool.execute(
-        "SELECT id, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE id = ? AND user_id = ? LIMIT 1",
-        [parsedBody.data.accountId, session.user.id]
+        "SELECT id, account_id AS accountId, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
+        [session.user.id]
       );
-      const account = Array.isArray(rows)
-        ? rows[0] as ProviderProfileAccount | undefined
-        : undefined;
+      const accounts = Array.isArray(rows) ? rows as ProviderProfileAccount[] : [];
+      const secret = getProviderProfileOptionRefSecret();
+      const account = secret
+        ? resolveProviderProfileOptionRef({
+          accounts,
+          authUserId: session.user.id,
+          profileOptionRef: parsedBody.data.profileOptionRef,
+          secret
+        })
+        : null;
 
       if (!account) {
         reply.code(404);
@@ -176,11 +208,11 @@ export const registerAccountProfileRoutes = (
 
       return {
         ok: true,
-        domainUser: {
+        domainUser: projectDomainUser({
           ...user,
           displayName,
           avatarUrl
-        }
+        })
       };
     } catch (error) {
       server.log.warn({ err: error }, "Provider profile selection failed.");
@@ -222,10 +254,10 @@ export const registerAccountProfileRoutes = (
 
       return {
         ok: true,
-        domainUser: {
+        domainUser: projectDomainUser({
           ...user,
           displayName: validated.value.displayName
-        }
+        })
       };
     } catch (error) {
       server.log.warn({ err: error }, "Account profile update failed.");
@@ -269,10 +301,10 @@ export const registerAccountProfileRoutes = (
 
       return {
         ok: true,
-        domainUser: {
+        domainUser: projectDomainUser({
           ...user,
           avatarUrl
-        }
+        })
       };
     } catch (error) {
       server.log.warn({ err: error }, "Account profile image upload failed.");
@@ -306,10 +338,10 @@ export const registerAccountProfileRoutes = (
 
       return {
         ok: true,
-        domainUser: {
+        domainUser: projectDomainUser({
           ...user,
           avatarUrl: null
-        }
+        })
       };
     } catch (error) {
       server.log.warn({ err: error }, "Account profile image removal failed.");

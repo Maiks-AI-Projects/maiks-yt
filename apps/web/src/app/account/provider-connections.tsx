@@ -2,13 +2,12 @@
 
 import { providerDefinitions } from "./account-settings-data";
 import styles from "./account.module.css";
-import type { AuthAccount, DomainLinkedAccount, OAuthProviderId, ProviderProfileOption } from "./account.types";
+import type { AuthAccount, OAuthProviderId, ProviderProfileOption } from "./account.types";
 
 type ProviderConnectionsProps = {
   accounts: readonly AuthAccount[];
   busyProvider: OAuthProviderId | null;
   configuredProviderIds: readonly OAuthProviderId[];
-  domainAccounts: readonly DomainLinkedAccount[];
   loadingProviderOptions: boolean;
   providerOptions: readonly ProviderProfileOption[];
   syncing: boolean;
@@ -28,7 +27,6 @@ const ProviderConnections = ({
   accounts,
   busyProvider,
   configuredProviderIds,
-  domainAccounts,
   loadingProviderOptions,
   providerOptions,
   syncing,
@@ -38,45 +36,32 @@ const ProviderConnections = ({
   const visibleProviders = providerDefinitions.filter((provider) =>
     configuredProviderIds.includes(provider.id)
     || accounts.some((account) => account.providerId === provider.id)
-    || domainAccounts.some((account) => account.provider === provider.id)
+    || providerOptions.some((option) => option.providerId === provider.id)
   );
 
   return (
     <div className={styles.connectionList}>
       {visibleProviders.map((provider) => {
         const authProviderAccounts = accounts.filter((account) => account.providerId === provider.id);
-        const domainProviderAccounts = domainAccounts.filter((account) => account.provider === provider.id);
         const providerProfileOptions = providerOptions.filter((option) => option.providerId === provider.id);
-        const providerProfileAccountIds = new Set(providerProfileOptions.map((option) => option.accountId));
-        const fallbackAuthAccounts = authProviderAccounts.filter((account) => !providerProfileAccountIds.has(account.id));
-        const authProviderExternalIds = new Set(authProviderAccounts.map((account) => account.accountId));
-        const orphanDomainAccounts = domainProviderAccounts.filter((account) =>
-          !authProviderExternalIds.has(account.providerAccountId)
-        );
+        const fallbackAuthAccounts = providerProfileOptions.length > 0 ? [] : authProviderAccounts;
         const identityRows: ConnectionIdentityRow[] = [
           ...providerProfileOptions.map((option): ConnectionIdentityRow => ({
-            key: `provider-option:${option.accountId}`,
+            key: `provider-option:${option.profileOptionRef}`,
             displayName: option.displayName,
             email: option.email,
             imageUrl: option.imageUrl,
             detail: "Provider profile"
           })),
-          ...orphanDomainAccounts.map((account): ConnectionIdentityRow => ({
-            key: `domain:${account.id}`,
-            displayName: account.displayName,
-            email: null,
-            imageUrl: null,
-            detail: account.purposeLabel ?? "Login account"
-          })),
           ...fallbackAuthAccounts.map((account, index): ConnectionIdentityRow => ({
-            key: `auth:${account.id}`,
+            key: `auth:${account.providerId}:${index}`,
             displayName: `${provider.label} account${fallbackAuthAccounts.length > 1 ? ` ${index + 1}` : ""}`,
             email: null,
             imageUrl: null,
             detail: loadingProviderOptions ? "Checking provider profile" : "Connected sign-in"
           }))
         ];
-        const isLinked = authProviderAccounts.length > 0 || domainProviderAccounts.length > 0;
+        const isLinked = authProviderAccounts.length > 0 || providerProfileOptions.length > 0;
         const ProviderIcon = provider.Icon;
 
         return (

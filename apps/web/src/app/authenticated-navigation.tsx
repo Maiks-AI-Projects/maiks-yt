@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { parseAccountSession } from "./account/account-session.service";
 import { createApiHeaders } from "./dev-auth-token";
 import styles from "./site-shell.module.css";
 
@@ -42,7 +43,13 @@ export const AuthenticatedNavigation = ({ context }: AuthenticatedNavigationProp
           headers: createApiHeaders()
         });
 
-        if (!sessionResponse.ok || !await sessionResponse.json()) {
+        if (!sessionResponse.ok) {
+          return;
+        }
+
+        const session = parseAccountSession(await sessionResponse.json());
+
+        if (!session) {
           return;
         }
 

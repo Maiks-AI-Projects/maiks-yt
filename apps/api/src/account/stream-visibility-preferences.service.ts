@@ -40,7 +40,6 @@ export class StreamVisibilityPreferencesService {
 
     return {
       ok: true,
-      domainUser,
       preferences: buildStreamVisibilityPreferenceValues(savedPreferences)
     };
   }
@@ -68,9 +67,7 @@ export class StreamVisibilityPreferencesService {
 
     return {
       ok: true,
-      domainUser,
       preferences: buildStreamVisibilityPreferenceValues(savedPreferences)
     };
   }
 }
-

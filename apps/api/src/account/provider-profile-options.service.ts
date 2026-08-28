@@ -1,11 +1,11 @@
 export type ProviderProfileAccount = {
   id: string;
+  accountId: string;
   providerId: string;
   accessToken: string | null;
 };
 
 export type ProviderProfileOption = {
-  accountId: string;
   providerId: string;
   displayName: string;
   email: string | null;
@@ -59,7 +59,6 @@ const fetchGoogleProfile = async (
   const displayName = readString(profile?.name);
 
   return displayName ? {
-    accountId: account.id,
     providerId: account.providerId,
     displayName,
     email: readString(profile?.email),
@@ -79,7 +78,6 @@ const fetchGitHubProfile = async (
   const displayName = readString(profile?.login);
 
   return displayName ? {
-    accountId: account.id,
     providerId: account.providerId,
     displayName,
     email: readString(profile?.email),
@@ -101,7 +99,6 @@ const fetchDiscordProfile = async (
   const displayName = readString(profile?.global_name) ?? readString(profile?.username);
 
   return displayName ? {
-    accountId: account.id,
     providerId: account.providerId,
     displayName,
     email: readString(profile?.email),
@@ -130,7 +127,6 @@ const fetchTwitchProfile = async (
   const displayName = readString(profile?.display_name) ?? readString(profile?.login);
 
   return displayName ? {
-    accountId: account.id,
     providerId: account.providerId,
     displayName,
     email: readString(profile?.email),

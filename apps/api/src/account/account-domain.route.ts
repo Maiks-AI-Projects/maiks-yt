@@ -5,8 +5,9 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { registerAccountDevRoutes } from "./account-dev.route.js";
+import { projectAccountDomain, projectAccountSession } from "./account-response-projection.service.js";
 import type { AuthSessionSnapshot } from "./auth-session.types.js";
-import { getDomainLinkedAccounts, getDomainUserForAuthUser, parseJsonArray } from "./domain-identity.service.js";
+import { getDomainUserForAuthUser, parseJsonArray } from "./domain-identity.service.js";
 
 const allowLoginRequestSchema = z.object({
   allowLogin: z.boolean()
@@ -16,12 +17,12 @@ const profileVisibilityRequestSchema = z.object({
 });
 
 type AuthAccountRow = {
-  id: string;
-  userId: string;
   accountId: string;
   providerId: string;
-  scope?: string | null;
-  createdAt?: Date | null;
+};
+
+type AuthAccountProviderRow = {
+  providerId?: string | null;
 };
 
 type AccountDomainRouteDependencies = {
@@ -38,6 +39,46 @@ const getProviderAccountLabel = (providerId: string): string => {
   }
 
   return `${normalized.slice(0, 1).toUpperCase()}${normalized.slice(1)} account`;
+};
+
+const projectLinkedAccountCount = async (
+  pool: DatabasePool,
+  userId: string | null
+): Promise<number> => {
+  if (!userId) {
+    return 0;
+  }
+
+  const [rows] = await pool.execute(
+    "SELECT COUNT(*) AS linkedAccountCount FROM linked_accounts WHERE user_id = ?",
+    [userId]
+  );
+  const row = Array.isArray(rows)
+    ? rows[0] as { linkedAccountCount?: number | string | null } | undefined
+    : undefined;
+  const count = Number(row?.linkedAccountCount ?? 0);
+
+  return Number.isFinite(count) && count > 0 ? count : 0;
+};
+
+const projectAuthAccountProviders = (rows: readonly AuthAccountProviderRow[]): {
+  ok: true;
+  accounts: Array<{ providerId: string }>;
+} => {
+  const providerIds = new Set<string>();
+
+  for (const row of rows) {
+    const providerId = row.providerId?.trim();
+
+    if (providerId) {
+      providerIds.add(providerId);
+    }
+  }
+
+  return {
+    ok: true,
+    accounts: [...providerIds].sort().map((providerId) => ({ providerId }))
+  };
 };
 
 export const registerAccountDomainRoutes = (
@@ -68,7 +109,7 @@ export const registerAccountDomainRoutes = (
   });
 
   server.get("/account/session", async (request) => {
-    return await getAuthSession(request);
+    return projectAccountSession(await getAuthSession(request));
   });
 
   server.get("/account/auth-accounts", async (request, reply) => {
@@ -85,22 +126,14 @@ export const registerAccountDomainRoutes = (
     try {
       const pool = getDatabasePool();
       const [authAccountRows] = await pool.execute(
-        "SELECT id, user_id AS userId, account_id AS accountId, provider_id AS providerId, scope, created_at AS createdAt, updated_at AS updatedAt FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
+        "SELECT provider_id AS providerId FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
         [session.user.id]
       );
       const authAccounts = Array.isArray(authAccountRows)
-        ? authAccountRows as Array<AuthAccountRow & { updatedAt?: Date | null }>
+        ? authAccountRows as AuthAccountProviderRow[]
         : [];
 
-      return authAccounts.map((account) => ({
-        id: account.id,
-        userId: account.userId,
-        accountId: account.accountId,
-        providerId: account.providerId,
-        scopes: account.scope?.split(" ").filter((scope) => scope.length > 0) ?? [],
-        createdAt: account.createdAt ?? null,
-        updatedAt: account.updatedAt ?? null
-      }));
+      return projectAuthAccountProviders(authAccounts);
     } catch (error) {
       server.log.warn({ err: error }, "Auth account list failed.");
       reply.code(503);
@@ -127,13 +160,11 @@ export const registerAccountDomainRoutes = (
       const pool = getDatabasePool();
       const { user } = await getDomainUserForAuthUser(pool, session.user, false);
 
-      return {
-        ok: true,
-        authUserId: session.user.id,
-        domainUser: user,
-        linkedAccounts: user ? await getDomainLinkedAccounts(pool, user.id) : [],
-        needsSync: !user
-      };
+      return projectAccountDomain({
+        linkedAccountCount: await projectLinkedAccountCount(pool, user?.id ?? null),
+        needsSync: !user,
+        user
+      });
     } catch (error) {
       server.log.warn({ err: error }, "Domain account snapshot failed.");
       reply.code(503);
@@ -158,7 +189,7 @@ export const registerAccountDomainRoutes = (
 
     try {
       const pool = getDatabasePool();
-      const { user, created: createdDomainUser } = await getDomainUserForAuthUser(pool, session.user, true);
+      const { user } = await getDomainUserForAuthUser(pool, session.user, true);
 
       if (!user) {
         reply.code(500);
@@ -169,14 +200,12 @@ export const registerAccountDomainRoutes = (
       }
 
       const [authAccountRows] = await pool.execute(
-        "SELECT id, user_id AS userId, account_id AS accountId, provider_id AS providerId, scope, created_at AS createdAt FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
+        "SELECT account_id AS accountId, provider_id AS providerId FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
         [session.user.id]
       );
       const authAccounts = Array.isArray(authAccountRows)
         ? authAccountRows as AuthAccountRow[]
         : [];
-      let createdLinkedAccounts = 0;
-
       for (const authAccount of authAccounts) {
         const [existingRows] = await pool.execute(
           "SELECT id FROM linked_accounts WHERE provider = ? AND provider_account_id = ? LIMIT 1",
@@ -199,16 +228,13 @@ export const registerAccountDomainRoutes = (
             JSON.stringify(["login"])
           ]
         );
-        createdLinkedAccounts += 1;
       }
 
-      return {
-        ok: true,
-        createdDomainUser,
-        createdLinkedAccounts,
-        domainUser: user,
-        linkedAccounts: await getDomainLinkedAccounts(pool, user.id)
-      };
+      return projectAccountDomain({
+        linkedAccountCount: await projectLinkedAccountCount(pool, user.id),
+        needsSync: false,
+        user
+      });
     } catch (error) {
       server.log.warn({ err: error }, "Domain account sync failed.");
       reply.code(503);
@@ -293,11 +319,11 @@ export const registerAccountDomainRoutes = (
         [parsedRequest.data.allowLogin, linkedAccount.id, user.id]
       );
 
-      return {
-        ok: true,
-        domainUser: user,
-        linkedAccounts: await getDomainLinkedAccounts(pool, user.id)
-      };
+      return projectAccountDomain({
+        linkedAccountCount: await projectLinkedAccountCount(pool, user.id),
+        needsSync: false,
+        user
+      });
     } catch (error) {
       server.log.warn({ err: error }, "Allow-login update failed.");
       reply.code(503);
@@ -347,14 +373,14 @@ export const registerAccountDomainRoutes = (
         [parsedRequest.data.profileVisibility, user.id]
       );
 
-      return {
-        ok: true,
-        domainUser: {
+      return projectAccountDomain({
+        linkedAccountCount: await projectLinkedAccountCount(pool, user.id),
+        needsSync: false,
+        user: {
           ...user,
           profileVisibility: parsedRequest.data.profileVisibility
-        },
-        linkedAccounts: await getDomainLinkedAccounts(pool, user.id)
-      };
+        }
+      });
     } catch (error) {
       server.log.warn({ err: error }, "Profile visibility update failed.");
       reply.code(503);

@@ -7,6 +7,7 @@ import {
 
 const account = {
   id: "auth-account-1",
+  accountId: "github-subject-1",
   providerId: "github",
   accessToken: "private-token"
 };
@@ -28,7 +29,6 @@ describe("provider profile options", () => {
     });
 
     expect(option).toEqual({
-      accountId: "auth-account-1",
       providerId: "github",
       displayName: "maiks-account",
       email: "maiks@example.test",

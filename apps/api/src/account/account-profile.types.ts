@@ -3,7 +3,6 @@ import type { ProfileVisibility } from "@maiks-yt/domain/identity";
 export type AccountProfileSnapshot = {
   ok: true;
   domainUser: {
-    id: string;
     displayName: string;
     profileVisibility: ProfileVisibility;
     avatarUrl: string | null;

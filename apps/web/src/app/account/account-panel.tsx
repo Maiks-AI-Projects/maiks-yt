@@ -22,7 +22,7 @@ const AccountPanel = (): React.ReactNode => {
     ? domainSnapshot.domainUser?.displayName ?? "Maiks.yt member"
     : "Maiks.yt member";
   const avatarUrl = domainSnapshot?.ok ? domainSnapshot.domainUser?.avatarUrl : null;
-  const linkedCount = accounts.length;
+  const linkedCount = domainSnapshot?.ok ? domainSnapshot.linkedAccountCount : accounts.length;
   const streamHiddenCount = streamSnapshot?.ok
     ? streamSnapshot.preferences.filter((preference) => preference.optedOut).length
     : 0;
@@ -57,7 +57,7 @@ const AccountPanel = (): React.ReactNode => {
                 <img alt="" src={avatarUrl} />
               ) : (
                 <span className="session-avatar-placeholder" aria-hidden="true">
-                  {(displayName ?? session.user.email ?? "?").slice(0, 1).toUpperCase()}
+                  {(displayName ?? session.currentUser.email ?? "?").slice(0, 1).toUpperCase()}
                 </span>
               )}
               <dl>
@@ -67,7 +67,7 @@ const AccountPanel = (): React.ReactNode => {
                 </div>
                 <div>
                   <dt>Email</dt>
-                  <dd>{session.user.email ?? "No email shared by the provider"}</dd>
+                  <dd>{session.currentUser.email ?? "No email shared by the provider"}</dd>
                 </div>
               </dl>
             </div>

@@ -9,7 +9,6 @@ const ConnectionsPanel = (): React.ReactNode => {
     accounts,
     busyProvider,
     configuredProviders,
-    domainSnapshot,
     linkProvider,
     loadAccount,
     loading,
@@ -26,8 +25,6 @@ const ConnectionsPanel = (): React.ReactNode => {
     loadProviderProfiles: true,
     linkCallbackPath: "/account/connections"
   });
-
-  const domainAccounts = domainSnapshot?.ok ? domainSnapshot.linkedAccounts : [];
 
   return (
     <main className="account-page-panel">
@@ -61,7 +58,6 @@ const ConnectionsPanel = (): React.ReactNode => {
             accounts={accounts}
             busyProvider={busyProvider}
             configuredProviderIds={configuredProviders}
-            domainAccounts={domainAccounts}
             loadingProviderOptions={loadingProviderProfileOptions}
             providerOptions={providerProfileOptions}
             syncing={syncing}

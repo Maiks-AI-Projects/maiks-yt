@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { parseAccountSession, type AccountSession } from "./account/account-session.service";
 import { captureDevAuthTokenFromUrl, clearDevAuthToken, createApiHeaders } from "./dev-auth-token";
 
 type OAuthProvider = {
@@ -23,21 +24,6 @@ type SignInResponse = {
   redirect?: boolean;
 };
 
-type AuthSessionResponse = {
-  user: {
-    id: string;
-    name?: string | null;
-    email?: string | null;
-    image?: string | null;
-    emailVerified?: boolean | null;
-  };
-  session: {
-    id?: string;
-    userId?: string;
-    expiresAt?: string | Date | null;
-  };
-} | null;
-
 type DomainProfileResponse = {
   ok: true;
   domainUser: {
@@ -52,7 +38,7 @@ type OAuthLoginPanelProps = {
 
 const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.ReactNode => {
   const [busyProvider, setBusyProvider] = useState<OAuthProvider["id"] | null>(null);
-  const [session, setSession] = useState<AuthSessionResponse>(null);
+  const [session, setSession] = useState<AccountSession>(null);
   const [domainProfile, setDomainProfile] = useState<DomainProfileResponse["domainUser"]>(null);
   const [sessionLoading, setSessionLoading] = useState<boolean>(true);
   const [message, setMessage] = useState<string>("Checking session...");
@@ -105,7 +91,7 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
         throw new Error(`Session check failed with ${response.status}`);
       }
 
-      const nextSession = await response.json() as AuthSessionResponse;
+      const nextSession = parseAccountSession(await response.json());
       setSession(nextSession);
 
       if (nextSession) {
@@ -164,16 +150,17 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
   }, []);
 
   if (variant === "nav") {
-    const displayName = domainProfile?.displayName ?? "Account";
+    const displayName = domainProfile?.displayName ?? session?.currentUser.name ?? "Account";
+    const avatarUrl = domainProfile?.avatarUrl ?? session?.currentUser.imageUrl ?? null;
 
     return (
       <section className="auth-nav" aria-label="Account">
         {session ? (
           <details className="account-menu">
             <summary>
-              {domainProfile?.avatarUrl ? (
+              {avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img alt="" src={domainProfile.avatarUrl} />
+                <img alt="" src={avatarUrl} />
               ) : (
                 <span aria-hidden="true" className="session-avatar-placeholder">
                   {displayName.slice(0, 1).toUpperCase()}
@@ -186,7 +173,7 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
               <dl>
                 <div>
                   <dt>Email</dt>
-                  <dd>{session.user.email ?? "No email returned"}</dd>
+                  <dd>{session.currentUser.email ?? "No email returned"}</dd>
                 </div>
               </dl>
               <div className="auth-actions compact">
@@ -229,6 +216,10 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
     );
   }
 
+  const panelAvatarUrl = session
+    ? domainProfile?.avatarUrl ?? session.currentUser.imageUrl
+    : null;
+
   return (
     <section className="auth-panel" aria-labelledby="auth-panel-title">
       <div>
@@ -237,12 +228,12 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
       </div>
       {session ? (
         <div className="session-card">
-          {domainProfile?.avatarUrl ? (
+          {panelAvatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img alt="" src={domainProfile.avatarUrl} />
+            <img alt="" src={panelAvatarUrl} />
           ) : (
             <div aria-hidden="true" className="session-avatar-placeholder">
-              {(domainProfile?.displayName ?? "Account").slice(0, 1).toUpperCase()}
+              {(domainProfile?.displayName ?? session.currentUser.name ?? session.currentUser.email ?? "Account").slice(0, 1).toUpperCase()}
             </div>
           )}
           <dl>
@@ -252,7 +243,7 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
             </div>
             <div>
               <dt>Email</dt>
-              <dd>{session.user.email ?? "No email returned"}</dd>
+              <dd>{session.currentUser.email ?? "No email returned"}</dd>
             </div>
           </dl>
         </div>

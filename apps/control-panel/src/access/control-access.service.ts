@@ -12,11 +12,43 @@ export type ControlPanelAuthState =
   };
 
 type AccountSessionResponse = {
-  user: {
-    name?: string | null;
-    email?: string | null;
+  ok: true;
+  signedIn: true;
+  currentUser: {
+    name: string | null;
+    email: string | null;
+    imageUrl: string | null;
   };
 } | null;
+
+const isNullableString = (value: unknown): value is string | null =>
+  value === null || typeof value === "string";
+
+const isSignedInAccountSession = (
+  value: unknown
+): value is NonNullable<AccountSessionResponse> => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const session = value as Record<string, unknown>;
+
+  if (session.ok !== true || session.signedIn !== true) {
+    return false;
+  }
+
+  const currentUser = session.currentUser;
+
+  if (!currentUser || typeof currentUser !== "object") {
+    return false;
+  }
+
+  const user = currentUser as Record<string, unknown>;
+
+  return isNullableString(user.name)
+    && isNullableString(user.email)
+    && isNullableString(user.imageUrl);
+};
 
 export const controlAccessRetryDelaysMs = [2_000, 5_000, 10_000, 20_000, 30_000] as const;
 
@@ -67,9 +99,9 @@ export const validateControlPanelAccess = async (apiBaseUrl: string): Promise<Co
       };
     }
 
-    const session = await sessionResponse.json() as AccountSessionResponse;
+    const session: unknown = await sessionResponse.json();
 
-    if (!session) {
+    if (session === null) {
       return {
         status: "blocked",
         kind: "login-required",
@@ -77,9 +109,17 @@ export const validateControlPanelAccess = async (apiBaseUrl: string): Promise<Co
       };
     }
 
+    if (!isSignedInAccountSession(session)) {
+      return {
+        status: "blocked",
+        kind: "unavailable",
+        message: "The account service returned an invalid session response."
+      };
+    }
+
     return {
       status: "allowed",
-      displayName: session.user.name ?? session.user.email ?? "Signed-in user"
+      displayName: session.currentUser.name ?? session.currentUser.email ?? "Signed-in user"
     };
   } catch {
     return {
