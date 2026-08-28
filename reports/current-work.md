@@ -1,5 +1,11 @@
 # Current Work
 
+## 2026-08-28 production Creator Links admin image candidate
+
+- Registered `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` as a Candidate / Owner approval required. It is not approved, and implementation is blocked until the Owner explicitly approves it.
+- The candidate preserves the production admin shell and proposes a compact master/detail Creator Links editor with inventory-only ordering, a selected draft editor, local draft preview using the public row presentation, authoritative saved `/links` preview, and owner-only draft deletion with exact-title confirmation. Funding/support remains protected and unavailable.
+- Current production behavior remains unchanged: database-backed owner controls, dirty-edit protection, inventory ordering, pre-save icon/purpose feedback, public draft exclusion, and the authoritative saved `/links` view. No code/runtime, migration, deployment, server, GUI/browser, or live state changed.
+
 ## 2026-08-28 production homepage featured-Update integration
 
 - The production homepage now starts the real public schedule, project, and public Updates loaders concurrently, once each, before deriving homepage slots.

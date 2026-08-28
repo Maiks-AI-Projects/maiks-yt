@@ -1,5 +1,10 @@
 # Next Agent Tasks
 
+## Production Creator Links admin image gate
+
+- `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` is a Candidate / Owner approval required, not an approved implementation reference.
+- Do not implement the candidate until explicit Owner approval. The gated next behavior is the compact master/detail presentation, local unsaved preview using the public row presentation while saved `/links` stays authoritative, and owner-only unpublished-draft deletion with exact-title confirmation. Preserve inventory-only ordering and keep Funding/support protected and unavailable.
+
 ## Production Operator Contracts: Deploy And Verify Separately
 
 - Provider-intake review references, finite provider status, bounded Session administration, minimized Page Creator responses, and minimized Games suggestion-review responses are code-complete and independently reviewed with zero standards and zero specification findings.

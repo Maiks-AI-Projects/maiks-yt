@@ -358,6 +358,7 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Add database-backed Creator Hub link read-model foundation.
 - [x] Build Creator Hub link admin create/edit/reorder controls.
 - [x] Creator Links current scope B-F: assign new links after the persisted maximum order, protect dirty edits during publish/selection, keep ordering in the order list, use visual-highlight wording, and show icon/purpose feedback before save.
+- [ ] Owner approval gate: `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` is a Candidate / Owner approval required. Creator Links admin implementation from this image is blocked until explicit Owner approval.
 - [ ] G — Add a draft/unsaved preview using the real public presentation, with the iframe remaining the authoritative saved-public view; preferably share the renderer, and never expose drafts through public `GET /links`.
 - [ ] H — Add owner-only safe deletion for unpublished/draft links with exact confirmation; defer archive/schema work until recovery is needed.
 - [ ] I — Activate a support destination only after Michael approves the final URL and public wording; update protected backend policy/tests then, with no payment processing.
