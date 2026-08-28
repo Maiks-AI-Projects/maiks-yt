@@ -1,5 +1,20 @@
 # Current Work
 
+## 2026-08-28 public Health context rollout `93c353c`
+
+- Rewrote `/about/health` as calm practical context for viewers and fellow creators. The page retains the current brain-tumor, brain-damage, ADHD, memory, focus, energy, communication, scheduling, and streaming context without pity, inspiration, fundraising, defensive framing, or invented medical facts.
+- The public timeline now begins with the confirmed 2017 tumor record. The 2014 broken-hand material and unrelated 2018 head-injury material remain recoverable in `sourceOnlyUnrenderedHealthHistory`, are covered by a focused regression test, and are not rendered publicly. The MRI, current-effects guidance, record boundary, and restrained relationship to `/about/history` remain intact.
+- Independent final GPT-5.5 review found zero standards and zero product/tone/factual-fidelity findings. `pnpm check:review` passed with 159 Domain tests, 646 API tests, 248 Web tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- Commit `93c353c7d58b5078beb96241593ab9d3abf10576` is pushed and deployed to Web only. The prior Web image is retained as `maiks-yt-production:rollback-93c353c-web-before` (`sha256:f4cd685a613fb98c265b530394d74484511652ffce350126e0145c9fc232aa27`). The replacement Web container `425c9ca57f8681d6bc944bb09bc8c2e7327b941218c1b7c559cc55b70c044fd2` uses image config `sha256:a6241d03d18bf700f385260251e33fa7b894ec03480c5c76172f58050d08b7bb`; BuildKit reported manifest `sha256:caa05174154aa1f178a17448e16be5f47a07f563a6fce9b562682ff5f20b893c`.
+- Web is healthy with zero restarts. Public `/about/health`, Home, `/about/history`, API health, Control, and Overlay returned `200`; a synthetic missing route returned `404`. Live HTML contains the new practical context and omits the hidden injuries and rejected defensive wording. No migration, volume, API, Control, Overlay, provider, secret, account, or GUI action occurred.
+
+## 2026-08-28 public writing and AI-page decision gates
+
+- The representative public-copy audit found repeated abstract product language, defensive qualifications, internal implementation copy, repetitive unfinished-state wording, and headings that sound designed rather than spoken. Strong existing lines and Michael's concrete, dry, first-person voice should be preserved.
+- Michael's recommended direction is `Direct, warm, and matter-of-fact`: natural rhythm, contractions, occasional fragments, dry humour, concrete examples, and real opinions without deliberate typos, fake mistakes, marketing polish, inspirational clichés, dramatic medical framing, or AI filler. The published writing-style choice is `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df`; it authorizes a later page-by-page proposal only.
+- The earlier paragraph-only AI choice remains immutable. Michael now prefers a possible dedicated short `/about/ai` page, so the superseding proposal choice is `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. It must distinguish Michael's real gameplay, voice, reactions, decisions, camera, and live footage from accurately disclosed AI-assisted production and any specific AI-made visual/audio exceptions. No page implementation or deployment is authorized yet.
+- The exact primary mailing-list follow-up containing Linus Torvalds's personal-choice wording and vegetarian/vegan analogy was verified at `https://lore.kernel.org/linux-media/CAHk-%3Dwi7KN9_DYdmaE2chC92EhTrO%3DWtx1bPBER-EQfAZ8FREg%40mail.gmail.com/`. A future page may link it sparingly, but the Maiks.yt explanation must stand in Michael's own words.
+
 ## 2026-08-28 production Twitch chat-reply readiness rollout `30adb56`
 
 - Reviewed production commit `30adb56` (`feat: expose Twitch chat reply readiness`) is pushed to `origin/production` and deployed to Web and API as image `sha256:f4cd685a613fb98c265b530394d74484511652ffce350126e0145c9fc232aa27`. Overlay and Control remain on the previously verified `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836` image.

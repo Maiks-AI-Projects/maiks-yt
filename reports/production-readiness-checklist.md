@@ -16,6 +16,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 ### Deployed
 
+- Web-only revision `93c353c` deploys the rewritten public Health context page. The previous Web image is retained as `rollback-93c353c-web-before`; no migration or volume change occurred, and API, Overlay, and Control were not recreated.
 - Production revision `c98486f` is deployed across Web, API, Overlay, and Control as image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`; it includes the approved Creator Links admin and accumulated reviewed production source through that revision. No migration was applied.
 - Production revision `30adb56` is deployed to Web and API as image `sha256:f4cd685a613fb98c265b530394d74484511652ffce350126e0145c9fc232aa27`; Overlay and Control remain on the prior image. The previous Web/API image is retained under `rollback-30adb56-*-before`. No migration was applied.
 - Production revision `501613c` is deployed across web, API, overlay, and control.
@@ -29,6 +30,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 ### Verified
 
+- Public `/about/health` returns `200` with the practical current-context copy from `93c353c`. Live HTML contains the current tumor, brain-damage, ADHD, memory/energy/communication context and omits the source-only broken-hand and unrelated head-injury history. Home, `/about/history`, API health, Control, and Overlay remained healthy during the bounded rollout.
 - After the `c98486f` rollout, all four containers were healthy on the same image with zero restarts and no matching recent error, fatal, unhandled, or 5xx log lines. Home, Links, Admin Links, Admin Updates, API health, Control, and Overlay returned `200`; synthetic missing and retired dev routes returned `404`.
 - Live public `GET /links` returned only the bounded public projection. Unauthenticated Creator Links admin read and delete requests returned `401` before mutation.
 - Public-origin smoke has been exercised against the live production host.

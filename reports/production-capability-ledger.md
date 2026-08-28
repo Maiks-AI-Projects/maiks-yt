@@ -48,6 +48,14 @@ The Creator Links row was delivered later in production rollout `c98486f`; its
 deployment and verification evidence is recorded independently from the earlier
 shared tranche gate.
 
+## 2026-08-28 Public Health Context And Writing Decisions
+
+| Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Public Health context | done | done | done | done | done | done | Commit `93c353c` is deployed to Web and public-HTTP verified. Independent review found zero standards and zero tone/factual-fidelity findings. Current tumor, brain-damage, ADHD, and practical effects remain public; old fractures and an unrelated head injury remain source-only and test-protected. |
+| Public writing style | done | in-progress | not-started | not-started | not-started | not-started | Michael is choosing among three plain-language directions at `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df`. The result authorizes a later page-by-page audit/proposal, not a blind rewrite. |
+| Dedicated public AI-use page | idea | in-progress | not-started | not-started | not-started | not-started | The current proposal choice is `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. It supersedes the earlier paragraph-only idea. Future copy must disclose AI assistance and responsibility while keeping Michael's real-person/live-content boundary precise. |
+
 ## 2026-08-28 Correctness And Recovery Tranche
 
 | Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |

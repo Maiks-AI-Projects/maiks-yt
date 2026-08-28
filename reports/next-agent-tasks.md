@@ -1,5 +1,12 @@
 # Next Agent Tasks
 
+## Public writing decisions
+
+- `/about/health` is deployed and public-HTTP verified at commit `93c353c`. Keep the pre-tumor broken-hand and unrelated head-injury history source-only unless Michael explicitly changes that boundary.
+- Wait for Michael's submitted writing-style answer at `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df` before proposing a site-wide copy pass. Preserve authentic quirks; never manufacture typos or fake mistakes.
+- The current AI decision is the dedicated-page choice at `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. It supersedes the earlier paragraph-only direction. After submission, prepare purpose, navigation, and short page copy for approval before implementation. Do not create or deploy `/about/ai` from the choice alone.
+- Keep any Linus Torvalds reference minimal and primary-source linked. The verified personal-choice follow-up is `https://lore.kernel.org/linux-media/CAHk-%3Dwi7KN9_DYdmaE2chC92EhTrO%3DWtx1bPBER-EQfAZ8FREg%40mail.gmail.com/`; Michael's explanation must remain his own.
+
 ## Production deployment policy
 
 - Ordinary reviewed, reversible Maiks.yt application deployments are authorized as part of normal coordinator delivery. Do not pause merely to request deployment permission after a slice has passed review, target proof, rollback preparation, and has a concrete live verification path.

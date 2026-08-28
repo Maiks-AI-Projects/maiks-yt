@@ -318,6 +318,9 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [ ] Replace the temporary generated workspace hero with a photograph of Michael's real streaming desk.
 - [x] Build the first general `/about` draft as a mostly text-led page about who Michael is now.
 - [x] Build the first general `/about/health` draft with the approved temporary MRI image.
+  - 2026-08-28 commit `93c353c` rewrites the live page as practical current context for fellow creators and viewers. It keeps current tumor, brain-damage, ADHD, and daily effects public while retaining old fractures and an unrelated head injury as source-only recoverable history.
+- [ ] Choose the site-wide public writing direction before a page-by-page copy proposal. Decision: `https://choices.mmc.onl/p/maiks-yt/l/df2127362d9157df`.
+- [ ] Decide whether to propose a dedicated short `/about/ai` page. Decision: `https://choices.mmc.onl/p/maiks-yt/l/8f21ecdc5567efc4`. A Yes answer authorizes a reviewed proposal, not automatic implementation or deployment.
 - [x] Add a public-safe yearly medical summary using major events, deduplicated scan counts, and lower-bound laboratory collection counts from the currently available records.
 - [x] Build `/about/history` as a long page-scroll vertical timeline, initially containing only Michael's birth and completed birthdays.
 - [x] Add privacy-trimmed government residence history to `/about/history`, using dates and municipality/place names only while omitting exact addresses and administrative non-moves.
