@@ -65,6 +65,28 @@ export type ProviderEventIntakeAdminRow = {
   receivedAt: string;
 };
 
+export type ProviderEventIntakeAdminBrowserRow = {
+  reviewRef: string;
+  provider: ProviderEventPlatform;
+  mechanism: ProviderEventMechanism;
+  providerEventName: string;
+  internalTrigger: string;
+  category: ProviderEventCategory;
+  catalogKnown: boolean;
+  safetyFlags: {
+    moneyShaped: boolean;
+    moderationShaped: boolean;
+    authOrTokenShaped: boolean;
+    highVolume: boolean;
+  };
+  overlayEligibleByDefault: false;
+  processingStatus: ProviderEventIntakeProcessingStatus;
+  reviewable: boolean;
+  safeSummary: string;
+  occurredAt: string | null;
+  receivedAt: string;
+};
+
 export type ProviderEventIntakeReviewAction = "map_internal" | "ignore";
 
 export type ProviderEventIntakeReviewCandidate = ProviderEventIntakeAdminRow & {
@@ -122,7 +144,7 @@ export type ProviderEventIntakeAdminResult =
     ok: true;
     readOnly: true;
     filters: NormalizedProviderEventIntakeAdminFilters;
-    rows: ProviderEventIntakeAdminRow[];
+    rows: ProviderEventIntakeAdminBrowserRow[];
   }
   | {
     ok: false;
@@ -146,9 +168,7 @@ export type ProviderEventIntakeReviewResult =
   | {
     ok: true;
     action: ProviderEventIntakeReviewAction;
-    rowId: string;
     processingStatus: "ignored" | "mapped_to_event_history";
-    eventHistory: ProviderEventIntakeReviewHistory | null;
     publicPlayback: false;
   }
   | {

@@ -49,7 +49,7 @@ const intakeQuerySchema = z.object({
 }).strict();
 
 const reviewParamsSchema = z.object({
-  id: z.string().trim().min(1).max(36)
+  id: z.string().min(1).max(512).refine((value) => value === value.trim())
 }).strict();
 
 const reviewPayloadSchema = z.object({
@@ -198,7 +198,7 @@ export const registerProviderEventIntakeAdminRoutes = (
       const result = await getService().review({
         action: parsedBody.data.action,
         authUserId: session.user.id,
-        rowId: parsedParams.data.id
+        reviewRef: parsedParams.data.id
       });
 
       if (!result.ok) {

@@ -4,7 +4,9 @@ import { normalizeProviderIntegrationPermissions } from "./provider-integration-
 import type {
   NormalizedProviderEventIntakeAdminFilters,
   ProviderEventIntakeAdminActor,
+  ProviderEventIntakeAdminBrowserRow,
   ProviderEventIntakeAdminFilters,
+  ProviderEventIntakeAdminRow,
   ProviderEventIntakeAdminRepository,
   ProviderEventIntakeAdminResult,
   ProviderEventIntakeHealthEntry,
@@ -14,6 +16,11 @@ import type {
   ProviderEventIntakeReviewAction,
   ProviderEventIntakeReviewResult
 } from "./provider-event-intake-admin.types.js";
+import {
+  createProviderEventIntakeReviewRef,
+  getProviderEventIntakeReviewRefSecret,
+  parseProviderEventIntakeReviewRef
+} from "./provider-event-intake-admin-review-ref.service.js";
 
 const staleAfterMinutes = 60 * 24 * 7;
 
@@ -29,6 +36,66 @@ const trackedMechanisms = [
 
 const canViewProviderEventIntake = (actor: ProviderEventIntakeAdminActor): boolean =>
   normalizeProviderIntegrationPermissions(actor.rolePermissionValues).includes("*");
+
+const providerLabels = {
+  discord: "Discord",
+  twitch: "Twitch",
+  youtube: "YouTube"
+} satisfies Record<ProviderEventIntakeAdminRow["provider"], string>;
+
+const compactText = (value: string | null, fallback: string, maxLength = 96): string => {
+  const compacted = value?.replace(/\s+/g, " ").trim() ?? "";
+  const display = compacted.length > 0 ? compacted : fallback;
+
+  return display.length > maxLength ? `${display.slice(0, maxLength - 1)}...` : display;
+};
+
+const isReviewed = (row: ProviderEventIntakeAdminRow): boolean =>
+  Boolean(row.eventHistoryId)
+  || row.processingStatus === "mapped_to_event_history"
+  || row.processingStatus === "ignored";
+
+const projectBrowserRow = ({
+  actor,
+  authUserId,
+  row,
+  secret
+}: {
+  actor: ProviderEventIntakeAdminActor;
+  authUserId: string;
+  row: ProviderEventIntakeAdminRow;
+  secret: string;
+}): ProviderEventIntakeAdminBrowserRow => {
+  const eventName = compactText(row.providerEventName, "provider event", 120);
+  const actorLabel = compactText(row.actorDisplayName, "unknown actor", 80);
+
+  return {
+    catalogKnown: row.catalogKnown,
+    category: row.category,
+    internalTrigger: compactText(row.internalTrigger, "provider.unknown", 140),
+    mechanism: row.mechanism,
+    occurredAt: row.occurredAt,
+    overlayEligibleByDefault: false,
+    processingStatus: row.processingStatus,
+    provider: row.provider,
+    providerEventName: eventName,
+    receivedAt: row.receivedAt,
+    reviewRef: createProviderEventIntakeReviewRef({
+      authUserId,
+      domainUserId: actor.domainUserId,
+      rowId: row.id,
+      secret
+    }),
+    reviewable: !isReviewed(row),
+    safeSummary: compactText(`${providerLabels[row.provider]} ${eventName} from ${actorLabel}`, "Provider event", 180),
+    safetyFlags: {
+      authOrTokenShaped: row.authOrTokenShaped,
+      highVolume: row.highVolume,
+      moderationShaped: row.moderationShaped,
+      moneyShaped: row.moneyShaped
+    }
+  };
+};
 
 const normalizeFilters = (
   filters: ProviderEventIntakeAdminFilters = {}
@@ -74,7 +141,37 @@ const projectHealth = (
 };
 
 export class ProviderEventIntakeAdminService {
-  public constructor(private readonly repository: ProviderEventIntakeAdminRepository) {}
+  public constructor(
+    private readonly repository: ProviderEventIntakeAdminRepository,
+    private readonly options: { reviewRefSecret?: string | null } = {}
+  ) {}
+
+  private getReviewRefSecret(): string {
+    const secret = this.options.reviewRefSecret ?? getProviderEventIntakeReviewRefSecret();
+
+    if (!secret) {
+      throw new Error("Provider event intake review references are unavailable.");
+    }
+
+    return secret;
+  }
+
+  private resolveReviewRowId(input: {
+    actor: ProviderEventIntakeAdminActor;
+    authUserId: string;
+    reviewRef: string;
+  }): string | null {
+    const payload = parseProviderEventIntakeReviewRef({
+      reviewRef: input.reviewRef,
+      secret: this.getReviewRefSecret()
+    });
+
+    if (!payload || payload.authUserId !== input.authUserId || payload.domainUserId !== input.actor.domainUserId) {
+      return null;
+    }
+
+    return payload.rowId;
+  }
 
   public async listRecent(input: {
     authUserId: string;
@@ -102,7 +199,12 @@ export class ProviderEventIntakeAdminService {
       filters,
       ok: true,
       readOnly: true,
-      rows: await this.repository.listRecent(filters)
+      rows: (await this.repository.listRecent(filters)).map((row) => projectBrowserRow({
+        actor,
+        authUserId: input.authUserId,
+        row,
+        secret: this.getReviewRefSecret()
+      }))
     };
   }
 
@@ -140,7 +242,7 @@ export class ProviderEventIntakeAdminService {
   public async review(input: {
     action: ProviderEventIntakeReviewAction;
     authUserId: string;
-    rowId: string;
+    reviewRef: string;
   }): Promise<ProviderEventIntakeReviewResult> {
     const actor = await this.repository.resolveActor(input.authUserId);
 
@@ -158,7 +260,20 @@ export class ProviderEventIntakeAdminService {
       };
     }
 
-    const row = await this.repository.findReviewCandidate(input.rowId);
+    const rowId = this.resolveReviewRowId({
+      actor,
+      authUserId: input.authUserId,
+      reviewRef: input.reviewRef
+    });
+
+    if (!rowId) {
+      return {
+        ok: false,
+        reason: "provider_event_intake_not_found"
+      };
+    }
+
+    const row = await this.repository.findReviewCandidate(rowId);
 
     if (!row) {
       return {
@@ -178,11 +293,9 @@ export class ProviderEventIntakeAdminService {
       return await this.repository.markIgnored({ id: row.id })
         ? {
           action: "ignore",
-          eventHistory: null,
           ok: true,
           processingStatus: "ignored",
-          publicPlayback: false,
-          rowId: row.id
+          publicPlayback: false
         }
         : {
           ok: false,
@@ -214,11 +327,9 @@ export class ProviderEventIntakeAdminService {
 
     return {
       action: "map_internal",
-      eventHistory,
       ok: true,
       processingStatus: "mapped_to_event_history",
-      publicPlayback: false,
-      rowId: row.id
+      publicPlayback: false
     };
   }
 }

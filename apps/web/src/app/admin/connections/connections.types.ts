@@ -18,22 +18,23 @@ export type ProcessingStatus =
   | "failed";
 
 export type ProviderEventIntakeRow = {
-  id: string;
+  reviewRef: string;
   provider: Provider;
   mechanism: string;
   providerEventName: string;
   internalTrigger: string;
   category: string;
-  providerChannelId: string | null;
-  actorDisplayName: string | null;
   catalogKnown: boolean;
-  moneyShaped: boolean;
-  moderationShaped: boolean;
-  authOrTokenShaped: boolean;
-  highVolume: boolean;
+  safetyFlags: {
+    moneyShaped: boolean;
+    moderationShaped: boolean;
+    authOrTokenShaped: boolean;
+    highVolume: boolean;
+  };
+  overlayEligibleByDefault: false;
   processingStatus: ProcessingStatus;
-  eventHistoryId: string | null;
-  redactedPayloadPreview: Record<string, unknown>;
+  reviewable: boolean;
+  safeSummary: string;
   occurredAt: string | null;
   receivedAt: string;
 };

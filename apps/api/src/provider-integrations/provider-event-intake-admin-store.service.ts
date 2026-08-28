@@ -155,7 +155,7 @@ const buildWhere = (filters: NormalizedProviderEventIntakeAdminFilters): {
 };
 
 export const createProviderEventIntakeAdminRepository = (
-  pool: QueryExecutor
+  pool: DatabasePool
 ): ProviderEventIntakeAdminRepository => ({
   async findReviewCandidate(id) {
     const [rows] = await pool.execute(
@@ -288,24 +288,32 @@ export const createProviderEventIntakeAdminRepository = (
   }): Promise<ProviderEventIntakeReviewHistory | null> {
     const eventHistoryId = randomUUID();
     const createdAt = new Date();
-    const [markResult] = await pool.execute(
-      `
-        UPDATE provider_event_intake_logs
-        SET processing_status = 'normalized'
-        WHERE id = ?
-          AND event_history_id IS NULL
-          AND processing_status IN ('stored', 'failed')
-        LIMIT 1
-      `,
-      [input.row.id]
-    );
-
-    if (Number((markResult as MutationResult).affectedRows ?? 0) === 0) {
-      return null;
-    }
+    const connection = await pool.getConnection();
+    let transactionOpen = false;
 
     try {
-      await pool.execute(
+      await connection.beginTransaction();
+      transactionOpen = true;
+
+      const [markResult] = await connection.execute(
+        `
+          UPDATE provider_event_intake_logs
+          SET processing_status = 'normalized'
+          WHERE id = ?
+            AND event_history_id IS NULL
+            AND processing_status IN ('stored', 'failed')
+          LIMIT 1
+        `,
+        [input.row.id]
+      );
+
+      if (Number((markResult as MutationResult).affectedRows ?? 0) === 0) {
+        await connection.rollback();
+        transactionOpen = false;
+        return null;
+      }
+
+      await connection.execute(
         `
           INSERT INTO event_history
             (
@@ -355,13 +363,14 @@ export const createProviderEventIntakeAdminRepository = (
         ]
       );
 
-      const [mapResult] = await pool.execute(
+      const [mapResult] = await connection.execute(
         `
           UPDATE provider_event_intake_logs
           SET
             processing_status = 'mapped_to_event_history',
             event_history_id = ?
           WHERE id = ?
+            AND event_history_id IS NULL
             AND processing_status = 'normalized'
           LIMIT 1
         `,
@@ -369,17 +378,13 @@ export const createProviderEventIntakeAdminRepository = (
       );
 
       if (Number((mapResult as MutationResult).affectedRows ?? 0) === 0) {
-        await pool.execute(
-          `
-            UPDATE provider_event_intake_logs
-            SET processing_status = 'failed'
-            WHERE id = ?
-            LIMIT 1
-          `,
-          [input.row.id]
-        );
+        await connection.rollback();
+        transactionOpen = false;
         return null;
       }
+
+      await connection.commit();
+      transactionOpen = false;
 
       return {
         createdAt: createdAt.toISOString(),
@@ -391,17 +396,12 @@ export const createProviderEventIntakeAdminRepository = (
         sourcePlatform: input.row.provider
       };
     } catch (error) {
-      await pool.execute(
-        `
-          UPDATE provider_event_intake_logs
-          SET processing_status = 'failed'
-          WHERE id = ?
-            AND processing_status = 'normalized'
-          LIMIT 1
-        `,
-        [input.row.id]
-      );
+      if (transactionOpen) {
+        await connection.rollback();
+      }
       throw error;
+    } finally {
+      connection.release();
     }
   },
   resolveActor: (authUserId) => resolveActor(pool, authUserId)
