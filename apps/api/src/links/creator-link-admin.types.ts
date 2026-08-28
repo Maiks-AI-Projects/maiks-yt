@@ -42,6 +42,10 @@ export type CreatorLinkAdminReorderInput = {
   orderedKeys: readonly string[];
 };
 
+export type CreatorLinkAdminDeleteInput = {
+  confirmationTitle: string;
+};
+
 export type CreatorLinkAdminListResult =
   | {
     ok: true;
@@ -67,6 +71,23 @@ export type CreatorLinkAdminMutationResult =
       | "creator_link_admin_invalid_input";
   };
 
+export type CreatorLinkAdminDeleteResult =
+  | {
+    ok: true;
+    deletedKey: string;
+  }
+  | {
+    ok: false;
+    reason:
+      | "creator_link_admin_user_unlinked"
+      | "creator_link_admin_forbidden"
+      | "creator_link_not_found"
+      | "creator_link_delete_confirmation_mismatch"
+      | "creator_link_delete_published_blocked"
+      | "creator_link_delete_protected"
+      | "creator_link_admin_invalid_input";
+  };
+
 export type CreatorLinkAdminReorderResult =
   | {
     ok: true;
@@ -87,8 +108,10 @@ export interface CreatorLinkAdminRepository {
   createLink(input: CreatorLinkAdminInput): Promise<CreatorLinkSource>;
   updateLink(key: string, input: CreatorLinkAdminInput): Promise<CreatorLinkSource | "not-found" | "key-conflict">;
   reorderLinks(input: CreatorLinkAdminReorderInput): Promise<readonly CreatorLinkSource[] | "not-found">;
+  deleteDraftLink(input: { key: string; confirmationTitle: string }): Promise<boolean>;
 }
 
 export type CreatorLinkAdminWriteResult =
   | CreatorLinkAdminMutationResult
-  | CreatorLinkAdminReorderResult;
+  | CreatorLinkAdminReorderResult
+  | CreatorLinkAdminDeleteResult;

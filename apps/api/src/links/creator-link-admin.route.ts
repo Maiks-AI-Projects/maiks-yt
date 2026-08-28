@@ -20,6 +20,7 @@ type CreatorLinkAdminRouteDependencies = {
     | "createLink"
     | "updateLink"
     | "reorderLinks"
+    | "deleteDraftLink"
   >;
 };
 
@@ -77,6 +78,10 @@ const creatorLinkReorderPayloadSchema = z.object({
   orderedKeys: z.array(z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,79}$/)).min(1)
 }).strict();
 
+const creatorLinkDeletePayloadSchema = z.object({
+  confirmationTitle: z.string().trim().min(1).max(191)
+}).strict();
+
 const sendAdminWriteResult = (
   result: CreatorLinkAdminWriteResult,
   reply: FastifyReply
@@ -89,8 +94,11 @@ const sendAdminWriteResult = (
     || result.reason === "creator_link_admin_forbidden"
     ? 403
     : result.reason === "creator_link_admin_invalid_input"
+      || result.reason === "creator_link_delete_confirmation_mismatch"
       ? 400
       : result.reason === "creator_link_key_conflict"
+        || result.reason === "creator_link_delete_published_blocked"
+        || result.reason === "creator_link_delete_protected"
         ? 409
         : 404;
 
@@ -107,6 +115,7 @@ export const registerCreatorLinkAdminRoutes = (
     | "createLink"
     | "updateLink"
     | "reorderLinks"
+    | "deleteDraftLink"
   > =>
     dependencies.createService?.()
     ?? new CreatorLinkAdminService(createCreatorLinkAdminRepository(dependencies.getDatabasePool()));
@@ -261,6 +270,43 @@ export const registerCreatorLinkAdminRoutes = (
       }), reply);
     } catch (error) {
       server.log.warn({ err: error }, "Creator link admin update failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "creator_link_admin_unavailable"
+      };
+    }
+  });
+
+  server.delete<{ Params: { key: string } }>("/admin/links/:key", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "creator_link_admin_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedParams = creatorLinkKeySchema.safeParse(request.params);
+    const parsedBody = creatorLinkDeletePayloadSchema.safeParse(request.body);
+
+    if (!parsedParams.success || !parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "creator_link_admin_invalid_input"
+      };
+    }
+
+    try {
+      return sendAdminWriteResult(await getService().deleteDraftLink({
+        authUserId: session.user.id,
+        key: parsedParams.data.key,
+        deletion: parsedBody.data
+      }), reply);
+    } catch (error) {
+      server.log.warn({ err: error }, "Creator link admin delete failed.");
       reply.code(503);
       return {
         ok: false,

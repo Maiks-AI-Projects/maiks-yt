@@ -57,6 +57,8 @@ class FakeCreatorLinkAdminRepository implements CreatorLinkAdminRepository {
   public lastCreatedLink: CreatorLinkAdminInput | null = null;
   public lastUpdatedLink: CreatorLinkAdminInput | null = null;
   public lastReorder: readonly string[] | null = null;
+  public lastDeleted: { key: string; confirmationTitle: string } | null = null;
+  public failNextDelete = false;
 
   public constructor() {
     this.links.set("support", createLink("support", {
@@ -122,6 +124,30 @@ class FakeCreatorLinkAdminRepository implements CreatorLinkAdminRepository {
     }
 
     return await this.listLinks();
+  }
+
+  public async deleteDraftLink(input: { key: string; confirmationTitle: string }): Promise<boolean> {
+    this.lastDeleted = structuredClone(input);
+
+    if (this.failNextDelete) {
+      this.failNextDelete = false;
+      return false;
+    }
+
+    const link = this.links.get(input.key);
+
+    if (
+      !link
+      || link.title !== input.confirmationTitle
+      || link.isPublished
+      || link.key === "support"
+      || link.purpose === "support"
+    ) {
+      return false;
+    }
+
+    this.links.delete(input.key);
+    return true;
   }
 }
 
@@ -234,6 +260,149 @@ describe("CreatorLinkAdminService", () => {
       title: "Edited draft",
       sortOrder: 10
     });
+  });
+
+  it("deletes only unpublished drafts with an exact title confirmation", async () => {
+    const repository = new FakeCreatorLinkAdminRepository();
+    const service = new CreatorLinkAdminService(repository);
+
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "draft",
+      deletion: {
+        confirmationTitle: "Wrong title"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_delete_confirmation_mismatch"
+    });
+    expect(repository.links.has("draft")).toBe(true);
+
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "draft",
+      deletion: {
+        confirmationTitle: "Link draft"
+      }
+    })).resolves.toEqual({
+      ok: true,
+      deletedKey: "draft"
+    });
+    expect(repository.links.has("draft")).toBe(false);
+    expect(repository.links.has("support")).toBe(true);
+    expect(repository.lastDeleted).toEqual({
+      key: "draft",
+      confirmationTitle: "Link draft"
+    });
+  });
+
+  it("fails closed for published, protected, missing, and raced draft deletion", async () => {
+    const repository = new FakeCreatorLinkAdminRepository();
+    repository.links.set("published", createLink("published", {
+      title: "Published link",
+      isPublished: true
+    }));
+    repository.links.set("funding-draft", createLink("funding-draft", {
+      title: "Funding",
+      purpose: "support",
+      icon: "support",
+      availability: "unavailable",
+      href: null,
+      availabilityNote: "Funding launches later",
+      isPublished: false
+    }));
+    const service = new CreatorLinkAdminService(repository);
+
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "published",
+      deletion: {
+        confirmationTitle: "Published link"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_delete_published_blocked"
+    });
+
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "support",
+      deletion: {
+        confirmationTitle: "Support"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_delete_protected"
+    });
+
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "funding-draft",
+      deletion: {
+        confirmationTitle: "Funding"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_delete_protected"
+    });
+
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "missing",
+      deletion: {
+        confirmationTitle: "Missing"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_not_found"
+    });
+
+    repository.failNextDelete = true;
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "draft",
+      deletion: {
+        confirmationTitle: "Link draft"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_not_found"
+    });
+    expect(repository.links.has("draft")).toBe(true);
+  });
+
+  it("denies draft deletion without an active creator-links grant", async () => {
+    const repository = new FakeCreatorLinkAdminRepository();
+    const service = new CreatorLinkAdminService(repository);
+
+    repository.actor = null;
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "draft",
+      deletion: {
+        confirmationTitle: "Link draft"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_admin_user_unlinked"
+    });
+
+    repository.actor = {
+      domainUserId: "domain-user",
+      rolePermissionValues: [["project-admin:manage"]]
+    };
+    await expect(service.deleteDraftLink({
+      authUserId: "auth-user",
+      key: "draft",
+      deletion: {
+        confirmationTitle: "Link draft"
+      }
+    })).resolves.toEqual({
+      ok: false,
+      reason: "creator_link_admin_forbidden"
+    });
+    expect(repository.links.has("draft")).toBe(true);
+    expect(repository.lastDeleted).toBeNull();
   });
 
   it("rejects invalid availability invariants and available support links", async () => {
@@ -419,6 +588,25 @@ describe("Creator link admin repository ordering", () => {
     expect(execute.mock.calls[0]?.[0]).not.toContain("sort_order = ?");
     expect(execute.mock.calls[0]?.[1]).not.toContain(999);
   });
+
+  it("guards draft deletion in a single database predicate", async () => {
+    const execute = vi.fn().mockResolvedValueOnce([{ affectedRows: 1 }]);
+    const repository = createCreatorLinkAdminRepository({ execute } satisfies CreatorLinkAdminQueryExecutor);
+
+    await expect(repository.deleteDraftLink({
+      key: "draft",
+      confirmationTitle: "Draft title"
+    })).resolves.toBe(true);
+    const [sql, values] = execute.mock.calls[0] ?? [];
+
+    expect(String(sql)).toContain("DELETE FROM creator_links");
+    expect(String(sql)).toContain("`key` = ?");
+    expect(String(sql)).toContain("title = ?");
+    expect(String(sql)).toContain("is_published = 0");
+    expect(String(sql)).toContain("`key` <> 'support'");
+    expect(String(sql)).toContain("purpose <> 'support'");
+    expect(values).toEqual(["draft", "Draft title"]);
+  });
 });
 
 describe("Creator link admin route boundary", () => {
@@ -500,7 +688,12 @@ describe("Creator link admin route boundary", () => {
           updateLink: async () => testCase.result,
           reorderLinks: async () => testCase.result.reason === "creator_link_key_conflict"
             ? { ok: false, reason: "creator_link_not_found" }
-            : testCase.result
+            : testCase.result,
+          deleteDraftLink: async () => testCase.result.reason === "creator_link_key_conflict"
+            ? { ok: false, reason: "creator_link_not_found" }
+            : testCase.result.reason === "creator_link_admin_invalid_input"
+              ? { ok: false, reason: "creator_link_admin_invalid_input" }
+              : { ok: false, reason: "creator_link_not_found" }
         })
       });
 
@@ -542,6 +735,46 @@ describe("Creator link admin route boundary", () => {
       ok: true
     });
     expect(repository.lastReorder).toEqual(["draft", "support"]);
+    await server.close();
+  });
+
+  it("requires a title confirmation on the delete route", async () => {
+    const repository = new FakeCreatorLinkAdminRepository();
+    const server = Fastify();
+    registerCreatorLinkAdminRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new CreatorLinkAdminService(repository)
+    });
+
+    const invalidResponse = await server.inject({
+      method: "DELETE",
+      url: "/admin/links/draft",
+      payload: {
+        confirmationTitle: ""
+      }
+    });
+    expect(invalidResponse.statusCode).toBe(400);
+    expect(invalidResponse.json()).toEqual({
+      ok: false,
+      reason: "creator_link_admin_invalid_input"
+    });
+
+    const response = await server.inject({
+      method: "DELETE",
+      url: "/admin/links/draft",
+      payload: {
+        confirmationTitle: "Link draft"
+      }
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      deletedKey: "draft"
+    });
+    expect(repository.links.has("draft")).toBe(false);
     await server.close();
   });
 });

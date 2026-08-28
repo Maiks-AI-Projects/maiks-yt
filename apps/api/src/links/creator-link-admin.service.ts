@@ -5,6 +5,8 @@ import {
 
 import type {
   CreatorLinkAdminInput,
+  CreatorLinkAdminDeleteInput,
+  CreatorLinkAdminDeleteResult,
   CreatorLinkAdminListResult,
   CreatorLinkAdminMutationResult,
   CreatorLinkAdminReorderInput,
@@ -55,6 +57,12 @@ const isSupportRowStillProtected = (
     && next.href === null
     && next.availabilityNote === protectedFundingAvailabilityNote
   );
+
+const isProtectedFundingLink = (link: CreatorLinkSource): boolean =>
+  link.key === "support" || link.purpose === "support";
+
+const isValidCreatorLinkAdminDeleteInput = (input: CreatorLinkAdminDeleteInput): boolean =>
+  isValidRequiredText(input.confirmationTitle, 191);
 
 const isValidCreatorLinkAdminReorderInput = (input: CreatorLinkAdminReorderInput): boolean =>
   input.orderedKeys.length > 0
@@ -274,6 +282,76 @@ export class CreatorLinkAdminService {
     return {
       ok: true,
       links: result
+    };
+  }
+
+  public async deleteDraftLink(input: {
+    authUserId: string;
+    key: string;
+    deletion: CreatorLinkAdminDeleteInput;
+  }): Promise<CreatorLinkAdminDeleteResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const deletion = {
+      confirmationTitle: input.deletion.confirmationTitle.trim()
+    };
+
+    if (!creatorLinkKeyPattern.test(input.key) || !isValidCreatorLinkAdminDeleteInput(deletion)) {
+      return {
+        ok: false,
+        reason: "creator_link_admin_invalid_input"
+      };
+    }
+
+    const existing = (await this.repository.listLinks()).find((link) => link.key === input.key);
+
+    if (!existing) {
+      return {
+        ok: false,
+        reason: "creator_link_not_found"
+      };
+    }
+
+    if (isProtectedFundingLink(existing)) {
+      return {
+        ok: false,
+        reason: "creator_link_delete_protected"
+      };
+    }
+
+    if (existing.isPublished) {
+      return {
+        ok: false,
+        reason: "creator_link_delete_published_blocked"
+      };
+    }
+
+    if (existing.title !== deletion.confirmationTitle) {
+      return {
+        ok: false,
+        reason: "creator_link_delete_confirmation_mismatch"
+      };
+    }
+
+    const deleted = await this.repository.deleteDraftLink({
+      key: input.key,
+      confirmationTitle: deletion.confirmationTitle
+    });
+
+    if (!deleted) {
+      return {
+        ok: false,
+        reason: "creator_link_not_found"
+      };
+    }
+
+    return {
+      ok: true,
+      deletedKey: input.key
     };
   }
 

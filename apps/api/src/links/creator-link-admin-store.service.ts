@@ -290,5 +290,26 @@ export const createCreatorLinkAdminRepository = (
     }
 
     return await listLinks(pool);
+  },
+
+  async deleteDraftLink(input) {
+    const [result] = await pool.execute(
+      `
+        DELETE FROM creator_links
+        WHERE \`key\` = ?
+          AND title = ?
+          AND is_published = 0
+          AND \`key\` <> 'support'
+          AND purpose <> 'support'
+      `,
+      [input.key, input.confirmationTitle]
+    );
+
+    return Boolean(
+      typeof result === "object"
+      && result !== null
+      && "affectedRows" in result
+      && result.affectedRows === 1
+    );
   }
 });
