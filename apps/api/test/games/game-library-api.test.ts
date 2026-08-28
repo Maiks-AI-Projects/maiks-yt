@@ -30,6 +30,8 @@ const createGame = (
   platformLabel: "Steam",
   storeProvider: "steam",
   storeUrl: "https://example.com/game",
+  artworkUrl: null,
+  popularityScore: null,
   ownershipStatus: "owned",
   interestStatus: "interested",
   streamFitNote: "Good fit.",
@@ -496,14 +498,38 @@ describe("GameLibraryService", () => {
       }
     });
 
-    await expect(service.listPublicGames()).resolves.toMatchObject({
+    await expect(service.listPublicGames()).resolves.toEqual({
       ok: true,
       games: [
         {
-          slug: "private"
+          slug: "private",
+          title: "Game private",
+          platformLabel: "Steam",
+          storeProvider: "steam",
+          storeUrl: "https://example.com/game",
+          artworkUrl: null,
+          popularityScore: null,
+          ownershipStatus: "owned",
+          interestStatus: "maybe-later",
+          streamFitNote: "Good fit.",
+          contentWarnings: null,
+          categoryLabel: "Automation",
+          updatedAt: "2026-07-09T21:00:00.000Z"
         },
         {
-          slug: "public"
+          slug: "public",
+          title: "Game public",
+          platformLabel: "Steam",
+          storeProvider: "steam",
+          storeUrl: "https://example.com/game",
+          artworkUrl: null,
+          popularityScore: null,
+          ownershipStatus: "owned",
+          interestStatus: "interested",
+          streamFitNote: "Good fit.",
+          contentWarnings: null,
+          categoryLabel: "Automation",
+          updatedAt: "2026-07-09T20:00:00.000Z"
         }
       ]
     });
@@ -655,14 +681,55 @@ describe("game library routes", () => {
       url: "/games"
     });
     expect(publicResponse.statusCode).toBe(200);
-    expect(publicResponse.json()).toMatchObject({
+    expect(publicResponse.json()).toEqual({
       ok: true,
       games: [
         {
-          slug: "public"
+          slug: "public",
+          title: "Game public",
+          platformLabel: "Steam",
+          storeProvider: "steam",
+          storeUrl: "https://example.com/game",
+          artworkUrl: null,
+          popularityScore: null,
+          ownershipStatus: "owned",
+          interestStatus: "interested",
+          streamFitNote: "Good fit.",
+          contentWarnings: null,
+          categoryLabel: "Automation",
+          updatedAt: "2026-07-09T20:00:00.000Z"
         }
       ]
     });
+    expect(publicResponse.body).not.toContain("\"id\"");
+    await server.close();
+  });
+
+  it("returns a finite public games failure when anonymous listing fails", async () => {
+    const repository = new FakeGameLibraryRepository();
+    const service = new GameLibraryService(repository);
+    vi.spyOn(service, "listPublicGames").mockRejectedValue(new Error("database secret details"));
+    const server = Fastify();
+
+    registerGameLibraryRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("not used");
+      },
+      createService: () => service
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/games"
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toEqual({
+      ok: false,
+      reason: "game_library_unavailable"
+    });
+    expect(response.body).not.toContain("database secret details");
     await server.close();
   });
 

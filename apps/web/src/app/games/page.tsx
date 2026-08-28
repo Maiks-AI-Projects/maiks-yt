@@ -62,7 +62,7 @@ const GamesPage = async (): Promise<React.ReactNode> => {
             ) : (
               <div className={styles.gameList}>
                 {wishlistGames.map((game, index) => (
-                  <GameLibraryEntry game={game} index={index} key={game.id} />
+                  <GameLibraryEntry game={game} index={index} key={game.slug} />
                 ))}
               </div>
             )}
@@ -89,7 +89,7 @@ const GamesPage = async (): Promise<React.ReactNode> => {
             ) : (
               <div className={styles.gameList}>
                 {libraryGames.map((game, index) => (
-                  <GameLibraryEntry game={game} index={index} key={game.id} />
+                  <GameLibraryEntry game={game} index={index} key={game.slug} />
                 ))}
               </div>
             )}

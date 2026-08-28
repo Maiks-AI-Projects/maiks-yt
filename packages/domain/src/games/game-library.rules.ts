@@ -32,6 +32,7 @@ export const gameSuggestionMaxTags = 8;
 export const gameSuggestionTagMaxLength = 40;
 export const gameSortOrderMin = -10_000;
 export const gameSortOrderMax = 10_000;
+export const publicGameLibraryMaxEntries = 500;
 
 const gameSlugPattern = /^[a-z0-9][a-z0-9-]{0,190}$/;
 
@@ -198,7 +199,6 @@ export const buildPublicGameLibraryEntry = (entry: GameLibrarySource): PublicGam
   }
 
   return {
-    id: entry.id,
     slug: entry.slug,
     title: entry.title,
     platformLabel: entry.platformLabel,

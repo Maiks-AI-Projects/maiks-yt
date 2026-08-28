@@ -1,16 +1,8 @@
 import type { PublicGameLibraryEntry } from "@maiks-yt/domain/games";
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
+import { parsePublicGamesApiResponse } from "./game-library-public-parser.rules";
 
-type PublicGamesResponse =
-  | {
-    ok: true;
-    games: readonly PublicGameLibraryEntry[];
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 export type PublicGamesLoadResult =
   | {
@@ -38,9 +30,9 @@ export const getPublicGames = async (): Promise<PublicGamesLoadResult> => {
       return { status: "error", games: [] };
     }
 
-    const payload = await response.json() as PublicGamesResponse;
+    const payload = parsePublicGamesApiResponse(await response.json());
 
-    return payload.ok
+    return payload?.ok
       ? { status: "loaded", games: payload.games }
       : { status: "error", games: [] };
   } catch {

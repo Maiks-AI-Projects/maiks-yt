@@ -205,7 +205,6 @@ describe("game library validation", () => {
 describe("public game library projection", () => {
   it("projects only public curated fields", () => {
     expect(buildPublicGameLibraryEntry(createGame())).toEqual({
-      id: "game-1",
       slug: "satisfactory",
       title: "Satisfactory",
       platformLabel: "Steam",
@@ -220,6 +219,7 @@ describe("public game library projection", () => {
       categoryLabel: "Automation",
       updatedAt: "2026-07-09T20:30:00.000Z"
     });
+    expect(JSON.stringify(buildPublicGameLibraryEntry(createGame()))).not.toContain("\"id\"");
   });
 
   it("keeps private records out of public lists", () => {

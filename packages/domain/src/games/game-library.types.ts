@@ -72,7 +72,6 @@ export type GameLibraryAdminInput = {
 export type GameLibraryAdminUpdateInput = Partial<GameLibraryAdminInput>;
 
 export type PublicGameLibraryEntry = {
-  id: string;
   slug: string;
   title: string;
   platformLabel: string | null;
