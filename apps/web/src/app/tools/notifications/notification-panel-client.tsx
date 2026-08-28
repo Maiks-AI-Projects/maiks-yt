@@ -9,6 +9,7 @@ import type {
 } from "@maiks-yt/domain/notifications";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import { createNotificationsAccessRecoveryPath } from "./notification-access-recovery.rules";
 
 type NotificationListSuccess = {
   ok: true;
@@ -61,6 +62,7 @@ type PushState =
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 const pollIntervalMs = 30000;
 const notificationServiceWorkerPath = "/notification-service-worker.js";
+const accessRecoveryPath = createNotificationsAccessRecoveryPath();
 
 const severityLabels = {
   critical: "Critical",
@@ -593,6 +595,11 @@ const NotificationPanelClient = (): React.ReactNode => {
       {loadState !== "ready" && notifications.length === 0 ? (
         <div className={`notification-empty ${loadState}`}>
           <p>{message}</p>
+          {loadState === "signed-out" ? (
+            <a className="notification-action-link" href={accessRecoveryPath}>
+              Renew sign-in
+            </a>
+          ) : null}
         </div>
       ) : null}
 

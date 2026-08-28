@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 
 import OAuthLoginPanel from "./oauth-login-panel";
 import { AuthenticatedNavigation } from "./authenticated-navigation";
+import { resolveLayoutSurface } from "./layout-surface.rules";
 import { SiteNavigation } from "./site-navigation";
 import shellStyles from "./site-shell.module.css";
 
@@ -37,18 +38,17 @@ type RootLayoutProps = {
 const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNode> => {
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-maiks-pathname") ?? "";
-  const isToolSurface = pathname.startsWith("/tools/");
-  const isAdminSurface = pathname === "/admin" || pathname.startsWith("/admin/");
-  const isMusicPlayerSurface = pathname === "/music/player";
-  const isStandaloneSurface = isToolSurface || isAdminSurface || isMusicPlayerSurface;
-  const authenticatedContext = pathname === "/account" || pathname.startsWith("/account/")
-    ? "account"
-    : null;
+  const layoutSurface = resolveLayoutSurface(pathname);
+  const bodyClassName = layoutSurface.bodyClassKind === "admin"
+    ? "admin-surface-body"
+    : layoutSurface.bodyClassKind === "tool"
+      ? "tool-surface-body"
+      : shellStyles.siteBody;
 
   return (
     <html lang="en">
-      <body className={isToolSurface || isMusicPlayerSurface ? "tool-surface-body" : isAdminSurface ? "admin-surface-body" : shellStyles.siteBody}>
-        {isStandaloneSurface ? null : (
+      <body className={bodyClassName}>
+        {layoutSurface.showPublicShell ? (
           <>
             <a className={shellStyles.skipLink} href="#main-content">Skip to content</a>
             <header className={shellStyles.header}>
@@ -71,11 +71,11 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
                 </div>
               </div>
             </header>
-            {authenticatedContext ? <AuthenticatedNavigation context={authenticatedContext} /> : null}
+            {layoutSurface.authenticatedContext ? <AuthenticatedNavigation context={layoutSurface.authenticatedContext} /> : null}
           </>
-        )}
-        <div className={isStandaloneSurface ? undefined : shellStyles.mainContent} id="main-content">{children}</div>
-        {isStandaloneSurface ? null : (
+        ) : null}
+        <div className={layoutSurface.showPublicShell ? shellStyles.mainContent : undefined} id="main-content">{children}</div>
+        {layoutSurface.showPublicShell ? (
           <footer className={shellStyles.footer}>
             <div className={shellStyles.footerInner}>
               <div className={shellStyles.footerBrand}>
@@ -91,7 +91,7 @@ const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNod
               </nav>
             </div>
           </footer>
-        )}
+        ) : null}
       </body>
     </html>
   );

@@ -222,6 +222,32 @@ describe("account domain route registration", () => {
     expect(calls.database).toBe(0);
   });
 
+  it("returns public configured login provider IDs without requiring session or database access", async () => {
+    const { calls, server } = buildAccountRouteServer({
+      nodeEnv: "production",
+      session: null,
+      providerIds: ["google", "discord"],
+      execute: async () => {
+        throw new Error("database should not be used");
+      }
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/account/login/providers"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      ok: true,
+      configuredProviderIds: ["google", "discord"]
+    });
+    expect(response.json()).not.toHaveProperty("authProvider");
+    expect(response.json()).not.toHaveProperty("configuredProviders");
+    expect(calls.session).toBe(0);
+    expect(calls.database).toBe(0);
+  });
+
   it("returns only configured provider IDs for signed-in connection settings", async () => {
     const { calls, server } = buildAccountRouteServer({
       nodeEnv: "production",

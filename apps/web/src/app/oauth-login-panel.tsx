@@ -4,18 +4,10 @@ import { useEffect, useState } from "react";
 
 import { parseAccountSession, type AccountSession } from "./account/account-session.service";
 import { captureDevAuthTokenFromUrl, clearDevAuthToken, createApiHeaders } from "./dev-auth-token";
-
-type OAuthProvider = {
-  id: "google" | "github" | "discord" | "twitch";
-  label: string;
-};
-
-const providers: readonly OAuthProvider[] = [
-  { id: "google", label: "Continue with Google" },
-  { id: "github", label: "Continue with GitHub" },
-  { id: "discord", label: "Continue with Discord" },
-  { id: "twitch", label: "Continue with Twitch" }
-];
+import {
+  projectConfiguredProviders,
+  type OAuthProvider
+} from "./oauth-provider-config.service";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
@@ -38,6 +30,8 @@ type OAuthLoginPanelProps = {
 
 const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.ReactNode => {
   const [busyProvider, setBusyProvider] = useState<OAuthProvider["id"] | null>(null);
+  const [providers, setProviders] = useState<OAuthProvider[]>([]);
+  const [providersLoading, setProvidersLoading] = useState<boolean>(true);
   const [session, setSession] = useState<AccountSession>(null);
   const [domainProfile, setDomainProfile] = useState<DomainProfileResponse["domainUser"]>(null);
   const [sessionLoading, setSessionLoading] = useState<boolean>(true);
@@ -149,6 +143,43 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
     void refreshSession();
   }, []);
 
+  useEffect(() => {
+    let disposed = false;
+
+    const loadProviders = async (): Promise<void> => {
+      setProvidersLoading(true);
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/account/login/providers`, {
+          headers: createApiHeaders(),
+          credentials: "include"
+        });
+
+        if (!response.ok) {
+          throw new Error(`Provider check failed with ${response.status}`);
+        }
+
+        if (!disposed) {
+          setProviders([...projectConfiguredProviders(await response.json())]);
+        }
+      } catch {
+        if (!disposed) {
+          setProviders([]);
+        }
+      } finally {
+        if (!disposed) {
+          setProvidersLoading(false);
+        }
+      }
+    };
+
+    void loadProviders();
+
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
   if (variant === "nav") {
     const displayName = domainProfile?.displayName ?? session?.currentUser.name ?? "Account";
     const avatarUrl = domainProfile?.avatarUrl ?? session?.currentUser.imageUrl ?? null;
@@ -205,6 +236,9 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
                     {busyProvider === provider.id ? "Opening..." : provider.label}
                   </button>
                 ))}
+                {!providersLoading && providers.length === 0 ? (
+                  <p>Sign-in providers are not available right now.</p>
+                ) : null}
                 <button type="button" className="secondary-action" onClick={() => void refreshSession()}>
                   Refresh
                 </button>
@@ -259,6 +293,9 @@ const OAuthLoginPanel = ({ variant = "panel" }: OAuthLoginPanelProps): React.Rea
               {busyProvider === provider.id ? "Opening..." : provider.label}
             </button>
           )) : null}
+        {!session && !providersLoading && providers.length === 0 ? (
+          <p>Sign-in providers are not available right now.</p>
+        ) : null}
         <button type="button" className="secondary-action" onClick={() => void refreshSession()}>
           Refresh session
         </button>

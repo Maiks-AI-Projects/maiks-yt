@@ -91,6 +91,11 @@ export const registerAccountDomainRoutes = (
     registerAccountDevRoutes(server, dependencies);
   }
 
+  server.get("/account/login/providers", async () => ({
+    ok: true,
+    configuredProviderIds: configuredAuthProviderIds
+  }));
+
   server.get("/account/connections/providers", async (request, reply) => {
     const session = await getAuthSession(request);
 

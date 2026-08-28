@@ -5,6 +5,7 @@ import {
 } from "@maiks-yt/domain/security";
 import type { ControlPanelAuthState } from "./access/control-access.service.js";
 import { useControlAccess } from "./access/control-access.state.js";
+import { createAccessRecoveryUrl } from "./access/access-recovery.service.js";
 import {
   loadControlPanelNavigation
 } from "./access/control-navigation.service.js";
@@ -17,7 +18,7 @@ import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js
 import { MusicControlPanel } from "./music/MusicControlPanel.js";
 import { OperationNavIcon, type OperationNavIconName } from "./operations/OperationNavIcon.js";
 import { SurfaceStatus } from "./overlay/SurfaceStatus.js";
-import { apiBaseUrl, createWebUrl } from "./runtime-config.service.js";
+import { apiBaseUrl, createWebUrl, webBaseUrl } from "./runtime-config.service.js";
 import { SceneDesigner } from "./scene-designer/SceneDesigner.js";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
@@ -144,8 +145,14 @@ const AccessRequired = ({
           <div className="access-required-actions">
             <button type="button" className="secondary-window-link" onClick={onRetry}>Try again</button>
             {authState.kind === "login-required" ? (
-              <a className="secondary-window-link" href={createWebUrl("/account")}>
-                Open account sign-in
+              <a
+                className="secondary-window-link"
+                href={createAccessRecoveryUrl({
+                  currentHref: window.location.href,
+                  webBaseUrl
+                })}
+              >
+                Renew sign-in
               </a>
             ) : null}
             {authState.kind === "missing-token" || authState.kind === "token-denied" ? (
