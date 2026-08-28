@@ -11,6 +11,9 @@ import type { ContentPageAdminBrowserPage } from "@maiks-yt/domain/pages";
 export type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 export type WorkspaceTab = "content" | "seo" | "preview";
 
+export const pageCreatorReservedPathMessage = "That public path is reserved by a Maiks.yt feature. Choose another path.";
+export const pageCreatorUnavailableMessage = "Page Creator is temporarily unavailable. Try again shortly.";
+
 export type PageFormState = {
   title: string;
   path: string;
@@ -60,7 +63,7 @@ export const getLocalFormIssue = (form: PageFormState): string | null => {
 
   if (!path.ok) {
     if (path.reason === "reserved_path") {
-      return "That path is reserved for code-owned, admin, tool, API, overlay, dev, auth, account, or static asset routes.";
+      return pageCreatorReservedPathMessage;
     }
 
     if (path.reason === "path_too_long") {
@@ -138,7 +141,7 @@ export const getFailureMessage = (response: Response, reason?: string): string =
   }
 
   if (reason === "content_page_reserved_path") {
-    return "That path is reserved for code-owned, admin, tool, API, overlay, dev, auth, account, or static asset routes.";
+    return pageCreatorReservedPathMessage;
   }
 
   if (reason === "content_page_path_conflict") {
@@ -157,7 +160,7 @@ export const getFailureMessage = (response: Response, reason?: string): string =
     return "That page could not be found.";
   }
 
-  return `Page creator request failed with ${response.status}.`;
+  return pageCreatorUnavailableMessage;
 };
 
 export const getLoadStateForFailure = (response: Response, reason?: string): LoadState => {

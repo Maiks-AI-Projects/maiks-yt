@@ -33,6 +33,7 @@ import {
   getFailureMessage,
   getLoadStateForFailure,
   getLocalFormIssue,
+  pageCreatorUnavailableMessage,
   getSavedLabel,
   sortPages,
   toPageForm,
@@ -161,9 +162,9 @@ const ContentPageAdminClient = (): React.ReactNode => {
       const reason = payload?.ok === false ? payload.reason : undefined;
       setLoadState(getLoadStateForFailure(response, reason));
       setMessage(getFailureMessage(response, reason));
-    } catch (error) {
+    } catch {
       setLoadState("failed");
-      setMessage(error instanceof Error ? error.message : "Page Creator request failed.");
+      setMessage(pageCreatorUnavailableMessage);
     }
   }, []);
 
@@ -205,8 +206,8 @@ const ContentPageAdminClient = (): React.ReactNode => {
       setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
       setMessage(getFailureMessage(response, reason));
       return null;
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : `${label} failed.`);
+    } catch {
+      setMessage(pageCreatorUnavailableMessage);
       return null;
     } finally {
       setBusyAction(null);
@@ -295,8 +296,8 @@ const ContentPageAdminClient = (): React.ReactNode => {
 
       const reason = payload?.ok === false ? payload.reason : undefined;
       setMessage(getFailureMessage(response, reason));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Preview failed.");
+    } catch {
+      setMessage(pageCreatorUnavailableMessage);
     } finally {
       setBusyAction(null);
     }
@@ -369,8 +370,8 @@ const ContentPageAdminClient = (): React.ReactNode => {
       const reason = payload?.ok === false ? payload.reason : undefined;
       setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
       setMessage(getFailureMessage(response, reason));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Deleting page failed.");
+    } catch {
+      setMessage(pageCreatorUnavailableMessage);
     } finally {
       setBusyAction(null);
     }
