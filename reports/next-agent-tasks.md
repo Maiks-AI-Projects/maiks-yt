@@ -1,9 +1,9 @@
 # Next Agent Tasks
 
-## Production Creator Links admin image gate
+## Production Creator Links approved implementation reference
 
-- `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` is a Candidate / Owner approval required, not an approved implementation reference.
-- Do not implement the candidate until explicit Owner approval. The gated next behavior is the compact master/detail presentation, local unsaved preview using the public row presentation while saved `/links` stays authoritative, and owner-only unpublished-draft deletion with exact-title confirmation. Preserve inventory-only ordering and keep Funding/support protected and unavailable.
+- Michael approved `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` on 2026-08-28 as the source-level acceptance reference.
+- The next task is source implementation against the exact approved image: compact master/detail presentation, local unsaved preview using the public row presentation while saved `/links` stays authoritative, and owner-only unpublished-draft deletion with exact-title confirmation. Preserve inventory-only ordering and keep Funding/support protected and unavailable.
 
 ## Production Operator Copy Slices: Source Complete
 

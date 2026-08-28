@@ -2,9 +2,9 @@
 
 ## Status
 
-Candidate / Owner approval required.
+Approved as the source-level acceptance reference. Implementation is still pending.
 
-`admin-links-candidate-v1.png` is an image-first approval candidate for the production Creator Links admin surface. It is not approved, and implementation is blocked until the Owner explicitly approves it.
+Michael approved `admin-links-candidate-v1.png` for the production Creator Links admin surface on 2026-08-28. The image is the source-level acceptance reference; implementation is not complete yet.
 
 ## Visual scope
 
@@ -23,7 +23,7 @@ The production Creator Links workflow already uses database-backed owner admin c
 
 ## Proposed next behavior
 
-After Owner approval, reorganize the existing workflow into the compact master/detail presentation shown in the candidate. Add a local unsaved preview using the same row presentation as the public page, without exposing drafts through public `GET /links`. Add owner-only deletion for unpublished drafts with exact-title confirmation. The candidate does not approve implementation by itself.
+Implement the exact approved image by reorganizing the existing workflow into the compact master/detail presentation shown in the candidate. Add a local unsaved preview using the same row presentation as the public page, without exposing drafts through public `GET /links`. Add owner-only deletion for unpublished drafts with exact-title confirmation. Funding/support remains protected and unavailable.
 
 ## Artifact record
 
