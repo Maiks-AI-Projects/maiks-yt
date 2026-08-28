@@ -4,7 +4,7 @@ Updated: 2026-08-27
 
 Grounded against: production branch commit `f1ecd02`
 
-Status: approved product direction; first production UI implementation integrated locally and verified with synthetic desktop, half-screen, touch, and mobile evidence; not deployed or live-verified
+Status: approved product direction; first production UI implementation is deployed and preserved, with synthetic desktop, half-screen, touch, and mobile evidence; installed-window and signed-in live verification remain open
 
 Implementation review base: production commit `db7c8af`
 
@@ -18,7 +18,7 @@ The approved corrected mockups are visual references for density, hierarchy, and
 
 Operational responsibility, not one page per app or one monitor per app, defines the boundaries. Chat has no sidebar. Moderation and Control have compact internal navigation only. Notifications stays separate. The future AI PWA is separate and deferred. There is no cross-PWA navigation rail or window switcher.
 
-Michael authorized the first UI implementation after approving this specification. That implementation does not authorize migrations, authentication changes, secret or provider configuration changes, deployment, or server changes.
+Michael authorized the first UI implementation after approving this specification. Its source is deployed under the standing reviewed-production procedure. The specification does not authorize migrations, authentication changes, secret or provider configuration changes, or unrelated server changes.
 
 ### Status vocabulary
 

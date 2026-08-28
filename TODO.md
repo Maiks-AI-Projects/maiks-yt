@@ -9,7 +9,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Minimize private Chat and Moderation provider status responses without removing reconnect behavior or the token-plus-session gate.
 - [x] Make Event Routing operator controls and copy match the capabilities the production runtime actually consumes.
 - [x] Complete independent GPT-5.5 standards/specification review and the shared production review gate for all four slices.
-- [ ] Deploy the reviewed tranche through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence.
+- [x] Deploy the reviewed tranche through the normal reviewed production procedure with target and rollback evidence (`c98486f`, preserved by later service-specific rollouts).
 - [ ] Perform real signed-in, installed-PWA, provider/routing, and rendered `/admin/updates` verification after deployment. Desktop/GUI control remains forbidden until Michael explicitly lifts the stop order.
 
 ## Production Correctness Tranche - 2026-08-28
@@ -19,7 +19,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Preserve every additional Schedule game link when the single visible Game focus is changed or cleared, with deterministic ordering and relationship preservation.
 - [x] Make Project publication use one shared public-status predicate and enforce the invariant atomically in the repository write path.
 - [x] Complete independent GPT-5.5 reviews and `pnpm check:review` for all four corrections.
-- [ ] Deploy this correctness tranche through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence.
+- [x] Deploy this correctness tranche through the normal reviewed production procedure with target and rollback evidence (`c98486f`, preserved by later service-specific rollouts).
 - [ ] Verify same-account session recovery, terminal token rotation, multi-link Schedule editing, and Project publish/status concurrency against the live production database after deployment.
 
 ## Production Operator Contract Pass - 2026-08-28

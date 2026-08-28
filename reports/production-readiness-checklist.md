@@ -129,7 +129,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Required: rollback reference is recorded before any live change.
 - Required: rollback includes image/commit reference, database stance, and tunnel/DNS recovery steps where relevant.
-- Current reference: Web, API, Control, and Overlay are deployed at revision `c98486f` using image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`. Immediate rollback images are retained as `maiks-yt-production:rollback-c98486f-web-before`, `maiks-yt-production:rollback-c98486f-api-before`, `maiks-yt-production:rollback-c98486f-control-before`, and `maiks-yt-production:rollback-c98486f-overlay-before`.
+- Current service references are intentionally separate. Web runs source revision `bd8e8de` as image `sha256:ae61d481a95dc2e5991f36a4c85f4495ff0ca5b47fc546cc1cd75c2f162cccf4`, with `maiks-yt-production:rollback-bd8e8de-web-before` retaining the prior Web image. API runs source revision `30adb56`. Control and Overlay remain on the healthy `c98486f` all-service image and were preserved through later Web/API-only rollouts. Their earlier `rollback-c98486f-*` tags remain historical rollback evidence; use the current service-specific tag and image before any new live change.
 
 ### Real Verification
 
