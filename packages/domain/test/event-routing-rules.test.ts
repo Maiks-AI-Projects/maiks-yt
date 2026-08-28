@@ -5,6 +5,8 @@ import {
   buildStreamVisibilityPreferenceValues,
   canManageEventRouting,
   eventRoutingDestinationCapabilities,
+  eventKinds,
+  getEventRoutingOncePerStreamAvailability,
   getProductionEventRoutingRuleDescription,
   getRecommendedEventRoutingSoundRefs,
   getEventRoutingDestinationCapability,
@@ -14,7 +16,9 @@ import {
   resolveEventRoutingSound,
   streamVisibilityPreferenceScopes,
   validateSafeSimulatedEventRoutingDispatch,
+  validatePersistedEventRoutingRule,
   validateEventRoutingRule,
+  validateEventRoutingRuleAdminInput,
   type EventRoutingRuleInput
 } from "../src/events/index.js";
 
@@ -64,9 +68,16 @@ describe("event routing rule validation", () => {
   });
 
   it("defines the production rule catalogue without simulation/test-only entries or descriptions", () => {
-    expect(listProductionEventRoutingRuleEventKinds()).toContain("twitch.follow");
-    expect(listProductionEventRoutingRuleEventKinds()).toContain("website.schedule-changed");
+    const productionKinds = listProductionEventRoutingRuleEventKinds();
+
+    expect(productionKinds).toContain("chat");
+    expect(productionKinds).toContain("twitch.follow");
+    expect(productionKinds).toContain("twitch.bits");
+    expect(productionKinds).toContain("youtube.super-chat");
+    expect(productionKinds).toContain("discord.message");
+    expect(productionKinds).toContain("website.schedule-changed");
     expect(listProductionEventRoutingRuleEventKinds()).not.toContain("simulated.support-money");
+    expect(productionKinds).toEqual(eventKinds.filter((eventKind) => eventKind !== "simulated.support-money"));
     expect(isProductionEventRoutingRuleInput({
       eventKind: "simulated.support-money",
       sourcePlatform: "website"
@@ -146,11 +157,15 @@ describe("event routing rule validation", () => {
     expect(getEventRoutingDestinationCapability("top_notification")).toMatchObject({
       runtimeConsumer: "available",
       supportsPriority: true,
-      supportsTemplate: true,
-      supportsTheme: true,
+      supportsTemplate: false,
+      supportsTheme: false,
       supportsSound: true
     });
     expect(getEventRoutingDestinationCapability("center_notification").supportsSound).toBe(true);
+    expect(eventRoutingDestinationCapabilities
+      .filter((capability) => capability.supportsTemplate || capability.supportsTheme)
+      .map((capability) => capability.destination))
+      .toEqual([]);
     expect(eventRoutingDestinationCapabilities
       .filter((capability) => capability.supportsSound)
       .map((capability) => capability.destination))
@@ -163,7 +178,7 @@ describe("event routing rule validation", () => {
       enabled: true
     })).issues).toContain("event_routing_enabled_destination_unavailable");
 
-    const unsupported = validateEventRoutingRule(validRule({
+    const unsupported = validateEventRoutingRuleAdminInput(validRule({
       destination: "internal_audit",
       notificationPriority: "high",
       templateKey: "template",
@@ -196,6 +211,64 @@ describe("event routing rule validation", () => {
       destination: "internal_audit",
       soundKey: "follow-creaky-door"
     })).issues).toContain("event_routing_unsupported_sound");
+  });
+
+  it("allows once per stream only for website schedule rules with stable schedule identity", () => {
+    expect(getEventRoutingOncePerStreamAvailability({
+      eventKind: "website.schedule-changed",
+      sourcePlatform: "website"
+    })).toEqual({
+      supported: true,
+      reason: "website_schedule_identity_available"
+    });
+    expect(validateEventRoutingRule(validRule({
+      eventKind: "website.schedule-cancelled",
+      sourcePlatform: "any",
+      oncePerStream: true
+    })).ok).toBe(true);
+    expect(validateEventRoutingRule(validRule({
+      eventKind: "twitch.follow",
+      sourcePlatform: "twitch",
+      oncePerStream: true
+    })).issues).toContain("event_routing_unsupported_once_per_stream");
+    expect(getEventRoutingOncePerStreamAvailability({
+      eventKind: "chat",
+      sourcePlatform: "any"
+    })).toEqual({
+      supported: false,
+      reason: "provider_stream_session_identity_unavailable"
+    });
+    expect(validateEventRoutingRule(validRule({
+      eventKind: "website.signup",
+      sourcePlatform: "website",
+      oncePerStream: true
+    })).issues).toContain("event_routing_unsupported_once_per_stream");
+  });
+
+  it("ignores persisted display-only values at runtime without accepting new admin edits", () => {
+    const legacyRule = validRule({
+      destination: "top_notification",
+      templateKey: "saved-template",
+      themeKey: "saved-theme"
+    });
+
+    expect(validatePersistedEventRoutingRule(legacyRule).ok).toBe(true);
+    expect(validateEventRoutingRuleAdminInput(legacyRule).issues).toEqual(expect.arrayContaining([
+      "event_routing_unsupported_template",
+      "event_routing_unsupported_theme"
+    ]));
+    expect(validateEventRoutingRuleAdminInput(legacyRule, legacyRule).ok).toBe(true);
+    expect(validateEventRoutingRuleAdminInput({
+      ...legacyRule,
+      themeKey: "changed-theme"
+    }, legacyRule).issues).toContain("event_routing_unsupported_theme");
+    expect(validateEventRoutingRuleAdminInput({
+      ...legacyRule,
+      destination: "center_notification"
+    }, legacyRule).issues).toEqual(expect.arrayContaining([
+      "event_routing_unsupported_template",
+      "event_routing_unsupported_theme"
+    ]));
   });
 
   it("recommends the first production Event Routing sound slice without forcing routing", () => {

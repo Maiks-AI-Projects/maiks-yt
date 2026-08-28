@@ -1,4 +1,4 @@
-import type { EventRoutingRuleInput } from "@maiks-yt/domain/events";
+import { eventKinds, type EventRoutingRuleInput } from "@maiks-yt/domain/events";
 import type { DatabasePool } from "@maiks-yt/database";
 import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
@@ -432,6 +432,58 @@ describe("EventRoutingAdminService", () => {
       .toMatchObject({
         description: "A future free website TTS request."
       });
+    expect(result.rules.map((rule) => rule.eventKind)).toEqual(
+      expect.arrayContaining(eventKinds.filter((eventKind) => eventKind !== "simulated.support-money"))
+    );
+  });
+
+  it("returns authoritative destination and once-per-stream capability metadata", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    repository.rules.set("website.schedule-changed:any", toRecord(baseRule({
+      eventKind: "website.schedule-changed",
+      destination: "top_notification"
+    }), { id: "schedule-rule" }));
+    const service = new EventRoutingAdminService(repository, { productionCatalogue: true });
+
+    const result = await service.listRules({ authUserId: "auth-user" });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    expect(result.destinationCapabilities).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        destination: "control_panel",
+        runtimeConsumer: "unavailable",
+        supportsTemplate: false,
+        supportsTheme: false,
+        supportsSound: false
+      }),
+      expect.objectContaining({
+        destination: "top_notification",
+        runtimeConsumer: "available",
+        supportsPriority: true,
+        supportsTemplate: false,
+        supportsTheme: false,
+        supportsSound: true
+      })
+    ]));
+    expect(result.rules.find((rule) => rule.eventKind === "website.schedule-changed" && rule.sourcePlatform === "any"))
+      .toMatchObject({
+        oncePerStreamAvailability: {
+          supported: true,
+          reason: "website_schedule_identity_available"
+        }
+      });
+    expect(result.rules.find((rule) => rule.eventKind === "twitch.follow" && rule.sourcePlatform === "any"))
+      .toMatchObject({
+        oncePerStreamAvailability: {
+          supported: false,
+          reason: "provider_stream_session_identity_unavailable"
+        }
+      });
   });
 
   it("updates valid owner rules and keeps explicit enabled input", async () => {
@@ -461,6 +513,108 @@ describe("EventRoutingAdminService", () => {
     expect(repository.lastUpsert).toMatchObject({
       actorUserId: "domain-user",
       enabled: true
+    });
+  });
+
+  it("accepts once-per-stream only for supported website schedule rule kinds", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    const service = new EventRoutingAdminService(repository, { productionCatalogue: true });
+
+    await expect(service.updateRule({
+      authUserId: "auth-user",
+      rule: baseRule({
+        eventKind: "website.schedule-changed",
+        sourcePlatform: "website",
+        oncePerStream: true
+      })
+    })).resolves.toMatchObject({
+      ok: true,
+      rule: {
+        oncePerStream: true,
+        oncePerStreamAvailability: {
+          supported: true
+        }
+      }
+    });
+    await expect(service.updateRule({
+      authUserId: "auth-user",
+      rule: baseRule({
+        eventKind: "twitch.follow",
+        sourcePlatform: "twitch",
+        oncePerStream: true
+      })
+    })).resolves.toMatchObject({
+      ok: false,
+      reason: "event_routing_admin_invalid_input",
+      issues: ["event_routing_unsupported_once_per_stream"]
+    });
+  });
+
+  it("preserves unchanged saved legacy template and theme values but rejects new edits", async () => {
+    const repository = new FakeEventRoutingAdminRepository();
+    const service = new EventRoutingAdminService(repository);
+
+    await expect(service.updateRule({
+      authUserId: "auth-user",
+      rule: baseRule({
+        destination: "top_notification",
+        templateKey: "new-template",
+        themeKey: "new-theme"
+      })
+    })).resolves.toMatchObject({
+      ok: false,
+      reason: "event_routing_admin_invalid_input",
+      issues: expect.arrayContaining([
+        "event_routing_unsupported_template",
+        "event_routing_unsupported_theme"
+      ])
+    });
+    expect(repository.lastUpsert).toBeNull();
+
+    repository.rules.set("website.signup:any", toRecord(baseRule({
+      destination: "top_notification",
+      templateKey: "legacy-template",
+      themeKey: "legacy-theme"
+    }), { id: "legacy-rule" }));
+
+    await expect(service.updateRule({
+      authUserId: "auth-user",
+      rule: baseRule({
+        destination: "top_notification",
+        enabled: true,
+        templateKey: "legacy-template",
+        themeKey: "legacy-theme"
+      })
+    })).resolves.toMatchObject({
+      ok: true,
+      rule: {
+        templateKey: "legacy-template",
+        themeKey: "legacy-theme",
+        destinationCapability: {
+          supportsTemplate: false,
+          supportsTheme: false
+        },
+        validation: {
+          ok: true
+        }
+      }
+    });
+    expect(repository.lastUpsert).toMatchObject({
+      templateKey: "legacy-template",
+      themeKey: "legacy-theme"
+    });
+
+    await expect(service.updateRule({
+      authUserId: "auth-user",
+      rule: baseRule({
+        destination: "top_notification",
+        templateKey: "changed-template",
+        themeKey: "legacy-theme"
+      })
+    })).resolves.toMatchObject({
+      ok: false,
+      reason: "event_routing_admin_invalid_input",
+      issues: ["event_routing_unsupported_template"]
     });
   });
 
@@ -655,7 +809,7 @@ describe("EventRoutingAdminService", () => {
     });
   });
 
-  it("keeps real approvals pending until production rule execution exists", async () => {
+  it("keeps real approvals pending until approval replay and publish exist", async () => {
     const repository = new FakeEventRoutingAdminRepository();
     repository.approvals.set("approval-1", toApproval());
     const service = new EventRoutingAdminService(repository);

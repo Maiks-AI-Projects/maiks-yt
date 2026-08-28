@@ -38,6 +38,17 @@ export type EventRoutingDestinationCapability = {
   supportsSound: boolean;
 };
 
+export type EventRoutingOncePerStreamAvailabilityReason =
+  | "website_schedule_identity_available"
+  | "provider_stream_session_identity_unavailable"
+  | "website_stream_state_unavailable"
+  | "event_identity_unavailable";
+
+export type EventRoutingOncePerStreamAvailability = {
+  supported: boolean;
+  reason: EventRoutingOncePerStreamAvailabilityReason;
+};
+
 export const eventRoutingNotificationPriorities = ["low", "normal", "high", "urgent"] as const;
 
 export type EventRoutingNotificationPriority = typeof eventRoutingNotificationPriorities[number];
@@ -73,6 +84,7 @@ export type EventRoutingRuleValidationIssue =
   | "event_routing_unsupported_template"
   | "event_routing_unsupported_theme"
   | "event_routing_unsupported_sound"
+  | "event_routing_unsupported_once_per_stream"
   | "event_routing_internal_only_public_destination"
   | "event_routing_overlay_ineligible_public_destination"
   | "event_routing_internal_only_enabled_public_destination";

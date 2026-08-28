@@ -203,6 +203,22 @@ describe("WebsiteEventRoutingProductionService", () => {
     }));
   });
 
+  it("routes a saved website rule with legacy display-only template and theme values", async () => {
+    const repository = new Repository();
+    repository.savedRules = [rule("website.schedule-changed", {
+      templateKey: "legacy-website-template",
+      themeKey: "legacy-website-theme"
+    })];
+    const publish = vi.fn().mockReturnValue({ emitted: true });
+    const service = new WebsiteEventRoutingProductionService(repository, publish);
+
+    await expect(service.route(websiteEvent())).resolves.toEqual({
+      playbackEmitted: true,
+      status: "routed"
+    });
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects simulated-only money-shaped kinds at the production website boundary", async () => {
     const repository = new Repository();
     const publish = vi.fn();

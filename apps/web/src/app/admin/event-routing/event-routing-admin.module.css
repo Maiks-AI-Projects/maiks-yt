@@ -86,6 +86,8 @@
 .overrideRow > span { color: var(--admin-muted); font-size: .7rem; }
 .overrideRow button { align-items: center; background: transparent !important; border-color: var(--admin-line-strong) !important; color: var(--admin-text) !important; display: inline-flex; gap: .3rem; min-height: 2.05rem !important; padding: .3rem .55rem !important; }
 .threeColumns { display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.displayGrid { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); }
+.displayGrid small { color: var(--admin-muted); font-size: .62rem; font-weight: 400; }
 .segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .segmented button { background: #0c171c !important; border-color: var(--admin-line-strong) !important; border-radius: 0 !important; color: var(--admin-muted) !important; min-height: 2.1rem !important; }
 .segmented button:first-child { border-radius: 5px 0 0 5px !important; } .segmented button:last-child { border-radius: 0 5px 5px 0 !important; } .segmented button + button { border-left: 0 !important; }

@@ -3,12 +3,14 @@ import {
   canManageEventRouting,
   eventRoutingDestinationCapabilities,
   eventKinds,
+  getEventRoutingOncePerStreamAvailability,
   getProductionEventRoutingRuleDescription,
   getEventRoutingDestinationCapability,
   getEventRegistryEntry,
   isProductionEventRoutingRuleInput,
   listProductionEventRoutingRuleEventKinds,
-  validateEventRoutingRule,
+  validatePersistedEventRoutingRule,
+  validateEventRoutingRuleAdminInput,
   type EventRoutingRuleInput
 } from "@maiks-yt/domain/events";
 
@@ -77,8 +79,11 @@ const toRuleListItem = (
       ? getProductionEventRoutingRuleDescription(rule.eventKind)
       : entry.description,
     safety: entry.safety,
-    validation: validateEventRoutingRule(rule),
+    validation: rule.id
+      ? validatePersistedEventRoutingRule(rule)
+      : validateEventRoutingRuleAdminInput(rule),
     destinationCapability: getEventRoutingDestinationCapability(rule.destination),
+    oncePerStreamAvailability: getEventRoutingOncePerStreamAvailability(rule),
     persisted: Boolean(rule.id),
     createdAt: rule.createdAt ?? null,
     updatedAt: rule.updatedAt ?? null
@@ -155,7 +160,8 @@ export class EventRoutingAdminService {
       };
     }
 
-    const validation = validateEventRoutingRule(input.rule);
+    const existingRule = await this.repository.getRule(input.rule.eventKind, input.rule.sourcePlatform);
+    const validation = validateEventRoutingRuleAdminInput(input.rule, existingRule);
 
     if (!validation.ok) {
       return {
@@ -238,8 +244,8 @@ export class EventRoutingAdminService {
         };
     }
 
-    // Production approval review is visible now, but real provider events do not
-    // execute routing rules yet. Keep the queue row pending until that consumer exists.
+    // Production approval review is visible now, but approval replay/publish is
+    // not implemented. Keep the queue row pending until that consumer exists.
     return {
       ok: false,
       reason: "event_routing_admin_production_execution_unavailable"

@@ -4,6 +4,7 @@ import type {
   EventRoutingDestinationCapability,
   EventRoutingDestination,
   EventRoutingNotificationPriority,
+  EventRoutingOncePerStreamAvailability,
   EventRoutingRuleInput,
   EventRoutingRuleSourcePlatform,
   EventRoutingRuleValidationIssue,
@@ -39,6 +40,7 @@ export type EventRoutingAdminRuleListItem = EventRoutingRuleInput & {
   safety: EventRegistryEntry["safety"];
   validation: EventRoutingRuleValidationResult;
   destinationCapability: EventRoutingDestinationCapability;
+  oncePerStreamAvailability: EventRoutingOncePerStreamAvailability;
   persisted: boolean;
   createdAt: string | null;
   updatedAt: string | null;

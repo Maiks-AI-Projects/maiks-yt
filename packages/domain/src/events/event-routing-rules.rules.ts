@@ -12,6 +12,7 @@ import {
   eventRoutingRuleSourcePlatforms,
   type EventRoutingDestinationCapability,
   type EventRoutingDestination,
+  type EventRoutingOncePerStreamAvailability,
   type EventRoutingRuleDefault,
   type EventRoutingRuleInput,
   type EventRoutingRuleSourcePlatform,
@@ -53,16 +54,16 @@ export const eventRoutingDestinationCapabilities = [
     destination: "top_notification",
     runtimeConsumer: "available",
     supportsPriority: true,
-    supportsTemplate: true,
-    supportsTheme: true,
+    supportsTemplate: false,
+    supportsTheme: false,
     supportsSound: true
   },
   {
     destination: "center_notification",
     runtimeConsumer: "available",
     supportsPriority: true,
-    supportsTemplate: true,
-    supportsTheme: true,
+    supportsTemplate: false,
+    supportsTheme: false,
     supportsSound: true
   },
   {
@@ -108,6 +109,11 @@ const streamVisibleDestinations = new Set<EventRoutingDestination>([
   "approval_queue"
 ]);
 
+const oncePerStreamWebsiteScheduleEventKinds = new Set<EventKind>([
+  "website.schedule-changed",
+  "website.schedule-cancelled"
+]);
+
 export const canManageEventRouting = (capabilities: readonly unknown[]): boolean =>
   capabilities.some((capability): capability is string =>
     capability === "*" || capability === "event-routing:manage"
@@ -142,6 +148,50 @@ export const getEventRoutingDestinationCapability = (
   }
 
   return capability;
+};
+
+export const getEventRoutingOncePerStreamAvailability = (
+  input: Pick<EventRoutingRuleInput, "eventKind" | "sourcePlatform">
+): EventRoutingOncePerStreamAvailability => {
+  const entry = getEventRegistryEntry(input.eventKind);
+
+  if (oncePerStreamWebsiteScheduleEventKinds.has(input.eventKind)
+    && (input.sourcePlatform === "any" || input.sourcePlatform === "website")) {
+    return {
+      supported: true,
+      reason: "website_schedule_identity_available"
+    };
+  }
+
+  if (input.sourcePlatform === "twitch" || input.sourcePlatform === "youtube" || input.sourcePlatform === "discord") {
+    return {
+      supported: false,
+      reason: "provider_stream_session_identity_unavailable"
+    };
+  }
+
+  if (input.sourcePlatform === "any"
+    && entry.sourcePlatforms.some((sourcePlatform) =>
+      sourcePlatform === "twitch" || sourcePlatform === "youtube" || sourcePlatform === "discord"
+    )) {
+    return {
+      supported: false,
+      reason: "provider_stream_session_identity_unavailable"
+    };
+  }
+
+  if (input.sourcePlatform === "website"
+    || (input.sourcePlatform === "any" && entry.sourcePlatforms.includes("website"))) {
+    return {
+      supported: false,
+      reason: "website_stream_state_unavailable"
+    };
+  }
+
+  return {
+    supported: false,
+    reason: "event_identity_unavailable"
+  };
 };
 
 export const buildDefaultEventRoutingRule = (
@@ -188,8 +238,9 @@ export const listProductionEventRoutingRuleEventKinds = (): EventKind[] =>
 export const getProductionEventRoutingRuleDescription = (eventKind: EventKind): string =>
   productionDescriptionOverrides.get(eventKind) ?? getEventRegistryEntry(eventKind).description;
 
-export const validateEventRoutingRule = (
-  input: EventRoutingRuleInput
+const validateEventRoutingRuleWithDisplayPolicy = (
+  input: EventRoutingRuleInput,
+  persistedRule: EventRoutingRuleInput | null
 ): EventRoutingRuleValidationResult => {
   const issues: EventRoutingRuleValidationIssue[] = [];
   const sourcePlatform = input.sourcePlatform;
@@ -227,8 +278,22 @@ export const validateEventRoutingRule = (
     issues.push("event_routing_negative_global_cooldown");
   }
 
+  if (input.oncePerStream && !getEventRoutingOncePerStreamAvailability(input).supported) {
+    issues.push("event_routing_unsupported_once_per_stream");
+  }
+
   if (isEventRoutingDestination(destination)) {
     const capability = getEventRoutingDestinationCapability(destination);
+    const canPreserveLegacyTemplate = Boolean(
+      persistedRule
+        && persistedRule.destination === destination
+        && persistedRule.templateKey === input.templateKey
+    );
+    const canPreserveLegacyTheme = Boolean(
+      persistedRule
+        && persistedRule.destination === destination
+        && persistedRule.themeKey === input.themeKey
+    );
 
     if (input.enabled && capability.runtimeConsumer === "unavailable") {
       issues.push("event_routing_enabled_destination_unavailable");
@@ -238,11 +303,11 @@ export const validateEventRoutingRule = (
       issues.push("event_routing_unsupported_priority");
     }
 
-    if (!capability.supportsTemplate && input.templateKey !== null) {
+    if (!capability.supportsTemplate && input.templateKey !== null && !canPreserveLegacyTemplate) {
       issues.push("event_routing_unsupported_template");
     }
 
-    if (!capability.supportsTheme && input.themeKey !== null) {
+    if (!capability.supportsTheme && input.themeKey !== null && !canPreserveLegacyTheme) {
       issues.push("event_routing_unsupported_theme");
     }
 
@@ -285,3 +350,16 @@ export const validateEventRoutingRule = (
     requiresApprovalByDefault: Boolean(entry?.safety.approvalRecommended)
   };
 };
+
+// Production playback does not consume persisted template/theme fields, so legacy
+// values must not turn an otherwise valid saved rule into a runtime safety block.
+export const validatePersistedEventRoutingRule = (
+  input: EventRoutingRuleInput
+): EventRoutingRuleValidationResult => validateEventRoutingRuleWithDisplayPolicy(input, input);
+
+export const validateEventRoutingRule = validatePersistedEventRoutingRule;
+
+export const validateEventRoutingRuleAdminInput = (
+  input: EventRoutingRuleInput,
+  persistedRule: EventRoutingRuleInput | null = null
+): EventRoutingRuleValidationResult => validateEventRoutingRuleWithDisplayPolicy(input, persistedRule);

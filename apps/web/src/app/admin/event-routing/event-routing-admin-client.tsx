@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  eventRoutingDestinations,
   eventRoutingNotificationPriorities,
   eventRoutingRuleSourcePlatforms,
   eventRoutingSoundCatalog,
-  getEventRoutingDestinationCapability,
-  getEventRegistryEntry,
   getEventRoutingSoundCatalogEntry,
   getRecommendedEventRoutingSoundRefs,
-  validateEventRoutingRule,
   type EventKind,
   type EventRoutingDestination,
+  type EventRoutingDestinationCapability,
   type EventRoutingNotificationPriority,
+  type EventRoutingOncePerStreamAvailability,
   type EventRoutingRuleInput,
   type EventRoutingRuleSourcePlatform,
   type EventRoutingRuleValidationResult,
@@ -27,6 +25,17 @@ import {
 import { SiDiscord, SiTwitch, SiYoutube } from "react-icons/si";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
+import {
+  canTurnOnOncePerStream,
+  getAdminDestinationCapability,
+  getAdminDestinationOptions,
+  getAdminFormValidation,
+  getLiveOfflineControlCopy,
+  getOncePerStreamCopy,
+  getSavedLegacyDisplayValues,
+  getValidProductionOverrideSources,
+  type ProductionSourcePlatform
+} from "./event-routing-admin.rules";
 import styles from "./event-routing-admin.module.css";
 
 type Rule = EventRoutingRuleInput & {
@@ -35,15 +44,22 @@ type Rule = EventRoutingRuleInput & {
   description: string;
   safety: EventRoutingSafety;
   validation: EventRoutingRuleValidationResult;
+  destinationCapability: EventRoutingDestinationCapability;
+  oncePerStreamAvailability: EventRoutingOncePerStreamAvailability;
   persisted: boolean;
   createdAt: string | null;
   updatedAt: string | null;
 };
 
-type RulesResponse = { ok: true; rules: readonly Rule[] } | { ok: false; reason: string };
+type RulesResponse =
+  | {
+    ok: true;
+    rules: readonly Rule[];
+    destinationCapabilities: readonly EventRoutingDestinationCapability[];
+  }
+  | { ok: false; reason: string };
 type MutationResponse = { ok: true; rule: Rule } | { ok: false; reason: string; issues?: readonly string[] };
 
-type ProductionSourcePlatform = Exclude<EventRoutingRuleSourcePlatform, "test/system">;
 type ApprovalContext = {
   displayText: string | null;
   displayName: string | null;
@@ -139,6 +155,7 @@ const issueLabels: Record<EventRoutingRuleValidationResult["issues"][number], st
   event_routing_unsupported_template: "This destination does not consume a template.",
   event_routing_unsupported_theme: "This destination does not consume a theme.",
   event_routing_unsupported_sound: "This destination does not consume sound.",
+  event_routing_unsupported_once_per_stream: "Once per stream is only available for website schedule-changed and schedule-cancelled rules.",
   event_routing_internal_only_public_destination: "Internal-only events cannot use a public destination.",
   event_routing_overlay_ineligible_public_destination: "This event cannot use a public destination.",
   event_routing_internal_only_enabled_public_destination: "An internal-only event cannot enable a public destination."
@@ -233,6 +250,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
   const [formRule, setFormRule] = useState<EventRoutingRuleInput | null>(null);
   const [approvals, setApprovals] = useState<readonly Approval[]>([]);
   const [history, setHistory] = useState<readonly RoutingHistoryItem[]>([]);
+  const [destinationCapabilities, setDestinationCapabilities] = useState<readonly EventRoutingDestinationCapability[]>([]);
   const [cooldownSummary, setCooldownSummary] = useState<CooldownSummary | null>(null);
   const [approvalNotes, setApprovalNotes] = useState<Record<string, string>>({});
   const [overrideSource, setOverrideSource] = useState<ProductionSourcePlatform | "">("");
@@ -252,7 +270,13 @@ const EventRoutingAdminClient = (): React.ReactNode => {
   ), [rules]);
   const persistedCount = useMemo(() => productionRules.filter((rule) => rule.persisted).length, [productionRules]);
   const enabledCount = useMemo(() => productionRules.filter((rule) => rule.enabled).length, [productionRules]);
-  const validation = useMemo(() => formRule ? validateEventRoutingRule(formRule) : null, [formRule]);
+  const validation = useMemo(() => formRule && selectedRule
+    ? getAdminFormValidation({
+      formRule,
+      savedRule: selectedRule,
+      destinationCapabilities
+    })
+    : null, [destinationCapabilities, formRule, selectedRule]);
   const isDirty = useMemo(() => Boolean(selectedRule && formRule && JSON.stringify(toFormRule(selectedRule)) !== JSON.stringify(formRule)), [formRule, selectedRule]);
 
   const filteredRules = useMemo(() => {
@@ -270,11 +294,18 @@ const EventRoutingAdminClient = (): React.ReactNode => {
   const pageCount = Math.max(1, Math.ceil(filteredRules.length / pageSize));
   const visibleRules = filteredRules.slice(page * pageSize, (page + 1) * pageSize);
   const selectedIndex = filteredRules.findIndex((rule) => getRuleKey(rule) === selectedRuleKey);
-  const selectedCapabilities = getEventRoutingDestinationCapability(formRule?.destination ?? selectedRule?.destination ?? "ignore");
+  const destinationOptions = useMemo(() => getAdminDestinationOptions(destinationCapabilities), [destinationCapabilities]);
+  const selectedCapabilities = getAdminDestinationCapability(
+    destinationCapabilities,
+    formRule?.destination ?? selectedRule?.destination ?? "ignore"
+  );
+  const selectedOncePerStreamAvailability = selectedRule?.oncePerStreamAvailability ?? {
+    supported: false,
+    reason: "event_identity_unavailable"
+  };
+  const savedLegacyDisplayValues = selectedRule ? getSavedLegacyDisplayValues(selectedRule) : [];
   const validOverrideSources = useMemo(() => selectedRule
-    ? getEventRegistryEntry(selectedRule.eventKind).sourcePlatforms.filter(
-      (source): source is Exclude<ProductionSourcePlatform, "any"> => source !== "test/system"
-    )
+    ? getValidProductionOverrideSources(selectedRule.eventKind)
     : [], [selectedRule]);
 
   const parseJson = async <T,>(response: Response): Promise<T | null> => {
@@ -298,6 +329,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
         ]);
         const ordered = sortRules(payload.rules);
         setRules(ordered);
+        setDestinationCapabilities(payload.destinationCapabilities);
         setApprovals(approvalResponse.ok && approvalPayload?.ok
           ? approvalPayload.approvals.filter((approval) => approval.productionEvent)
           : []);
@@ -372,7 +404,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
   };
 
   const updateDestination = (destination: EventRoutingDestination): void => {
-    const capabilities = getEventRoutingDestinationCapability(destination);
+    const capabilities = getAdminDestinationCapability(destinationCapabilities, destination);
     setFormRule((current) => current ? {
       ...current,
       destination,
@@ -424,7 +456,14 @@ const EventRoutingAdminClient = (): React.ReactNode => {
       setOverrideSource("");
       return;
     }
-    const rule = { ...toFormRule(selectedRule), sourcePlatform: overrideSource };
+    const capabilities = getAdminDestinationCapability(destinationCapabilities, selectedRule.destination);
+    const rule = {
+      ...toFormRule(selectedRule),
+      sourcePlatform: overrideSource,
+      oncePerStream: false,
+      templateKey: capabilities.supportsTemplate ? selectedRule.templateKey : null,
+      themeKey: capabilities.supportsTheme ? selectedRule.themeKey : null
+    };
     setBusy(true);
     setMessage(`Adding ${sourceLabels[overrideSource]} override...`);
     try {
@@ -441,7 +480,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
         setMessage(getFailureMessage(response, payload?.ok === false ? payload.reason : undefined));
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Adding the provider override failed.");
+      setMessage(error instanceof Error ? error.message : "Adding the source-specific override failed.");
     } finally { setBusy(false); }
   };
 
@@ -506,7 +545,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
       }
       const reason = payload?.ok === false ? payload.reason : undefined;
       if (reason === "event_routing_admin_production_execution_unavailable") {
-        setMessage("Approval playback is available after real provider events execute routing rules. The event remains pending.");
+        setMessage("Approval replay and publish are not implemented yet. The event remains pending.");
       } else {
         setMessage(getFailureMessage(response, reason));
         setApprovals((current) => current.filter((approval) => approval.id !== id));
@@ -526,7 +565,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
       <div className={styles.filters} aria-label="Filter event routing rules">
         <label className={styles.searchField}><span className={styles.srOnly}>Find an event kind</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find an event kind" /><FiSearch aria-hidden="true" /></label>
         <label><span className={styles.srOnly}>Source</span><select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as typeof sourceFilter)}><option value="all">All sources</option>{productionSourcePlatforms.map((source) => <option key={source} value={source}>{sourceLabels[source]}</option>)}</select><FiChevronDown aria-hidden="true" /></label>
-        <label><span className={styles.srOnly}>Destination</span><select value={destinationFilter} onChange={(event) => setDestinationFilter(event.target.value as typeof destinationFilter)}><option value="all">All destinations</option>{eventRoutingDestinations.map((destination) => <option key={destination} value={destination}>{destinationLabels[destination]}</option>)}</select><FiChevronDown aria-hidden="true" /></label>
+        <label><span className={styles.srOnly}>Destination</span><select value={destinationFilter} onChange={(event) => setDestinationFilter(event.target.value as typeof destinationFilter)}><option value="all">All destinations</option>{destinationOptions.map((destination) => <option key={destination} value={destination}>{destinationLabels[destination]}</option>)}</select><FiChevronDown aria-hidden="true" /></label>
         <label><span className={styles.srOnly}>Rule state</span><select value={stateFilter} onChange={(event) => setStateFilter(event.target.value as StateFilter)}><option value="all">All states</option><option value="enabled">Enabled</option><option value="disabled">Disabled</option><option value="saved">Saved</option><option value="default">Default</option></select><FiChevronDown aria-hidden="true" /></label>
         <button className={styles.iconButton} type="button" onClick={() => void loadRules()} disabled={busy} aria-label="Refresh rules"><FiRefreshCw aria-hidden="true" /></button>
       </div>
@@ -534,7 +573,7 @@ const EventRoutingAdminClient = (): React.ReactNode => {
     {message !== "Event routing rules loaded." ? <p className={styles.message} role="status">{message}</p> : null}
     <details className={styles.approvalQueue} open={approvals.length > 0}>
       <summary><FiShield aria-hidden="true" /><strong>Pending review</strong><span>{approvals.length} real event{approvals.length === 1 ? "" : "s"} waiting</span><small>Allowlisted context only</small><button type="button" onClick={(event) => { event.preventDefault(); void loadRules(); }} disabled={busy || reviewingApprovalId !== null}>Refresh <FiRefreshCw aria-hidden="true" /></button></summary>
-      {approvals.length > 0 ? <ul>{approvals.map((approval) => <li key={approval.id}><div><strong>{approval.label}</strong><span>{sourceLabels[approval.event.sourcePlatform]} · {destinationLabels[approval.destination]} · {formatDate(approval.createdAt)}</span><p>{getApprovalText(approval)}</p>{getContextDetails(approval.event.context) ? <small>{getContextDetails(approval.event.context)}</small> : null}<label className={styles.reviewNote}>Optional review note<input maxLength={1000} value={approvalNotes[approval.id] ?? ""} onChange={(event) => setApprovalNotes((current) => ({ ...current, [approval.id]: event.target.value }))} /></label></div><div className={styles.approvalActions}><button type="button" onClick={() => void reviewApproval(approval.id, "reject")} disabled={reviewingApprovalId !== null}>Reject</button><button type="button" title="Available after real provider events execute routing rules" disabled>Approve</button></div></li>)}</ul> : <p className={styles.emptyPanel}>No real production events are waiting for review.</p>}
+      {approvals.length > 0 ? <ul>{approvals.map((approval) => <li key={approval.id}><div><strong>{approval.label}</strong><span>{sourceLabels[approval.event.sourcePlatform]} · {destinationLabels[approval.destination]} · {formatDate(approval.createdAt)}</span><p>{getApprovalText(approval)}</p>{getContextDetails(approval.event.context) ? <small>{getContextDetails(approval.event.context)}</small> : null}<label className={styles.reviewNote}>Optional review note<input maxLength={1000} value={approvalNotes[approval.id] ?? ""} onChange={(event) => setApprovalNotes((current) => ({ ...current, [approval.id]: event.target.value }))} /></label></div><div className={styles.approvalActions}><button type="button" onClick={() => void reviewApproval(approval.id, "reject")} disabled={reviewingApprovalId !== null}>Reject</button><button type="button" title="Disabled until approval replay and publish are implemented" disabled>Approve</button></div></li>)}</ul> : <p className={styles.emptyPanel}>No real production events are waiting for review.</p>}
     </details>
     <details className={styles.historyPanel}>
       <summary><FiClock aria-hidden="true" /><strong>Routing history</strong><span>{history.length} recent real event{history.length === 1 ? "" : "s"}</span></summary>
@@ -551,11 +590,11 @@ const EventRoutingAdminClient = (): React.ReactNode => {
         <footer className={styles.tableFooter}><span>Showing {visibleRules.length} of {filteredRules.length} rules</span><div><button type="button" onClick={() => setPage((current) => Math.max(0, current - 1))} disabled={page === 0}><FiChevronLeft aria-hidden="true" /> Previous</button><span>{page + 1} / {pageCount}</span><button type="button" onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))} disabled={page >= pageCount - 1}>Next <FiChevronRight aria-hidden="true" /></button></div></footer>
       </section>
       <form className={styles.editor} onSubmit={(event) => { event.preventDefault(); void saveRule(false); }}>
-        <header className={styles.editorHeader}><div><h2>{selectedRule.label}</h2><p>{selectedRule.eventKind} · {selectedRule.persisted ? "saved rule" : "default rule"}</p></div><span className={styles.savedBadge}>{selectedRule.persisted ? "Saved" : "Not saved"}</span><label className={styles.enabledToggle} title={selectedCapabilities.runtimeConsumer === "unavailable" ? "This destination has no runtime consumer yet." : undefined}><span>Enabled</span><input type="checkbox" checked={formRule.enabled} disabled={selectedCapabilities.runtimeConsumer === "unavailable"} onChange={(event) => updateForm("enabled", event.target.checked)} /><i aria-hidden="true" /></label><div className={styles.ruleNavigation}><span>Rule {selectedIndex >= 0 ? selectedIndex + 1 : "—"} of {filteredRules.length}</span><button type="button" onClick={() => moveSelection(-1)} disabled={isDirty || selectedIndex <= 0} aria-label="Previous rule"><FiChevronLeft aria-hidden="true" /></button><button type="button" onClick={() => moveSelection(1)} disabled={isDirty || selectedIndex < 0 || selectedIndex >= filteredRules.length - 1} aria-label="Next rule"><FiChevronRight aria-hidden="true" /></button><small>↑↓ select · Ctrl+Enter save</small></div></header>
-        <section className={styles.editorSection}><div className={styles.threeColumns}><label>Source<span className={styles.readOnlyField}>{sourceLabels[formRule.sourcePlatform]}{formRule.sourcePlatform === "any" ? " fallback" : " override"}</span></label><label>Destination<select value={formRule.destination} onChange={(event) => updateDestination(event.target.value as EventRoutingDestination)}>{eventRoutingDestinations.map((destination) => { const capability = getEventRoutingDestinationCapability(destination); return <option disabled={capability.runtimeConsumer === "unavailable"} key={destination} value={destination}>{destinationLabels[destination]}{capability.runtimeConsumer === "unavailable" ? " — no consumer" : ""}</option>; })}</select></label><label>Priority<select disabled={!selectedCapabilities.supportsPriority} value={formRule.notificationPriority} onChange={(event) => updateForm("notificationPriority", event.target.value as EventRoutingNotificationPriority)}>{eventRoutingNotificationPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label></div>{selectedRule.sourcePlatform === "any" && validOverrideSources.length > 0 ? <div className={styles.overrideRow}><span>Provider-specific override</span><select aria-label="Provider override source" value={overrideSource} onChange={(event) => setOverrideSource(event.target.value as typeof overrideSource)}><option value="">Select provider</option>{validOverrideSources.map((source) => <option key={source} value={source}>{sourceLabels[source]}</option>)}</select><button type="button" onClick={() => void addOverride()} disabled={!overrideSource || busy}><FiPlus aria-hidden="true" /> Add override</button></div> : <p className={styles.helperText}>This provider override falls back to the Any rule when removed.</p>}</section>
-        <section className={styles.editorSection}><h3>When</h3><div className={`${styles.segmented} ${styles.disabledSegmented}`} aria-label="Live and offline routing is not yet enforceable"><button type="button" disabled className={!formRule.liveOnly && !formRule.offlineOnly ? styles.activeSegment : ""}>Any time</button><button type="button" disabled className={formRule.liveOnly ? styles.activeSegment : ""}>Live only</button><button type="button" disabled className={formRule.offlineOnly ? styles.activeSegment : ""}>Offline only</button></div><p className={styles.helperText}>Not enforced yet. This control unlocks after routing receives authoritative stream state and fails closed when that state is unknown.</p></section>
-        <section className={styles.editorSection}><h3>Cooldown configuration</h3><div className={styles.cooldownGrid}><label>Per user<input type="number" min="0" inputMode="numeric" value={formRule.perUserCooldownSeconds ?? ""} placeholder="—" onChange={(event) => updateForm("perUserCooldownSeconds", nullableNumber(event.target.value))} /><small>Requires a stable user or actor identity.</small></label><label>Global<input type="number" min="0" inputMode="numeric" value={formRule.globalCooldownSeconds ?? ""} placeholder="—" onChange={(event) => updateForm("globalCooldownSeconds", nullableNumber(event.target.value))} /><small>Applies to the selected saved rule.</small></label><label className={styles.checkLabel}><input type="checkbox" checked={formRule.oncePerStream} onChange={(event) => updateForm("oncePerStream", event.target.checked)} />Once per stream</label></div><p className={styles.helperText}>Once per stream requires a stream-session or schedule identity. Configuration alone does not prove enforcement.</p><div className={styles.runtimeSummary}><FiClock aria-hidden="true" /><span>Active cooldowns</span><strong>{cooldownSummary?.activeCount ?? "—"}</strong><span>Nearest expiry</span><strong>{cooldownSummary?.nearestExpiry ? formatDate(cooldownSummary.nearestExpiry) : "None"}</strong></div></section>
-        <section className={styles.editorSection}><h3>Display</h3><div className={styles.threeColumns}><label>Template<input disabled={!selectedCapabilities.supportsTemplate} value={formRule.templateKey ?? ""} maxLength={80} placeholder={selectedCapabilities.supportsTemplate ? "—" : "Not consumed"} onChange={(event) => updateForm("templateKey", nullableText(event.target.value))} /></label><label>Theme<input disabled={!selectedCapabilities.supportsTheme} value={formRule.themeKey ?? ""} maxLength={80} placeholder={selectedCapabilities.supportsTheme ? "—" : "Catalog planned"} onChange={(event) => updateForm("themeKey", nullableText(event.target.value))} /></label><label>Sound<select disabled={!selectedCapabilities.supportsSound} value={formRule.soundKey ?? ""} onChange={(event) => updateForm("soundKey", nullableText(event.target.value))}><option value="">{selectedCapabilities.supportsSound ? "No sound" : "Not consumed"}</option>{getSoundOptions(formRule.eventKind).map((sound) => <option key={sound.ref} value={sound.ref}>{sound.label}{sound.recommended ? " — recommended" : ""}</option>)}</select></label></div></section>
+        <header className={styles.editorHeader}><div><h2>{selectedRule.label}</h2><p>{selectedRule.eventKind} · {selectedRule.persisted ? "saved rule" : "default rule"}</p></div><span className={styles.savedBadge}>{selectedRule.persisted ? "Saved" : "Not saved"}</span><label className={styles.enabledToggle} title={selectedCapabilities.runtimeConsumer === "unavailable" ? "This destination has no runtime consumer yet." : undefined}><span>Enabled</span><input type="checkbox" checked={formRule.enabled} disabled={selectedCapabilities.runtimeConsumer === "unavailable" && !formRule.enabled} onChange={(event) => updateForm("enabled", event.target.checked)} /><i aria-hidden="true" /></label><div className={styles.ruleNavigation}><span>Rule {selectedIndex >= 0 ? selectedIndex + 1 : "—"} of {filteredRules.length}</span><button type="button" onClick={() => moveSelection(-1)} disabled={isDirty || selectedIndex <= 0} aria-label="Previous rule"><FiChevronLeft aria-hidden="true" /></button><button type="button" onClick={() => moveSelection(1)} disabled={isDirty || selectedIndex < 0 || selectedIndex >= filteredRules.length - 1} aria-label="Next rule"><FiChevronRight aria-hidden="true" /></button><small>↑↓ select · Ctrl+Enter save</small></div></header>
+        <section className={styles.editorSection}><div className={styles.threeColumns}><label>Source<span className={styles.readOnlyField}>{sourceLabels[formRule.sourcePlatform]}{formRule.sourcePlatform === "any" ? " fallback" : " override"}</span></label><label>Destination<select value={formRule.destination} onChange={(event) => updateDestination(event.target.value as EventRoutingDestination)}>{destinationOptions.map((destination) => { const capability = getAdminDestinationCapability(destinationCapabilities, destination); return <option disabled={capability.runtimeConsumer === "unavailable"} key={destination} value={destination}>{destinationLabels[destination]}{capability.runtimeConsumer === "unavailable" ? " — no runtime consumer" : ""}</option>; })}</select></label><label>Priority<select disabled={!selectedCapabilities.supportsPriority} value={formRule.notificationPriority} onChange={(event) => updateForm("notificationPriority", event.target.value as EventRoutingNotificationPriority)}>{eventRoutingNotificationPriorities.map((priority) => <option key={priority} value={priority}>{priorityLabels[priority]}</option>)}</select></label></div>{selectedCapabilities.runtimeConsumer === "unavailable" ? <p className={styles.helperText}>This destination is visible for planning, but it cannot be enabled because no runtime consumer is connected.</p> : null}{selectedRule.sourcePlatform === "any" && validOverrideSources.length > 0 ? <div className={styles.overrideRow}><span>Source-specific override</span><select aria-label="Override source" value={overrideSource} onChange={(event) => setOverrideSource(event.target.value as typeof overrideSource)}><option value="">Select source</option>{validOverrideSources.map((source) => <option key={source} value={source}>{sourceLabels[source]}</option>)}</select><button type="button" onClick={() => void addOverride()} disabled={!overrideSource || busy}><FiPlus aria-hidden="true" /> Add override</button></div> : selectedRule.sourcePlatform !== "any" ? <p className={styles.helperText}>This source-specific override falls back to the Any rule when removed.</p> : null}</section>
+        <section className={styles.editorSection}><h3>When</h3><div className={`${styles.segmented} ${styles.disabledSegmented}`} aria-label="Live and offline routing control is disabled"><button type="button" disabled className={!formRule.liveOnly && !formRule.offlineOnly ? styles.activeSegment : ""}>Any time</button><button type="button" disabled className={formRule.liveOnly ? styles.activeSegment : ""}>Live only</button><button type="button" disabled className={formRule.offlineOnly ? styles.activeSegment : ""}>Offline only</button></div><p className={styles.helperText}>{getLiveOfflineControlCopy(formRule)}</p></section>
+        <section className={styles.editorSection}><h3>Cooldown configuration</h3><div className={styles.cooldownGrid}><label>Per user<input type="number" min="0" inputMode="numeric" value={formRule.perUserCooldownSeconds ?? ""} placeholder="—" onChange={(event) => updateForm("perUserCooldownSeconds", nullableNumber(event.target.value))} /><small>Requires a stable user or actor identity.</small></label><label>Global<input type="number" min="0" inputMode="numeric" value={formRule.globalCooldownSeconds ?? ""} placeholder="—" onChange={(event) => updateForm("globalCooldownSeconds", nullableNumber(event.target.value))} /><small>Applies to the selected saved rule.</small></label><label className={styles.checkLabel}><input type="checkbox" checked={formRule.oncePerStream} disabled={!canTurnOnOncePerStream(selectedOncePerStreamAvailability, formRule.oncePerStream)} onChange={(event) => updateForm("oncePerStream", event.target.checked)} />Once per stream</label></div><p className={styles.helperText}>{getOncePerStreamCopy(selectedOncePerStreamAvailability)}</p><div className={styles.runtimeSummary}><FiClock aria-hidden="true" /><span>Active cooldowns</span><strong>{cooldownSummary?.activeCount ?? "—"}</strong><span>Nearest expiry</span><strong>{cooldownSummary?.nearestExpiry ? formatDate(cooldownSummary.nearestExpiry) : "None"}</strong></div></section>
+        <section className={styles.editorSection}><h3>Display</h3><div className={styles.displayGrid}><label>Sound<select disabled={!selectedCapabilities.supportsSound} value={formRule.soundKey ?? ""} onChange={(event) => updateForm("soundKey", nullableText(event.target.value))}><option value="">{selectedCapabilities.supportsSound ? "No sound" : "Not consumed"}</option>{getSoundOptions(formRule.eventKind).map((sound) => <option key={sound.ref} value={sound.ref}>{sound.label}{sound.recommended ? " — recommended" : ""}</option>)}</select></label>{savedLegacyDisplayValues.map((item) => <label key={item.label}>{item.label}<span className={styles.readOnlyField}>{item.value}</span><small>Saved legacy value; production playback does not consume it.</small></label>)}</div>{savedLegacyDisplayValues.length === 0 ? <p className={styles.helperText}>Template and theme are not consumed by production playback, so new editing is unavailable.</p> : null}</section>
         <section className={styles.editorSection}><h3>Safeguards</h3><div className={styles.safeguards}><label className={styles.checkLabel}><input type="checkbox" checked={formRule.approvalRequired} onChange={(event) => updateForm("approvalRequired", event.target.checked)} />Approval required</label><div><span>Opt-out requirement</span><strong>{validation.requiresUserOptOutCheck ? "Required for this destination" : "Not required for this destination"}</strong></div></div></section>
         <section className={styles.safetySection}><div className={styles.safetyHeading}>{validation.ok ? <FiCheck aria-hidden="true" /> : <FiAlertTriangle aria-hidden="true" />}<strong>Configuration</strong><span>{validation.ok ? "Valid configuration" : "Blocked"}</span></div><dl><div><dt>Opt-out requirement</dt><dd>{validation.requiresUserOptOutCheck ? "Required" : "Not required"}</dd></div><div><dt>Cooldown recommendation</dt><dd>{validation.requiresCooldownCheck ? "Recommended" : "Not recommended"}</dd></div><div><dt>Approval recommendation</dt><dd>{validation.requiresApprovalByDefault ? "Recommended" : "Not recommended"}</dd></div><div><dt>Last saved</dt><dd>{formatDate(selectedRule.updatedAt)}</dd></div></dl>{validation.issues.length > 0 ? <ul className={styles.validationIssues}>{validation.issues.map((issue) => <li key={issue}>{issueLabels[issue]}</li>)}</ul> : null}<p className={styles.caution}><FiAlertTriangle aria-hidden="true" /> Validation checks rule configuration only; it is not proof of end-to-end runtime readiness.</p><p className={styles.gateNote}>Normalized provider events execute saved routing rules. Provider-specific state gaps and the complete live rehearsal remain open verification work.</p></section>
         <footer className={styles.editorFooter}><span>{isDirty ? "Unsaved changes" : "No unsaved changes"}</span>{selectedRule.persisted ? <button type="button" className={styles.dangerAction} onClick={() => void resetRule()} disabled={isDirty || busy}><FiTrash2 aria-hidden="true" /> Remove saved rule</button> : null}<button type="button" onClick={() => setFormRule(toFormRule(selectedRule))} disabled={!isDirty || busy}>Discard</button><button type="submit" disabled={!isDirty || !validation.ok || busy}>{busy ? "Saving..." : "Save rule"}</button><button type="button" className={styles.primaryAction} onClick={() => void saveRule(true)} disabled={!isDirty || !validation.ok || busy || selectedIndex >= filteredRules.length - 1}>Save & next</button></footer>

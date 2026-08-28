@@ -171,6 +171,22 @@ describe("EventRoutingProductionService", () => {
     }));
   });
 
+  it("routes a saved provider rule with legacy display-only template and theme values", async () => {
+    const repository = new Repository();
+    repository.savedRule = rule({
+      templateKey: "legacy-provider-template",
+      themeKey: "legacy-provider-theme"
+    });
+    const publish = vi.fn().mockReturnValue({ emitted: true });
+    const service = new EventRoutingProductionService(repository, publish);
+
+    await expect(service.route(followEvent())).resolves.toMatchObject({
+      playbackEmitted: true,
+      status: "routed"
+    });
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
   it("fails closed when a saved production rule contains an unknown sound ref", async () => {
     const repository = new Repository();
     repository.savedRule = rule({ soundKey: "../not-allowed.wav" });
