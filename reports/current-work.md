@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 reviewed profile-handle audit/event-store proposal
+
+- Added `reports/profile-handle-audit-event-store-proposal.md` as the separate audit gate required by the reviewed profile-handle read-model proposal. It defines an Owner-only first release with one operation header plus exact ordered handle-detail rows, same-key replay, different-request rejection, atomic canonical-state and audit commits, and finite privacy-safe rejection rules.
+- Audit identity uses internal domain-user snapshots with no foreign keys or cascade behavior. Public and browser contracts may not expose raw user, auth, provider, operation, or event ids. Account deletion and system actors remain future separately reviewed extensions rather than first-release placeholders.
+- The design requires an enforceable append-only database boundary through reviewed writer privileges or rejection triggers. Migration generation must stop if the deployed database path cannot prove that boundary. No SQL, Drizzle schema, migration, seed, backfill, account change, database access, deployment, or live action occurred.
+- Two correction rounds closed append-only enforcement, deletion/FK semantics, idempotency, multi-row completeness, failed-operation handling, Owner-only scope, and operation cardinality findings. Final independent GPT-5.5 review returned `READY` with zero standards and zero specification findings. Architecture and diff checks passed.
+- Exact retention periods, future pseudonymization policy, opaque operator references, and endpoint-to-reason mapping remain later decisions. The Owner choice at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6` still gates migration-file generation and is currently unsubmitted.
+
 ## 2026-08-28 prepared production approval gate
 
 - Published one focused Owner list at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`. It asks whether to implement the exact prepared `/about/ai` copy and desktop/mobile references, and whether to keep, approve, or advance the reviewed profile-handle proposal to migration-file generation.

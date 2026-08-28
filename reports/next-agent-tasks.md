@@ -8,6 +8,14 @@
 - The same focused list asks whether to approve the reviewed profile-handle proposal and whether to generate migration files for review. Generating files does not authorize applying them or assigning a live handle.
 - Keep any Linus Torvalds reference minimal and primary-source linked. The verified personal-choice follow-up is `https://lore.kernel.org/linux-media/CAHk-%3Dwi7KN9_DYdmaE2chC92EhTrO%3DWtx1bPBER-EQfAZ8FREg%40mail.gmail.com/`; Michael's explanation must remain his own.
 
+## Reviewed profile-handle audit gate
+
+- `reports/profile-handle-audit-event-store-proposal.md` is reviewed and ready as a design. It does not authorize schema or migration generation, application, live account changes, or `/profiles/maiks` assignment.
+- Preserve the operation-header plus exact ordered-detail model. Successful canonical `profile_handles` mutations and audit rows must commit in one transaction. Same-key same-request retries replay the complete stored operation; key reuse with different input rejects without mutation.
+- First release is Owner-only. Do not add system actors, account-deletion transitions, self-claim, provider-derived identity, or delegated assignment as shortcuts. Public and browser DTOs must reject all raw operation, event, domain-user, auth, and provider ids.
+- Migration generation must prove an enforceable append-only database boundary and the exact operation/detail cardinality constraints. If neither reviewed writer privileges nor rejection triggers can guarantee immutability, stop before generating SQL.
+- The active Owner gate is `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`; it is currently open and unsubmitted.
+
 ## Production deployment policy
 
 - Ordinary reviewed, reversible Maiks.yt application deployments are authorized as part of normal coordinator delivery. Do not pause merely to request deployment permission after a slice has passed review, target proof, rollback preparation, and has a concrete live verification path.
@@ -37,7 +45,7 @@
 ## Real profile decision gate
 
 - Michael's settled privacy behavior is not up for re-litigation: private accounts remain searchable, render only the account name and `This account is set to private`, and expose no profile image.
-- The remaining handle choices are published at `https://choices.mmc.onl/p/maiks-yt/l/e5b5dc8c09ec15a8`. Wait for a submitted answer before designing the migration. Submission authorizes a schema and migration proposal for review only; do not generate, apply, or backfill a live migration from the choice alone.
+- Michael already settled the address, reuse, and manual-assignment choices. The reviewed read-model and audit/event-store proposals are now complete. The current next-step choice is at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6`; wait for submission before generating migration files. Generating files would still not authorize applying them, reserving or assigning `maiks`, backfilling users, or changing live accounts.
 
 ## Twitch chat-reply readiness deployed
 
