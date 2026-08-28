@@ -18,7 +18,7 @@ const HealthPage = (): React.ReactNode => (
       <p className={styles.eyebrow}>Medical context</p>
       <h1>Context that may help you understand me.</h1>
       <p className={styles.lead}>
-        I have a serious brain tumor, brain damage, and ADHD. This page is here because knowing
+        I have a brain tumor, brain damage, and ADHD. This page is here because knowing
         that can make irregular streams, changed plans, and uneven communication easier to place.
       </p>
     </header>
