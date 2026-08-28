@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-28 production migration-ledger repair `49c0b23`
+
+- Reconciled the production Drizzle source ledger with the 30 migrations already recorded by the live database. Restored historical game-catalog migrations `0027_jazzy_odin.sql` and `0028_real_layla_miller.sql` byte-for-byte from their original commits, moved the unchanged music migration to `0029_jazzy_crystal.sql`, repaired the journal/snapshot chain, and restored only the corresponding game-catalog schema declarations.
+- The migration hashes now match the live applied history: `41468b3f...5693e4`, `722e8b16...975b`, and `89a531d9...2563d`. Journal indices are contiguous `0..29`; the terminal snapshot contains 67 tables and points through the restored 0028 snapshot.
+- Independent GPT-5.5 review returned `READY` with zero findings. `pnpm check:review` passed with 183 Domain tests, 663 API tests, 326 Web tests, the production Web build, Overlay/Control typechecks, 16 Local Agent tests, 15 provenance tests, architecture rules, and the diff check. Two independent disposable Drizzle runs reported `No schema changes, nothing to migrate` and created no `0030` migration.
+- Commit `49c0b23` is pushed to `origin/production`. This is source-history repair only: no migration was applied, no database or volume changed, and no service was rebuilt or restarted. Future migration generation is unblocked from this split-history condition.
+
 ## 2026-08-28 reviewed privacy+authority boundary `8e3bc62`
 
 - Pushed and deployed production revision `8e3bc6288d37a0de8fb42e0960353d6c89c66acb` after the senior final review returned `READY: zero findings`. `pnpm check:review` passed with 183 Domain tests, 663 API tests, 326 Web tests, the production Web build, Overlay/Control typechecks, 16 Local Agent tests, 15 provenance tests, architecture rules, and the diff check.

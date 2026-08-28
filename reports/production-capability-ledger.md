@@ -48,6 +48,16 @@ The Creator Links row was delivered later in production rollout `c98486f`; its
 deployment and verification evidence is recorded independently from the earlier
 shared tranche gate.
 
+## 2026-08-28 Production Migration Ledger Reconciliation
+
+| Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Drizzle migration-history integrity | done | done | done | done | not-applicable | done | Source commit `49c0b23` restores the two historical game-catalog migrations already present in the live 30-row applied history, preserves the music migration byte-for-byte as 0029, repairs the journal/snapshot chain to 67 tables, and restores matching schema declarations. Independent senior review returned `READY`; `pnpm check:review` passed; two disposable generation runs produced no schema change and no 0030 migration. No live migration, database mutation, deployment, restart, or volume change occurred. |
+
+The earlier split-history gate is closed. Future schema work must continue from
+`0029_jazzy_crystal`; it must not recreate, renumber, or reapply the restored
+game-catalog migrations.
+
 ## 2026-08-28 Public Health Context And Writing Decisions
 
 | Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |
