@@ -241,14 +241,7 @@ export type MusicApiResult<TData> =
   | { readonly ok: false; readonly reason: string };
 
 export type MusicRequestResult = MusicApiResult<{
-  readonly request: {
-    readonly id: string;
-    readonly trackId: string;
-    readonly sourceId: string;
-    readonly status: string;
-    readonly amsterdamDate: string;
-    readonly createdAt: string;
-  };
+  readonly accepted: true;
 }>;
 
 export type MusicAudioUploadResult = MusicApiResult<{

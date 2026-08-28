@@ -1246,6 +1246,48 @@ describe("Music routes", () => {
     expect(capturedIp).toBe("198.51.100.77");
   });
 
+  it("returns only a public acknowledgement for accepted music requests", async () => {
+    const repository = new FakeMusicRepository();
+    const service = new MusicService(repository, {
+      getRequestHashSecret: () => "test-secret",
+      getNow: () => new Date("2026-01-01T23:30:00.000Z")
+    });
+    const server = Fastify({ logger: false });
+    registerMusicRoutes(server, {
+      getAuthSession: async () => null,
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createService: () => service
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/music/requests",
+      headers: {
+        "cf-connecting-ip": "198.51.100.77"
+      },
+      payload: {
+        trackId: "safe",
+        sourceId: "safe-source"
+      }
+    });
+    const responseBody = response.json();
+
+    expect(response.statusCode).toBe(200);
+    expect(responseBody).toEqual({ ok: true, accepted: true });
+    expect(Object.keys(responseBody).sort()).toEqual(["accepted", "ok"]);
+    for (const field of ["request", "id", "trackId", "sourceId", "status", "amsterdamDate", "createdAt"]) {
+      expect(responseBody).not.toHaveProperty(field);
+      expect(response.body).not.toContain(`"${field}"`);
+    }
+    expect(repository.persistedRequests).toEqual([{
+      anonymousDailyHmac: expect.stringMatching(/^[a-f0-9]{64}$/),
+      amsterdamDate: "2026-01-02",
+      providerKey: "safe-provider"
+    }]);
+  });
+
   it("redacts thrown internal errors from public responses", async () => {
     const server = Fastify({ logger: false });
     registerMusicRoutes(server, {

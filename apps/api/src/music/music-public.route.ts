@@ -48,9 +48,13 @@ export const registerMusicPublicRoutes = (server: FastifyInstance, dependencies:
 
       if (!result.ok) {
         reply.code(result.reason === "music_request_daily_limit" ? 429 : 400);
+        return result;
       }
 
-      return result;
+      return {
+        ok: true,
+        accepted: true
+      };
     } catch (error) {
       server.log.warn({ err: error }, "Music public request failed.");
       reply.code(503);
