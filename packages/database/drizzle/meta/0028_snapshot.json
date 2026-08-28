@@ -1,8 +1,8 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "0470c1e1-7306-4e77-a939-24acaf1fe004",
-  "prevId": "a84245c1-cac2-4c8e-b981-7614c1642796",
+  "id": "45004adc-4593-492e-a93a-b56e31e85c43",
+  "prevId": "0470c1e1-7306-4e77-a939-24acaf1fe004",
   "tables": {
     "app_metadata": {
       "name": "app_metadata",
@@ -6163,6 +6163,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "popularity_score": {
+          "name": "popularity_score",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "popularity_updated_at": {
+          "name": "popularity_updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "first_seen_at": {
           "name": "first_seen_at",
           "type": "timestamp",
@@ -6229,6 +6243,14 @@
             "provider_title"
           ],
           "isUnique": false
+        },
+        "game_catalog_provider_popularity_idx": {
+          "name": "game_catalog_provider_popularity_idx",
+          "columns": [
+            "provider",
+            "popularity_score"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {},
@@ -6249,6 +6271,10 @@
         "game_catalog_provider_title_not_blank_check": {
           "name": "game_catalog_provider_title_not_blank_check",
           "value": "trim(`game_catalog_provider_identities`.`provider_title`) <> ''"
+        },
+        "game_catalog_provider_popularity_nonnegative_check": {
+          "name": "game_catalog_provider_popularity_nonnegative_check",
+          "value": "`game_catalog_provider_identities`.`popularity_score` is null or `game_catalog_provider_identities`.`popularity_score` >= 0"
         }
       }
     },

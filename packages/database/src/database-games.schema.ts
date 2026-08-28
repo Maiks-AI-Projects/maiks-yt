@@ -13,10 +13,60 @@ import {
   varchar
 } from "drizzle-orm/mysql-core";
 
+export const gameCatalogEntries = mysqlTable(
+  "game_catalog_entries",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    canonicalTitle: varchar("canonical_title", { length: 191 }).notNull(),
+    normalizedTitle: varchar("normalized_title", { length: 191 }).notNull(),
+    matchState: mysqlEnum("match_state", ["discovered", "owner-confirmed"]).notNull().default("discovered"),
+    firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    index("game_catalog_entries_title_idx").on(table.normalizedTitle),
+    index("game_catalog_entries_match_state_idx").on(table.matchState, table.lastSeenAt),
+    check("game_catalog_entries_title_not_blank_check", sql`trim(${table.canonicalTitle}) <> ''`),
+    check("game_catalog_entries_normalized_title_not_blank_check", sql`trim(${table.normalizedTitle}) <> ''`)
+  ]
+);
+
+export const gameCatalogProviderIdentities = mysqlTable(
+  "game_catalog_provider_identities",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    catalogGameId: varchar("catalog_game_id", { length: 36 }).notNull(),
+    provider: mysqlEnum("provider", ["steam", "twitch", "igdb", "other"]).notNull(),
+    providerGameId: varchar("provider_game_id", { length: 191 }).notNull(),
+    providerTitle: varchar("provider_title", { length: 191 }).notNull(),
+    storeUrl: varchar("store_url", { length: 1024 }),
+    artworkUrl: varchar("artwork_url", { length: 1024 }),
+    popularityScore: int("popularity_score"),
+    popularityUpdatedAt: timestamp("popularity_updated_at"),
+    firstSeenAt: timestamp("first_seen_at").notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+    lastRefreshedAt: timestamp("last_refreshed_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("game_catalog_provider_identity_uidx").on(table.provider, table.providerGameId),
+    index("game_catalog_provider_catalog_idx").on(table.catalogGameId, table.provider),
+    index("game_catalog_provider_title_idx").on(table.provider, table.providerTitle),
+    index("game_catalog_provider_popularity_idx").on(table.provider, table.popularityScore),
+    check("game_catalog_provider_game_id_not_blank_check", sql`trim(${table.providerGameId}) <> ''`),
+    check("game_catalog_provider_title_not_blank_check", sql`trim(${table.providerTitle}) <> ''`),
+    check("game_catalog_provider_popularity_nonnegative_check", sql`${table.popularityScore} is null or ${table.popularityScore} >= 0`)
+  ]
+);
+
 export const gameLibraryEntries = mysqlTable(
   "game_library_entries",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
+    catalogGameId: varchar("catalog_game_id", { length: 36 }),
     slug: varchar("slug", { length: 191 }).notNull(),
     title: varchar("title", { length: 191 }).notNull(),
     platformLabel: varchar("platform_label", { length: 120 }),
@@ -50,6 +100,7 @@ export const gameLibraryEntries = mysqlTable(
   },
   (table) => [
     uniqueIndex("game_library_entries_slug_uidx").on(table.slug),
+    index("game_library_entries_catalog_game_idx").on(table.catalogGameId),
     index("game_library_entries_public_idx").on(table.visibility, table.interestStatus, table.sortOrder),
     index("game_library_entries_ownership_idx").on(table.ownershipStatus),
     check("game_library_entries_slug_not_blank_check", sql`trim(${table.slug}) <> ''`),
