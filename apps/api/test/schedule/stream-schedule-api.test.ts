@@ -207,11 +207,16 @@ describe("StreamScheduleService", () => {
       ok: true,
       streams: [
         {
-          id: "stream-1",
-          visibility: "public"
+          title: "Maiks.yt build stream",
+          status: "planned"
         }
       ]
     });
+    const result = await service.listPublicStreams();
+    expect(JSON.stringify(result)).not.toContain("\"id\"");
+    expect(JSON.stringify(result)).not.toContain("projectId");
+    expect(JSON.stringify(result)).not.toContain("gameId");
+    expect(JSON.stringify(result)).not.toContain("visibility");
   });
 
   it("allows owner wildcard and schedule permission for admin mutations", async () => {
@@ -546,7 +551,21 @@ describe("stream schedule route boundary", () => {
         id: "project-1",
         slug: "maiks-yt-v2",
         title: "Maiks.yt V2"
-      }
+      },
+      gameLinks: [
+        {
+          id: "game-link-1",
+          gameId: "game-1",
+          slug: "satisfactory",
+          title: "Satisfactory",
+          platformLabel: "PC",
+          ownershipStatus: "owned",
+          interestStatus: "currently-playing",
+          relationship: "planned",
+          publicNote: "Factory prep.",
+          sortOrder: 7
+        }
+      ]
     }));
     const server = Fastify();
     registerStreamScheduleRoutes(server, {
@@ -563,21 +582,43 @@ describe("stream schedule route boundary", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
+    const body = response.json();
+    expect(body).toMatchObject({
       ok: true,
       streams: [
         {
-          id: "stream-1"
+          title: "Maiks.yt build stream"
         },
         {
-          id: "focused-stream",
           focusProject: {
             slug: "maiks-yt-v2"
           },
-          focusLabel: "Stream focus"
+          focusLabel: "Stream focus",
+          gameLinks: [
+            {
+              slug: "satisfactory",
+              title: "Satisfactory",
+              platformLabel: "PC",
+              relationship: "planned",
+              publicNote: "Factory prep."
+            }
+          ]
         }
       ]
     });
+    expect(JSON.stringify(body)).not.toContain("\"id\"");
+    expect(JSON.stringify(body)).not.toContain("focused-stream");
+    expect(JSON.stringify(body)).not.toContain("projectId");
+    expect(JSON.stringify(body)).not.toContain("gameId");
+    expect(JSON.stringify(body)).not.toContain("game-link-1");
+    expect(JSON.stringify(body)).not.toContain("game-1");
+    expect(JSON.stringify(body)).not.toContain("sortOrder");
+    expect(JSON.stringify(body)).not.toContain("ownershipStatus");
+    expect(JSON.stringify(body)).not.toContain("interestStatus");
+    expect(JSON.stringify(body)).not.toContain("themeKey");
+    expect(JSON.stringify(body)).not.toContain("createdAt");
+    expect(JSON.stringify(body)).not.toContain("updatedAt");
+    expect(JSON.stringify(body)).not.toContain("visibility");
     await server.close();
   });
 

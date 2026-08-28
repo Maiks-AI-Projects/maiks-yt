@@ -1,29 +1,15 @@
 import type {
-  StreamScheduleCancellationReasonCode,
-  StreamScheduleEntry
+  PublicStreamScheduleEntry,
+  StreamScheduleCancellationReasonCode
 } from "@maiks-yt/domain/schedule";
+
+import { parseStreamScheduleApiResponse } from "./stream-schedule-public-parser.rules";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
-type StreamScheduleApiResponse =
-  | {
-    ok: true;
-    streams: readonly StreamScheduleEntry[];
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
-
 export type StreamScheduleLoadResult =
-  | {
-    status: "loaded";
-    streams: readonly StreamScheduleEntry[];
-  }
-  | {
-    status: "error";
-    streams: readonly [];
-  };
+  | { status: "loaded"; streams: readonly PublicStreamScheduleEntry[] }
+  | { status: "error"; streams: readonly [] };
 
 export const cancellationReasonLabels = {
   health: "Health",
@@ -35,10 +21,7 @@ export const cancellationReasonLabels = {
 } satisfies Record<StreamScheduleCancellationReasonCode, string>;
 
 export const formatScheduleLabel = (value: string): string =>
-  value
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  value.split("-").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 
 export const formatScheduleDate = (value: string): string =>
   new Intl.DateTimeFormat("en", {
@@ -49,17 +32,13 @@ export const formatScheduleDate = (value: string): string =>
 
 export const getPublicStreamSchedule = async (): Promise<StreamScheduleLoadResult> => {
   try {
-    const response = await fetch(`${apiBaseUrl}/schedule`, {
-      cache: "no-store"
-    });
+    const response = await fetch(`${apiBaseUrl}/schedule`, { cache: "no-store" });
 
-    if (!response.ok) {
-      return { status: "error", streams: [] };
-    }
+    if (!response.ok) return { status: "error", streams: [] };
 
-    const payload = await response.json() as StreamScheduleApiResponse;
+    const payload = parseStreamScheduleApiResponse(await response.json());
 
-    return payload.ok
+    return payload?.ok
       ? { status: "loaded", streams: payload.streams }
       : { status: "error", streams: [] };
   } catch {

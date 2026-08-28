@@ -1,11 +1,12 @@
-import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
+import type { PublicStreamScheduleEntry } from "@maiks-yt/domain/schedule";
 import Link from "next/link";
 
 import { ScheduleDateTime } from "../schedule/schedule-date-time";
+import { getPublicScheduleGameLinkKey } from "../schedule/stream-schedule-public-keys.rules";
 import { formatGameStatus } from "./game-library-data";
 import styles from "./games.module.css";
 
-export const GamePlayPlan = ({ stream }: { stream: StreamScheduleEntry }): React.ReactNode => (
+export const GamePlayPlan = ({ stream }: { stream: PublicStreamScheduleEntry }): React.ReactNode => (
   <article className={styles.playPlan}>
     <div>
       <span>{formatGameStatus(stream.status)}</span>
@@ -15,8 +16,8 @@ export const GamePlayPlan = ({ stream }: { stream: StreamScheduleEntry }): React
       <h3>{stream.title}</h3>
       {stream.description ? <p>{stream.description}</p> : null}
       <div className={styles.playPlanGames}>
-        {stream.gameLinks.map((game) => (
-          <Link href="/games" key={game.id}>
+        {stream.gameLinks.map((game, index) => (
+          <Link href="/games" key={getPublicScheduleGameLinkKey(game, index)}>
             {game.title}{game.platformLabel ? ` / ${game.platformLabel}` : ""}
           </Link>
         ))}

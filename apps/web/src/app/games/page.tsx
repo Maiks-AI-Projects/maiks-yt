@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { getPublicStreamSchedule } from "../schedule/stream-schedule-data";
+import { getPublicScheduleEntryKey } from "../schedule/stream-schedule-public-keys.rules";
 import { GameLibraryEntry } from "./game-library-entry";
 import { getPublicGames } from "./game-library-data";
 import { GamePlayPlan } from "./game-play-plan";
@@ -19,9 +20,9 @@ const GamesPage = async (): Promise<React.ReactNode> => {
     getPublicGames(),
     getPublicStreamSchedule()
   ]);
-  const playPlans = scheduleResult.streams.filter((stream) =>
-    (stream.status === "live" || stream.status === "planned") && stream.gameLinks.length > 0
-  );
+  const playPlans = scheduleResult.streams
+    .map((stream, index) => ({ stream, index }))
+    .filter(({ stream }) => (stream.status === "live" || stream.status === "planned") && stream.gameLinks.length > 0);
   const wishlistGames = gamesResult.games.filter((game) => game.ownershipStatus === "not-owned");
   const libraryGames = gamesResult.games.filter((game) => game.ownershipStatus !== "not-owned");
 
@@ -113,7 +114,9 @@ const GamesPage = async (): Promise<React.ReactNode> => {
           <p className={styles.formMessage}>No upcoming streams currently have a game attached.</p>
         ) : (
           <div className={styles.playPlanList}>
-            {playPlans.map((stream) => <GamePlayPlan key={stream.id} stream={stream} />)}
+            {playPlans.map(({ stream, index }) => (
+              <GamePlayPlan key={getPublicScheduleEntryKey(stream, index)} stream={stream} />
+            ))}
           </div>
         )}
       </section>

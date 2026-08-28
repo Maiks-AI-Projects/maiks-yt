@@ -1,5 +1,5 @@
 import type { PublicProjectSummary } from "@maiks-yt/domain/projects";
-import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
+import type { PublicStreamScheduleEntry } from "@maiks-yt/domain/schedule";
 import type { PublicUpdateSummary } from "@maiks-yt/domain/updates";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,28 +46,22 @@ const createProject = (
 });
 
 const createStream = (
-  id: string,
-  overrides: Partial<StreamScheduleEntry> = {}
-): StreamScheduleEntry => ({
-  id,
-  title: `Stream ${id}`,
+  label: string,
+  overrides: Partial<PublicStreamScheduleEntry> = {}
+): PublicStreamScheduleEntry => ({
+  title: `Stream ${label}`,
   description: null,
   startsAt: "2026-08-28T18:00:00.000Z",
   endsAt: null,
   channelKey: "coding",
   topicKey: null,
-  themeKey: null,
-  projectId: null,
   focusLabel: null,
   focusNote: null,
   focusProject: null,
   gameLinks: [],
-  visibility: "public",
   status: "planned",
   cancellationReasonCode: null,
   cancellationReason: null,
-  createdAt: "2026-08-28T12:00:00.000Z",
-  updatedAt: "2026-08-28T12:00:00.000Z",
   ...overrides
 });
 
@@ -76,7 +70,7 @@ const projectLoaded = (projects: readonly PublicProjectSummary[]): ProjectListLo
   projects
 });
 
-const scheduleLoaded = (streams: readonly StreamScheduleEntry[]): StreamScheduleLoadResult => ({
+const scheduleLoaded = (streams: readonly PublicStreamScheduleEntry[]): StreamScheduleLoadResult => ({
   status: "loaded",
   streams
 });

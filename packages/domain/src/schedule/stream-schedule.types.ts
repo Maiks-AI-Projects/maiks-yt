@@ -42,8 +42,31 @@ export type StreamScheduleEntry = {
   updatedAt: string;
 };
 
+export type PublicStreamScheduleEntry = {
+  title: string;
+  description: string | null;
+  startsAt: string;
+  endsAt: string | null;
+  channelKey: string;
+  topicKey: string | null;
+  focusLabel: string | null;
+  focusNote: string | null;
+  focusProject: PublicStreamScheduleFocusProject | null;
+  gameLinks: readonly PublicStreamScheduleGameLink[];
+  status: PublicStreamScheduleStatus;
+  cancellationReasonCode: StreamScheduleCancellationReasonCode | null;
+  cancellationReason: string | null;
+};
+
+export type PublicStreamScheduleStatus = Extract<StreamScheduleStatus, "planned" | "live" | "cancelled">;
+
 export type StreamScheduleFocusProject = {
   id: string;
+  slug: string;
+  title: string;
+};
+
+export type PublicStreamScheduleFocusProject = {
   slug: string;
   title: string;
 };
@@ -61,6 +84,14 @@ export type StreamScheduleGameLink = {
   relationship: StreamScheduleGameLinkRelationship;
   publicNote: string | null;
   sortOrder: number;
+};
+
+export type PublicStreamScheduleGameLink = {
+  slug: string;
+  title: string;
+  platformLabel: string | null;
+  relationship: StreamScheduleGameLinkRelationship;
+  publicNote: string | null;
 };
 
 export type StreamScheduleGameOption = {

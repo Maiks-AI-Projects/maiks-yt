@@ -1,12 +1,8 @@
 import {
-  type StreamScheduleEntry,
-  type StreamScheduleGameLink,
+  type PublicStreamScheduleEntry,
+  type PublicStreamScheduleGameLink,
   streamScheduleGameLinkRelationships
 } from "@maiks-yt/domain/schedule";
-import {
-  gameInterestStatuses,
-  gameOwnershipStatuses
-} from "@maiks-yt/domain/games";
 
 import type { StreamScheduleLoadResult } from "../schedule/stream-schedule-data";
 import { formatScheduleDate } from "../schedule/stream-schedule-data";
@@ -27,7 +23,7 @@ export type HomeScheduleGameFocus = {
   platformLabel?: string;
 };
 
-type HomeScheduleCandidate = Pick<StreamScheduleEntry, "startsAt" | "title"> & {
+type HomeScheduleCandidate = Pick<PublicStreamScheduleEntry, "startsAt" | "title"> & {
   status: "live" | "planned";
   gameLinks?: unknown;
 };
@@ -35,12 +31,16 @@ type HomeScheduleCandidate = Pick<StreamScheduleEntry, "startsAt" | "title"> & {
 const gameFocusTitleMaxLength = 96;
 const gameFocusPlatformMaxLength = 64;
 const gameSlugPattern = /^[a-z0-9][a-z0-9-]{0,190}$/;
+const scheduleGameLinkKeys = ["slug", "title", "platformLabel", "relationship", "publicNote"] as const;
 
 const isValidDateString = (value: unknown): value is string =>
   typeof value === "string" && !Number.isNaN(Date.parse(value));
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const hasOnlyKeys = (value: Record<string, unknown>, allowedKeys: readonly string[]): boolean =>
+  Object.keys(value).every((key) => allowedKeys.includes(key));
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.trim().length > 0;
@@ -52,40 +52,16 @@ const isHomeScheduleCandidate = (
   && isValidDateString(stream.startsAt)
   && (stream.status === "live" || stream.status === "planned");
 
-const isNormalizedSlug = (value: unknown): value is string =>
-  typeof value === "string" && gameSlugPattern.test(value);
-
-const isGameOwnershipStatus = (
-  value: unknown
-): value is StreamScheduleGameLink["ownershipStatus"] =>
-  typeof value === "string"
-  && gameOwnershipStatuses.includes(value as StreamScheduleGameLink["ownershipStatus"]);
-
-const isGameInterestStatus = (
-  value: unknown
-): value is StreamScheduleGameLink["interestStatus"] =>
-  typeof value === "string"
-  && gameInterestStatuses.includes(value as StreamScheduleGameLink["interestStatus"]);
-
-const isGameLinkRelationship = (
-  value: unknown
-): value is StreamScheduleGameLink["relationship"] =>
-  typeof value === "string"
-  && streamScheduleGameLinkRelationships.includes(value as StreamScheduleGameLink["relationship"]);
-
-const isScheduleGameLink = (gameLink: unknown): gameLink is StreamScheduleGameLink =>
+const isScheduleGameLink = (gameLink: unknown): gameLink is PublicStreamScheduleGameLink =>
   isRecord(gameLink)
-  && isNonEmptyString(gameLink.id)
-  && isNonEmptyString(gameLink.gameId)
-  && isNormalizedSlug(gameLink.slug)
+  && hasOnlyKeys(gameLink, scheduleGameLinkKeys)
+  && typeof gameLink.slug === "string"
+  && gameSlugPattern.test(gameLink.slug)
   && isNonEmptyString(gameLink.title)
   && (gameLink.platformLabel === null || isNonEmptyString(gameLink.platformLabel))
-  && isGameOwnershipStatus(gameLink.ownershipStatus)
-  && isGameInterestStatus(gameLink.interestStatus)
-  && isGameLinkRelationship(gameLink.relationship)
   && (gameLink.publicNote === null || typeof gameLink.publicNote === "string")
-  && typeof gameLink.sortOrder === "number"
-  && Number.isInteger(gameLink.sortOrder);
+  && typeof gameLink.relationship === "string"
+  && streamScheduleGameLinkRelationships.includes(gameLink.relationship as PublicStreamScheduleGameLink["relationship"]);
 
 const boundText = (value: string, maxLength: number): string =>
   value.trim().slice(0, maxLength).trimEnd();

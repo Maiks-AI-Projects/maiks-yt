@@ -1,7 +1,7 @@
 import type { PublicProjectSummary } from "@maiks-yt/domain/projects";
 import type {
-  StreamScheduleEntry,
-  StreamScheduleGameLink
+  PublicStreamScheduleEntry,
+  PublicStreamScheduleGameLink
 } from "@maiks-yt/domain/schedule";
 import type { PublicUpdateSummary } from "@maiks-yt/domain/updates";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -32,49 +32,38 @@ vi.mock("../updates/public-update-data", () => ({
 }));
 
 const createStream = (
-  id: string,
-  overrides: Partial<StreamScheduleEntry> = {}
-): StreamScheduleEntry => ({
-  id,
-  title: `Stream ${id}`,
+  label: string,
+  overrides: Partial<PublicStreamScheduleEntry> = {}
+): PublicStreamScheduleEntry => ({
+  title: `Stream ${label}`,
   description: null,
   startsAt: "2026-08-28T18:00:00.000Z",
   endsAt: null,
   channelKey: "coding",
   topicKey: null,
-  themeKey: null,
-  projectId: null,
   focusLabel: null,
   focusNote: null,
   focusProject: null,
   gameLinks: [],
-  visibility: "public",
   status: "planned",
   cancellationReasonCode: null,
   cancellationReason: null,
-  createdAt: "2026-08-28T12:00:00.000Z",
-  updatedAt: "2026-08-28T12:00:00.000Z",
   ...overrides
 });
 
 const createGameLink = (
-  id: string,
-  overrides: Partial<StreamScheduleGameLink> = {}
-): StreamScheduleGameLink => ({
-  id,
-  gameId: `game-${id}`,
-  slug: id,
-  title: `Game ${id}`,
+  slug: string,
+  overrides: Partial<PublicStreamScheduleGameLink> = {}
+): PublicStreamScheduleGameLink => ({
+  slug,
+  title: `Game ${slug}`,
   platformLabel: null,
-  ownershipStatus: "owned",
-  interestStatus: "currently-playing",
   relationship: "current",
   publicNote: null,
-  sortOrder: 0,
   ...overrides
 });
 
-const loaded = (streams: readonly StreamScheduleEntry[]): StreamScheduleLoadResult => ({
+const loaded = (streams: readonly PublicStreamScheduleEntry[]): StreamScheduleLoadResult => ({
   status: "loaded",
   streams
 });
@@ -259,7 +248,7 @@ describe("home schedule slot", () => {
   it("omits malformed or missing game links without making the schedule unavailable", () => {
     expect(getHomeScheduleSlot(loaded([
       createStream("not-array", {
-        gameLinks: null as unknown as StreamScheduleEntry["gameLinks"]
+        gameLinks: null as unknown as PublicStreamScheduleEntry["gameLinks"]
       })
     ]))).toEqual({
       status: "planned",
@@ -278,7 +267,7 @@ describe("home schedule slot", () => {
           createGameLink("valid-after-broken", {
             title: "Valid game"
           })
-        ] as unknown as StreamScheduleEntry["gameLinks"]
+        ] as unknown as PublicStreamScheduleEntry["gameLinks"]
       })
     ]));
 
@@ -330,13 +319,9 @@ describe("home schedule slot", () => {
             ...createGameLink("planned-focus", {
               title: "Public planned game",
               platformLabel: "Steam",
-              publicNote: "Raw public note",
-              sortOrder: 42
-            }),
-            steamAppId: "999",
-            storeUrl: "https://store.example/game",
-            artworkUrl: "https://cdn.example/art.png"
-          } as unknown as StreamScheduleGameLink
+              publicNote: "Raw public note"
+            })
+          }
         ]
       })
     ])));

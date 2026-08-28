@@ -1,12 +1,16 @@
-import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
+import type { PublicStreamScheduleEntry } from "@maiks-yt/domain/schedule";
 
-import { cancellationReasonLabels, formatScheduleLabel } from "./stream-schedule-data";
+import {
+  cancellationReasonLabels,
+  formatScheduleLabel
+} from "./stream-schedule-data";
+import { getPublicScheduleGameLinkKey } from "./stream-schedule-public-keys.rules";
 import { ScheduleDateTime } from "./schedule-date-time";
 import styles from "./schedule.module.css";
 
 type ScheduleEventProps = {
   featured?: boolean;
-  stream: StreamScheduleEntry;
+  stream: PublicStreamScheduleEntry;
 };
 
 export const ScheduleEvent = ({ featured = false, stream }: ScheduleEventProps): React.ReactNode => (
@@ -37,8 +41,8 @@ export const ScheduleEvent = ({ featured = false, stream }: ScheduleEventProps):
       {stream.gameLinks.length > 0 ? (
         <div className={styles.focus}>
           <strong>Game focus</strong>
-          {stream.gameLinks.map((game) => (
-            <a href="/games" key={game.id}>
+          {stream.gameLinks.map((game, index) => (
+            <a href="/games" key={getPublicScheduleGameLinkKey(game, index)}>
               {game.title}{game.platformLabel ? ` / ${game.platformLabel}` : ""}
               {game.publicNote ? <span>{game.publicNote}</span> : null}
             </a>

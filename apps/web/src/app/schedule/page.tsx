@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { ScheduleEvent } from "./schedule-event";
 import { getPublicStreamSchedule } from "./stream-schedule-data";
+import { getPublicScheduleEntryKey } from "./stream-schedule-public-keys.rules";
 import styles from "./schedule.module.css";
 
 export const dynamic = "force-dynamic";
@@ -13,15 +14,18 @@ export const metadata: Metadata = {
 
 const SchedulePage = async (): Promise<React.ReactNode> => {
   const result = await getPublicStreamSchedule();
-  const featuredStream = result.streams.find((stream) => stream.status === "live")
-    ?? result.streams.find((stream) => stream.status === "planned")
-    ?? null;
-  const upcomingStreams = result.streams.filter((stream) =>
-    stream.status === "planned" && stream.id !== featuredStream?.id
-  );
-  const recentChanges = result.streams.filter((stream) =>
-    stream.status === "cancelled" || stream.status === "completed"
-  );
+  const featuredStreamIndex = result.streams.findIndex((stream) => stream.status === "live");
+  const nextPlannedStreamIndex = result.streams.findIndex((stream) => stream.status === "planned");
+  const selectedFeaturedStreamIndex = featuredStreamIndex >= 0 ? featuredStreamIndex : nextPlannedStreamIndex;
+  const featuredStream = selectedFeaturedStreamIndex >= 0
+    ? result.streams[selectedFeaturedStreamIndex] ?? null
+    : null;
+  const upcomingStreams = result.streams
+    .map((stream, index) => ({ stream, index }))
+    .filter(({ stream, index }) => stream.status === "planned" && index !== selectedFeaturedStreamIndex);
+  const recentChanges = result.streams
+    .map((stream, index) => ({ stream, index }))
+    .filter(({ stream }) => stream.status === "cancelled");
 
   return (
     <main className={styles.page}>
@@ -82,7 +86,9 @@ const SchedulePage = async (): Promise<React.ReactNode> => {
             </p>
           </div>
           <div className={styles.eventList}>
-            {upcomingStreams.map((stream) => <ScheduleEvent key={stream.id} stream={stream} />)}
+            {upcomingStreams.map(({ stream, index }) => (
+              <ScheduleEvent key={getPublicScheduleEntryKey(stream, index)} stream={stream} />
+            ))}
           </div>
         </section>
       ) : null}
@@ -100,7 +106,9 @@ const SchedulePage = async (): Promise<React.ReactNode> => {
             </p>
           </div>
           <div className={styles.eventList}>
-            {recentChanges.map((stream) => <ScheduleEvent key={stream.id} stream={stream} />)}
+            {recentChanges.map(({ stream, index }) => (
+              <ScheduleEvent key={getPublicScheduleEntryKey(stream, index)} stream={stream} />
+            ))}
           </div>
         </section>
       ) : null}

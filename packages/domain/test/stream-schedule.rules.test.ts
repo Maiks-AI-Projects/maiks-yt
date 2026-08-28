@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   canManageStreamSchedule,
+  buildPublicStreamScheduleEntry,
   isValidStreamScheduleCancellationInput,
   isValidStreamScheduleGameLinkInputs,
   isValidStreamScheduleInput,
   isValidStreamScheduleUpdateInput,
   normalizeStreamScheduleGameLinkInputs,
   normalizeStreamScheduleInput,
+  type StreamScheduleEntry,
   type StreamScheduleInput
 } from "../src/schedule/index.js";
 
@@ -147,5 +149,82 @@ describe("stream schedule rules", () => {
     expect(canManageStreamSchedule(["*"])).toBe(true);
     expect(canManageStreamSchedule(["schedule:manage"])).toBe(true);
     expect(canManageStreamSchedule(["project-admin:manage"])).toBe(false);
+  });
+
+  it("builds the anonymous public schedule contract without raw internal identifiers", () => {
+    const publicEntry = buildPublicStreamScheduleEntry({
+      id: "stream-raw-id",
+      title: "Maiks.yt public stream",
+      description: "Public description.",
+      startsAt: "2026-08-28T18:00:00.000Z",
+      endsAt: null,
+      channelKey: "coding",
+      topicKey: "maiks-yt",
+      themeKey: "internal-theme",
+      projectId: "project-raw-id",
+      focusLabel: "Project focus",
+      focusNote: "Public focus note.",
+      focusProject: {
+        id: "project-raw-id",
+        slug: "maiks-yt-v2",
+        title: "Maiks.yt V2"
+      },
+      gameLinks: [
+        {
+          id: "game-link-raw-id",
+          gameId: "game-raw-id",
+          slug: "satisfactory",
+          title: "Satisfactory",
+          platformLabel: "PC",
+          ownershipStatus: "owned",
+          interestStatus: "currently-playing",
+          relationship: "planned",
+          publicNote: "Factory prep.",
+          sortOrder: 42
+        }
+      ],
+      visibility: "public",
+      status: "planned",
+      cancellationReasonCode: null,
+      cancellationReason: null,
+      createdAt: "2026-08-28T12:00:00.000Z",
+      updatedAt: "2026-08-28T12:30:00.000Z"
+    } satisfies StreamScheduleEntry);
+
+    expect(publicEntry).toEqual({
+      title: "Maiks.yt public stream",
+      description: "Public description.",
+      startsAt: "2026-08-28T18:00:00.000Z",
+      endsAt: null,
+      channelKey: "coding",
+      topicKey: "maiks-yt",
+      focusLabel: "Project focus",
+      focusNote: "Public focus note.",
+      focusProject: {
+        slug: "maiks-yt-v2",
+        title: "Maiks.yt V2"
+      },
+      gameLinks: [
+        {
+          slug: "satisfactory",
+          title: "Satisfactory",
+          platformLabel: "PC",
+          relationship: "planned",
+          publicNote: "Factory prep."
+        }
+      ],
+      status: "planned",
+      cancellationReasonCode: null,
+      cancellationReason: null
+    });
+    expect(JSON.stringify(publicEntry)).not.toContain("\"id\"");
+    expect(JSON.stringify(publicEntry)).not.toContain("raw-id");
+    expect(JSON.stringify(publicEntry)).not.toContain("projectId");
+    expect(JSON.stringify(publicEntry)).not.toContain("gameId");
+    expect(JSON.stringify(publicEntry)).not.toContain("themeKey");
+    expect(JSON.stringify(publicEntry)).not.toContain("createdAt");
+    expect(JSON.stringify(publicEntry)).not.toContain("updatedAt");
+    expect(JSON.stringify(publicEntry)).not.toContain("visibility");
+    expect(JSON.stringify(publicEntry)).not.toContain("sortOrder");
   });
 });

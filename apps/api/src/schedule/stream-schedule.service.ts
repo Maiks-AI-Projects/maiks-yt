@@ -1,4 +1,5 @@
 import {
+  buildPublicStreamScheduleList,
   canManageStreamSchedule,
   isValidStreamScheduleCancellationInput,
   isValidStreamScheduleGameLinkInputs,
@@ -9,13 +10,13 @@ import {
   normalizeStreamScheduleUpdateInput
 } from "@maiks-yt/domain/schedule";
 import type {
+  StreamScheduleEntry,
   StreamScheduleGameLinkInput,
   StreamScheduleInput
 } from "@maiks-yt/domain/schedule";
 
 import type {
   StreamScheduleAdminListResult,
-  StreamScheduleListResult,
   StreamScheduleMutationResult,
   StreamScheduleRepository
 } from "./stream-schedule.types.js";
@@ -59,7 +60,9 @@ export class StreamScheduleService {
   public async listPublicStreams(input: { now?: Date } = {}) {
     return {
       ok: true,
-      streams: await this.repository.listPublicStreams({ now: input.now ?? new Date() })
+      streams: buildPublicStreamScheduleList(
+        await this.repository.listPublicStreams({ now: input.now ?? new Date() })
+      )
     };
   }
 
@@ -265,7 +268,7 @@ export class StreamScheduleService {
 }
 
 const toFullStreamScheduleInput = (
-  existingStream: StreamScheduleListResult["streams"][number],
+  existingStream: StreamScheduleEntry,
   update: Parameters<StreamScheduleRepository["updateStream"]>[1]
 ): StreamScheduleInput => ({
   title: update.title ?? existingStream.title,

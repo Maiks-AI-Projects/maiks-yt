@@ -1,4 +1,5 @@
 import type {
+  PublicStreamScheduleEntry,
   StreamScheduleCancellationInput,
   StreamScheduleEntry,
   StreamScheduleGameLinkInput,
@@ -15,7 +16,7 @@ export type StreamScheduleAdminActor = {
 
 export type StreamScheduleListResult = {
   ok: true;
-  streams: readonly StreamScheduleEntry[];
+  streams: readonly PublicStreamScheduleEntry[];
 };
 
 export type StreamScheduleAdminListResult =

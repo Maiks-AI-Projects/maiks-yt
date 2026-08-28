@@ -1,5 +1,9 @@
 import type {
+  PublicStreamScheduleEntry,
+  PublicStreamScheduleGameLink,
+  PublicStreamScheduleStatus,
   StreamScheduleCancellationInput,
+  StreamScheduleEntry,
   StreamScheduleGameLinkInput,
   StreamScheduleInput,
   StreamScheduleUpdateInput
@@ -23,6 +27,10 @@ export const streamScheduleGameLinkSortOrderMax = 10_000;
 export const streamScheduleGameLinkMaxCount = 12;
 
 const streamScheduleKeyPattern = /^[a-z0-9][a-z0-9-]{0,79}$/;
+const publicStreamScheduleStatuses = ["planned", "live", "cancelled"] satisfies PublicStreamScheduleStatus[];
+
+const isPublicStreamScheduleStatus = (value: StreamScheduleEntry["status"]): value is PublicStreamScheduleStatus =>
+  publicStreamScheduleStatuses.includes(value as PublicStreamScheduleStatus);
 
 const isValidRequiredText = (value: unknown, maxLength: number): value is string =>
   typeof value === "string" && value.trim().length > 0 && value.trim().length <= maxLength;
@@ -182,3 +190,49 @@ export const normalizeStreamScheduleGameLinkInputs = (
     publicNote: input.publicNote?.trim() || null,
     sortOrder: input.sortOrder ?? index
   }));
+
+const buildPublicStreamScheduleGameLink = (
+  gameLink: StreamScheduleEntry["gameLinks"][number]
+): PublicStreamScheduleGameLink => ({
+  slug: gameLink.slug,
+  title: gameLink.title,
+  platformLabel: gameLink.platformLabel,
+  relationship: gameLink.relationship,
+  publicNote: gameLink.publicNote
+});
+
+export const buildPublicStreamScheduleEntry = (
+  stream: StreamScheduleEntry
+): PublicStreamScheduleEntry | null => {
+  if (stream.visibility !== "public" || !isPublicStreamScheduleStatus(stream.status)) {
+    return null;
+  }
+
+  return {
+    title: stream.title,
+    description: stream.description,
+    startsAt: stream.startsAt,
+    endsAt: stream.endsAt,
+    channelKey: stream.channelKey,
+    topicKey: stream.topicKey,
+    focusLabel: stream.focusProject ? stream.focusLabel : null,
+    focusNote: stream.focusProject ? stream.focusNote : null,
+    focusProject: stream.focusProject
+      ? {
+        slug: stream.focusProject.slug,
+        title: stream.focusProject.title
+      }
+      : null,
+    gameLinks: stream.gameLinks.map(buildPublicStreamScheduleGameLink),
+    status: stream.status,
+    cancellationReasonCode: stream.cancellationReasonCode,
+    cancellationReason: stream.cancellationReason
+  };
+};
+
+export const buildPublicStreamScheduleList = (
+  streams: readonly StreamScheduleEntry[]
+): readonly PublicStreamScheduleEntry[] =>
+  streams
+    .map(buildPublicStreamScheduleEntry)
+    .filter((stream): stream is PublicStreamScheduleEntry => stream !== null);
