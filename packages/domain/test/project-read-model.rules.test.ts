@@ -55,6 +55,38 @@ describe("project public read models", () => {
     ]);
   });
 
+  it("orders projects with the same status by category, title, then slug", () => {
+    const summaries = buildPublicProjectSummaryList([
+      createProject("zulu", {
+        status: "active",
+        category: "software-project",
+        title: "Alpha"
+      }),
+      createProject("alpha-z", {
+        status: "active",
+        category: "community",
+        title: "Same"
+      }),
+      createProject("alpha-a", {
+        status: "active",
+        category: "community",
+        title: "Same"
+      }),
+      createProject("alpha-title", {
+        status: "active",
+        category: "community",
+        title: "Alpha"
+      })
+    ]);
+
+    expect(summaries.map((project) => project.slug)).toEqual([
+      "alpha-title",
+      "alpha-a",
+      "alpha-z",
+      "zulu"
+    ]);
+  });
+
   it("orders public milestones and strips cancelled milestones and removed items", () => {
     const detail = buildPublicProjectDetail(createProject("maiks-yt-v2", {
       status: "active",

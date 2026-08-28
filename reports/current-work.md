@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 production homepage real-project integration
+
+- The production homepage now starts the real public schedule and project loaders concurrently, once each, before deriving the homepage slots.
+- The current-project card validates the full `PublicProjectSummary` contract before projecting. It accepts only valid active or planning candidates as current, keeps completed-only lists as an honest empty state, treats malformed or unavailable lists as unavailable, and returns only title, summary capped at 280 characters, normalized slug, and optional milestone title to the component.
+- Selection uses the authoritative public project API order: first active, else first planning. Existing homepage card structure, classes, CSS, links, schedule behavior, and copy tone were preserved.
+- Independent final review after correction reports zero standards and zero specification findings. Narrow checks pass with 159 Domain tests, 182 Web tests, and Domain/Web typechecks. Full `pnpm check:review` remains a coordinator rerun.
+- No deployment, server state, GUI, browser, screenshot, live user workflow, or production runtime verification was performed. Deployment and real homepage verification remain separate gates.
+
 ## 2026-08-28 production homepage real-schedule integration
 
 - The production homepage now reads the real public schedule once on the server path and feeds one public-safe projection into both the hero stream-status slot and the "Up next" panel, so those slots cannot disagree.

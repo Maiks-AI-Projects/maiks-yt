@@ -1,8 +1,18 @@
 import styles from "../home.module.css";
+import type { HomeProjectSlot } from "./home-project-data";
 import type { HomeScheduleSlot } from "./home-schedule-data";
 
 type HomeCurrentSectionProps = {
+  projectSlot: HomeProjectSlot;
   scheduleSlot: HomeScheduleSlot;
+};
+
+type ProjectCardCopy = {
+  heading: string;
+  body: string;
+  href: string;
+  linkLabel: string;
+  milestoneTitle?: string;
 };
 
 const getSchedulePanelCopy = (scheduleSlot: HomeScheduleSlot): {
@@ -41,8 +51,40 @@ const getSchedulePanelCopy = (scheduleSlot: HomeScheduleSlot): {
   };
 };
 
-export const HomeCurrentSection = ({ scheduleSlot }: HomeCurrentSectionProps): React.ReactNode => {
+const getProjectCardCopy = (projectSlot: HomeProjectSlot): ProjectCardCopy => {
+  if (projectSlot.status === "available") {
+    return {
+      heading: projectSlot.title,
+      body: projectSlot.summary,
+      href: `/projects/${encodeURIComponent(projectSlot.slug)}`,
+      linkLabel: "Open the project →",
+      ...(projectSlot.nextMilestoneTitle ? { milestoneTitle: projectSlot.nextMilestoneTitle } : {})
+    };
+  }
+
+  if (projectSlot.status === "unavailable") {
+    return {
+      heading: "Current project temporarily unavailable",
+      body: "The public project list could not be loaded. Please check back shortly.",
+      href: "/projects",
+      linkLabel: "Open the projects →"
+    };
+  }
+
+  return {
+    heading: "No current project published yet",
+    body: "Active and planning projects will appear here when they are ready for public view.",
+    href: "/projects",
+    linkLabel: "Open the projects →"
+  };
+};
+
+export const HomeCurrentSection = ({
+  projectSlot,
+  scheduleSlot
+}: HomeCurrentSectionProps): React.ReactNode => {
   const copy = getSchedulePanelCopy(scheduleSlot);
+  const projectCopy = getProjectCardCopy(projectSlot);
 
   return (
     <section className={styles.band} id="current-signal" aria-labelledby="current-signal-title">
@@ -61,12 +103,10 @@ export const HomeCurrentSection = ({ scheduleSlot }: HomeCurrentSectionProps): R
           <article className={styles.projectFeature}>
             <span className={styles.projectIndex}>01</span>
             <div>
-              <h3>Building the Maiks.yt platform</h3>
-              <p>
-                The stream website, control tools, community system, projects, and transparent
-                accounting are becoming one shared platform instead of disconnected services.
-              </p>
-              <a className={styles.inlineLink} href="/projects">Open the projects →</a>
+              <h3>{projectCopy.heading}</h3>
+              <p>{projectCopy.body}</p>
+              {projectCopy.milestoneTitle ? <p>Current milestone: {projectCopy.milestoneTitle}</p> : null}
+              <a className={styles.inlineLink} href={projectCopy.href}>{projectCopy.linkLabel}</a>
             </div>
           </article>
           <aside className={styles.schedulePanel} aria-labelledby="home-schedule-title">

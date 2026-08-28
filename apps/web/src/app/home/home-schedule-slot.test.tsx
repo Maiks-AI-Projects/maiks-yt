@@ -1,11 +1,18 @@
+import type { PublicProjectSummary } from "@maiks-yt/domain/projects";
 import type { StreamScheduleEntry } from "@maiks-yt/domain/schedule";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ProjectListLoadResult } from "../projects/project-read-data";
 import type { StreamScheduleLoadResult } from "../schedule/stream-schedule-data";
 import { getHomeScheduleSlot } from "./home-schedule-data";
 
+const getPublicProjects = vi.hoisted(() => vi.fn());
 const getPublicStreamSchedule = vi.hoisted(() => vi.fn());
+
+vi.mock("../projects/project-read-data", () => ({
+  getPublicProjects
+}));
 
 vi.mock("../schedule/stream-schedule-data", () => ({
   formatScheduleDate: (value: string) => `formatted ${value}`,
@@ -43,8 +50,32 @@ const loaded = (streams: readonly StreamScheduleEntry[]): StreamScheduleLoadResu
   streams
 });
 
+const createProject = (
+  slug: string,
+  overrides: Partial<PublicProjectSummary> = {}
+): PublicProjectSummary => ({
+  id: `project-${slug}`,
+  slug,
+  title: `Project ${slug}`,
+  summary: `Summary for ${slug}`,
+  type: "stream-work-project",
+  category: "software-project",
+  status: "active",
+  milestoneCount: 1,
+  itemCount: 1,
+  updateCount: 1,
+  ...overrides
+});
+
+const projectLoaded = (projects: readonly PublicProjectSummary[]): ProjectListLoadResult => ({
+  status: "loaded",
+  projects
+});
+
 describe("home schedule slot", () => {
   beforeEach(() => {
+    vi.resetModules();
+    getPublicProjects.mockReset();
     getPublicStreamSchedule.mockReset();
   });
 
@@ -138,10 +169,17 @@ describe("home schedule slot", () => {
         startsAt: "2026-08-29T18:00:00.000Z"
       })
     ]));
+    getPublicProjects.mockResolvedValue(projectLoaded([
+      createProject("homepage-project", {
+        title: "Homepage project",
+        summary: "Public homepage project."
+      })
+    ]));
 
     const markup = renderToStaticMarkup(await HomePage());
 
     expect(getPublicStreamSchedule).toHaveBeenCalledTimes(1);
+    expect(getPublicProjects).toHaveBeenCalledTimes(1);
     expect(markup).toContain("Next stream: Homepage schedule stream");
     expect(markup).toContain("Homepage schedule stream");
     expect(markup).toContain("formatted 2026-08-29T18:00:00.000Z");
