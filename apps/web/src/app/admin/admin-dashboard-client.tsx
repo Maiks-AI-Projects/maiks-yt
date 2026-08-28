@@ -16,9 +16,12 @@ import {
 import { createApiHeaders, withDevAuthToken } from "../dev-auth-token";
 import { useAdminAccess } from "./admin-access";
 import {
+  adminDashboardUnavailableDetail,
   adminDashboardStatusRequestPaths,
   createAdminDashboardLoadingCards,
+  createAdminDashboardStatusCards,
   type DashboardStatusCard,
+  type DashboardStatusResponse,
   type DashboardStatusTone
 } from "./admin-dashboard.rules";
 import { createControlUrl, overlayBaseUrl } from "../tool-surface-urls.service";
@@ -42,97 +45,6 @@ type HealthSummaryRow = {
   detail: string;
   tone: HealthSummaryTone;
 };
-
-type NotificationListResponse =
-  | {
-      ok: true;
-      unreadCount: number;
-      criticalUnreadCount: number;
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
-
-type ProviderIntakeHealthResponse =
-  | {
-      ok: true;
-      entries: Array<{
-        status: "healthy" | "stale" | "missing";
-      }>;
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
-
-type SessionListResponse =
-  | {
-      ok: true;
-      sessions: readonly unknown[];
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
-
-type BackupHealthResponse =
-  | {
-      ok: true;
-      healthOk: boolean;
-      databaseReachable: boolean;
-      requiredTables: Array<{
-        present: boolean;
-      }>;
-      warnings: string[];
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
-
-type LocalAgentStatusResponse =
-  | {
-      ok: true;
-      connection: {
-        state: "not_configured" | "disconnected" | "connected" | "degraded";
-        serviceVersion: string | null;
-      };
-      modules: Array<{
-        availability: "available" | "degraded" | "unavailable";
-      }>;
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
-
-type AdminOverviewActivityResponse =
-  | {
-      ok: true;
-      notifications: {
-        openWarningCount: number;
-        openCriticalCount: number;
-      };
-      activeHelperGrants: {
-        count: number;
-      };
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
-
-type MoneyLedgerDashboardResponse =
-  | {
-      ok: true;
-      transactions: readonly unknown[];
-      warnings: readonly unknown[];
-    }
-  | {
-      ok: false;
-      reason: string;
-    };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
@@ -185,10 +97,7 @@ const liveActivityLinks: readonly Omit<LiveWindowLink, "icon">[] = [
   }
 ];
 
-const readJson = async <Payload,>(path: string, authenticated = false): Promise<{
-  status: number;
-  payload: Payload | null;
-}> => {
+const readJson = async (path: string, authenticated = false): Promise<DashboardStatusResponse> => {
   const init: RequestInit = {
     credentials: "include"
   };
@@ -202,7 +111,7 @@ const readJson = async <Payload,>(path: string, authenticated = false): Promise<
   try {
     return {
       status: response.status,
-      payload: await response.json() as Payload
+      payload: await response.json() as unknown
     };
   } catch {
     return {
@@ -220,195 +129,28 @@ const findStatusCard = (
 const loadStatusCards = async (): Promise<readonly DashboardStatusCard[]> => {
   const [api, database, notifications, intakeHealth, sessions, backupHealth, localAgent, activity, moneyLedger] =
     await Promise.allSettled([
-      readJson<{ ok?: boolean; surface?: string }>(adminDashboardStatusRequestPaths.health),
-      readJson<{ ok?: boolean; database?: string }>(adminDashboardStatusRequestPaths.databaseHealth),
-      readJson<NotificationListResponse>(adminDashboardStatusRequestPaths.notifications, true),
-      readJson<ProviderIntakeHealthResponse>(adminDashboardStatusRequestPaths.providerIntakeHealth, true),
-      readJson<SessionListResponse>(adminDashboardStatusRequestPaths.sessions, true),
-      readJson<BackupHealthResponse>(adminDashboardStatusRequestPaths.backupHealth, true),
-      readJson<LocalAgentStatusResponse>(adminDashboardStatusRequestPaths.localAgentStatus, true),
-      readJson<AdminOverviewActivityResponse>(adminDashboardStatusRequestPaths.activity, true),
-      readJson<MoneyLedgerDashboardResponse>(adminDashboardStatusRequestPaths.moneyLedger, true)
+      readJson(adminDashboardStatusRequestPaths.health),
+      readJson(adminDashboardStatusRequestPaths.databaseHealth),
+      readJson(adminDashboardStatusRequestPaths.notifications, true),
+      readJson(adminDashboardStatusRequestPaths.providerIntakeHealth, true),
+      readJson(adminDashboardStatusRequestPaths.sessions, true),
+      readJson(adminDashboardStatusRequestPaths.backupHealth, true),
+      readJson(adminDashboardStatusRequestPaths.localAgentStatus, true),
+      readJson(adminDashboardStatusRequestPaths.activity, true),
+      readJson(adminDashboardStatusRequestPaths.moneyLedger, true)
     ]);
 
-  const getFulfilled = <Payload,>(result: PromiseSettledResult<{ status: number; payload: Payload | null }>) =>
-    result.status === "fulfilled" ? result.value : null;
-
-  const apiResult = getFulfilled(api);
-  const databaseResult = getFulfilled(database);
-  const notificationResult = getFulfilled(notifications);
-  const intakeResult = getFulfilled(intakeHealth);
-  const sessionResult = getFulfilled(sessions);
-  const backupResult = getFulfilled(backupHealth);
-  const localAgentResult = getFulfilled(localAgent);
-  const activityResult = getFulfilled(activity);
-  const moneyLedgerResult = getFulfilled(moneyLedger);
-
-  const intakeEntries = intakeResult?.payload?.ok ? intakeResult.payload.entries : [];
-  const staleOrMissingIntakes = intakeEntries.filter((entry) => entry.status !== "healthy").length;
-
-  const notificationsUnread = notificationResult?.payload?.ok ? notificationResult.payload.unreadCount : null;
-  const notificationsCritical = notificationResult?.payload?.ok ? notificationResult.payload.criticalUnreadCount : 0;
-
-  const databaseTables = backupResult?.payload?.ok ? backupResult.payload.requiredTables : [];
-  const missingDatabaseTables = databaseTables.filter((table) => !table.present).length;
-  const backupWarnings = backupResult?.payload?.ok ? backupResult.payload.warnings.length : 0;
-
-  const localAgentSnapshot = localAgentResult?.payload?.ok ? localAgentResult.payload : null;
-  const availableLocalAgentModules = localAgentSnapshot?.modules.filter(
-    (module) => module.availability === "available"
-  ).length ?? 0;
-  const localAgentState = localAgentSnapshot?.connection.state ?? null;
-
-  const activeHelpers = activityResult?.payload?.ok ? activityResult.payload.activeHelperGrants.count : null;
-
-  const activityOpenWarnings = activityResult?.payload?.ok ? activityResult.payload.notifications.openWarningCount : 0;
-  const activityOpenCriticals = activityResult?.payload?.ok ? activityResult.payload.notifications.openCriticalCount : 0;
-
-  const moneyWarnings = moneyLedgerResult?.payload?.ok ? moneyLedgerResult.payload.warnings.length : null;
-
-  return [
-    {
-      key: "api",
-      label: "API",
-      value: apiResult?.payload?.ok ? "Online" : "Offline",
-      detail: apiResult?.payload?.ok ? `Surface: ${apiResult.payload.surface ?? "api"}` : `HTTP ${apiResult?.status ?? "failed"}`,
-      tone: apiResult?.payload?.ok ? "ok" : "bad"
-    },
-    {
-      key: "database",
-      label: "Database",
-      value: databaseResult?.payload?.ok ? "Connected" : "Unavailable",
-      detail: databaseResult?.payload?.ok
-        ? `Driver: ${databaseResult.payload.database ?? "connected"}`
-        : `HTTP ${databaseResult?.status ?? "failed"}`,
-      tone: databaseResult?.payload?.ok ? "ok" : "bad"
-    },
-    {
-      key: "notifications",
-      label: "Notifications",
-      value: notificationsUnread === null ? "Unavailable" : `${notificationsUnread} unread`,
-      detail: notificationsUnread === null
-        ? `HTTP ${notificationResult?.status ?? "failed"}`
-        : `${notificationsCritical} critical`,
-      tone:
-        notificationsUnread === null
-          ? "bad"
-          : notificationsCritical > 0
-            ? "bad"
-            : notificationsUnread > 0
-              ? "warn"
-              : "ok"
-    },
-    {
-      key: "provider-intake",
-      label: "Provider Intake",
-      value: intakeResult?.payload?.ok
-        ? `${intakeEntries.length - staleOrMissingIntakes}/${intakeEntries.length} healthy`
-        : "Unavailable",
-      detail: intakeResult?.payload?.ok
-        ? `${staleOrMissingIntakes} stale/missing`
-        : `HTTP ${intakeResult?.status ?? "failed"}`,
-      tone: !intakeResult?.payload?.ok
-        ? "bad"
-        : staleOrMissingIntakes === 0
-          ? "ok"
-          : "warn"
-    },
-    {
-      key: "sessions",
-      label: "Sessions",
-      value: sessionResult?.payload?.ok
-        ? `${sessionResult.payload.sessions.length} active`
-        : "Unavailable",
-      detail: sessionResult?.payload?.ok ? "Session admin list reachable." : `HTTP ${sessionResult?.status ?? "failed"}`,
-      tone: sessionResult?.payload?.ok ? "ok" : "bad"
-    },
-    {
-      key: "backup",
-      label: "Backup",
-      value:
-        backupResult?.payload?.ok && backupResult.payload.databaseReachable
-          ? `${databaseTables.length - missingDatabaseTables}/${databaseTables.length} tables`
-          : "Unavailable",
-      detail: !backupResult?.payload?.ok
-        ? `HTTP ${backupResult?.status ?? "failed"}`
-        : backupResult.payload.healthOk
-          ? `${backupWarnings} warning${backupWarnings === 1 ? "" : "s"}`
-          : backupResult.payload.databaseReachable
-            ? "Missing required tables"
-            : "Database unavailable",
-      tone:
-        !backupResult?.payload?.ok || !backupResult.payload.healthOk
-          ? "bad"
-          : backupWarnings > 0
-            ? "warn"
-            : "ok"
-    },
-    {
-      key: "local-agent",
-      label: "Local Agent",
-      value: localAgentState === "connected"
-        ? "Connected"
-        : localAgentState === "degraded"
-          ? "Degraded"
-          : localAgentState === "disconnected"
-            ? "Disconnected"
-            : localAgentState === "not_configured"
-              ? "Not configured"
-              : "Unavailable",
-      detail: localAgentSnapshot
-        ? `${availableLocalAgentModules}/${localAgentSnapshot.modules.length} modules available${localAgentSnapshot.connection.serviceVersion ? ` · service ${localAgentSnapshot.connection.serviceVersion}` : ""}`
-        : `HTTP ${localAgentResult?.status ?? "failed"}`,
-      tone: localAgentState === "connected"
-        ? "ok"
-        : localAgentState === "degraded"
-          ? "warn"
-          : "bad"
-    },
-    {
-      key: "live-alerts",
-      label: "Live Alerts",
-      value: activityResult?.payload?.ok
-        ? `${activityOpenWarnings + activityOpenCriticals} open`
-        : "Unavailable",
-      detail: activityResult?.payload?.ok
-        ? `${activityOpenWarnings} warning · ${activityOpenCriticals} critical`
-        : `HTTP ${activityResult?.status ?? "failed"}`,
-      tone: !activityResult?.payload?.ok
-        ? "bad"
-        : activityOpenCriticals > 0
-          ? "bad"
-          : activityOpenWarnings > 0
-            ? "warn"
-            : "ok"
-    },
-    {
-      key: "helpers",
-      label: "Helpers",
-      value: activeHelpers === null ? "Unavailable" : `${activeHelpers} active`,
-      detail: activeHelpers === null
-        ? `HTTP ${activityResult?.status ?? "failed"}`
-        : "Non-owner helper/moderator grants currently active.",
-      tone: activeHelpers === null ? "bad" : "ok"
-    },
-    {
-      key: "money",
-      label: "Money",
-      value: moneyWarnings === null ? "Unavailable" : `${moneyWarnings} warning${moneyWarnings === 1 ? "" : "s"}`,
-      detail: moneyWarnings === null
-        ? `HTTP ${moneyLedgerResult?.status ?? "failed"}`
-        : moneyWarnings === 0
-          ? "No money warnings"
-          : "Money ledger warning state requires review",
-      tone:
-        moneyWarnings === null
-          ? "bad"
-          : moneyWarnings > 0
-            ? "warn"
-            : "ok"
-    }
-  ];
+  return createAdminDashboardStatusCards({
+    api,
+    database,
+    notifications,
+    intakeHealth,
+    sessions,
+    backupHealth,
+    localAgent,
+    activity,
+    moneyLedger
+  });
 };
 
 const getDashboardLinkHref = (href: string, devAuthToken: string | null): string => withDevAuthToken(href, devAuthToken);
@@ -438,9 +180,9 @@ const getHealthSummaryRows = (statusCards: readonly DashboardStatusCard[]): read
   const money = findStatusCard(statusCards, "money");
   const coreTone = getWorstTone([api, database].filter((card): card is DashboardStatusCard => Boolean(card)));
 
-  const backupTableSummary = backup?.value.match(/^(\d+)\/(\d+) tables$/);
+  const backupTableSummary = backup?.value.match(/^(\d+\+?) of (\d+\+?) tables$/);
   const backupDetail = backupTableSummary
-    ? `${backupTableSummary[1]} / ${backupTableSummary[2]} source tables present · Coverage and recency unverified`
+    ? `${backupTableSummary[1]} of ${backupTableSummary[2]} source tables present · Coverage and recency unverified`
     : backup?.tone === "loading"
       ? "Checking source table presence"
       : "Source table presence unavailable · Coverage and recency unverified";
@@ -485,10 +227,10 @@ const getHealthSummaryRows = (statusCards: readonly DashboardStatusCard[]): read
 };
 
 const getProviderActivitySummary = (statusCard: DashboardStatusCard | undefined): string => {
-  const counts = statusCard?.value.match(/^(\d+)\/(\d+) healthy$/);
+  const counts = statusCard?.value.match(/^(\d+\+?) of (\d+\+?) healthy$/);
 
   if (counts) {
-    return `${counts[1]} / ${counts[2]} mechanisms recently active`;
+    return `${counts[1]} of ${counts[2]} mechanisms recently active`;
   }
 
   return statusCard?.tone === "loading" ? "checking" : statusCard?.value.toLowerCase() ?? "unavailable";
@@ -506,14 +248,13 @@ const AdminDashboardClient = (): React.ReactNode => {
     try {
       setStatusCards(await loadStatusCards());
       setStatusMessage("Checked just now");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Dashboard status failed.";
+    } catch {
       setStatusMessage("Check failed");
       setStatusCards((cards) =>
         cards.map((card) => ({
           ...card,
           value: "Failed",
-          detail: message,
+          detail: adminDashboardUnavailableDetail,
           tone: "bad"
         }))
       );
