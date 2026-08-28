@@ -1,5 +1,11 @@
 # Next Agent Tasks
 
+## Exact-Target Gate For Further Delegation
+
+- Before any further SubAgent edits, require a read-only provenance response proving `pwd`, `git rev-parse --show-toplevel`, and branch are exactly `/home/michael/Documents/Codex/maiks-yt-production` and `production`. Send the implementation brief only after that proof.
+- Do not integrate the stopped-agent residue in `/home/michael/Documents/Codex/maiks-yt-fresh`; production remains the sole forward line. Do not blindly revert it because other active historical work may share those files.
+- The reviewed production Connections catalogue filter is complete and passes the shared gate. Deploy and verify it only in a separate authorized window.
+
 ## Production Correctness Tranche: Deploy And Verify Separately
 
 - Session recovery is account-scoped, revoked/expired URL tokens are terminal for rotation, Schedule edits preserve additional game links, and Project publication is atomically consistent with the public read model. All four slices are code-complete and independently reviewed with zero standards and zero specification findings.

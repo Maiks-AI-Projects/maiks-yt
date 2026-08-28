@@ -22,6 +22,13 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Deploy this correctness tranche in a separately authorized production window.
 - [ ] Verify same-account session recovery, terminal token rotation, multi-link Schedule editing, and Project publish/status concurrency against the live production database after deployment.
 
+## Production Operator Contract Pass - 2026-08-28
+
+- [x] Remove simulation-only and test-system event kinds from the production Connections catalogue while preserving real Website, Twitch, YouTube, and Discord entries.
+- [ ] Replace provider-intake browser rows with an allowlisted projection and owner-bound opaque review reference.
+- [ ] Replace provider-integration diagnostics with finite operator DTOs and design durable single-use YouTube consent state before implementation.
+- [ ] Minimize remaining Page Creator, Games, and Session admin browser contracts in production after exact-target delegation is re-established.
+
 ## 0. Organize the Idea Base
 
 - [x] Split `ideas/README.md` into clearer sections.

@@ -49,6 +49,18 @@ Shared gate: `pnpm check:review` passes with 156 Domain tests, 627 API tests,
 16 Local Agent tests, architecture rules, and diff checks. No deployment, GUI,
 browser, server-state, or live database verification was performed.
 
+## 2026-08-28 Connections Catalogue Boundary
+
+Production Connections no longer advertises simulation-only support money,
+development free TTS, or `test/system` events. Real Website, Twitch, YouTube,
+and Discord catalogue entries remain. Independent review reports Standards 0 /
+Specification 0, and the shared gate passes with 102 Web tests. Implementation
+is complete; deployment and real operator verification are not started.
+
+A wrong-target delegation wave was stopped in `maiks-yt-fresh`. None of that
+residue is production evidence or part of this ledger. Future workers must prove
+the exact production path and branch before receiving writable scope.
+
 ## Capabilities
 
 | Capability | Design | Approval | Implementation | Integration | Deployment | Verification | Evidence | Next action |

@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-28 production Connections catalogue boundary
+
+- Production `/admin/connections` now applies the existing production event-kind policy to its catalogue. `test/system`, simulated-only support money, and the development-only free-TTS request are omitted, while real Website, Twitch, YouTube, and Discord event kinds remain available. Non-production catalogue behavior is unchanged.
+- Independent GPT-5.5 review reports zero standards and zero specification findings. `pnpm check:review` passes with 156 Domain tests, 627 API tests, 102 Web tests plus the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- A second delegation wave inherited the stale `/home/michael/Documents/Codex/maiks-yt-fresh` checkout despite production being named in the briefs. Those workers were stopped as soon as the first wrong-target report appeared. Their fresh-checkout edits were not moved, reviewed, committed, pushed, or treated as production evidence; they were also not blindly reverted because that checkout already contains other active historical work. Only the separately proven production Connections patch is retained.
+- No deployment, server state, GUI, browser, screenshot, schema, migration, or live verification was performed.
+
 ## 2026-08-28 production correctness and recovery boundaries
 
 - Session administration now lists and revokes only sessions belonging to the authenticated Better Auth account. Selected revoke and revoke-others fail closed across account boundaries, preserve the current same-account session, and keep active-grant authorization unchanged.
