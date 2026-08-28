@@ -17,7 +17,6 @@ import styles from "../../../music/music.module.css";
 import {
   emptyMusicAdminOverview,
   loadMusicAdminOverview,
-  stringValue,
   type MusicAdminLoadState
 } from "../admin-music-data.service";
 import {
@@ -41,6 +40,13 @@ import {
   isSourceTypeOption,
   type SourceTypeOption
 } from "./admin-music-catalog-form-data";
+import {
+  buildLicenseSnapshotMutationPath,
+  buildSourceMutationPath,
+  licenseSnapshotSelectionRequiredMessage,
+  removePrivateMusicCatalogSelectionFields,
+  sourceSelectionRequiredMessage
+} from "./admin-music-catalog.rules";
 
 const AdminMusicCatalogClient = (): React.ReactNode => {
   const [loadState, setLoadState] = useState<MusicAdminLoadState>("loading");
@@ -156,7 +162,16 @@ const AdminMusicCatalogClient = (): React.ReactNode => {
   };
 
   const submitSource = (event: FormEvent<HTMLFormElement>): void => {
+    const mutationPath = buildSourceMutationPath(selectedTrack?.id ?? null, selectedSource?.id ?? null);
+
+    if (!mutationPath) {
+      event.preventDefault();
+      setMessage(sourceSelectionRequiredMessage);
+      return;
+    }
+
     const data = new FormData(event.currentTarget);
+    removePrivateMusicCatalogSelectionFields(data);
     const result = buildSourcePayload(data);
 
     if (result.error) {
@@ -165,26 +180,32 @@ const AdminMusicCatalogClient = (): React.ReactNode => {
       return;
     }
 
-    const trackId = selectedTrack?.id ?? stringValue(data, "trackId");
-    const path = selectedSource
-      ? `/admin/music/sources/${encodeURIComponent(selectedSource.id)}`
-      : `/admin/music/catalog/${encodeURIComponent(trackId)}/sources`;
-
-    void submitMutation(event, selectedSource ? "PUT" : "POST", path, result.payload, selectedSource ? "Track source updated." : "Track source saved.");
+    void submitMutation(
+      event,
+      mutationPath.method,
+      mutationPath.path,
+      result.payload,
+      selectedSource ? "Track source updated." : "Track source saved."
+    );
   };
 
   const submitLicenseSnapshot = (event: FormEvent<HTMLFormElement>): void => {
+    const mutationPath = buildLicenseSnapshotMutationPath(selectedSource?.id ?? null, selectedLicenseSnapshot?.id ?? null);
+
+    if (!mutationPath) {
+      event.preventDefault();
+      setMessage(licenseSnapshotSelectionRequiredMessage);
+      return;
+    }
+
     const data = new FormData(event.currentTarget);
-    const sourceId = selectedSource?.id ?? stringValue(data, "sourceId");
+    removePrivateMusicCatalogSelectionFields(data);
     const body = buildLicenseSnapshotPayload(data, selectedTrack?.id ?? null, selectedSource?.id ?? null);
-    const path = selectedLicenseSnapshot
-      ? `/admin/music/license-snapshots/${encodeURIComponent(selectedLicenseSnapshot.id)}`
-      : `/admin/music/sources/${encodeURIComponent(sourceId)}/license-snapshots`;
 
     void submitMutation(
       event,
-      selectedLicenseSnapshot ? "PUT" : "POST",
-      path,
+      mutationPath.method,
+      mutationPath.path,
       body,
       selectedLicenseSnapshot ? "License snapshot updated." : "License snapshot saved."
     );
@@ -284,6 +305,7 @@ const AdminMusicCatalogClient = (): React.ReactNode => {
           key={selectedSource?.id ?? `${selectedTrack?.id ?? "none"}-new-source`}
           onSourceTypeChange={setSourceDraftType}
           onSubmit={submitSource}
+          policies={overview.providerPolicies}
           selectedTrack={selectedTrack}
           source={selectedSource}
           sourceDraftType={sourceDraftType}
@@ -309,6 +331,7 @@ const AdminMusicCatalogClient = (): React.ReactNode => {
           key={selectedLicenseSnapshot?.id ?? `${selectedSource?.id ?? "none"}-new-license`}
           licenseSnapshot={selectedLicenseSnapshot}
           onSubmit={submitLicenseSnapshot}
+          policies={overview.providerPolicies}
           selectedSource={selectedSource}
         />
       </section>

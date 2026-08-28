@@ -91,20 +91,39 @@ export const SourceSelector = ({ onSelectedSourceIdChange, selectedSourceId, sou
   </label>
 );
 
-export const SourceForm = ({ onSourceTypeChange, onSubmit, selectedTrack, source, sourceDraftType }: {
+const ProviderPolicySelect = ({ defaultValue, policies }: {
+  readonly defaultValue: string | null | undefined;
+  readonly policies: readonly MusicProviderPolicyRecord[];
+}): React.ReactNode => (
+  <label>
+    <span>Policy</span>
+    <select defaultValue={defaultValue ?? ""} name="providerPolicyId">
+      <option value="">No policy</option>
+      {policies.map((policy) => (
+        <option key={policy.id} value={policy.id}>{policy.displayName} / {policy.providerKey}</option>
+      ))}
+    </select>
+  </label>
+);
+
+export const SourceForm = ({ onSourceTypeChange, onSubmit, policies, selectedTrack, source, sourceDraftType }: {
   readonly onSourceTypeChange: (sourceType: SourceTypeOption) => void;
   readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  readonly policies: readonly MusicProviderPolicyRecord[];
   readonly selectedTrack: MusicTrackAdminRecord | null;
   readonly source: MusicTrackSourceRecord | null;
   readonly sourceDraftType: SourceTypeOption;
 }): React.ReactNode => {
   const selectedSourceType = isSourceTypeOption(source?.sourceType) ? source.sourceType : sourceDraftType;
 
+  if (!selectedTrack) {
+    return <p className={styles.emptyState}>Select a catalog track before creating or editing a source.</p>;
+  }
+
   return (
     <form className={styles.formGrid} onSubmit={onSubmit}>
-      <TextField name="trackId" label="Track id" placeholder={selectedTrack?.id ?? "Select or paste id"} required={!selectedTrack} />
       <TextField defaultValue={source?.providerKey ?? ""} name="providerKey" label="Provider key" required />
-      <TextField defaultValue={source?.providerPolicyId ?? ""} name="providerPolicyId" label="Policy id" />
+      <ProviderPolicySelect defaultValue={source?.providerPolicyId} policies={policies} />
       <label>
         <span>Source type</span>
         <select
@@ -162,25 +181,31 @@ export const LicenseSnapshotSelector = ({ licenseSnapshots, onSelectedLicenseSna
   </label>
 );
 
-export const LicenseSnapshotForm = ({ licenseSnapshot, onSubmit, selectedSource }: {
+export const LicenseSnapshotForm = ({ licenseSnapshot, onSubmit, policies, selectedSource }: {
   readonly licenseSnapshot: MusicLicenseSnapshotRecord | null;
   readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  readonly policies: readonly MusicProviderPolicyRecord[];
   readonly selectedSource: MusicTrackSourceRecord | null;
-}): React.ReactNode => (
-  <form className={styles.formGrid} onSubmit={onSubmit}>
-    <TextField name="sourceId" label="Source id" placeholder={selectedSource?.id ?? "Source id"} required={!selectedSource} />
-    <TextField defaultValue={licenseSnapshot?.providerPolicyId ?? selectedSource?.providerPolicyId ?? ""} name="providerPolicyId" label="Policy id" />
-    <TextField defaultValue={licenseSnapshot?.licenseName ?? ""} name="licenseName" label="License name" required />
-    <SelectField defaultValue={licenseSnapshot?.licenseKind ?? "platform-library"} name="licenseKind" label="License kind" options={licenseKindOptions} />
-    <SelectField defaultValue={licenseSnapshot?.rightsState} name="rightsState" label="Rights" options={rightsStateOptions} />
-    <TextField defaultValue={licenseSnapshot?.proofUrl ?? ""} name="proofUrl" label="Proof URL" />
-    <TextField name="proofStorageRef" label="Proof storage ref" />
-    <TextField defaultValue={licenseSnapshot?.validFrom ?? ""} name="validFrom" label="Valid from" />
-    <TextField defaultValue={licenseSnapshot?.validUntil ?? ""} name="validUntil" label="Valid until" />
-    <TextField defaultValue={licenseSnapshot?.attributionText ?? ""} name="attributionText" label="Attribution" />
-    <CheckboxField defaultChecked={licenseSnapshot?.liveSafe ?? false} name="liveSafe" label="Live safe" />
-    <CheckboxField defaultChecked={licenseSnapshot?.vodSafe ?? false} name="vodSafe" label="VOD safe" />
-    <CheckboxField defaultChecked={licenseSnapshot?.attributionRequired ?? true} name="attributionRequired" label="Attribution required" />
-    <button className={styles.primaryButton} type="submit">{licenseSnapshot ? "Update license" : "Save license"}</button>
-  </form>
-);
+}): React.ReactNode => {
+  if (!selectedSource) {
+    return <p className={styles.emptyState}>Select a source before creating or editing a license snapshot.</p>;
+  }
+
+  return (
+    <form className={styles.formGrid} onSubmit={onSubmit}>
+      <ProviderPolicySelect defaultValue={licenseSnapshot?.providerPolicyId ?? selectedSource.providerPolicyId} policies={policies} />
+      <TextField defaultValue={licenseSnapshot?.licenseName ?? ""} name="licenseName" label="License name" required />
+      <SelectField defaultValue={licenseSnapshot?.licenseKind ?? "platform-library"} name="licenseKind" label="License kind" options={licenseKindOptions} />
+      <SelectField defaultValue={licenseSnapshot?.rightsState} name="rightsState" label="Rights" options={rightsStateOptions} />
+      <TextField defaultValue={licenseSnapshot?.proofUrl ?? ""} name="proofUrl" label="Proof URL" />
+      <TextField name="proofStorageRef" label="Proof storage ref" />
+      <TextField defaultValue={licenseSnapshot?.validFrom ?? ""} name="validFrom" label="Valid from" />
+      <TextField defaultValue={licenseSnapshot?.validUntil ?? ""} name="validUntil" label="Valid until" />
+      <TextField defaultValue={licenseSnapshot?.attributionText ?? ""} name="attributionText" label="Attribution" />
+      <CheckboxField defaultChecked={licenseSnapshot?.liveSafe ?? false} name="liveSafe" label="Live safe" />
+      <CheckboxField defaultChecked={licenseSnapshot?.vodSafe ?? false} name="vodSafe" label="VOD safe" />
+      <CheckboxField defaultChecked={licenseSnapshot?.attributionRequired ?? true} name="attributionRequired" label="Attribution required" />
+      <button className={styles.primaryButton} type="submit">{licenseSnapshot ? "Update license" : "Save license"}</button>
+    </form>
+  );
+};
