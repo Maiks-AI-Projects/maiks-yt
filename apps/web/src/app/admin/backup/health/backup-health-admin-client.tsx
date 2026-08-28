@@ -3,64 +3,24 @@
 import { useEffect, useState } from "react";
 import {
   FiAlertTriangle,
-  FiLock,
   FiRefreshCw,
   FiShield
 } from "react-icons/fi";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../../dev-auth-token";
+import {
+  backupHealthUnavailableMessage,
+  getBackupHealthExceptionFailure,
+  parseBackupHealthResponse
+} from "./backup-health-admin.rules";
 import styles from "./backup-health-admin.module.css";
 
-type BackupHealthResponse =
-  | {
-    ok: true;
-    checkedAt: string;
-    healthOk: boolean;
-    databaseReachable: boolean;
-    databaseFailureCategory: "timeout" | "authentication" | "network" | "query" | "unknown" | null;
-    requiredTables: Array<{
-      name: string;
-      present: boolean;
-    }>;
-    backupTool: {
-      available: boolean;
-      command: string | null;
-      version: string | null;
-    };
-    warnings: string[];
-  }
-  | {
-    ok: false;
-    reason: string;
-  };
-
-type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
+import type {
+  BackupHealthLoadState,
+  BackupHealthProjection
+} from "./backup-health-admin.rules";
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
-
-const getLoadFailure = (status: number, reason?: string): {
-  message: string;
-  state: LoadState;
-} => {
-  if (status === 401) {
-    return {
-      message: "Sign in as owner to view backup health.",
-      state: "signed-out"
-    };
-  }
-
-  if (status === 403 || reason === "backup_health_forbidden") {
-    return {
-      message: "This account cannot view backup health.",
-      state: "forbidden"
-    };
-  }
-
-  return {
-    message: reason ?? `Backup health failed with HTTP ${status}.`,
-    state: "failed"
-  };
-};
 
 const formatCheckedAt = (value: string): string => {
   const checkedAt = new Date(value);
@@ -92,7 +52,7 @@ const formatCheckedAt = (value: string): string => {
 };
 
 const databaseFailureLabels: Record<
-  NonNullable<Extract<BackupHealthResponse, { ok: true }>["databaseFailureCategory"]>,
+  NonNullable<BackupHealthProjection["databaseFailureCategory"]>,
   string
 > = {
   timeout: "Connection timed out",
@@ -103,9 +63,9 @@ const databaseFailureLabels: Record<
 };
 
 const BackupHealthAdminClient = (): React.ReactNode => {
-  const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [loadState, setLoadState] = useState<BackupHealthLoadState>("loading");
   const [message, setMessage] = useState("Loading backup health...");
-  const [health, setHealth] = useState<BackupHealthResponse | null>(null);
+  const [health, setHealth] = useState<BackupHealthProjection | null>(null);
 
   const loadHealth = async (): Promise<void> => {
     setLoadState("loading");
@@ -116,23 +76,24 @@ const BackupHealthAdminClient = (): React.ReactNode => {
         credentials: "include",
         headers: createApiHeaders()
       });
-      const payload = await response.json().catch(() => null) as BackupHealthResponse | null;
+      const payload = await response.json().catch(() => null) as unknown;
+      const result = parseBackupHealthResponse(response.status, payload);
 
-      if (!response.ok || !payload?.ok) {
-        const failure = getLoadFailure(response.status, payload?.ok === false ? payload.reason : undefined);
-        setHealth(payload);
-        setLoadState(failure.state);
-        setMessage(failure.message);
+      if (result.kind === "failed") {
+        setHealth(null);
+        setLoadState(result.state);
+        setMessage(result.message);
         return;
       }
 
-      setHealth(payload);
+      setHealth(result.health);
       setLoadState("ready");
       setMessage("Backup health check completed.");
     } catch (error) {
+      const failure = getBackupHealthExceptionFailure(error);
       setHealth(null);
-      setLoadState("failed");
-      setMessage(error instanceof Error ? error.message : "Backup health failed.");
+      setLoadState(failure.kind === "failed" ? failure.state : "failed");
+      setMessage(failure.kind === "failed" ? failure.message : backupHealthUnavailableMessage);
     }
   };
 
@@ -141,30 +102,42 @@ const BackupHealthAdminClient = (): React.ReactNode => {
     void loadHealth();
   }, []);
 
-  const healthSnapshot = health?.ok ? health : null;
+  const healthSnapshot = health;
   const requiredTables = healthSnapshot?.requiredTables ?? [];
   const presentTableCount = requiredTables.filter((table) => table.present).length;
   const missingTableCount = requiredTables.length - presentTableCount;
+  const sourceTableIssueCount = healthSnapshot?.skipped ? 0 : missingTableCount;
   const sourceReady = Boolean(
-    healthSnapshot?.databaseReachable
+    healthSnapshot
+    && !healthSnapshot.skipped
+    && healthSnapshot.databaseReachable
     && requiredTables.length > 0
     && missingTableCount === 0
   );
   const backupTool = healthSnapshot?.backupTool ?? null;
-  const restoreConfidence = sourceReady ? "Partial" : "Low";
-  const readinessTitle = sourceReady
-    ? "Backup readiness not proven"
-    : "Source database needs attention";
-  const readinessDetail = sourceReady
-    ? "Source database is healthy; backup evidence is incomplete"
-    : "Fix the source database checks before creating or verifying a backup";
+  const restoreConfidence = "Not proven";
+  const readinessTitle = healthSnapshot?.skipped
+    ? "Check not configured"
+    : sourceReady
+      ? "Source tables present"
+      : healthSnapshot?.databaseReachable
+        ? "Source tables need attention"
+        : "Source database unavailable";
+  const readinessDetail = healthSnapshot?.skipped
+    ? "This read-only check did not run against a configured source database."
+    : sourceReady
+      ? "Every monitored source table was found. Backup contents and restore remain unproven."
+      : healthSnapshot?.databaseReachable
+        ? "The check found one or more monitored source tables missing."
+        : "The check could not reach the source database.";
+  const readinessTone = healthSnapshot?.skipped || sourceReady ? styles.warning : styles.danger;
   return (
     <section className={`${styles.shell} project-admin-shell`}>
       <header className={styles.header}>
         <div>
           <p className={styles.eyebrow}>Backup</p>
           <h1>Backup Health</h1>
-          <p>Is the Maiks.yt database backed up completely — and can it be restored?</p>
+          <p>Read-only source-table and dump-tool check. Backup contents and restore are not tracked here.</p>
         </div>
         <div className={styles.refreshArea}>
           <button
@@ -185,7 +158,7 @@ const BackupHealthAdminClient = (): React.ReactNode => {
       {healthSnapshot ? (
         <>
           <section className={styles.readinessStrip} aria-labelledby="backup-readiness-heading">
-            <div className={`${styles.readinessLead} ${sourceReady ? styles.warning : styles.danger}`}>
+            <div className={`${styles.readinessLead} ${readinessTone}`}>
               <span aria-hidden="true" className={styles.shieldIcon}>
                 <FiShield />
                 <span>!</span>
@@ -196,11 +169,11 @@ const BackupHealthAdminClient = (): React.ReactNode => {
               </div>
             </div>
             <div className={styles.readinessMetric}>
-              <span>Coverage</span>
-              <strong className={styles.warningText}>Not verified</strong>
+              <span>Monitored source tables</span>
+              <strong>{requiredTables.length}</strong>
             </div>
             <div className={styles.readinessMetric}>
-              <span>Latest backup</span>
+              <span>Backup contents</span>
               <strong>Not tracked</strong>
             </div>
             <div className={styles.readinessMetric}>
@@ -214,10 +187,10 @@ const BackupHealthAdminClient = (): React.ReactNode => {
           </section>
 
           <div className={styles.workspace}>
-            <section className={styles.panel} aria-labelledby="backup-coverage-heading">
-              <h2 id="backup-coverage-heading">Backup coverage</h2>
+            <section className={styles.panel} aria-labelledby="backup-tables-heading">
+              <h2 id="backup-tables-heading">Monitored source tables</h2>
               <p className={styles.panelIntro}>
-                The health check confirms these source tables exist. It does not yet verify that a backup contains them.
+                This check confirms whether these source tables exist. It does not inspect backup contents.
               </p>
               <div className={styles.tableScroll}>
                 <table className={styles.coverageTable}>
@@ -225,26 +198,32 @@ const BackupHealthAdminClient = (): React.ReactNode => {
                     <tr>
                       <th scope="col">Table</th>
                       <th scope="col">Source</th>
-                      <th scope="col">Latest backup</th>
+                      <th scope="col">Backup contents</th>
                     </tr>
                   </thead>
                   <tbody>
                     {requiredTables.map((table) => (
                       <tr key={table.name}>
                         <th scope="row">{table.name}</th>
-                        <td className={table.present ? styles.okText : styles.dangerText}>
-                          {table.present ? "Present" : "Missing"}
+                        <td className={healthSnapshot.skipped
+                          ? styles.warningText
+                          : table.present ? styles.okText : styles.dangerText}>
+                          {table.present ? "Present" : healthSnapshot.skipped ? "Not checked" : "Missing"}
                         </td>
-                        <td className={styles.warningText}>Not verified</td>
+                        <td className={styles.warningText}>Not tracked</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr>
-                      <td colSpan={2} className={missingTableCount === 0 ? styles.okText : styles.dangerText}>
-                        {presentTableCount} / {requiredTables.length} source tables present
+                      <td colSpan={2} className={healthSnapshot.skipped
+                        ? styles.warningText
+                        : sourceTableIssueCount === 0 ? styles.okText : styles.dangerText}>
+                        {healthSnapshot.skipped
+                          ? "Source table check not run"
+                          : `${presentTableCount} / ${requiredTables.length} source tables present`}
                       </td>
-                      <td className={styles.warningText}>0 / {requiredTables.length} verified in a backup</td>
+                      <td className={styles.warningText}>Backup contents not tracked.</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -256,8 +235,12 @@ const BackupHealthAdminClient = (): React.ReactNode => {
               <dl className={styles.evidenceList}>
                 <div>
                   <dt>Source database reachable</dt>
-                  <dd className={healthSnapshot.databaseReachable ? styles.okText : styles.dangerText}>
-                    {healthSnapshot.databaseReachable ? "Passed" : "Failed"}
+                  <dd className={healthSnapshot.skipped
+                    ? styles.warningText
+                    : healthSnapshot.databaseReachable ? styles.okText : styles.dangerText}>
+                    {healthSnapshot.skipped
+                      ? "Check not configured"
+                      : healthSnapshot.databaseReachable ? "Passed" : "Failed"}
                   </dd>
                 </div>
                 {!healthSnapshot.databaseReachable && healthSnapshot.databaseFailureCategory ? (
@@ -271,7 +254,9 @@ const BackupHealthAdminClient = (): React.ReactNode => {
                 <div>
                   <dt>Dump tool</dt>
                   <dd className={backupTool?.available ? styles.okText : styles.warningText}>
-                    {backupTool?.available ? "Available" : "Missing"}
+                    {backupTool?.available
+                      ? `Available · ${backupTool.command}${backupTool.version ? ` · version ${backupTool.version}` : ""}`
+                      : "Missing"}
                   </dd>
                 </div>
                 <div>
@@ -282,14 +267,6 @@ const BackupHealthAdminClient = (): React.ReactNode => {
                   <dt>Backup contents verified</dt>
                   <dd>Not run</dd>
                 </div>
-                <div>
-                  <dt>Key-data restore dry run</dt>
-                  <dd className={styles.okText}>Passed · 10 Jul 2026</dd>
-                </div>
-                <div>
-                  <dt>Full SQL restore drill</dt>
-                  <dd className={styles.warningText}>Not completed</dd>
-                </div>
               </dl>
 
               <div className={styles.confidenceConclusion}>
@@ -297,27 +274,24 @@ const BackupHealthAdminClient = (): React.ReactNode => {
                 <div>
                   <h3>{restoreConfidence} confidence</h3>
                   <p>
-                    The key-data export was reconstructed successfully, but no complete SQL backup has been restored into a disposable database.
+                    This read-only check does not inspect backup contents or perform a restore.
                   </p>
                 </div>
               </div>
-
-              <div className={styles.nextSteps}>
-                <h3>What to do next</h3>
-                <ol>
-                  {!backupTool?.available ? (
-                    <li>Install mysqldump or mariadb-dump on the server.</li>
-                  ) : null}
-                  <li>Use the current dev/staging runbook for a manual SQL dump.</li>
-                  <li>Restore it into a disposable database and record the result.</li>
-                </ol>
-                <p className={styles.safetyNote}>
-                  <FiLock aria-hidden="true" />
-                  Never restore over the live database.
-                </p>
-              </div>
             </section>
           </div>
+
+          {healthSnapshot.warnings.length > 0 ? (
+            <section className={styles.panel} aria-labelledby="backup-warnings-heading">
+              <div className={styles.confidenceConclusion}>
+                <FiAlertTriangle aria-hidden="true" />
+                <div>
+                  <h2 id="backup-warnings-heading" className={styles.warning}>Warnings</h2>
+                  {healthSnapshot.warnings.map((warning) => <p key={warning}>{warning}</p>)}
+                </div>
+              </div>
+            </section>
+          ) : null}
         </>
       ) : (
         <section className={`${styles.loadState} ${loadState === "failed" ? styles.loadStateFailed : ""}`}>

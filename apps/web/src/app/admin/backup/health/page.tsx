@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Backup Health | Maiks.yt",
-  description: "Owner-only database backup coverage and restore-readiness view."
+  description: "Owner-only source-table and dump-tool health check."
 };
 
 const BackupHealthAdminPage = (): React.ReactNode => (
