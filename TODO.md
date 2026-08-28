@@ -444,6 +444,7 @@ Note: Chunk 8 added the first manual Stream Scheduling MVP with a typed schedule
   - First-stream built-ins are `!commands`/`!help`, `!website`, `!schedule`, `!projects`/`!project`, `!games`, `!links`, `!discord`, `!context`, `!health`, and `!rules`. Command inputs and echoed bot replies are consumed before streamer-chat/OBS append. Twitch replies require a writable user chat token; Discord and YouTube fail closed without their provider context and scopes.
 - [ ] Add periodic messages.
 - [ ] Add manual chat hide/show.
+- 2026-08-28 reviewed and deployed the privacy+authority boundary in `8e3bc62`; ordinary CRUD, grant, revoke, and path flows from owner/admin/system/wildcard/malformed authority now fail closed, malformed rows project to a finite invalid state, raw audit snapshots stay out of outbound DTOs, and protected or malformed roles are excluded from Admin Overview counts. Senior final review reported `READY: zero findings`, `pnpm check:review` passed, and live unauthenticated Moderators and Admin Overview API reads both returned `401`.
 - [ ] Add emergency chat shutdown behavior.
   - 2026-07-10 `/chat` can now read emergency clean-mode state and toggle between Emergency clear and Restore overlay, using the existing permission-gated overlay emergency-clean endpoint. Full stream-scoped chat shutdown policy remains separate from provider-side moderation/enforcement.
 

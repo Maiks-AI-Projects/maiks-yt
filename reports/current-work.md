@@ -1,5 +1,12 @@
 # Current Work
 
+## 2026-08-28 reviewed privacy+authority boundary `8e3bc62`
+
+- Pushed and deployed production revision `8e3bc6288d37a0de8fb42e0960353d6c89c66acb` after the senior final review returned `READY: zero findings`. `pnpm check:review` passed with 183 Domain tests, 663 API tests, 326 Web tests, the production Web build, Overlay/Control typechecks, 16 Local Agent tests, 15 provenance tests, architecture rules, and the diff check.
+- The Web/API image config is `sha256:517a05df7635e70a162489d4efd2c5305518c1daa822b3e5f6ae088fdab77a27`, the BuildKit manifest is `sha256:3081b73d52dba3bcab11534df5afd8784dbda7f8cfa1eab0de8d485c5a628894`, and the build was created `2026-08-28T14:21:34Z`. Web container `f3cdfefc981c8d4c005235a25a0203a596c90851f4427e61021cfb814cefaffd` and API container `d5e176d57c2d335745c03d836f1d995b9f12a6881bdcf05b96b26a4af1194f1c` are healthy with zero restarts; Control `216cf0a783386d3e3cf271727a3fb820d1d83efb021949d4d4c214932ee7a9d2` and Overlay `07adeebec6e0d19cf0aa0cfe4d273eb30aa49ba8075b095f221b448a0eda1ebb` were preserved.
+- Public Home, Music, Admin Moderators, API health, Control, and Overlay all returned `200`, and recent Web/API logs have zero matching error lines. The patch blocks ordinary CRUD, grant, revoke, and path flows from owner/admin/system/wildcard/malformed authority, projects malformed rows to a finite invalid state, strips raw audit snapshots from outbound DTOs, and excludes protected or malformed roles from Admin Overview counts.
+- Rollback tags `rollback-8e3bc62-web-before` and `rollback-8e3bc62-api-before` point to the prior image `sha256:4ad4731576f74fc7364b440c6b6ef7e95d55f0789ffa018a9e2495923957bd1b`. Live unauthenticated `GET /admin/moderators` and `GET /admin/overview/activity` both returned `401`. Public `GET /music/catalog` returned `200`; the successful request POST was not invoked because it would create durable data, while the exact minimal acknowledgement remains covered by source tests.
+
 ## 2026-08-28 reviewed profile-handle Domain contract `a752c67`
 
 - Added and pushed the production Domain contract for profile-handle normalization, reserved-name decisions, atomic state transitions, public-identifier validation, and minimized public/private profile projections. The private projection is limited to the account name and the exact private-account message; it exposes no image, profile path, provider identity, auth id, or raw domain id.
@@ -19,6 +26,7 @@
 ## 2026-08-28 approved PWA recovery implementation and profile-rule gate
 
 - The approved PWA access-recovery flow is implemented across Web, API, and Control with the exact existing website logo at `apps/web/public/brand/icon-64.png`. The recovery page uses the public website header; authenticated Chat, Moderation, Control, and Notifications keep their purpose-built app chrome.
+- Michael's approval correction keeps the exact `apps/web/public/brand/icon-64.png` logo, makes the public header recovery-only, and leaves authenticated PWAs on purpose-built chrome. The source and deployed behavior already matched that correction, so no new deployment was needed.
 - Recovery returns are limited to approved PWA destinations. Token-bearing recovery URLs are canonicalized before rendering, launch and dev-auth tokens are not forwarded into OAuth or website storage, and login providers come from the configured-provider projection rather than hard-coded buttons.
 - Signed-out Notifications now offers a clean `Renew sign-in` path with the fixed return target `https://maiks.yt/tools/notifications`. It reads no current query, fragment, token, or storage state and preserves the existing read, archive, push, and authenticated tool layout behavior.
 - Independent GPT-5.5 review found no behavior or security findings. Its one architecture finding was corrected by renaming the Notifications helper to the required `.rules.ts` suffix. `pnpm check:full` passes with all 13 builds, all typechecks, 173 Domain tests, 647 API tests, 320 Web tests, 70 Control tests, production-image provenance tests, architecture rules, and the diff check.
