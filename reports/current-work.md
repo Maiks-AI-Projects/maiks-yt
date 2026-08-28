@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 production rollout `c98486f`
+
+- Reviewed production commit `c98486f` (`feat: rebuild Creator Links admin`) is pushed to `origin/production` and deployed across Web, API, Overlay, and Control as image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`. The remote checkout is clean on branch `production` at the same revision.
+- The deployment contained no database schema or migration changes. Before replacement, the prior images were retained as `maiks-yt-production:rollback-c98486f-web-before`, `maiks-yt-production:rollback-c98486f-api-before`, `maiks-yt-production:rollback-c98486f-control-before`, and `maiks-yt-production:rollback-c98486f-overlay-before`.
+- `pnpm check:full` passed before deployment. After replacement, all four containers were healthy with zero restarts, recent logs contained no matching error, fatal, unhandled, or 5xx lines, and Home, public Links, Admin Links, Admin Updates, API health, Control, and Overlay returned `200`; a synthetic missing Web route and the retired API dev-test route returned `404`.
+- Live `GET /links` returned the bounded public projection only. Unauthenticated `GET /admin/links` and `DELETE /admin/links/:key` returned `401`, proving the admin and delete boundaries fail closed before mutation.
+- Creator Links implementation, integration, deployment, public read-model verification, and unauthenticated boundary verification are complete. Positive signed-in owner create/edit/preview/order/publish/unpublish/delete verification and rendered fidelity against the approved image remain open because desktop and GUI control remain forbidden.
+
 ## 2026-08-28 production deployment standing authority
 
 - Michael confirmed that the `production` branch and live production site are the active development path. Ordinary reviewed, reversible Maiks.yt application changes may be committed, pushed, deployed, and non-GUI live-verified without a fresh deployment approval on every slice.
@@ -10,19 +18,19 @@
 
 ## 2026-08-28 production Creator Links admin approved design
 
-- Michael approved `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` on 2026-08-28 as the source-level acceptance reference for the production Creator Links admin surface. Implementation is not yet complete.
+- Michael approved `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` on 2026-08-28 as the source-level acceptance reference for the production Creator Links admin surface. The approved source implementation is complete and deployed in `c98486f`.
 - The approved image preserves the production admin shell and proposes a compact master/detail Creator Links editor with inventory-only ordering, a selected draft editor, local draft preview using the public row presentation, authoritative saved `/links` preview, and owner-only draft deletion with exact-title confirmation. Funding/support remains protected and unavailable.
-- Current production behavior remains unchanged at this design record: database-backed owner controls, dirty-edit protection, inventory ordering, pre-save icon/purpose feedback, public draft exclusion, and the authoritative saved `/links` view. Source implementation is in progress. No migration or live state changed as part of design approval.
+- The implementation preserves database-backed owner controls, dirty-edit protection, inventory-only ordering, pre-save icon/purpose feedback, public draft exclusion, and the authoritative saved `/links` view. Draft deletion is owner-gated, limited to unpublished rows, and requires exact-title confirmation. No migration was needed.
 
 ## 2026-08-28 production operator-contract review
 
 - Admin Overview finite health-copy boundary is implemented in exactly `apps/web/src/app/admin/admin-dashboard-client.tsx`, `apps/web/src/app/admin/admin-dashboard.rules.ts`, and `apps/web/src/app/admin/admin-dashboard.rules.test.ts`. It projects finite allowlisted operator copy, rejects malformed/non-2xx/impossible payloads, uses real Money domain validation, handles provider and backup inventories plus backup producer consistency, bounds counts and ratios, preserves real state/links/refresh, and independent review found zero standards and zero specification findings.
 - Page Creator finite copy cleanup is implemented in exactly `apps/web/src/app/admin/pages/page-creator-admin-client.tsx`, `apps/web/src/app/admin/pages/page-creator-admin.rules.ts`, and `apps/web/src/app/admin/pages/page-creator-admin.rules.test.ts`. Reserved-path and unavailable copy is finite, raw HTTP status and caught exception text no longer reach the UI, existing behavior was preserved, and independent review found zero standards and zero specification findings.
 - Coordinator `pnpm check:review` passed with 159 Domain tests, 635 API tests, 227 Web tests, the production Web build, Overlay / Control / DB / API / Web / Local Agent typechecks, architecture, and diff checks.
-- Neither slice is deployed or live/browser/auth-session verified, and desktop/GUI verification remains forbidden by Owner stop order.
-- The Creator Links admin image is approved as the source-level acceptance reference at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`; do not mark implementation complete yet.
+- Both slices are deployed in `c98486f` but remain live owner-workflow/browser/auth-session unverified; desktop/GUI verification remains forbidden by Owner stop order.
+- The Creator Links admin image remains the source-level acceptance reference at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`; implementation and deployment are complete, while signed-in and rendered verification remain open.
 - Public Progress truthfulness copy has been investigated but still needs Owner approval for the exact public wording; do not mark it implemented.
-- The next highest-value authorized task is source implementation against the approved Creator Links image. Separate deployment and live verification stay later gates.
+- The next Creator Links gate is positive signed-in owner workflow verification and rendered comparison against the approved image when GUI verification is permitted.
 
 ## 2026-08-28 production homepage featured-Update integration
 

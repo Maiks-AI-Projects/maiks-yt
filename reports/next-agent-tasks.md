@@ -8,17 +8,18 @@
 - Real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, and starting a public stream retain their specific gates.
 - Desktop and GUI automation remain forbidden, but non-GUI HTTP/API/service verification is expected and must not be treated as blocked by that restriction.
 
-## Production Creator Links approved implementation reference
+## Production Creator Links deployed implementation reference
 
 - Michael approved `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` on 2026-08-28 as the source-level acceptance reference.
-- The next task is source implementation against the exact approved image: compact master/detail presentation, local unsaved preview using the public row presentation while saved `/links` stays authoritative, and owner-only unpublished-draft deletion with exact-title confirmation. Preserve inventory-only ordering and keep Funding/support protected and unavailable.
+- Commit `c98486f` implements and deploys the exact approved direction: compact master/detail presentation, local unsaved preview using the public row presentation, authoritative saved `/links` preview, inventory-only ordering, and owner-only unpublished-draft deletion with exact-title confirmation. Funding/support remains protected and unavailable.
+- Public `GET /links` and unauthenticated admin/delete boundaries are live-verified. The remaining gate is positive signed-in owner create/edit/preview/order/publish/unpublish/delete verification plus rendered fidelity against the approved image when GUI verification is allowed.
 
 ## Production Operator Copy Slices: Source Complete
 
 - Admin Overview now uses finite allowlisted operator copy and fails closed on non-2xx, malformed, incomplete, or producer-contradictory health payloads. Counts and ratios are bounded, Money transactions use the Domain validator, and real links, tones, refresh behavior, and valid states remain intact.
 - Page Creator now uses finite reserved-path and unavailable copy. Raw HTTP status and caught exception text no longer reach the owner UI; its existing editor, retry, validation, preview, and publication behavior is unchanged.
 - Independent final review found zero standards and zero specification findings. `pnpm check:review` passes with 159 Domain, 635 API, 227 Web, and 16 Local Agent tests plus the production Web build and required type, architecture, and diff checks.
-- Neither slice is deployed or live/auth-session verified. They may be included in an ordinary reviewed reversible production deployment with a concrete non-GUI verification path. Desktop and GUI verification remain forbidden by the Owner stop order.
+- Both slices are deployed in `c98486f` but remain live owner-workflow/auth-session unverified. Desktop and GUI verification remain forbidden by the Owner stop order.
 
 ## Production Operator Contracts: Deploy And Verify Separately
 
@@ -171,7 +172,7 @@ Updated: 2026-08-18
 - `/profiles` is now a static profile-search mock with separate `/profiles/michael-public` and `/profiles/michael-private` examples. The private example remains searchable but has no profile image and reveals only its account name plus `This account is set to private`. Keep both disconnected from live account/provider data until public slugs, per-field privacy, linked-account visibility, recognition persistence, and public profile read rules are reviewed and implemented.
 - `/updates`, `/updates/[slug]`, and `/feed.xml` read the typed public update API rather than a frontend fixture. Migration `0026_polite_scarlet_witch.sql` created the model; production now omits rows explicitly marked as examples from list, detail, and RSS output while non-production can retain labelled fixtures. A real manual owner publishing workflow remains a later image-first slice.
 - The homepage hero at `apps/web/public/images/home/creator-workspace-placeholder.png` is temporary until Michael can photograph the real seven-monitor streaming desk.
-- Creator Links current scope B-F is reviewed for production with no migration; preserve deferred G-I as planning-only items until Michael explicitly opens those slices.
+- Creator Links scope B-H is implemented and deployed with no migration. Item I remains deferred until Michael approves the support destination URL and public wording.
 
 Use coherent production slices that end in narrow checks and a real verification plan. The coordinator reviews, tests, and commits on `production`; deployment remains a separate authorized step after the current production host is reachable and the slice has a real-user verification path.
 

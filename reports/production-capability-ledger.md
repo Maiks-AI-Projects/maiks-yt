@@ -33,24 +33,29 @@ mean a capability is deployed or proven in a real user path.
 
 | Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Updates publishing editor | done | done | done | done | not-started | not-started | Michael-approved image implemented in the owner Admin shell; senior review reports Standards 0 / Specification 0. Deploy separately, then verify the signed-in revision-safe lifecycle and rendered desktop/mobile fidelity. |
-| Account browser contracts | done | done | done | done | not-started | not-started | Minimal session, provider, domain/profile, and preference projections; opaque provider-profile refs; one exact fail-closed Web session parser. Senior review reports Standards 0 / Specification 0. Deploy separately, then verify OAuth, linking, profile/privacy, Control, and recovery. |
-| Chat and Moderation provider status | done | done | done | done | not-started | not-started | Safe typed status projection preserves reconnect and access gates while removing raw errors, ids, message bodies, counters, and runtime internals. Senior review reports Standards 0 / Specification 0. Deploy separately, then verify installed status/reconnect with real providers. |
-| Event Routing operator truthfulness | done | done | done | done | not-started | not-started | Server capabilities drive the editor; unsupported controls fail closed or remain legacy-read-only. Senior review reports Standards 0 / Specification 0. Deploy separately, then verify current and legacy rules against real intake and destinations. |
+| Updates publishing editor | done | done | done | done | done | not-started | Michael-approved image implemented in the owner Admin shell and deployed in `c98486f`; senior review reports Standards 0 / Specification 0. Verify the signed-in revision-safe lifecycle and rendered desktop/mobile fidelity. |
+| Account browser contracts | done | done | done | done | done | not-started | Minimal session, provider, domain/profile, and preference projections deployed in `c98486f`; opaque provider-profile refs; one exact fail-closed Web session parser. Senior review reports Standards 0 / Specification 0. Verify OAuth, linking, profile/privacy, Control, and recovery. |
+| Chat and Moderation provider status | done | done | done | done | done | not-started | Safe typed status projection deployed in `c98486f`; it preserves reconnect and access gates while removing raw errors, ids, message bodies, counters, and runtime internals. Verify installed status/reconnect with real providers. |
+| Event Routing operator truthfulness | done | done | done | done | done | not-started | Server-driven capabilities and fail-closed unsupported controls are deployed in `c98486f`. Verify current and legacy rules against real intake and destinations. |
+| Creator Links admin | done | done | done | done | done | in-progress | Approved image `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` is implemented and deployed in `c98486f`. Live public projection and unauthenticated admin/delete boundaries are verified; signed-in owner CRUD/publication and rendered fidelity remain open. |
 
 Shared gate: `pnpm check:review` passes with 155 domain tests, 609 API tests,
 87 Web tests, the production Web build including `/admin/updates`, Overlay and
 Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
 No GUI, browser, screenshot, deployment, server, or live verification was run.
 
+The Creator Links row was delivered later in production rollout `c98486f`; its
+deployment and verification evidence is recorded independently from the earlier
+shared tranche gate.
+
 ## 2026-08-28 Correctness And Recovery Tranche
 
 | Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Account-scoped session recovery | done | done | done | done | not-started | not-started | List, selected revoke, and revoke-others are bound to the authenticated Better Auth account; senior review reports Standards 0 / Specification 0. Verify with two live accounts after deployment. |
-| Terminal URL-token rotation | done | done | done | done | not-started | not-started | Revoked and expired tokens cannot rotate or return raw launch material; active expiring and no-expiry tokens remain supported; senior review reports Standards 0 / Specification 0. |
-| Schedule game-link preservation | done | done | done | done | not-started | not-started | The single Game focus preserves additional links, normalizes deterministic order, and preserves promoted relationships; senior re-review reports Standards 0 / Specification 0. |
-| Truthful Project publication | done | done | done | done | not-started | not-started | One public-status predicate drives Domain/API/Web, and repository writes atomically preserve `is_public => eligible(status)`; senior re-review reports Standards 0 / Specification 0. Live two-connection MariaDB proof remains open. |
+| Account-scoped session recovery | done | done | done | done | done | not-started | List, selected revoke, and revoke-others are bound to the authenticated Better Auth account and deployed in `c98486f`; senior review reports Standards 0 / Specification 0. Verify with two live accounts. |
+| Terminal URL-token rotation | done | done | done | done | done | not-started | Deployed in `c98486f`: revoked and expired tokens cannot rotate or return raw launch material; active expiring and no-expiry tokens remain supported. |
+| Schedule game-link preservation | done | done | done | done | done | not-started | Deployed in `c98486f`: the single Game focus preserves additional links, normalizes deterministic order, and preserves promoted relationships. |
+| Truthful Project publication | done | done | done | done | done | not-started | Deployed in `c98486f`: one public-status predicate drives Domain/API/Web, and repository writes atomically preserve `is_public => eligible(status)`. Live two-connection MariaDB proof remains open. |
 
 Shared gate: `pnpm check:review` passes with 156 Domain tests, 627 API tests,
 100 Web tests, the production Web build, Overlay and Control typechecks,
@@ -63,7 +68,12 @@ Production Connections no longer advertises simulation-only support money,
 development free TTS, or `test/system` events. Real Website, Twitch, YouTube,
 and Discord catalogue entries remain. Independent review reports Standards 0 /
 Specification 0, and the shared gate passes with 102 Web tests. Implementation
-is complete; deployment and real operator verification are not started.
+and deployment in `c98486f` are complete; real operator verification is not started.
+
+The reviewed production source through `c98486f` was deployed across Web, API,
+Overlay, and Control on 2026-08-28. This advances deployment for source present
+at that revision; it does not prove the signed-in or provider-backed operator
+workflows listed as open elsewhere in this ledger.
 
 A wrong-target delegation wave was stopped in `maiks-yt-fresh`. None of that
 residue is production evidence or part of this ledger. Future workers must prove

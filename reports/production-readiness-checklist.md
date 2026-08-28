@@ -2,7 +2,7 @@
 
 Status: production is live and is the sole forward line.
 
-Updated: 2026-08-27
+Updated: 2026-08-28
 
 This checklist tracks current production readiness, not a dev-to-prod plan. Dev and legacy material are evidence only. Do not infer branch policy, future cutover, or wholesale promotion from this document.
 
@@ -16,6 +16,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 ### Deployed
 
+- Production revision `c98486f` is deployed across Web, API, Overlay, and Control as image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`; it includes the approved Creator Links admin and accumulated reviewed production source through that revision. No migration was applied.
 - Production revision `501613c` is deployed across web, API, overlay, and control.
 - Web-only revision `986a48b` is deployed for the not-found status correction.
 - Revision `f12c98d` is deployed to API and Control for Control-token session enforcement; Web and Overlay were not recreated.
@@ -27,6 +28,8 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 ### Verified
 
+- After the `c98486f` rollout, all four containers were healthy on the same image with zero restarts and no matching recent error, fatal, unhandled, or 5xx log lines. Home, Links, Admin Links, Admin Updates, API health, Control, and Overlay returned `200`; synthetic missing and retired dev routes returned `404`.
+- Live public `GET /links` returned only the bounded public projection. Unauthenticated Creator Links admin read and delete requests returned `401` before mutation.
 - Public-origin smoke has been exercised against the live production host.
 - The not-found contract now returns real HTTP `404` for retired, missing, and dev-era routes.
 - Unauthenticated Local Agent, Games, and Backup Health admin APIs return `401`.
@@ -117,7 +120,7 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Required: rollback reference is recorded before any live change.
 - Required: rollback includes image/commit reference, database stance, and tunnel/DNS recovery steps where relevant.
-- Current reference: Web and API are deployed at revision `2a99457`; Control remains at its prior reviewed image and Overlay remains at its prior reviewed image. Immediate rollback images are retained as `maiks-yt-production:rollback-2a99457-web-before` and `maiks-yt-production:rollback-2a99457-api-before`.
+- Current reference: Web, API, Control, and Overlay are deployed at revision `c98486f` using image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`. Immediate rollback images are retained as `maiks-yt-production:rollback-c98486f-web-before`, `maiks-yt-production:rollback-c98486f-api-before`, `maiks-yt-production:rollback-c98486f-control-before`, and `maiks-yt-production:rollback-c98486f-overlay-before`.
 
 ### Real Verification
 

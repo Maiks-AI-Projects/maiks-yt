@@ -29,10 +29,10 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Minimize Page Creator, Games suggestion-review, and Session admin browser contracts while preserving their existing owner workflows and internal audit identity.
 - [x] Replace provider-integration diagnostics with finite operator DTOs, exact provider-specific capability sets, truthful connecting/retrying state, bounded safe summaries, finite failures, and fail-closed parsing in every Web consumer.
 - [ ] Generate and review a migration for durable single-use YouTube consent state before implementing the OAuth callback flow. The approved design uses a hashed random state bound to provider, purpose, owner, redirect URI, requested scopes, expiry, and one atomic consume transition.
-- [ ] Deploy the completed operator-contract slices through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence.
+- [x] Deploy the completed operator-contract slices through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence (`c98486f`).
 - [ ] Verify the signed-in owner provider-intake review, Page Creator lifecycle, Games suggestion review, and account-scoped Session recovery against the live production database after deployment.
-- 2026-08-28 reviewed source slices now also include the finite Admin Overview health-copy boundary and the finite Page Creator copy cleanup. Both passed independent review with zero standards and zero specification findings, and neither slice is deployed or live/browser/auth-session verified.
-- 2026-08-28 Michael approved the Creator Links admin image at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`; source implementation, deployment, and live verification remain separate tracked stages. Public Progress truthfulness copy still needs Owner-approved wording.
+- 2026-08-28 reviewed source slices include the finite Admin Overview health-copy boundary and the finite Page Creator copy cleanup. Both passed independent review and are deployed in `c98486f`; live owner-workflow/browser/auth-session verification remains open.
+- 2026-08-28 Michael approved the Creator Links admin image at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`; source implementation and deployment are complete in `c98486f`, public and unauthenticated boundaries are live-verified, and positive signed-in/rendered verification remains open. Public Progress truthfulness copy still needs Owner-approved wording.
 
 ## 0. Organize the Idea Base
 
@@ -360,9 +360,9 @@ Note: 2026-06-21 added an in-code `@maiks-yt/domain/events` registry for dev-con
 - [x] Add database-backed Creator Hub link read-model foundation.
 - [x] Build Creator Hub link admin create/edit/reorder controls.
 - [x] Creator Links current scope B-F: assign new links after the persisted maximum order, protect dirty edits during publish/selection, keep ordering in the order list, use visual-highlight wording, and show icon/purpose feedback before save.
-- [x] Owner approval gate: `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` is approved as the source-level acceptance reference. Creator Links implementation from this image is the next source task, while Funding/support stays protected and unavailable.
-- [ ] G — Add a draft/unsaved preview using the real public presentation, with the iframe remaining the authoritative saved-public view; preferably share the renderer, and never expose drafts through public `GET /links`.
-- [ ] H — Add owner-only safe deletion for unpublished/draft links with exact confirmation; defer archive/schema work until recovery is needed.
+- [x] Owner approval gate: `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` is approved and implemented as the source-level acceptance reference, while Funding/support stays protected and unavailable.
+- [x] G — Add a draft/unsaved preview using the real public presentation, with the saved public view remaining authoritative and drafts never exposed through public `GET /links`.
+- [x] H — Add owner-only safe deletion for unpublished/draft links with exact-title confirmation; archive/schema recovery remains deferred until needed.
 - [ ] I — Activate a support destination only after Michael approves the final URL and public wording; update protected backend policy/tests then, with no payment processing.
 - [x] Add preview-before-publish behavior for public content changes.
 - [x] Design first safe page creator and route-admin scope.
