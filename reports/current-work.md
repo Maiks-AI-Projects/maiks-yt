@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 production editor and browser-contract tranche
+
+- Michael's approved `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png` is now the implemented source-level direction for `/admin/updates`. The production editor uses the dense master/detail inventory and editor, compact workflow and pin controls, responsive stacking, and the existing owner Admin shell while preserving draft create/edit, saved non-dirty preview, exact revision publishing, unpublish-before-edit, interaction locks, and before-unload protection.
+- Account browser responses are minimized to the fields the production UI uses. Provider profile choices use opaque HMAC references instead of raw account identifiers, stream-visibility responses contain preferences only, Control compatibility is preserved, and every Web `/account/session` consumer uses one exact runtime parser that fails closed for malformed, legacy, wrong-type, missing-field, or extra-field payloads.
+- Private Chat and Moderation provider status reads now use safe typed projections without raw provider ids, recent message bodies, raw runtime errors, disconnect counters, or implementation internals. Event Routing now consumes server-returned destination capabilities and truthfully limits priority, sound, template/theme editing, once-per-stream, live/offline, approval, and unavailable destinations to implemented behavior while preserving legacy saved values safely.
+- Independent GPT-5.5 final reviews report zero standards and zero specification findings for Updates, Account, Chat status, and Event Routing. Final `pnpm check:review` passes with 155 domain tests, 609 API tests, 87 Web tests plus the production Web build including `/admin/updates`, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- No deployment, server state, GUI, browser, screenshot, signed-in owner workflow, installed-PWA rehearsal, or live provider/routing verification was performed. Michael's desktop-control stop order remains active. Deployment and real verification are separate gates.
+
 ## 2026-08-28 production public contract and routing catalogue boundaries
 
 - Public Updates list, detail, RSS, and Web projections no longer expose raw database `id` or the internal `isExample` fixture marker. Production example filtering happens before public projection, while the owner editor keeps its explicit private preview/source types and revision-safe workflow.

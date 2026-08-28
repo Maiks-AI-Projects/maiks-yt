@@ -2,6 +2,16 @@
 
 This is the working checklist. We should work down it in order unless a new idea changes the priority.
 
+## Production Reviewed Tranche - 2026-08-28
+
+- [x] Implement the Michael-approved dense `/admin/updates` editor against `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png` while preserving the revision-safe publishing workflow.
+- [x] Minimize Account browser contracts, replace raw provider-profile ids with opaque references, and fail closed on every malformed or legacy Web session response.
+- [x] Minimize private Chat and Moderation provider status responses without removing reconnect behavior or the token-plus-session gate.
+- [x] Make Event Routing operator controls and copy match the capabilities the production runtime actually consumes.
+- [x] Complete independent GPT-5.5 standards/specification review and the shared production review gate for all four slices.
+- [ ] Deploy the reviewed tranche in a separately authorized production window.
+- [ ] Perform real signed-in, installed-PWA, provider/routing, and rendered `/admin/updates` verification after deployment. Desktop/GUI control remains forbidden until Michael explicitly lifts the stop order.
+
 ## 0. Organize the Idea Base
 
 - [x] Split `ideas/README.md` into clearer sections.

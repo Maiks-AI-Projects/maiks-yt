@@ -1,5 +1,12 @@
 # Next Agent Tasks
 
+## Reviewed Production Tranche: Deploy And Verify Separately
+
+- `/admin/updates`, Account browser-contract minimization, private Chat/Moderation status projections, and Event Routing operator truthfulness are code-complete and independently reviewed with zero standards and zero specification findings. `pnpm check:review` passes with 155 domain, 609 API, 87 Web, and 16 Local Agent tests plus the production Web build and required type/architecture/diff checks.
+- Do not redesign `/admin/updates` again before its real workflow check. In a separately authorized deployment window, verify signed-in owner create, save, saved preview, exact revision publish, published read-only behavior, unpublish, stale-preview rejection, search/filtering, and responsive layout against the approved image.
+- In the same or later explicitly authorized window, verify account sign-in/OAuth/link/profile/stream-visibility and Control session behavior; installed Chat/Moderation status and reconnect with real providers; and Event Routing current plus legacy saved rules. Keep raw identifiers and runtime internals absent from browser responses.
+- Desktop, browser, screenshot, Computer Use, Wayland, pointer, keyboard, window, and GUI automation remain forbidden until Michael explicitly lifts the stop order. Passing builds and source-level visual contracts do not replace rendered or live verification.
+
 ## Production Active-Grant Authorization
 
 - Reviewed production patches now exclude revoked and expired grants across Project admin, Money, URL Tokens, Sessions, Event Routing administration, Notifications, Content Pages, Stream Schedule, Creator Links, and Game Library. Active owner wildcard and delegated capabilities retain their existing limits.
