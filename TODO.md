@@ -23,6 +23,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Verify same-account session recovery, terminal token rotation, multi-link Schedule editing, and Project publish/status concurrency against the live production database after deployment.
 - [x] Reconcile the production Drizzle ledger with the 30 migrations already applied live. Commit `49c0b23` restores historical game-catalog migrations 0027/0028, preserves the unchanged music migration as 0029, repairs the snapshot chain to 67 tables, and passes independent review plus two no-op disposable generation checks. No live migration or service change was required.
 - [x] Design and independently review the separate profile-handle audit/event store required before any handle transition ships. `reports/profile-handle-audit-event-store-proposal.md` now defines an Owner-only operation/detail model, atomic canonical-state and audit writes, append-only enforcement gates, finite replay/rejection behavior, and strict private identity boundaries. This is design evidence only; no schema or migration was generated.
+- [x] Remove raw internal ids from anonymous Project list/detail contracts, reject unrecognized response shapes in Web consumers, preserve private admin mutation ids, and deploy/live-verify the bounded Web/API slice (`ab2682f`).
 - [ ] Submit the prepared production approval list at `https://choices.mmc.onl/p/maiks-yt/l/fc1c6e1363e3d9f6` before implementing `/about/ai` or generating the profile-handle migration files.
 
 ## Production Operator Contract Pass - 2026-08-28

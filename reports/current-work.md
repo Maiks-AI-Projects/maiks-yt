@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-28 production public Project contract minimization `ab2682f`
+
+- Anonymous Project list and detail responses no longer expose raw project, milestone, item, item-link, update, or nested-child ids. Public identity remains the project slug; Web rendering keys derive only from public fields plus the ordered tree position. Admin persistence, revision checks, and mutation contracts retain their internal ids.
+- Strict Web parsing rejects extra or malformed fields. Public API failures are finite: `invalid_project_slug`, `project_not_found`, and `projects_unavailable`. Independent GPT-5.5 review returned `READY` with zero standards and zero specification findings. `pnpm check:review` passed with 184 Domain tests, 667 API tests, 385 Web tests, the production Web build, Overlay/Control typechecks, 16 Local Agent tests, 15 provenance tests, architecture rules, and the diff check.
+- Commit `ab2682f9d278a87da9797aadde5cfd0c4f8883d1` is pushed and deployed to Web and API. Image config `sha256:18f611d8e003ae5e02c255cb14dd49376908f5213dd8b420967ac7ccd1a311ab`, BuildKit manifest `sha256:f521c83493347b3df862bb94d8de84c547dc6fc78454efc35aa9ea07880a46a1`, and OCI created time `2026-08-28T16:59:40Z` bind the runtime to the exact source revision. API container `05b1dda66fdfadb36366dfa13bf63e7a550e2262693c7562958dd3c96566dff9` and Web container `4c58b6f112ef066e2cf0c30144acecd5f2fae2a38091518e36be2fdca6aebdd6` are healthy with zero restarts.
+- Rollback tags `maiks-yt-production:rollback-ab2682f-web-before` and `maiks-yt-production:rollback-ab2682f-api-before` preserve image `sha256:bb4e99e865e1d1fbd09b6973ecf4684271a80ace36baa1f2dc1ba4f572388e87` at revision `96a5db7`. Control and Overlay container/image ids were preserved.
+- Public Home, Projects, one real Project detail, Accountability, Admin Projects, and API health returned `200`; a missing Project page returned `404`. Anonymous Project list/detail JSON contain no `id` key at any depth. Invalid and unknown slugs returned the exact finite `400 invalid_project_slug` and `404 project_not_found` responses. Recent Web/API logs show healthy startup and no runtime failures.
+- No migration, schema, database/data, volume, provider/account/credential, DNS/tunnel, Control, Overlay, or stream change occurred. Positive signed-in owner Project editing and publication remain separate live verification work.
+
 ## 2026-08-28 reviewed profile-handle audit/event-store proposal
 
 - Added `reports/profile-handle-audit-event-store-proposal.md` as the separate audit gate required by the reviewed profile-handle read-model proposal. It defines an Owner-only first release with one operation header plus exact ordered handle-detail rows, same-key replay, different-request rejection, atomic canonical-state and audit commits, and finite privacy-safe rejection rules.

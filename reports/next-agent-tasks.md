@@ -1,5 +1,11 @@
 # Next Agent Tasks
 
+## Public Project browser contracts deployed
+
+- Production revision `ab2682f9d278a87da9797aadde5cfd0c4f8883d1` is deployed to Web and API on provenance-labelled image `sha256:18f611d8e003ae5e02c255cb14dd49376908f5213dd8b420967ac7ccd1a311ab`. Do not repeat the deployment.
+- Anonymous Project list/detail responses contain no raw ids at any depth. Public identity is the slug; Web render keys use public fields plus deterministic tree position. Admin mutation, revision, and persistence contracts still use internal ids privately.
+- Public HTTP/API, finite failure, container-health, restart, rollback, log, and Control/Overlay-preservation checks passed. The next Project gate is a positive signed-in owner lifecycle against MariaDB; do not create or publish durable Project data merely to repeat source-deployment proof.
+
 ## Public writing decisions
 
 - `/about/health` is deployed and public-HTTP verified at commit `93c353c`. Keep the pre-tumor broken-hand and unrelated head-injury history source-only unless Michael explicitly changes that boundary.
