@@ -13,6 +13,11 @@ import type {
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { cancellationReasonLabels, formatScheduleDate, formatScheduleLabel } from "../../schedule/stream-schedule-data";
 import styles from "./schedule-admin.module.css";
+import {
+  buildGameFocusLinksForSubmit,
+  toGameLinkForm,
+  type GameLinkFormState
+} from "./stream-schedule-admin.rules";
 
 type AdminScheduleResponse =
   | { ok: true; streams: readonly StreamScheduleEntry[]; projectOptions: readonly StreamScheduleProjectOption[]; gameOptions: readonly StreamScheduleGameOption[] }
@@ -37,7 +42,6 @@ type ScheduleFormState = {
   status: StreamScheduleStatus;
 };
 type CancellationFormState = { cancellationReasonCode: StreamScheduleCancellationReasonCode; cancellationReason: string };
-type GameLinkFormState = { gameId: string; publicNote: string };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 const visibilities = ["draft", "public", "private"] satisfies StreamScheduleVisibility[];
@@ -76,10 +80,6 @@ const toScheduleForm = (stream: StreamScheduleEntry): ScheduleFormState => ({
   focusNote: stream.focusNote ?? "",
   visibility: stream.visibility,
   status: stream.status
-});
-const toGameLinkForm = (stream: StreamScheduleEntry): GameLinkFormState => ({
-  gameId: stream.gameLinks[0]?.gameId ?? "",
-  publicNote: stream.gameLinks[0]?.publicNote ?? ""
 });
 const formatTime = (value: string): string => new Intl.DateTimeFormat("en-GB", {
   hour: "2-digit",
@@ -278,7 +278,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
   });
   const saveGameLink = async (streamId: string): Promise<StreamScheduleEntry | null> => runMutation("Saving game focus", `/admin/schedule/${encodeURIComponent(streamId)}/games`, {
     method: "PUT",
-    body: { links: gameLinkForm.gameId ? [{ gameId: gameLinkForm.gameId, relationship: "planned", publicNote: gameLinkForm.publicNote.trim() || null, sortOrder: 0 }] : [] }
+    body: { links: buildGameFocusLinksForSubmit(selectedStream, gameLinkForm) }
   });
   const saveStream = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
