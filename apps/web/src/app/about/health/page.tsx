@@ -6,8 +6,8 @@ import styles from "../about.module.css";
 import { HealthTimeline } from "../health-timeline";
 
 export const metadata: Metadata = {
-  title: "Medical history",
-  description: "Michael's general health context and how a brain tumor affected streaming."
+  title: "Health context",
+  description: "Michael's current health context and how it can affect streaming and collaboration."
 };
 
 const HealthPage = (): React.ReactNode => (
@@ -15,35 +15,41 @@ const HealthPage = (): React.ReactNode => (
     <AboutNavigation current="health" />
 
     <header className={styles.intro}>
-      <p className={styles.eyebrow}>Medical history</p>
-      <h1>I have a serious brain tumor.</h1>
+      <p className={styles.eyebrow}>Medical context</p>
+      <h1>Context that may help you understand me.</h1>
       <p className={styles.lead}>
-        I stopped streaming while undergoing treatment and therapy. This page records that part of
-        my life and the medical events around it.
+        I have a serious brain tumor, brain damage, and ADHD. This page is here because knowing
+        that can make irregular streams, changed plans, and uneven communication easier to place.
       </p>
     </header>
 
     <section className={styles.proseBand} aria-labelledby="health-streaming-title">
       <div className={styles.sectionLabel}>
-        <p className={styles.eyebrow}>Daily life</p>
-        <h2 id="health-streaming-title">Treatment changed my routine</h2>
+        <p className={styles.eyebrow}>Current effects</p>
+        <h2 id="health-streaming-title">What you may notice</h2>
       </div>
       <div className={styles.prose}>
         <p>
-          My health can affect how much energy I have and whether a planned stream is realistic.
-          Streams may therefore be irregular, shorter than expected, delayed, changed, or
-          cancelled.
+          My memory, focus, energy, and communication can be inconsistent. I may forget details,
+          reply slowly, lose the thread of a plan, need more recovery time than expected, or cancel
+          something that looked realistic when it was scheduled.
         </p>
         <p>
-          I am building Maiks.yt while preparing to return. The scheduling, updates, and stream
-          controls are practical tools for doing that work.
+          An inconsistent reply or changed plan is not a reliable signal of my interest in a stream,
+          collaboration, or conversation. The tumor, brain damage, treatment, or ADHD may be
+          affecting the amount I can hold at once. Streaming can therefore be irregular, shorter
+          than planned, delayed, changed, or cancelled.
+        </p>
+        <p>
+          Clear written details help. So do reminders, repeated information when something matters,
+          and room for plans to change.
         </p>
       </div>
     </section>
 
     <section className={`${styles.imageBand} ${styles.alternateBand}`} aria-labelledby="health-image-title">
       <div className={styles.imageIntroduction}>
-        <p className={styles.eyebrow}>A visible reality</p>
+        <p className={styles.eyebrow}>Current record</p>
         <h2 id="health-image-title">My latest MRI, for now</h2>
         <p>
           The labels describe the areas as I understand them. This image is part of the record, not
@@ -70,16 +76,18 @@ const HealthPage = (): React.ReactNode => (
     <section className={styles.proseBand} aria-labelledby="health-boundaries-title">
       <div className={styles.sectionLabel}>
         <p className={styles.eyebrow}>Scope</p>
-        <h2 id="health-boundaries-title">A factual summary, not an argument</h2>
+        <h2 id="health-boundaries-title">Useful context, not every detail</h2>
       </div>
       <div className={styles.prose}>
         <p>
-          This page records the larger medical events that affect my life. It is not here to defend
-          my choices or ask the reader to reach a particular conclusion.
+          This page provides practical context for streams, collaboration, and ordinary interaction
+          with me. It is a selected account of the current situation, not a complete medical record
+          or an argument.
         </p>
         <p>
-          It will stay focused on verified events and broad yearly summaries. Routine visits and
-          unnecessary private details do not need to become public entries.
+          The timeline keeps selected verified events and broad yearly summaries. It does not list
+          every appointment, every private detail, or old medical history that does not help explain
+          the current situation. It is also not medical advice.
         </p>
       </div>
     </section>

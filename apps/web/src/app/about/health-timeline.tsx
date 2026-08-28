@@ -5,20 +5,20 @@ export const HealthTimeline = (): React.ReactNode => (
   <section className={styles.healthTimelineSection} aria-labelledby="health-timeline-title">
     <header className={styles.healthTimelineHeading}>
       <div>
-        <p className={styles.eyebrow}>Medical timeline</p>
-        <h2 id="health-timeline-title">The larger events and the years around them</h2>
+        <p className={styles.eyebrow}>Tumor timeline</p>
+        <h2 id="health-timeline-title">Starting with the confirmed 2017 record</h2>
       </div>
       <div>
         <p>
           My memories are fragmented, so this summary was reconstructed from the records currently
-          available from two hospitals and my GP. It combines obvious duplicate entries instead of
-          counting the same care twice.
+          available from two hospitals and my GP. It is limited to the tumor, treatment,
+          monitoring, and practical effects that help explain the current situation.
         </p>
         <p>
           A plus sign means <strong>at least</strong> that many records were found. Missing years or
-          lower numbers do not prove that no other care occurred. I will add details when they come
-          back to me and I can place them within at least a general period; approximate dates will
-          be labelled as such.
+          lower numbers do not prove that no other care occurred. Older fractures, unrelated
+          injuries, routine visits, and private details are not rendered here unless they become
+          useful context for understanding me now.
         </p>
       </div>
     </header>

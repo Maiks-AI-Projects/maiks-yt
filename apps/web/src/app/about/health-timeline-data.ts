@@ -10,7 +10,9 @@ export type HealthTimelineEntry = {
   year: number;
 };
 
-export const healthTimeline: readonly HealthTimelineEntry[] = [
+// Retained for provenance only. These pre-tumor or unrelated injury records are not rendered on
+// the public health page because they do not help explain Michael's current practical context.
+export const sourceOnlyUnrenderedHealthHistory: readonly HealthTimelineEntry[] = [
   {
     year: 2014,
     title: "Broken right hand",
@@ -20,6 +22,18 @@ export const healthTimeline: readonly HealthTimelineEntry[] = [
       { value: "1", label: "confirmed fracture" }
     ]
   },
+  {
+    year: 2018,
+    title: "Unrelated head-injury assessment",
+    summary: "A head injury led to an emergency assessment. Imaging found no bleeding, and I returned home without being admitted.",
+    metrics: [
+      { value: "1", label: "CT scan" },
+      { value: "1", label: "emergency assessment" }
+    ]
+  }
+] as const;
+
+export const healthTimeline: readonly HealthTimelineEntry[] = [
   {
     year: 2017,
     title: "The tumour and first operation",
@@ -32,13 +46,9 @@ export const healthTimeline: readonly HealthTimelineEntry[] = [
   },
   {
     year: 2018,
-    title: "Monitoring and a head injury",
-    summary: "A head injury led to an emergency assessment. Imaging found no bleeding, and I returned home without being admitted.",
-    metrics: [
-      { value: "2", label: "brain MRI scans" },
-      { value: "1", label: "CT scan" },
-      { value: "1", label: "emergency assessment" }
-    ]
+    title: "Continued monitoring",
+    summary: "The available records show continued brain MRI monitoring during the year after the first operation.",
+    metrics: [{ value: "2", label: "brain MRI scans" }]
   },
   {
     year: 2019,
