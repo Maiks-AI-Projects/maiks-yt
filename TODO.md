@@ -12,6 +12,16 @@ This is the working checklist. We should work down it in order unless a new idea
 - [ ] Deploy the reviewed tranche in a separately authorized production window.
 - [ ] Perform real signed-in, installed-PWA, provider/routing, and rendered `/admin/updates` verification after deployment. Desktop/GUI control remains forbidden until Michael explicitly lifts the stop order.
 
+## Production Correctness Tranche - 2026-08-28
+
+- [x] Scope Session administration list, selected revoke, and revoke-others mutations to the authenticated Better Auth account while preserving same-account recovery.
+- [x] Make revoked and already-expired URL access tokens terminal for rotation without changing long-lived no-expiry tokens or the Control token-plus-session gate.
+- [x] Preserve every additional Schedule game link when the single visible Game focus is changed or cleared, with deterministic ordering and relationship preservation.
+- [x] Make Project publication use one shared public-status predicate and enforce the invariant atomically in the repository write path.
+- [x] Complete independent GPT-5.5 reviews and `pnpm check:review` for all four corrections.
+- [ ] Deploy this correctness tranche in a separately authorized production window.
+- [ ] Verify same-account session recovery, terminal token rotation, multi-link Schedule editing, and Project publish/status concurrency against the live production database after deployment.
+
 ## 0. Organize the Idea Base
 
 - [x] Split `ideas/README.md` into clearer sections.

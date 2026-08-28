@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-28 production correctness and recovery boundaries
+
+- Session administration now lists and revokes only sessions belonging to the authenticated Better Auth account. Selected revoke and revoke-others fail closed across account boundaries, preserve the current same-account session, and keep active-grant authorization unchanged.
+- Revoked and already-expired URL access tokens are terminal for rotation. Rejection paths return no raw token or launch material, while active expiring and long-lived no-expiry tokens still rotate and the Control token-plus-session gate remains unchanged.
+- The Schedule editor now preserves every additional existing game link when its single Game focus is changed or cleared. It submits a deduplicated deterministic replacement list, keeps the selected link first, and preserves a promoted link's existing relationship.
+- Project publication now uses one shared public-status predicate across Domain, API, and Web. Publish-only updates predicate on the stored status, status changes atomically clear `is_public` when ineligible, and the editor no longer labels mothballed/cancelled or incomplete drafts as publicly visible.
+- Independent GPT-5.5 reviews report zero standards and zero specification findings after correcting an ordering edge and a concurrent Project publish/status race. `pnpm check:review` passes with 156 Domain tests, 627 API tests, 100 Web tests plus the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- No deployment, server state, schema, migration, GUI, browser, screenshot, signed-in owner workflow, or live MariaDB concurrency verification was performed. Deployment and real verification remain separate gates.
+
 ## 2026-08-28 production editor and browser-contract tranche
 
 - Michael's approved `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png` is now the implemented source-level direction for `/admin/updates`. The production editor uses the dense master/detail inventory and editor, compact workflow and pin controls, responsive stacking, and the existing owner Admin shell while preserving draft create/edit, saved non-dirty preview, exact revision publishing, unpublish-before-edit, interaction locks, and before-unload protection.

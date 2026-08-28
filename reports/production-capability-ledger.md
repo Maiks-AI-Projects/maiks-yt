@@ -35,6 +35,20 @@ Shared gate: `pnpm check:review` passes with 155 domain tests, 609 API tests,
 Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
 No GUI, browser, screenshot, deployment, server, or live verification was run.
 
+## 2026-08-28 Correctness And Recovery Tranche
+
+| Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Account-scoped session recovery | done | done | done | done | not-started | not-started | List, selected revoke, and revoke-others are bound to the authenticated Better Auth account; senior review reports Standards 0 / Specification 0. Verify with two live accounts after deployment. |
+| Terminal URL-token rotation | done | done | done | done | not-started | not-started | Revoked and expired tokens cannot rotate or return raw launch material; active expiring and no-expiry tokens remain supported; senior review reports Standards 0 / Specification 0. |
+| Schedule game-link preservation | done | done | done | done | not-started | not-started | The single Game focus preserves additional links, normalizes deterministic order, and preserves promoted relationships; senior re-review reports Standards 0 / Specification 0. |
+| Truthful Project publication | done | done | done | done | not-started | not-started | One public-status predicate drives Domain/API/Web, and repository writes atomically preserve `is_public => eligible(status)`; senior re-review reports Standards 0 / Specification 0. Live two-connection MariaDB proof remains open. |
+
+Shared gate: `pnpm check:review` passes with 156 Domain tests, 627 API tests,
+100 Web tests, the production Web build, Overlay and Control typechecks,
+16 Local Agent tests, architecture rules, and diff checks. No deployment, GUI,
+browser, server-state, or live database verification was performed.
+
 ## Capabilities
 
 | Capability | Design | Approval | Implementation | Integration | Deployment | Verification | Evidence | Next action |

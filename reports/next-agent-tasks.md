@@ -1,5 +1,12 @@
 # Next Agent Tasks
 
+## Production Correctness Tranche: Deploy And Verify Separately
+
+- Session recovery is account-scoped, revoked/expired URL tokens are terminal for rotation, Schedule edits preserve additional game links, and Project publication is atomically consistent with the public read model. All four slices are code-complete and independently reviewed with zero standards and zero specification findings.
+- `pnpm check:review` passes with 156 Domain, 627 API, 100 Web, and 16 Local Agent tests plus the production Web build and required type, architecture, and diff checks.
+- Deploy only in a deliberate verification window. Then use two real accounts to prove session isolation, verify revoked/expired rotation returns no token material, edit a Schedule entry with multiple game links, and exercise Project publish versus status-change ordering against MariaDB.
+- Desktop, browser, screenshot, Computer Use, Wayland, pointer, keyboard, window, and GUI automation remain forbidden until Michael explicitly lifts the stop order. These source and test proofs do not replace live workflow verification.
+
 ## Reviewed Production Tranche: Deploy And Verify Separately
 
 - `/admin/updates`, Account browser-contract minimization, private Chat/Moderation status projections, and Event Routing operator truthfulness are code-complete and independently reviewed with zero standards and zero specification findings. `pnpm check:review` passes with 155 domain, 609 API, 87 Web, and 16 Local Agent tests plus the production Web build and required type/architecture/diff checks.
