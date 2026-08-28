@@ -200,22 +200,38 @@ describe("Twitch EventSub subscription routes", () => {
       broadcasterLogin: "maiksmc",
       defaults: [
         {
+          type: "stream.online",
           state: "missing"
         }
-      ]
+      ],
+      subscriptionCount: 0,
+      subscriptionState: "loaded"
     });
     expect(createResponse.statusCode).toBe(200);
     expect(createResponse.json()).toMatchObject({
       ok: true,
       results: [
         {
+          type: "stream.online",
           state: "created"
         }
-      ]
+      ],
+      subscriptionState: "loaded"
     });
     expect(providerService.ensureCalls).toBe(1);
     expect(providerService.listBroadcasterLogins).toEqual(["maiksplays"]);
     expect(providerService.ensureBroadcasterLogins).toEqual(["maiksplays"]);
+    expect(listResponse.body).not.toContain("617410645");
+    expect(listResponse.body).not.toContain("api-dev.maiks.yt/provider-webhooks/twitch/eventsub");
+    expect(listResponse.body).not.toContain("callbackUrl");
+    expect(listResponse.body).not.toContain("broadcasterUserId");
+    expect(listResponse.body).not.toContain("condition");
+    expect(listResponse.body).not.toContain("version");
+    expect(createResponse.body).not.toContain("617410645");
+    expect(createResponse.body).not.toContain("stream-online");
+    expect(createResponse.body).not.toContain("webhook_callback_verification_pending");
+    expect(createResponse.body).not.toContain("condition");
+    expect(createResponse.body).not.toContain("version");
   });
 
   it("rejects malformed broadcaster selection without calling the service", async () => {

@@ -129,14 +129,8 @@ describe("YouTubeActivitiesPollControlService", () => {
 
     await expect(service.pollRecent({ authUserId: "auth-owner" })).resolves.toMatchObject({
       ok: true,
-      channelId: "UC123",
       fetched: 1,
-      inserted: 1,
-      events: [{
-        catalogKnown: true,
-        inserted: true,
-        providerEventName: "upload"
-      }]
+      inserted: 1
     });
     expect(writer.writes).toEqual(["youtube-activity:UC123:activity-1"]);
   });
@@ -153,10 +147,7 @@ describe("YouTubeActivitiesPollControlService", () => {
     await expect(service.pollRecent({ authUserId: "auth-owner" })).resolves.toMatchObject({
       ok: true,
       fetched: 1,
-      inserted: 0,
-      events: [{
-        inserted: false
-      }]
+      inserted: 0
     });
   });
 
@@ -225,10 +216,14 @@ describe("YouTube activities poll route", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       ok: true,
-      channelId: "UC123",
       fetched: 1,
       inserted: 1
     });
+    expect(response.body).not.toContain("UC123");
+    expect(response.body).not.toContain("activity-1");
+    expect(response.body).not.toContain("youtube-activity:UC123:activity-1");
+    expect(response.body).not.toContain("sourceEventId");
+    expect(response.body).not.toContain("providerMessageId");
   });
 
   it("returns safe errors without leaking thrown values", async () => {

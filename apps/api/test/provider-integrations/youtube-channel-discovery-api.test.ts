@@ -23,17 +23,17 @@ const savedChannel: YouTubePersistedChannel = {
   updatedAt: "2026-07-04T12:00:00.000Z"
 };
 
+const browserChannel = {
+  channelRef: "youtube-channel:v1:opaque-test-ref",
+  selectedForLiveChat: false,
+  title: "Maiks Minecraft"
+};
+
 class FakeYouTubeChannelDiscoveryService {
   public result: YouTubeChannelDiscoveryServiceResult = {
     ok: true,
-    channels: [{
-      id: "youtube-channel-1",
-      title: "Maiks Minecraft",
-      customUrl: "@maiksmc",
-      thumbnailUrl: null,
-      publishedAt: null
-    }],
-    discoveredAt: "2026-07-04T12:00:00.000Z"
+    channels: [browserChannel],
+    selectedChannelRef: null
   };
 
   public async discover(): Promise<YouTubeChannelDiscoveryServiceResult> {
@@ -119,15 +119,12 @@ describe("YouTube channel discovery routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       ok: true,
-      channels: [{
-        id: "youtube-channel-1",
-        title: "Maiks Minecraft",
-        customUrl: "@maiksmc",
-        thumbnailUrl: null,
-        publishedAt: null
-      }],
-      discoveredAt: "2026-07-04T12:00:00.000Z"
+      channels: [browserChannel],
+      selectedChannelRef: null
     });
+    expect(response.body).not.toContain("youtube-channel-1");
+    expect(response.body).not.toContain("@maiksmc");
+    expect(response.body).not.toContain("publishedAt");
     expect(response.body).not.toContain("refresh-token");
     expect(response.body).not.toContain("access-token");
   });
@@ -195,8 +192,8 @@ describe("YouTube channel discovery routes", () => {
     const { server, service } = createServer();
     service.result = {
       ok: true,
-      channels: [savedChannel],
-      selectedChannelId: null
+      channels: [browserChannel],
+      selectedChannelRef: null
     };
 
     const response = await server.inject({
@@ -207,17 +204,20 @@ describe("YouTube channel discovery routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       ok: true,
-      channels: [savedChannel],
-      selectedChannelId: null
+      channels: [browserChannel],
+      selectedChannelRef: null
     });
+    expect(response.body).not.toContain("youtube-channel-1");
+    expect(response.body).not.toContain("discoveredAt");
+    expect(response.body).not.toContain("lastSeenAt");
   });
 
   it("persists discovered channels through the discover-and-store endpoint", async () => {
     const { server, service } = createServer();
     service.result = {
       ok: true,
-      channels: [savedChannel],
-      selectedChannelId: null
+      channels: [browserChannel],
+      selectedChannelRef: null
     };
 
     const response = await server.inject({
@@ -228,8 +228,8 @@ describe("YouTube channel discovery routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       ok: true,
-      channels: [savedChannel],
-      selectedChannelId: null
+      channels: [browserChannel],
+      selectedChannelRef: null
     });
   });
 
@@ -242,47 +242,54 @@ describe("YouTube channel discovery routes", () => {
     const { server, service } = createServer();
     service.result = {
       ok: true,
-      channels: [selectedChannel],
-      selectedChannelId: selectedChannel.id
+      channels: [{
+        ...browserChannel,
+        selectedForLiveChat: true
+      }],
+      selectedChannelRef: browserChannel.channelRef
     };
 
     const response = await server.inject({
       method: "PUT",
       url: "/admin/provider-integrations/youtube/channel-selection",
       payload: {
-        channelId: selectedChannel.id
+        channelRef: browserChannel.channelRef
       }
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       ok: true,
-      channels: [selectedChannel],
-      selectedChannelId: selectedChannel.id
+      channels: [{
+        ...browserChannel,
+        selectedForLiveChat: true
+      }],
+      selectedChannelRef: browserChannel.channelRef
     });
+    expect(response.body).not.toContain(selectedChannel.id);
   });
 
   it("clears a selected live-chat channel", async () => {
     const { server, service } = createServer();
     service.result = {
       ok: true,
-      channels: [savedChannel],
-      selectedChannelId: null
+      channels: [browserChannel],
+      selectedChannelRef: null
     };
 
     const response = await server.inject({
       method: "PUT",
       url: "/admin/provider-integrations/youtube/channel-selection",
       payload: {
-        channelId: null
+        channelRef: null
       }
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       ok: true,
-      channels: [savedChannel],
-      selectedChannelId: null
+      channels: [browserChannel],
+      selectedChannelRef: null
     });
   });
 
@@ -292,7 +299,7 @@ describe("YouTube channel discovery routes", () => {
       method: "PUT",
       url: "/admin/provider-integrations/youtube/channel-selection",
       payload: {
-        channelId: ""
+        channelRef: ""
       }
     });
 
@@ -330,13 +337,11 @@ describe("YouTubeChannelDiscoveryService", () => {
     await expect(service.discover({ authUserId: "auth-owner" })).resolves.toEqual({
       ok: true,
       channels: [{
-        id: "youtube-channel-1",
+        channelRef: null,
+        selectedForLiveChat: false,
         title: "Maiks Minecraft",
-        customUrl: null,
-        thumbnailUrl: null,
-        publishedAt: null
       }],
-      discoveredAt: "2026-07-04T12:00:00.000Z"
+      selectedChannelRef: null
     });
   });
 
@@ -398,11 +403,19 @@ describe("YouTubeChannelDiscoveryService", () => {
       })
     });
 
-    await expect(service.discoverAndStore({ authUserId: "auth-owner" })).resolves.toEqual({
+    const result = await service.discoverAndStore({ authUserId: "auth-owner" });
+    expect(result).toMatchObject({
       ok: true,
-      channels: storedChannels,
-      selectedChannelId: null
+      channels: [{
+        channelRef: expect.stringMatching(/^youtube-channel:v1:/),
+        selectedForLiveChat: false,
+        title: "Maiks Minecraft"
+      }],
+      selectedChannelRef: null
     });
+    expect(JSON.stringify(result)).not.toContain("youtube-channel-1");
+    expect(JSON.stringify(result)).not.toContain("@maiksmc");
+    expect(JSON.stringify(result)).not.toContain("lastSeenAt");
   });
 
   it("selects and clears the persisted live-chat channel", async () => {
@@ -418,13 +431,21 @@ describe("YouTubeChannelDiscoveryService", () => {
       now: () => new Date("2026-07-04T12:05:00.000Z")
     });
 
+    const listResult = await service.listSelection({ authUserId: "auth-owner" });
+    const channelRef = listResult.ok ? listResult.channels[0]?.channelRef : null;
+
+    expect(channelRef).toMatch(/^youtube-channel:v1:/);
     await expect(service.selectLiveChatChannel({
       authUserId: "auth-owner",
-      channelId: selectedChannel.id
-    })).resolves.toEqual({
+      channelRef
+    })).resolves.toMatchObject({
       ok: true,
-      channels: [selectedChannel],
-      selectedChannelId: selectedChannel.id
+      channels: [{
+        channelRef,
+        selectedForLiveChat: true,
+        title: "Maiks Minecraft"
+      }],
+      selectedChannelRef: channelRef
     });
   });
 
@@ -435,7 +456,7 @@ describe("YouTubeChannelDiscoveryService", () => {
 
     await expect(service.selectLiveChatChannel({
       authUserId: "auth-owner",
-      channelId: "unknown-channel"
+      channelRef: "youtube-channel:v1:unknown"
     })).resolves.toEqual({
       ok: false,
       reason: "youtube_channel_not_found"

@@ -1,5 +1,6 @@
 import type { TwitchChatIntakeStatus } from "@maiks-yt/integrations";
 
+import { projectTwitchChatControlStatus } from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   TwitchChatIntakeControlActor,
@@ -53,9 +54,7 @@ export class TwitchChatIntakeControlService {
     }
 
     return {
-      ok: true,
-      readOnly: true,
-      status: readStatus()
+      ...projectTwitchChatControlStatus(readStatus())
     };
   }
 }

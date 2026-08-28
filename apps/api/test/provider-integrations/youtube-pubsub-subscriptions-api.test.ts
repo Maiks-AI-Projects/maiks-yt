@@ -85,7 +85,6 @@ describe("YouTubePubSubSubscriptionControlService", () => {
 
     await expect(service.getStatus({ authUserId: "auth-owner" })).resolves.toMatchObject({
       ok: true,
-      channelId: "UC123",
       readOnly: true,
       state: "ready"
     });
@@ -193,7 +192,6 @@ describe("YouTube PubSub subscription routes", () => {
     expect(statusResponse.statusCode).toBe(200);
     expect(statusResponse.json()).toMatchObject({
       ok: true,
-      channelId: "UC123",
       state: "ready"
     });
     expect(subscribeResponse.statusCode).toBe(200);
@@ -207,6 +205,14 @@ describe("YouTube PubSub subscription routes", () => {
       mode: "unsubscribe"
     });
     expect(providerService.requests).toEqual(["subscribe", "unsubscribe"]);
+    expect(statusResponse.body).not.toContain("UC123");
+    expect(statusResponse.body).not.toContain("api-dev.maiks.yt");
+    expect(statusResponse.body).not.toContain("pubsubhubbub");
+    expect(statusResponse.body).not.toContain("videos.xml");
+    expect(subscribeResponse.body).not.toContain("UC123");
+    expect(subscribeResponse.body).not.toContain("api-dev.maiks.yt");
+    expect(subscribeResponse.body).not.toContain("pubsubhubbub");
+    expect(subscribeResponse.body).not.toContain("videos.xml");
   });
 
   it("returns safe errors without leaking thrown values", async () => {

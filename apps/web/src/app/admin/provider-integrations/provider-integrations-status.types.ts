@@ -62,72 +62,21 @@ export type ProviderIntegrationsStatusResponse =
     reason: ProviderIntegrationStatusFailureReason;
   };
 
-export type TwitchChatProjectedMessage = {
-  id: string;
-  authorName: string;
-  channelName: string;
-  createdAt: string;
-  message: string;
-  source: "twitch";
-  visibleOnOverlayByDefault: false;
-};
+export type ChatControlState = "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+export type ChatControlGuidance = "configuration_needed" | "ready_to_start" | "running" | "waiting_for_live_chat";
 
-export type DiscordChatProjectedMessage = {
-  id: string;
-  authorName: string;
-  channelName: string;
-  createdAt: string;
-  message: string;
-  source: "discord";
-  visibleOnOverlayByDefault: false;
-};
-
-export type TwitchChatIntakeStatus = {
-  channelName: string | null;
-  channelNames: readonly string[];
+export type ChatControlStatus = {
+  state: ChatControlState;
   connectedAt: string | null;
-  lastError: string | null;
-  lastMessageAt: string | null;
-  recentMessages: readonly TwitchChatProjectedMessage[];
-  state: "stopped" | "connecting" | "connected" | "unconfigured";
-};
-
-export type DiscordChatIntakeStatus = {
-  channelIds: readonly string[];
-  connectedAt: string | null;
-  disconnectsInWindow: number;
-  guildId: string | null;
-  lastError: string | null;
-  lastDisconnectAt: string | null;
-  lastMessageAt: string | null;
-  nextReconnectAt: string | null;
-  recentMessages: readonly DiscordChatProjectedMessage[];
-  reconnectSuppressed: boolean;
-  state: "stopped" | "connecting" | "connected" | "unconfigured";
-};
-
-export type YouTubeLiveChatIntakeStatus = {
-  activeLiveChatId: string | null;
-  channelId: string | null;
-  channelName: string | null;
-  connectedAt: string | null;
-  lastError: string | null;
-  lastMessageAt: string | null;
-  nextPollAt: string | null;
-  recentMessages: readonly {
-    id: string;
-    authorName: string;
-    createdAt: string;
-    message: string;
-  }[];
-  state: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+  lastActivityAt: string | null;
+  guidance: ChatControlGuidance;
 };
 
 export type TwitchChatIntakeResponse =
   | {
     ok: true;
     readOnly: true;
-    status: TwitchChatIntakeStatus;
+    status: ChatControlStatus;
   }
   | {
     ok: false;
@@ -138,7 +87,7 @@ export type DiscordChatIntakeResponse =
   | {
     ok: true;
     readOnly: true;
-    status: DiscordChatIntakeStatus;
+    status: ChatControlStatus;
   }
   | {
     ok: false;
@@ -149,7 +98,7 @@ export type YouTubeLiveChatIntakeResponse =
   | {
     ok: true;
     readOnly: true;
-    status: YouTubeLiveChatIntakeStatus;
+    status: ChatControlStatus;
   }
   | {
     ok: false;
@@ -157,23 +106,26 @@ export type YouTubeLiveChatIntakeResponse =
   };
 
 export type YouTubeCredentialSummary = {
-  provider: "youtube";
-  purpose: "youtube_live_chat";
-  status: "active" | "revoked" | "error";
-  displayName: string | null;
-  scopes: readonly string[];
-  lastVerifiedAt: string | null;
-  lastError: string | null;
-  updatedAt: string | null;
+  state: "connected" | "disconnected" | "needs_attention";
 };
+
+export type YouTubeCredentialResponse =
+  | {
+    ok: true;
+    credential: YouTubeCredentialSummary | null;
+    action: "connect" | "reconnect" | "none";
+  }
+  | {
+    ok: false;
+    reason: string;
+  };
 
 export type YouTubeConsentResponse =
   | {
     ok: true;
     credential: YouTubeCredentialSummary | null;
-    redirectUri: string;
-    requiredScope: string;
-    consentUrl?: string;
+    action: "connect" | "reconnect" | "none";
+    connectPath: "/admin/provider-integrations/youtube/connect";
   }
   | {
     ok: false;
@@ -181,44 +133,24 @@ export type YouTubeConsentResponse =
   };
 
 export type YouTubeSavedChannel = {
-  id: string;
+  channelRef: string;
   title: string;
-  customUrl: string | null;
-  thumbnailUrl: string | null;
   selectedForLiveChat: boolean;
-  discoveredAt: string;
-  lastSeenAt: string;
-  selectedAt: string | null;
-  updatedAt: string | null;
 };
 
 export type YouTubeChannelSelectionResponse =
   | {
     ok: true;
     channels: readonly YouTubeSavedChannel[];
-    selectedChannelId: string | null;
+    selectedChannelRef: string | null;
   }
   | {
     ok: false;
     reason: string;
   };
 
-export type TwitchEventSubSubscriptionSummary = {
-  callbackMatches: boolean;
-  condition: Record<string, string>;
-  createdAt: string | null;
-  id: string;
-  status: string;
-  type: string;
-  version: string;
-};
-
 export type TwitchEventSubDefaultSubscriptionStatus = {
-  desired: {
-    type: string;
-    version: string;
-  };
-  existing: TwitchEventSubSubscriptionSummary | null;
+  type: string;
   state: "enabled" | "pending" | "missing" | "problem";
 };
 
@@ -227,11 +159,10 @@ export type TwitchEventSubSubscriptionListResponse =
     ok: true;
     broadcasterLogin: string;
     broadcasterLogins: readonly string[];
-    broadcasterUserId: string;
-    callbackUrl: string;
     defaults: readonly TwitchEventSubDefaultSubscriptionStatus[];
     readOnly: true;
-    subscriptions: readonly TwitchEventSubSubscriptionSummary[];
+    subscriptionCount: number;
+    subscriptionState: "loaded";
   }
   | {
     ok: false;
@@ -243,15 +174,11 @@ export type TwitchEventSubEnsureDefaultsResponse =
     ok: true;
     broadcasterLogin: string;
     broadcasterLogins: readonly string[];
-    broadcasterUserId: string;
-    callbackUrl: string;
     results: readonly {
-      desired: {
-        type: string;
-        version: string;
-      };
+      type: string;
       state: "already_enabled" | "already_pending" | "created" | "create_failed";
     }[];
+    subscriptionState: "loaded";
   }
   | {
     ok: false;
@@ -261,12 +188,8 @@ export type TwitchEventSubEnsureDefaultsResponse =
 export type YouTubePubSubSubscriptionResponse =
   | {
     ok: true;
-    callbackUrl: string;
-    channelId: string;
-    hubUrl: string;
     readOnly: true;
     state: "ready";
-    topicUrl: string;
   }
   | {
     ok: false;
@@ -276,13 +199,9 @@ export type YouTubePubSubSubscriptionResponse =
 export type YouTubePubSubSubscriptionRequestResponse =
   | {
     ok: true;
-    callbackUrl: string;
-    channelId: string;
-    hubUrl: string;
     mode: "subscribe" | "unsubscribe";
     readOnly: true;
     state: "requested";
-    topicUrl: string;
   }
   | {
     ok: false;
@@ -292,14 +211,6 @@ export type YouTubePubSubSubscriptionRequestResponse =
 export type YouTubeActivitiesPollResponse =
   | {
     ok: true;
-    channelId: string;
-    events: readonly {
-      catalogKnown?: boolean;
-      inserted: boolean;
-      providerEventName: string;
-      providerMessageId: string | null;
-      sourceEventId: string;
-    }[];
     fetched: number;
     inserted: number;
     polledAt: string;

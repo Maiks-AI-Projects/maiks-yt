@@ -4,7 +4,20 @@ import type {
   ProviderIntegrationStatus,
   YouTubeSavedChannel
 } from "./provider-integrations-status.types";
-import { parseProviderIntegrationsStatusResponse } from "./provider-integrations-status.service";
+import {
+  parseDiscordChatIntakeResponse,
+  parseProviderIntegrationsStatusResponse,
+  parseTwitchChatIntakeResponse,
+  parseTwitchEventSubEnsureDefaultsResponse,
+  parseTwitchEventSubSubscriptionListResponse,
+  parseYouTubeActivitiesPollResponse,
+  parseYouTubeChannelSelectionResponse,
+  parseYouTubeConsentResponse,
+  parseYouTubeCredentialResponse,
+  parseYouTubeLiveChatIntakeResponse,
+  parseYouTubePubSubSubscriptionRequestResponse,
+  parseYouTubePubSubSubscriptionResponse
+} from "./provider-integrations-status.service";
 import {
   getProviderWorkspaceRuntimeView,
   getProviderIntegrationInitialLoadPaths,
@@ -42,15 +55,9 @@ const providerWithRuntime = {
 } as ProviderIntegrationStatus & Record<string, unknown>;
 
 const youtubeChannels: readonly YouTubeSavedChannel[] = [{
-  id: "UC1234567890123456789012",
+  channelRef: "youtube-channel:v1:safeOpaqueReference",
   title: "MaiksMC",
-  customUrl: null,
-  thumbnailUrl: null,
-  selectedForLiveChat: true,
-  discoveredAt: "2026-08-27T08:00:00.000Z",
-  lastSeenAt: "2026-08-27T08:00:00.000Z",
-  selectedAt: "2026-08-27T08:00:00.000Z",
-  updatedAt: null
+  selectedForLiveChat: true
 }];
 
 describe("provider integrations workspace projection", () => {
@@ -114,8 +121,8 @@ describe("provider integrations workspace projection", () => {
     const options = getYouTubeChannelOptionViews(youtubeChannels);
 
     expect(options).toEqual([{ token: "channel-1", title: "MaiksMC" }]);
-    expect(getSelectedYouTubeChannelToken(youtubeChannels, youtubeChannels[0]?.id ?? null)).toBe("channel-1");
-    expect(resolveYouTubeChannelId(youtubeChannels, "channel-1")).toBe(youtubeChannels[0]?.id);
+    expect(getSelectedYouTubeChannelToken(youtubeChannels, youtubeChannels[0]?.channelRef ?? null)).toBe("channel-1");
+    expect(resolveYouTubeChannelId(youtubeChannels, "channel-1")).toBe(youtubeChannels[0]?.channelRef);
     expect(resolveYouTubeChannelId(youtubeChannels, "invalid-token")).toBeUndefined();
     expect(JSON.stringify(options)).not.toContain("UC1234567890123456789012");
   });
@@ -435,5 +442,293 @@ describe("provider integrations status parser", () => {
     }]
   ])("fails closed for %s", (_case, payload) => {
     expect(parseProviderIntegrationsStatusResponse(payload)).toBeNull();
+  });
+});
+
+describe("provider integrations supporting response parsers", () => {
+  it.each([
+    ["Twitch", parseTwitchChatIntakeResponse],
+    ["Discord", parseDiscordChatIntakeResponse],
+    ["YouTube", parseYouTubeLiveChatIntakeResponse]
+  ])("rejects %s chat-control diagnostics", (_provider, parse) => {
+    expect(parse({
+      ok: true,
+      readOnly: true,
+      status: {
+        connectedAt: "2026-08-27T08:00:00.000Z",
+        disconnectsInWindow: 2,
+        guidance: "running",
+        lastActivityAt: "2026-08-27T08:01:00.000Z",
+        lastError: "raw provider error",
+        recentMessages: [{ id: "provider-message-id", message: "private message body" }],
+        reconnectSuppressed: true,
+        state: "connected"
+      }
+    })).toBeNull();
+  });
+
+  it.each([
+    ["Twitch stopped as running", parseTwitchChatIntakeResponse, "stopped", "running"],
+    ["Discord connecting as ready", parseDiscordChatIntakeResponse, "connecting", "ready_to_start"],
+    ["YouTube waiting as running", parseYouTubeLiveChatIntakeResponse, "waiting", "running"],
+    ["Twitch unconfigured as waiting", parseTwitchChatIntakeResponse, "unconfigured", "waiting_for_live_chat"],
+    ["Discord connected as configuration needed", parseDiscordChatIntakeResponse, "connected", "configuration_needed"],
+    ["YouTube stopped as waiting", parseYouTubeLiveChatIntakeResponse, "stopped", "waiting_for_live_chat"]
+  ])("rejects contradictory chat-control success %s", (_case, parse, state, guidance) => {
+    expect(parse({
+      ok: true,
+      readOnly: true,
+      status: {
+        connectedAt: null,
+        guidance,
+        lastActivityAt: null,
+        state
+      }
+    })).toBeNull();
+  });
+
+  it.each([
+    ["Twitch stopped", parseTwitchChatIntakeResponse, "stopped", "ready_to_start"],
+    ["Discord connecting", parseDiscordChatIntakeResponse, "connecting", "running"],
+    ["YouTube waiting", parseYouTubeLiveChatIntakeResponse, "waiting", "waiting_for_live_chat"],
+    ["Twitch connected", parseTwitchChatIntakeResponse, "connected", "running"],
+    ["Discord unconfigured", parseDiscordChatIntakeResponse, "unconfigured", "configuration_needed"]
+  ])("accepts deterministic chat-control success %s", (_case, parse, state, guidance) => {
+    expect(parse({
+      ok: true,
+      readOnly: true,
+      status: {
+        connectedAt: null,
+        guidance,
+        lastActivityAt: null,
+        state
+      }
+    })).toMatchObject({
+      ok: true,
+      status: {
+        guidance,
+        state
+      }
+    });
+  });
+
+  it("accepts only the finite YouTube credential contract", () => {
+    expect(parseYouTubeCredentialResponse({
+      action: "none",
+      credential: { state: "connected" },
+      ok: true
+    })).toEqual({
+      action: "none",
+      credential: { state: "connected" },
+      ok: true
+    });
+    expect(parseYouTubeCredentialResponse({
+      action: "connect",
+      credential: null,
+      ok: true
+    })).toEqual({
+      action: "connect",
+      credential: null,
+      ok: true
+    });
+    expect(parseYouTubeCredentialResponse({
+      action: "reconnect",
+      credential: { state: "needs_attention" },
+      ok: true
+    })).toEqual({
+      action: "reconnect",
+      credential: { state: "needs_attention" },
+      ok: true
+    });
+    expect(parseYouTubeConsentResponse({
+      action: "connect",
+      connectPath: providerIntegrationRequestPaths.youtubeConsentConnect,
+      credential: null,
+      ok: true
+    })).toEqual({
+      action: "connect",
+      connectPath: providerIntegrationRequestPaths.youtubeConsentConnect,
+      credential: null,
+      ok: true
+    });
+    expect(parseYouTubeConsentResponse({
+      action: "none",
+      credential: {
+        lastError: "raw token failure",
+        scopes: ["https://www.googleapis.com/auth/youtube.readonly"],
+        state: "connected",
+        updatedAt: "2026-08-27T08:00:00.000Z"
+      },
+      ok: true,
+      redirectUri: "https://api.maiks.yt/admin/provider-integrations/youtube/callback",
+      requiredScope: "https://www.googleapis.com/auth/youtube.readonly"
+    })).toBeNull();
+    expect(parseYouTubeCredentialResponse({
+      action: "connect",
+      connectPath: providerIntegrationRequestPaths.youtubeConsentConnect,
+      credential: null,
+      ok: true
+    })).toBeNull();
+    expect(parseYouTubeConsentResponse({
+      action: "connect",
+      credential: null,
+      ok: true
+    })).toBeNull();
+    expect(parseYouTubeConsentResponse({
+      action: "connect",
+      consentUrl: "https://accounts.google.com/o/oauth2/v2/auth?client_id=raw-client&redirect_uri=https%3A%2F%2Fapi.maiks.yt%2Fadmin%2Fprovider-integrations%2Fyoutube%2Fcallback&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fyoutube.readonly",
+      credential: null,
+      ok: true
+    })).toBeNull();
+    expect(parseYouTubeConsentResponse({
+      action: "connect",
+      connectPath: "https://accounts.google.com/o/oauth2/v2/auth",
+      credential: null,
+      ok: true
+    })).toBeNull();
+  });
+
+  it.each([
+    ["credential null with none", parseYouTubeCredentialResponse, { action: "none", credential: null, ok: true }],
+    ["credential null with reconnect", parseYouTubeCredentialResponse, { action: "reconnect", credential: null, ok: true }],
+    ["active credential with connect", parseYouTubeCredentialResponse, { action: "connect", credential: { state: "connected" }, ok: true }],
+    ["active credential with reconnect", parseYouTubeCredentialResponse, { action: "reconnect", credential: { state: "connected" }, ok: true }],
+    ["needs-attention credential with none", parseYouTubeCredentialResponse, { action: "none", credential: { state: "needs_attention" }, ok: true }],
+    ["needs-attention credential with connect", parseYouTubeCredentialResponse, { action: "connect", credential: { state: "needs_attention" }, ok: true }],
+    ["disconnected credential with none", parseYouTubeCredentialResponse, { action: "none", credential: { state: "disconnected" }, ok: true }],
+    ["consent null with none", parseYouTubeConsentResponse, { action: "none", connectPath: providerIntegrationRequestPaths.youtubeConsentConnect, credential: null, ok: true }],
+    ["consent active with connect", parseYouTubeConsentResponse, { action: "connect", connectPath: providerIntegrationRequestPaths.youtubeConsentConnect, credential: { state: "connected" }, ok: true }],
+    ["consent needs-attention with none", parseYouTubeConsentResponse, { action: "none", connectPath: providerIntegrationRequestPaths.youtubeConsentConnect, credential: { state: "needs_attention" }, ok: true }]
+  ])("rejects impossible YouTube credential/action success %s", (_case, parse, payload) => {
+    expect(parse(payload)).toBeNull();
+  });
+
+  it.each([
+    ["Twitch", parseTwitchChatIntakeResponse, "discord_chat_forbidden"],
+    ["Twitch", parseTwitchChatIntakeResponse, "youtube_live_chat_forbidden"],
+    ["Discord", parseDiscordChatIntakeResponse, "twitch_chat_forbidden"],
+    ["Discord", parseDiscordChatIntakeResponse, "youtube_live_chat_forbidden"],
+    ["YouTube", parseYouTubeLiveChatIntakeResponse, "twitch_chat_forbidden"],
+    ["YouTube", parseYouTubeLiveChatIntakeResponse, "discord_chat_forbidden"]
+  ])("rejects %s chat-control cross-provider failure reason %s", (_provider, parse, reason) => {
+    expect(parse({ ok: false, reason })).toBeNull();
+  });
+
+  it("requires opaque YouTube channel references and rejects raw saved-channel fields", () => {
+    const valid = {
+      channels: [{
+        channelRef: "youtube-channel:v1:safeOpaqueReference",
+        selectedForLiveChat: true,
+        title: "MaiksMC"
+      }],
+      ok: true,
+      selectedChannelRef: "youtube-channel:v1:safeOpaqueReference"
+    };
+
+    expect(parseYouTubeChannelSelectionResponse(valid)).toEqual(valid);
+    expect(parseYouTubeChannelSelectionResponse({
+      channels: [{
+        customUrl: "@maiksmc",
+        discoveredAt: "2026-08-27T08:00:00.000Z",
+        id: "UC1234567890123456789012",
+        selectedForLiveChat: true,
+        title: "MaiksMC"
+      }],
+      ok: true,
+      selectedChannelId: "UC1234567890123456789012"
+    })).toBeNull();
+    expect(parseYouTubeChannelSelectionResponse({
+      ...valid,
+      selectedChannelRef: "youtube-channel:v1:unknown"
+    })).toBeNull();
+  });
+
+  it("rejects raw Twitch EventSub subscription diagnostics", () => {
+    const valid = {
+      broadcasterLogin: "maiksmc",
+      broadcasterLogins: ["maiksmc"],
+      defaults: [{ state: "missing", type: "stream.online" }],
+      ok: true,
+      readOnly: true,
+      subscriptionCount: 0,
+      subscriptionState: "loaded"
+    };
+
+    expect(parseTwitchEventSubSubscriptionListResponse(valid)).toEqual(valid);
+    expect(parseTwitchEventSubSubscriptionListResponse({
+      ...valid,
+      broadcasterUserId: "617410645",
+      callbackUrl: "https://api.maiks.yt/provider-webhooks/twitch/eventsub",
+      subscriptions: [{
+        condition: { broadcaster_user_id: "617410645" },
+        id: "subscription-id",
+        status: "webhook_callback_verification_pending",
+        version: "1"
+      }]
+    })).toBeNull();
+    expect(parseTwitchEventSubEnsureDefaultsResponse({
+      broadcasterLogin: "maiksmc",
+      broadcasterLogins: ["maiksmc"],
+      ok: true,
+      results: [{ state: "created", type: "stream.online" }],
+      subscriptionState: "loaded"
+    })).toMatchObject({ ok: true, subscriptionState: "loaded" });
+  });
+
+  it("rejects raw YouTube PubSub URLs and channel ids", () => {
+    expect(parseYouTubePubSubSubscriptionResponse({
+      ok: true,
+      readOnly: true,
+      state: "ready"
+    })).toEqual({
+      ok: true,
+      readOnly: true,
+      state: "ready"
+    });
+    expect(parseYouTubePubSubSubscriptionResponse({
+      callbackUrl: "https://api.maiks.yt/provider-webhooks/youtube/pubsub",
+      channelId: "UC123",
+      hubUrl: "https://pubsubhubbub.appspot.com/subscribe",
+      ok: true,
+      readOnly: true,
+      state: "ready",
+      topicUrl: "https://www.youtube.com/xml/feeds/videos.xml?channel_id=UC123"
+    })).toBeNull();
+    expect(parseYouTubePubSubSubscriptionRequestResponse({
+      mode: "subscribe",
+      ok: true,
+      readOnly: true,
+      state: "requested",
+      topicUrl: "https://www.youtube.com/xml/feeds/videos.xml?channel_id=UC123"
+    })).toBeNull();
+  });
+
+  it("rejects raw YouTube activity event identifiers and impossible counters", () => {
+    expect(parseYouTubeActivitiesPollResponse({
+      fetched: 2,
+      inserted: 1,
+      ok: true,
+      polledAt: "2026-08-27T08:00:00.000Z",
+      readOnly: true
+    })).toMatchObject({ fetched: 2, inserted: 1, ok: true });
+    expect(parseYouTubeActivitiesPollResponse({
+      channelId: "UC123",
+      events: [{
+        providerMessageId: "activity-1",
+        sourceEventId: "youtube-activity:UC123:activity-1"
+      }],
+      fetched: 1,
+      inserted: 1,
+      ok: true,
+      polledAt: "2026-08-27T08:00:00.000Z",
+      readOnly: true
+    })).toBeNull();
+    expect(parseYouTubeActivitiesPollResponse({
+      fetched: 1,
+      inserted: 2,
+      ok: true,
+      polledAt: "2026-08-27T08:00:00.000Z",
+      readOnly: true
+    })).toBeNull();
   });
 });

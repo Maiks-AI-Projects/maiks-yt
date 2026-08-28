@@ -46,6 +46,20 @@ class FakeYouTubeLiveChatRuntime implements YouTubeLiveChatIntakeRuntime {
       ...this.status,
       activeLiveChatId: "live-chat-1",
       connectedAt: "2026-07-04T14:00:00.000Z",
+      lastError: "raw youtube provider error",
+      lastMessageAt: "2026-07-04T14:00:01.000Z",
+      recentMessages: [{
+        authorChannelId: "youtube-author-channel-id",
+        authorKind: "human",
+        authorName: "Private YouTube User",
+        channelName: "MaiksMC",
+        createdAt: "2026-07-04T14:00:01.000Z",
+        id: "internal-youtube-message-id",
+        message: "private youtube message body",
+        providerMessageId: "provider-youtube-message-id",
+        source: "youtube",
+        visibleOnOverlayByDefault: false
+      }],
       state: "connected"
     };
     return this.getStatus();
@@ -72,7 +86,6 @@ describe("YouTubeLiveChatIntakeControlService", () => {
       ok: true,
       readOnly: true,
       status: {
-        channelName: "MaiksMC",
         state: "stopped"
       }
     });
@@ -170,6 +183,16 @@ describe("YouTube live chat intake control routes", () => {
         state: "connected"
       }
     });
+    expect(startResponse.body).not.toContain("UCG9tjGfhqaVpDpo8QDvPorA");
+    expect(startResponse.body).not.toContain("live-chat-1");
+    expect(startResponse.body).not.toContain("activeLiveChatId");
+    expect(startResponse.body).not.toContain("youtube-author-channel-id");
+    expect(startResponse.body).not.toContain("provider-youtube-message-id");
+    expect(startResponse.body).not.toContain("private youtube message body");
+    expect(startResponse.body).not.toContain("raw youtube provider error");
+    expect(startResponse.body).not.toContain("channelId");
+    expect(startResponse.body).not.toContain("lastError");
+    expect(startResponse.body).not.toContain("recentMessages");
     expect(secondStartResponse.statusCode).toBe(200);
     expect(secondStartResponse.json()).toMatchObject({
       ok: true,

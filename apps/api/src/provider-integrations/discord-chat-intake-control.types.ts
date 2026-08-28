@@ -1,4 +1,5 @@
 import type { DiscordChatIntakeStatus } from "@maiks-yt/integrations";
+import type { ProviderChatControlSuccessDto } from "./provider-integrations-browser-contract.rules.js";
 
 export type DiscordChatIntakeControlActor = {
   domainUserId: string;
@@ -6,11 +7,7 @@ export type DiscordChatIntakeControlActor = {
 };
 
 export type DiscordChatIntakeControlResult =
-  | {
-    ok: true;
-    readOnly: true;
-    status: DiscordChatIntakeStatus;
-  }
+  | ProviderChatControlSuccessDto
   | {
     ok: false;
     reason: "discord_chat_user_unlinked" | "discord_chat_forbidden";

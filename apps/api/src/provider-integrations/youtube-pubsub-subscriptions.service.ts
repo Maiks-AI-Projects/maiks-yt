@@ -1,5 +1,9 @@
 import { YouTubePubSubSubscriptionService } from "@maiks-yt/integrations";
 
+import {
+  projectYouTubePubSubRequest,
+  projectYouTubePubSubStatus
+} from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   YouTubePubSubSubscriptionActor,
@@ -20,27 +24,51 @@ export class YouTubePubSubSubscriptionControlService {
   ) {}
 
   public async getStatus(input: { authUserId: string }): Promise<YouTubePubSubSubscriptionControlResult> {
-    return await this.withSelectedChannel(input.authUserId, (channelId) => this.subscriptionService.getStatus({ channelId }));
+    const channel = await this.resolveSelectedChannel(input.authUserId);
+
+    if (!channel.ok) {
+      return channel;
+    }
+
+    const result = this.subscriptionService.getStatus({ channelId: channel.channelId });
+
+    return result.ok ? projectYouTubePubSubStatus(result) : result;
   }
 
   public async subscribe(input: { authUserId: string }): Promise<YouTubePubSubSubscriptionControlResult> {
-    return await this.withSelectedChannel(input.authUserId, (channelId) => this.subscriptionService.request({
-      channelId,
+    const channel = await this.resolveSelectedChannel(input.authUserId);
+
+    if (!channel.ok) {
+      return channel;
+    }
+
+    const result = await this.subscriptionService.request({
+      channelId: channel.channelId,
       mode: "subscribe"
-    }));
+    });
+
+    return result.ok ? projectYouTubePubSubRequest(result) : result;
   }
 
   public async unsubscribe(input: { authUserId: string }): Promise<YouTubePubSubSubscriptionControlResult> {
-    return await this.withSelectedChannel(input.authUserId, (channelId) => this.subscriptionService.request({
-      channelId,
+    const channel = await this.resolveSelectedChannel(input.authUserId);
+
+    if (!channel.ok) {
+      return channel;
+    }
+
+    const result = await this.subscriptionService.request({
+      channelId: channel.channelId,
       mode: "unsubscribe"
-    }));
+    });
+
+    return result.ok ? projectYouTubePubSubRequest(result) : result;
   }
 
-  private async withSelectedChannel(
-    authUserId: string,
-    run: (channelId: string | null) => YouTubePubSubSubscriptionControlResult | Promise<YouTubePubSubSubscriptionControlResult>
-  ): Promise<YouTubePubSubSubscriptionControlResult> {
+  private async resolveSelectedChannel(authUserId: string): Promise<
+    | { ok: true; channelId: string | null }
+    | Extract<YouTubePubSubSubscriptionControlResult, { ok: false }>
+  > {
     const actor = await this.repository.resolveActor(authUserId);
 
     if (!actor) {
@@ -59,6 +87,9 @@ export class YouTubePubSubSubscriptionControlService {
 
     const channel = await this.repository.getSelectedYouTubeChannel(actor.domainUserId);
 
-    return await run(channel?.id ?? null);
+    return {
+      channelId: channel?.id ?? null,
+      ok: true
+    };
   }
 }

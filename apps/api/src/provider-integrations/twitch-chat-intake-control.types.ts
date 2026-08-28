@@ -1,4 +1,5 @@
 import type { TwitchChatIntakeStatus } from "@maiks-yt/integrations";
+import type { ProviderChatControlSuccessDto } from "./provider-integrations-browser-contract.rules.js";
 
 export type TwitchChatIntakeControlActor = {
   domainUserId: string;
@@ -6,11 +7,7 @@ export type TwitchChatIntakeControlActor = {
 };
 
 export type TwitchChatIntakeControlResult =
-  | {
-    ok: true;
-    readOnly: true;
-    status: TwitchChatIntakeStatus;
-  }
+  | ProviderChatControlSuccessDto
   | {
     ok: false;
     reason: "twitch_chat_user_unlinked" | "twitch_chat_forbidden";

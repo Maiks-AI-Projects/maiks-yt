@@ -1,7 +1,7 @@
 import type {
-  TwitchEventSubEnsureDefaultsResult,
-  TwitchEventSubSubscriptionListResult
-} from "@maiks-yt/integrations";
+  TwitchEventSubEnsureBrowserResult,
+  TwitchEventSubListBrowserResult
+} from "./provider-integrations-browser-contract.rules.js";
 
 export type TwitchEventSubSubscriptionActor = {
   domainUserId: string;
@@ -9,8 +9,8 @@ export type TwitchEventSubSubscriptionActor = {
 };
 
 export type TwitchEventSubSubscriptionControlResult =
-  | TwitchEventSubSubscriptionListResult
-  | TwitchEventSubEnsureDefaultsResult
+  | TwitchEventSubListBrowserResult
+  | TwitchEventSubEnsureBrowserResult
   | {
     ok: false;
     reason: "twitch_eventsub_user_unlinked" | "twitch_eventsub_forbidden";

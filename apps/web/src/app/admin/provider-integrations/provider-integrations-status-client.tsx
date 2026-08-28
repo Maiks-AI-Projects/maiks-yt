@@ -7,8 +7,19 @@ import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-tok
 import {
   getFailureMessage,
   getLoadStateForFailure,
+  parseDiscordChatIntakeResponse,
   parseJson,
-  parseProviderIntegrationsStatusResponse
+  parseProviderIntegrationsStatusResponse,
+  parseTwitchChatIntakeResponse,
+  parseTwitchEventSubEnsureDefaultsResponse,
+  parseTwitchEventSubSubscriptionListResponse,
+  parseYouTubeActivitiesPollResponse,
+  parseYouTubeChannelSelectionResponse,
+  parseYouTubeConsentResponse,
+  parseYouTubeCredentialResponse,
+  parseYouTubeLiveChatIntakeResponse,
+  parseYouTubePubSubSubscriptionRequestResponse,
+  parseYouTubePubSubSubscriptionResponse
 } from "./provider-integrations-status.service";
 import ProviderIntegrationsWorkspace from "./provider-integrations-workspace";
 import {
@@ -19,35 +30,25 @@ import type {
   LoadState,
   ProviderIntegrationsStatusResponse,
   TwitchEventSubDefaultSubscriptionStatus,
-  TwitchEventSubEnsureDefaultsResponse,
-  TwitchEventSubSubscriptionListResponse,
   YouTubeActivitiesPollResponse,
-  YouTubeChannelSelectionResponse,
-  YouTubeConsentResponse,
   YouTubeCredentialSummary,
-  YouTubePubSubSubscriptionRequestResponse,
   YouTubePubSubSubscriptionResponse,
   YouTubeSavedChannel
 } from "./provider-integrations-status.types";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
-const youtubeLiveChatReadScope = "https://www.googleapis.com/auth/youtube.readonly";
 
 const ProviderIntegrationsStatusClient = (): React.ReactNode => {
   const [snapshot, setSnapshot] = useState<Extract<ProviderIntegrationsStatusResponse, { ok: true }> | null>(null);
   const [youtubeCredential, setYouTubeCredential] = useState<YouTubeCredentialSummary | null>(null);
   const [youtubeChannels, setYouTubeChannels] = useState<readonly YouTubeSavedChannel[]>([]);
-  const [youtubeSelectedChannelId, setYouTubeSelectedChannelId] = useState<string | null>(null);
+  const [youtubeSelectedChannelRef, setYouTubeSelectedChannelRef] = useState<string | null>(null);
   const [twitchEventSubDefaults, setTwitchEventSubDefaults] = useState<readonly TwitchEventSubDefaultSubscriptionStatus[]>([]);
   const [twitchEventSubBroadcasterLogin, setTwitchEventSubBroadcasterLogin] = useState<string | null>(null);
   const [twitchEventSubBroadcasterLogins, setTwitchEventSubBroadcasterLogins] = useState<readonly string[]>([]);
   const [twitchEventSubSubscriptionCount, setTwitchEventSubSubscriptionCount] = useState<number>(0);
-  const [twitchEventSubCallbackUrl, setTwitchEventSubCallbackUrl] = useState<string | null>(null);
+  const [twitchEventSubSubscriptionsLoaded, setTwitchEventSubSubscriptionsLoaded] = useState<boolean>(false);
   const [youtubePubSubSubscription, setYouTubePubSubSubscription] = useState<Extract<YouTubePubSubSubscriptionResponse, { ok: true }> | null>(null);
   const [youtubeActivitiesPoll, setYouTubeActivitiesPoll] = useState<Extract<YouTubeActivitiesPollResponse, { ok: true }> | null>(null);
-  const [youtubeRedirectUri, setYouTubeRedirectUri] = useState<string>(
-    `${apiBaseUrl}/admin/provider-integrations/youtube/callback`
-  );
-  const [youtubeRequiredScope, setYouTubeRequiredScope] = useState<string>(youtubeLiveChatReadScope);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading provider integration status...");
   const loadStatus = useCallback(async (): Promise<void> => {
@@ -83,15 +84,13 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubeConsentResponse>(response);
+      const payload = parseYouTubeCredentialResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setYouTubeCredential(payload.credential);
-        setYouTubeRedirectUri(payload.redirectUri);
-        setYouTubeRequiredScope(payload.requiredScope);
-        if (!payload.credential || payload.credential.status !== "active") {
+        if (!payload.credential || payload.credential.state !== "connected") {
           setYouTubeChannels([]);
-          setYouTubeSelectedChannelId(null);
+          setYouTubeSelectedChannelRef(null);
         }
         return;
       }
@@ -104,11 +103,11 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubeChannelSelectionResponse>(response);
+      const payload = parseYouTubeChannelSelectionResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setYouTubeChannels(payload.channels);
-        setYouTubeSelectedChannelId(payload.selectedChannelId);
+        setYouTubeSelectedChannelRef(payload.selectedChannelRef);
         return;
       }
     } catch {}
@@ -122,14 +121,14 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<TwitchEventSubSubscriptionListResponse>(response);
+      const payload = parseTwitchEventSubSubscriptionListResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setTwitchEventSubBroadcasterLogin(payload.broadcasterLogin);
         setTwitchEventSubBroadcasterLogins(payload.broadcasterLogins);
         setTwitchEventSubDefaults(payload.defaults);
-        setTwitchEventSubSubscriptionCount(payload.subscriptions.length);
-        setTwitchEventSubCallbackUrl(payload.callbackUrl);
+        setTwitchEventSubSubscriptionCount(payload.subscriptionCount);
+        setTwitchEventSubSubscriptionsLoaded(payload.subscriptionState === "loaded");
         return;
       }
     } catch {}
@@ -141,7 +140,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubePubSubSubscriptionResponse>(response);
+      const payload = parseYouTubePubSubSubscriptionResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setYouTubePubSubSubscription(payload);
@@ -161,17 +160,13 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubePubSubSubscriptionRequestResponse>(response);
+      const payload = parseYouTubePubSubSubscriptionRequestResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setYouTubePubSubSubscription({
           ok: true,
-          callbackUrl: payload.callbackUrl,
-          channelId: payload.channelId,
-          hubUrl: payload.hubUrl,
           readOnly: true,
-          state: "ready",
-          topicUrl: payload.topicUrl
+          state: "ready"
         });
         return;
       }
@@ -185,7 +180,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubeActivitiesPollResponse>(response);
+      const payload = parseYouTubeActivitiesPollResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setYouTubeActivitiesPoll(payload);
@@ -204,7 +199,7 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
           ...(twitchEventSubBroadcasterLogin ? { broadcasterLogin: twitchEventSubBroadcasterLogin } : {})
         })
       });
-      const payload = await parseJson<TwitchEventSubEnsureDefaultsResponse>(response);
+      const payload = parseTwitchEventSubEnsureDefaultsResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         await loadTwitchEventSubSubscriptions(twitchEventSubBroadcasterLogin ?? undefined);
@@ -221,23 +216,23 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubeChannelSelectionResponse>(response);
+      const payload = parseYouTubeChannelSelectionResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setYouTubeChannels(payload.channels);
-        setYouTubeSelectedChannelId(payload.selectedChannelId);
+        setYouTubeSelectedChannelRef(payload.selectedChannelRef);
         return;
       }
 
       setYouTubeChannels([]);
-      setYouTubeSelectedChannelId(null);
+      setYouTubeSelectedChannelRef(null);
     } catch {
       setYouTubeChannels([]);
-      setYouTubeSelectedChannelId(null);
+      setYouTubeSelectedChannelRef(null);
     }
   }, []);
 
-  const selectYouTubeChannel = useCallback(async (channelId: string | null): Promise<void> => {
+  const selectYouTubeChannel = useCallback(async (channelRef: string | null): Promise<void> => {
     try {
       const response = await fetch(`${apiBaseUrl}/admin/provider-integrations/youtube/channel-selection`, {
         method: "PUT",
@@ -245,13 +240,13 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
           "content-type": "application/json"
         }),
         credentials: "include",
-        body: JSON.stringify({ channelId })
+        body: JSON.stringify({ channelRef })
       });
-      const payload = await parseJson<YouTubeChannelSelectionResponse>(response);
+      const payload = parseYouTubeChannelSelectionResponse(await parseJson<unknown>(response));
 
       if (response.ok && payload?.ok) {
         setYouTubeChannels(payload.channels);
-        setYouTubeSelectedChannelId(payload.selectedChannelId);
+        setYouTubeSelectedChannelRef(payload.selectedChannelRef);
         return;
       }
     } catch {}
@@ -263,13 +258,11 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         headers: createApiHeaders(),
         credentials: "include"
       });
-      const payload = await parseJson<YouTubeConsentResponse>(response);
+      const payload = parseYouTubeConsentResponse(await parseJson<unknown>(response));
 
-      if (response.ok && payload?.ok && payload.consentUrl) {
+      if (response.ok && payload?.ok && payload.connectPath) {
         setYouTubeCredential(payload.credential);
-        setYouTubeRedirectUri(payload.redirectUri);
-        setYouTubeRequiredScope(payload.requiredScope);
-        window.location.assign(payload.consentUrl);
+        window.location.assign(new URL(payload.connectPath, apiBaseUrl).toString());
         return;
       }
     } catch {}
@@ -283,7 +276,9 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         credentials: "include"
       });
 
-      if (response.ok) {
+      const payload = parseTwitchChatIntakeResponse(await parseJson<unknown>(response));
+
+      if (response.ok && payload?.ok) {
         await loadStatus();
         return;
       }
@@ -298,7 +293,9 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         credentials: "include"
       });
 
-      if (response.ok) {
+      const payload = parseDiscordChatIntakeResponse(await parseJson<unknown>(response));
+
+      if (response.ok && payload?.ok) {
         await loadStatus();
         return;
       }
@@ -313,7 +310,9 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
         credentials: "include"
       });
 
-      if (response.ok) {
+      const payload = parseYouTubeLiveChatIntakeResponse(await parseJson<unknown>(response));
+
+      if (response.ok && payload?.ok) {
         await loadStatus();
         return;
       }
@@ -387,18 +386,16 @@ const ProviderIntegrationsStatusClient = (): React.ReactNode => {
           onYouTubeLiveChatAction={(action) => void runYouTubeLiveChatAction(action)}
           onYouTubePubSubAction={(mode) => void requestYouTubePubSubSubscription(mode)}
           snapshot={snapshot}
-          twitchEventSubCallbackUrl={twitchEventSubCallbackUrl}
           twitchEventSubBroadcasterLogin={twitchEventSubBroadcasterLogin}
           twitchEventSubBroadcasterLogins={twitchEventSubBroadcasterLogins}
           twitchEventSubDefaults={twitchEventSubDefaults}
           twitchEventSubSubscriptionCount={twitchEventSubSubscriptionCount}
+          twitchEventSubSubscriptionsLoaded={twitchEventSubSubscriptionsLoaded}
           youtubeActivitiesPoll={youtubeActivitiesPoll}
           youtubeChannels={youtubeChannels}
           youtubeCredential={youtubeCredential}
           youtubePubSubSubscription={youtubePubSubSubscription}
-          youtubeRedirectUri={youtubeRedirectUri}
-          youtubeRequiredScope={youtubeRequiredScope}
-          youtubeSelectedChannelId={youtubeSelectedChannelId}
+          youtubeSelectedChannelRef={youtubeSelectedChannelRef}
         />
       )}
     </>

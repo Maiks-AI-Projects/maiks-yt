@@ -25,7 +25,8 @@ describe("YouTubeOwnerConsentService production origins", () => {
 
     await expect(service.getCredential({ authUserId: "auth-owner" })).resolves.toMatchObject({
       ok: true,
-      redirectUri: "https://api.maiks.yt/admin/provider-integrations/youtube/callback"
+      action: "connect",
+      credential: null
     });
     expect(service.getAdminRedirectUrl({
       ok: false,
@@ -44,7 +45,8 @@ describe("YouTubeOwnerConsentService production origins", () => {
 
     await expect(service.getCredential({ authUserId: "auth-owner" })).resolves.toMatchObject({
       ok: true,
-      redirectUri: "https://api-preview.example.test/admin/provider-integrations/youtube/callback"
+      action: "connect",
+      credential: null
     });
     expect(service.getAdminRedirectUrl({
       ok: false,

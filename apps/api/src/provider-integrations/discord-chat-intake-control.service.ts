@@ -1,5 +1,6 @@
 import type { DiscordChatIntakeStatus } from "@maiks-yt/integrations";
 
+import { projectDiscordChatControlStatus } from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   DiscordChatIntakeControlActor,
@@ -53,9 +54,7 @@ export class DiscordChatIntakeControlService {
     }
 
     return {
-      ok: true,
-      readOnly: true,
-      status: readStatus()
+      ...projectDiscordChatControlStatus(readStatus())
     };
   }
 }

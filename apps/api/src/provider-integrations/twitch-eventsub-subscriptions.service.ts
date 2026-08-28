@@ -1,5 +1,9 @@
 import { TwitchEventSubSubscriptionService } from "@maiks-yt/integrations";
 
+import {
+  projectTwitchEventSubDefaults,
+  projectTwitchEventSubEnsureDefaults
+} from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   TwitchEventSubSubscriptionControlResult,
@@ -22,24 +26,40 @@ export class TwitchEventSubSubscriptionControlService {
     authUserId: string;
     broadcasterLogin?: string;
   }): Promise<TwitchEventSubSubscriptionControlResult> {
-    return await this.withActor(input.authUserId, () => this.subscriptionService.listDefaults({
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const result = await this.subscriptionService.listDefaults({
       ...(input.broadcasterLogin ? { broadcasterLogin: input.broadcasterLogin } : {})
-    }));
+    });
+
+    return result.ok ? projectTwitchEventSubDefaults(result) : result;
   }
 
   public async ensureDefaults(input: {
     authUserId: string;
     broadcasterLogin?: string;
   }): Promise<TwitchEventSubSubscriptionControlResult> {
-    return await this.withActor(input.authUserId, () => this.subscriptionService.ensureDefaults({
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const result = await this.subscriptionService.ensureDefaults({
       ...(input.broadcasterLogin ? { broadcasterLogin: input.broadcasterLogin } : {})
-    }));
+    });
+
+    return result.ok ? projectTwitchEventSubEnsureDefaults(result) : result;
   }
 
-  private async withActor(
-    authUserId: string,
-    run: () => Promise<TwitchEventSubSubscriptionControlResult>
-  ): Promise<TwitchEventSubSubscriptionControlResult> {
+  private async requireActor(authUserId: string): Promise<
+    | { ok: true }
+    | Extract<TwitchEventSubSubscriptionControlResult, { ok: false }>
+  > {
     const actor = await this.repository.resolveActor(authUserId);
 
     if (!actor) {
@@ -56,6 +76,6 @@ export class TwitchEventSubSubscriptionControlService {
       };
     }
 
-    return await run();
+    return { ok: true };
   }
 }

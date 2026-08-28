@@ -1,6 +1,6 @@
 import { YouTubeActivitiesReadOnlyService } from "@maiks-yt/integrations";
 
-import { getProviderEventCatalogEntry } from "@maiks-yt/domain/events";
+import { projectYouTubeActivitiesPoll } from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   YouTubeActivitiesIntakeWriter,
@@ -55,7 +55,7 @@ export class YouTubeActivitiesPollControlService {
       return pollResult;
     }
 
-    const events: Array<Extract<YouTubeActivitiesPollControlResult, { ok: true }>["events"][number]> = [];
+    let inserted = 0;
 
     for (const event of pollResult.events) {
       const writeResult = await this.intakeWriter.recordProviderEvent(event);
@@ -67,23 +67,11 @@ export class YouTubeActivitiesPollControlService {
         };
       }
 
-      events.push({
-        catalogKnown: Boolean(getProviderEventCatalogEntry("youtube", event.providerEventName)),
-        inserted: writeResult.inserted,
-        providerEventName: event.providerEventName,
-        providerMessageId: event.providerMessageId,
-        sourceEventId: event.sourceEventId
-      });
+      if (writeResult.inserted) {
+        inserted += 1;
+      }
     }
 
-    return {
-      ok: true,
-      channelId: pollResult.channelId,
-      events,
-      fetched: pollResult.events.length,
-      inserted: events.filter((event) => event.inserted).length,
-      polledAt: pollResult.polledAt,
-      readOnly: true
-    };
+    return projectYouTubeActivitiesPoll(pollResult, inserted);
   }
 }

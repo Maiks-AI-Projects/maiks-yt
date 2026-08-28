@@ -26,10 +26,15 @@ class FakeTwitchChatRuntime implements TwitchChatIntakeRuntime {
   public stopCalls = 0;
   private status: TwitchChatIntakeStatus = {
     channelName: "maiksmc",
+    channelNames: ["maiksmc"],
     connectedAt: null,
+    disconnectsInWindow: 3,
     lastError: null,
+    lastDisconnectAt: "2026-06-29T13:59:00.000Z",
     lastMessageAt: null,
+    nextReconnectAt: "2026-06-29T14:01:00.000Z",
     recentMessages: [],
+    reconnectSuppressed: false,
     state: "stopped"
   };
 
@@ -42,6 +47,21 @@ class FakeTwitchChatRuntime implements TwitchChatIntakeRuntime {
     this.status = {
       ...this.status,
       connectedAt: "2026-06-29T14:00:00.000Z",
+      lastError: "raw twitch provider error",
+      lastMessageAt: "2026-06-29T14:00:01.000Z",
+      recentMessages: [{
+        authorKind: "human",
+        authorName: "Private Twitch User",
+        channelName: "maiksmc",
+        createdAt: "2026-06-29T14:00:01.000Z",
+        id: "internal-message-id",
+        message: "private twitch message body",
+        providerMessageId: "provider-message-id",
+        source: "twitch",
+        userId: "twitch-user-id",
+        userName: "private_login",
+        visibleOnOverlayByDefault: false
+      }],
       state: "connected"
     };
     return this.getStatus();
@@ -67,7 +87,6 @@ describe("TwitchChatIntakeControlService", () => {
       ok: true,
       readOnly: true,
       status: {
-        channelName: "maiksmc",
         state: "stopped"
       }
     });
@@ -165,6 +184,15 @@ describe("Twitch chat intake control routes", () => {
         state: "connected"
       }
     });
+    expect(startResponse.body).not.toContain("maiksmc");
+    expect(startResponse.body).not.toContain("private twitch message body");
+    expect(startResponse.body).not.toContain("provider-message-id");
+    expect(startResponse.body).not.toContain("twitch-user-id");
+    expect(startResponse.body).not.toContain("raw twitch provider error");
+    expect(startResponse.body).not.toContain("lastError");
+    expect(startResponse.body).not.toContain("disconnectsInWindow");
+    expect(startResponse.body).not.toContain("reconnectSuppressed");
+    expect(startResponse.body).not.toContain("recentMessages");
     expect(secondStartResponse.statusCode).toBe(200);
     expect(secondStartResponse.json()).toMatchObject({
       ok: true,

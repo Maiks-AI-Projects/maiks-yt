@@ -3,6 +3,7 @@ import type {
   YouTubeLiveChatContext
 } from "@maiks-yt/integrations";
 
+import type { YouTubeActivitiesPollBrowserResult } from "./provider-integrations-browser-contract.rules.js";
 import type { ProviderEventIntakeLogResult } from "./provider-event-intake-log.types.js";
 
 export type YouTubeActivitiesPollActor = {
@@ -11,21 +12,7 @@ export type YouTubeActivitiesPollActor = {
 };
 
 export type YouTubeActivitiesPollControlResult =
-  | {
-    ok: true;
-    channelId: string;
-    events: readonly {
-      catalogKnown?: boolean;
-      inserted: boolean;
-      providerEventName: string;
-      providerMessageId: string | null;
-      sourceEventId: string;
-    }[];
-    fetched: number;
-    inserted: number;
-    polledAt: string;
-    readOnly: true;
-  }
+  | YouTubeActivitiesPollBrowserResult
   | {
     ok: false;
     reason:

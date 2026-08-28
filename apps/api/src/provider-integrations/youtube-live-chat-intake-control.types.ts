@@ -2,6 +2,7 @@ import type {
   YouTubeLiveChatContext,
   YouTubeLiveChatIntakeStatus
 } from "@maiks-yt/integrations";
+import type { ProviderChatControlSuccessDto } from "./provider-integrations-browser-contract.rules.js";
 
 export type YouTubeLiveChatIntakeControlActor = {
   domainUserId: string;
@@ -9,11 +10,7 @@ export type YouTubeLiveChatIntakeControlActor = {
 };
 
 export type YouTubeLiveChatIntakeControlResult =
-  | {
-    ok: true;
-    readOnly: true;
-    status: YouTubeLiveChatIntakeStatus;
-  }
+  | ProviderChatControlSuccessDto
   | {
     ok: false;
     reason: "youtube_live_chat_user_unlinked" | "youtube_live_chat_forbidden";

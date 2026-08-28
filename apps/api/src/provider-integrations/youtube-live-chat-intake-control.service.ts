@@ -1,5 +1,6 @@
 import type { YouTubeLiveChatIntakeStatus } from "@maiks-yt/integrations";
 
+import { projectYouTubeLiveChatControlStatus } from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   YouTubeLiveChatIntakeControlActor,
@@ -53,9 +54,7 @@ export class YouTubeLiveChatIntakeControlService {
     }
 
     return {
-      ok: true,
-      readOnly: true,
-      status: readStatus()
+      ...projectYouTubeLiveChatControlStatus(readStatus())
     };
   }
 }

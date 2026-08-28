@@ -4,7 +4,10 @@ import { z } from "zod";
 
 import { createYouTubeOwnerConsentRepository } from "./youtube-owner-consent-store.service.js";
 import { YouTubeOwnerConsentService } from "./youtube-owner-consent.service.js";
-import type { YouTubeOwnerConsentResult } from "./youtube-owner-consent.types.js";
+import type {
+  YouTubeOwnerConsentRedirectResult,
+  YouTubeOwnerConsentResult
+} from "./youtube-owner-consent.types.js";
 
 type YouTubeOwnerConsentAuthSession = {
   user: {
@@ -15,7 +18,7 @@ type YouTubeOwnerConsentAuthSession = {
 type YouTubeOwnerConsentRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<YouTubeOwnerConsentAuthSession>;
   getDatabasePool: () => DatabasePool;
-  createService?: () => Pick<YouTubeOwnerConsentService, "getCredential" | "createConsentUrl" | "completeConsent" | "getAdminRedirectUrl">;
+  createService?: () => Pick<YouTubeOwnerConsentService, "getCredential" | "createConsentLauncher" | "createConsentRedirectUrl" | "completeConsent" | "getAdminRedirectUrl">;
 };
 
 const callbackQuerySchema = z.object({
@@ -34,7 +37,7 @@ export const registerYouTubeOwnerConsentRoutes = (
   server: FastifyInstance,
   dependencies: YouTubeOwnerConsentRouteDependencies
 ): void => {
-  const getService = (): Pick<YouTubeOwnerConsentService, "getCredential" | "createConsentUrl" | "completeConsent" | "getAdminRedirectUrl"> =>
+  const getService = (): Pick<YouTubeOwnerConsentService, "getCredential" | "createConsentLauncher" | "createConsentRedirectUrl" | "completeConsent" | "getAdminRedirectUrl"> =>
     dependencies.createService?.()
     ?? new YouTubeOwnerConsentService(
       createYouTubeOwnerConsentRepository(dependencies.getDatabasePool())
@@ -63,7 +66,7 @@ export const registerYouTubeOwnerConsentRoutes = (
   const runAuthenticated = async (
     request: FastifyRequest,
     reply: FastifyReply,
-    run: (service: Pick<YouTubeOwnerConsentService, "getCredential" | "createConsentUrl">, authUserId: string) => Promise<unknown>
+    run: (service: Pick<YouTubeOwnerConsentService, "getCredential" | "createConsentLauncher">, authUserId: string) => Promise<unknown>
   ): Promise<unknown> => {
     const session = await getSession(request, reply);
 
@@ -97,8 +100,39 @@ export const registerYouTubeOwnerConsentRoutes = (
   );
 
   server.get("/admin/provider-integrations/youtube/consent-url", async (request, reply) =>
-    runAuthenticated(request, reply, (service, authUserId) => service.createConsentUrl({ authUserId }))
+    runAuthenticated(request, reply, (service, authUserId) => service.createConsentLauncher({ authUserId }))
   );
+
+  server.get("/admin/provider-integrations/youtube/connect", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "youtube_oauth_unavailable" : "not_authenticated"
+      };
+    }
+
+    try {
+      const result: YouTubeOwnerConsentRedirectResult = await getService().createConsentRedirectUrl({
+        authUserId: session.user.id
+      });
+
+      if (!result.ok) {
+        reply.code(result.reason === "provider_integrations_forbidden" ? 403 : 400);
+        return result;
+      }
+
+      return reply.redirect(result.redirectUrl);
+    } catch (error) {
+      server.log.warn({ err: error }, "YouTube owner consent launcher failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "youtube_oauth_unavailable"
+      };
+    }
+  });
 
   server.get("/admin/provider-integrations/youtube/callback", async (request, reply) => {
     const parsed = callbackQuerySchema.safeParse(request.query);

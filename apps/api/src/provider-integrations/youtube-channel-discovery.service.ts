@@ -2,9 +2,16 @@ import {
   discoverYouTubeChannels,
   resolveYouTubeOwnerOAuthConfig,
   youtubeLiveChatReadOnlyScope,
+  type YouTubeChannelDiscoveryResult,
   type YouTubeChannelsList
 } from "@maiks-yt/integrations";
 
+import {
+  getYouTubeChannelSelectionRefSecret,
+  projectDiscoveredYouTubeChannels,
+  projectYouTubeChannels,
+  resolveYouTubeChannelSelectionRef
+} from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   YouTubeChannelDiscoveryActor,
@@ -16,6 +23,7 @@ import type {
 type YouTubeChannelDiscoveryServiceOptions = {
   apiBaseUrl?: string;
   env?: Record<string, string | undefined>;
+  channelSelectionRefSecret?: string | null;
   listChannels?: YouTubeChannelsList;
   now?: () => Date;
 };
@@ -24,15 +32,6 @@ const canManageProviderIntegrations = (actor: YouTubeChannelDiscoveryActor): boo
   const permissions = normalizeProviderIntegrationPermissions(actor.rolePermissionValues);
 
   return permissions.includes("*") || permissions.includes("provider-integrations:manage");
-};
-
-const getSelectedChannelId = (channels: readonly YouTubePersistedChannel[]): string | null =>
-  channels.find((channel) => channel.selectedForLiveChat)?.id ?? null;
-
-const isValidProviderChannelId = (value: string): boolean => {
-  const trimmed = value.trim();
-
-  return trimmed.length > 0 && trimmed.length <= 191 && !/[\s]/.test(trimmed);
 };
 
 export class YouTubeChannelDiscoveryService {
@@ -48,7 +47,9 @@ export class YouTubeChannelDiscoveryService {
       return actor;
     }
 
-    return await this.discoverChannelsForActor(actor.domainUserId);
+    const discovered = await this.discoverChannelsForActor(actor.domainUserId);
+
+    return discovered.ok ? projectDiscoveredYouTubeChannels(discovered) : discovered;
   }
 
   public async listSelection(input: { authUserId: string }): Promise<YouTubeChannelDiscoveryServiceResult> {
@@ -60,11 +61,11 @@ export class YouTubeChannelDiscoveryService {
 
     const channels = await this.repository.listYouTubeChannels(actor.domainUserId);
 
-    return {
-      ok: true,
-      channels,
-      selectedChannelId: getSelectedChannelId(channels)
-    };
+    return this.projectStoredChannels({
+      authUserId: input.authUserId,
+      domainUserId: actor.domainUserId,
+      channels
+    });
   }
 
   public async discoverAndStore(input: { authUserId: string }): Promise<YouTubeChannelDiscoveryServiceResult> {
@@ -94,16 +95,16 @@ export class YouTubeChannelDiscoveryService {
 
     const channels = await this.repository.listYouTubeChannels(actor.domainUserId);
 
-    return {
-      ok: true,
-      channels,
-      selectedChannelId: getSelectedChannelId(channels)
-    };
+    return this.projectStoredChannels({
+      authUserId: input.authUserId,
+      domainUserId: actor.domainUserId,
+      channels
+    });
   }
 
   public async selectLiveChatChannel(input: {
     authUserId: string;
-    channelId: string | null;
+    channelRef: string | null;
   }): Promise<YouTubeChannelDiscoveryServiceResult> {
     const actor = await this.requireActor(input.authUserId);
 
@@ -111,13 +112,34 @@ export class YouTubeChannelDiscoveryService {
       return actor;
     }
 
-    const channelId = input.channelId?.trim() || null;
+    const channelRef = input.channelRef?.trim() || null;
+    const channels = await this.repository.listYouTubeChannels(actor.domainUserId);
+    let channelId: string | null = null;
 
-    if (channelId && !isValidProviderChannelId(channelId)) {
-      return {
-        ok: false,
-        reason: "youtube_channel_not_found"
-      };
+    if (channelRef) {
+      const secret = this.getSelectionRefSecret();
+
+      if (!secret) {
+        return {
+          ok: false,
+          reason: "youtube_channel_ref_unavailable"
+        };
+      }
+
+      channelId = resolveYouTubeChannelSelectionRef({
+        authUserId: input.authUserId,
+        channelRef,
+        channels,
+        domainUserId: actor.domainUserId,
+        secret
+      });
+
+      if (!channelId) {
+        return {
+          ok: false,
+          reason: "youtube_channel_not_found"
+        };
+      }
     }
 
     const result = await this.repository.selectYouTubeLiveChatChannel({
@@ -133,13 +155,11 @@ export class YouTubeChannelDiscoveryService {
       };
     }
 
-    const channels = await this.repository.listYouTubeChannels(actor.domainUserId);
-
-    return {
-      ok: true,
-      channels,
-      selectedChannelId: getSelectedChannelId(channels)
-    };
+    return this.projectStoredChannels({
+      authUserId: input.authUserId,
+      domainUserId: actor.domainUserId,
+      channels: await this.repository.listYouTubeChannels(actor.domainUserId)
+    });
   }
 
   private async requireActor(authUserId: string): Promise<
@@ -168,7 +188,7 @@ export class YouTubeChannelDiscoveryService {
     };
   }
 
-  private async discoverChannelsForActor(domainUserId: string): Promise<YouTubeChannelDiscoveryServiceResult> {
+  private async discoverChannelsForActor(domainUserId: string): Promise<YouTubeChannelDiscoveryResult | Extract<YouTubeChannelDiscoveryServiceResult, { ok: false }>> {
     const credential = await this.repository.getActiveYouTubeCredential(domainUserId);
 
     if (!credential) {
@@ -205,5 +225,32 @@ export class YouTubeChannelDiscoveryService {
   private getFallbackRedirectUri(): string {
     const apiBaseUrl = this.options.apiBaseUrl ?? process.env.API_PUBLIC_BASE_URL ?? "https://api.maiks.yt";
     return new URL("/admin/provider-integrations/youtube/callback", apiBaseUrl).toString();
+  }
+
+  private getSelectionRefSecret(): string | null {
+    return this.options.channelSelectionRefSecret
+      ?? getYouTubeChannelSelectionRefSecret(this.options.env ?? process.env);
+  }
+
+  private projectStoredChannels(input: {
+    authUserId: string;
+    channels: readonly YouTubePersistedChannel[];
+    domainUserId: string;
+  }): YouTubeChannelDiscoveryServiceResult {
+    const secret = this.getSelectionRefSecret();
+
+    if (!secret) {
+      return {
+        ok: false,
+        reason: "youtube_channel_ref_unavailable"
+      };
+    }
+
+    return projectYouTubeChannels({
+      authUserId: input.authUserId,
+      channels: input.channels,
+      domainUserId: input.domainUserId,
+      secret
+    });
   }
 }

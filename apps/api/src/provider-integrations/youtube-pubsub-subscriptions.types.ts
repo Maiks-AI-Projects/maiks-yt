@@ -1,7 +1,7 @@
 import type {
-  YouTubePubSubSubscriptionRequestResult,
-  YouTubePubSubSubscriptionStatusResult
-} from "@maiks-yt/integrations";
+  YouTubePubSubBrowserResult,
+  YouTubePubSubRequestBrowserResult
+} from "./provider-integrations-browser-contract.rules.js";
 
 export type YouTubePubSubSubscriptionActor = {
   domainUserId: string;
@@ -14,8 +14,8 @@ export type YouTubePubSubSelectedChannel = {
 };
 
 export type YouTubePubSubSubscriptionControlResult =
-  | YouTubePubSubSubscriptionStatusResult
-  | YouTubePubSubSubscriptionRequestResult
+  | YouTubePubSubBrowserResult
+  | YouTubePubSubRequestBrowserResult
   | {
     ok: false;
     reason: "youtube_pubsub_user_unlinked" | "youtube_pubsub_forbidden";

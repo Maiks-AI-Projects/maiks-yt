@@ -22,7 +22,7 @@ type YouTubeChannelDiscoveryRouteDependencies = {
 };
 
 const selectionBodySchema = z.object({
-  channelId: z.string().trim().min(1).max(191).nullable()
+  channelRef: z.string().trim().min(1).max(128).nullable()
 }).strict();
 
 const isYouTubeChannelDiscoveryResult = (value: unknown): value is YouTubeChannelDiscoveryServiceResult =>
@@ -41,6 +41,7 @@ const statusForReason = (reason: string): number => {
       return 409;
     case "youtube_channel_not_found":
       return 404;
+    case "youtube_channel_ref_unavailable":
     case "youtube_oauth_client_missing":
     case "youtube_oauth_redirect_missing":
     case "youtube_channel_discovery_failed":
@@ -146,7 +147,7 @@ export const registerYouTubeChannelDiscoveryRoutes = (
 
     return runAuthenticated(request, reply, (service, authUserId) => service.selectLiveChatChannel({
       authUserId,
-      channelId: parsedBody.data.channelId
+      channelRef: parsedBody.data.channelRef
     }));
   });
 };

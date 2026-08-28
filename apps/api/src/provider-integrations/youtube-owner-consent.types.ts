@@ -1,3 +1,5 @@
+import type { YouTubeOwnerConsentBrowserResult } from "./provider-integrations-browser-contract.rules.js";
+
 export type ProviderRuntimeCredentialActor = {
   domainUserId: string;
   rolePermissionValues: readonly unknown[];
@@ -44,23 +46,11 @@ export type YouTubeOwnerConsentExchangeCode = (input: {
   }
 >;
 
-export type YouTubeOwnerConsentResult =
+export type { YouTubeOwnerConsentBrowserResult as YouTubeOwnerConsentResult } from "./provider-integrations-browser-contract.rules.js";
+
+export type YouTubeOwnerConsentRedirectResult =
   | {
     ok: true;
-    credential: ProviderRuntimeCredentialSummary | null;
-    redirectUri: string;
-    requiredScope: string;
-    consentUrl?: string;
+    redirectUrl: string;
   }
-  | {
-    ok: false;
-    reason:
-      | "provider_integrations_user_unlinked"
-      | "provider_integrations_forbidden"
-      | "youtube_oauth_client_missing"
-      | "youtube_oauth_redirect_missing"
-      | "youtube_oauth_state_secret_missing"
-      | "youtube_oauth_state_invalid"
-      | "youtube_oauth_exchange_failed"
-      | "youtube_oauth_refresh_token_missing";
-  };
+  | Extract<YouTubeOwnerConsentBrowserResult, { ok: false }>;

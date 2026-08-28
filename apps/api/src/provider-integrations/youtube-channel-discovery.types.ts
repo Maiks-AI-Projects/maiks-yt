@@ -2,6 +2,7 @@ import type {
   YouTubeChannelDiscoveryCredential,
   YouTubeChannelDiscoveryResult
 } from "@maiks-yt/integrations";
+import type { YouTubeChannelBrowserResult } from "./provider-integrations-browser-contract.rules.js";
 
 export type YouTubeChannelDiscoveryActor = {
   domainUserId: string;
@@ -50,20 +51,5 @@ export type YouTubePersistedChannel = {
 };
 
 export type YouTubeChannelDiscoveryServiceResult =
-  | YouTubeChannelDiscoveryResult
-  | {
-    ok: true;
-    channels: readonly YouTubePersistedChannel[];
-    selectedChannelId: string | null;
-  }
-  | {
-    ok: false;
-    reason:
-      | "provider_integrations_user_unlinked"
-      | "provider_integrations_forbidden"
-      | "youtube_oauth_client_missing"
-      | "youtube_oauth_redirect_missing"
-      | "youtube_channel_credential_missing"
-      | "youtube_channel_scope_missing"
-      | "youtube_channel_not_found";
-  };
+  | YouTubeChannelBrowserResult
+  | Extract<YouTubeChannelDiscoveryResult, { ok: false }>;

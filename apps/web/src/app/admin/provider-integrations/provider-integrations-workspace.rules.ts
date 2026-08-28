@@ -24,6 +24,7 @@ export type YouTubeChannelOptionView = {
 export const providerIntegrationRequestPaths = {
   status: "/admin/provider-integrations/status",
   youtubeCredential: "/admin/provider-integrations/youtube/credential",
+  youtubeConsentConnect: "/admin/provider-integrations/youtube/connect",
   youtubeChannelSelection: "/admin/provider-integrations/youtube/channel-selection",
   twitchEventSubSubscriptions: "/admin/provider-integrations/twitch-eventsub/subscriptions",
   youtubePubSubSubscription: "/admin/provider-integrations/youtube-pubsub/subscription"
@@ -68,9 +69,9 @@ export const getYouTubeChannelOptionViews = (
 
 export const getSelectedYouTubeChannelToken = (
   channels: readonly YouTubeSavedChannel[],
-  selectedChannelId: string | null
+  selectedChannelRef: string | null
 ): string => {
-  const index = channels.findIndex((channel) => channel.id === selectedChannelId);
+  const index = channels.findIndex((channel) => channel.channelRef === selectedChannelRef);
   return index >= 0 ? `channel-${index + 1}` : "";
 };
 
@@ -88,5 +89,5 @@ export const resolveYouTubeChannelId = (
   }
 
   const index = Number(match[1]) - 1;
-  return channels[index]?.id;
+  return channels[index]?.channelRef;
 };

@@ -41,16 +41,14 @@ type ProviderIntegrationsWorkspaceProps = {
   snapshot: ProviderSnapshot;
   youtubeCredential: YouTubeCredentialSummary | null;
   youtubeChannels: readonly YouTubeSavedChannel[];
-  youtubeSelectedChannelId: string | null;
+  youtubeSelectedChannelRef: string | null;
   youtubePubSubSubscription: YouTubePubSubStatus | null;
   youtubeActivitiesPoll: YouTubeActivitiesStatus | null;
   twitchEventSubDefaults: readonly TwitchEventSubDefaultSubscriptionStatus[];
   twitchEventSubBroadcasterLogin: string | null;
   twitchEventSubBroadcasterLogins: readonly string[];
   twitchEventSubSubscriptionCount: number;
-  twitchEventSubCallbackUrl: string | null;
-  youtubeRedirectUri: string;
-  youtubeRequiredScope: string;
+  twitchEventSubSubscriptionsLoaded: boolean;
   onRefreshAll: () => void;
   onRefreshTwitch: () => void;
   onRefreshDiscord: () => void;
@@ -61,7 +59,7 @@ type ProviderIntegrationsWorkspaceProps = {
   onEnsureTwitchSubscriptions: () => void;
   onConnectYouTube: () => void;
   onDiscoverYouTubeChannels: () => void;
-  onSelectYouTubeChannel: (channelId: string | null) => void;
+  onSelectYouTubeChannel: (channelRef: string | null) => void;
   onSelectTwitchEventSubBroadcaster: (broadcasterLogin: string) => void;
   onYouTubePubSubAction: (mode: "subscribe" | "unsubscribe") => void;
   onPollYouTubeActivities: () => void;
@@ -122,7 +120,7 @@ const getEventGroupState = (
   defaults: readonly TwitchEventSubDefaultSubscriptionStatus[],
   prefixes: readonly string[]
 ): "enabled" | "partial" | "missing" | "unknown" => {
-  const entries = defaults.filter((entry) => prefixes.some((prefix) => entry.desired.type.startsWith(prefix)));
+  const entries = defaults.filter((entry) => prefixes.some((prefix) => entry.type.startsWith(prefix)));
   if (entries.length === 0) return "unknown";
   const enabled = entries.filter((entry) => entry.state === "enabled").length;
   if (enabled === entries.length) return "enabled";
@@ -156,7 +154,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
   );
   const selectedYouTubeChannelToken = getSelectedYouTubeChannelToken(
     props.youtubeChannels,
-    props.youtubeSelectedChannelId
+    props.youtubeSelectedChannelRef
   );
   const targetLabels: Record<ProviderId, string> = {
     twitch: runtimeViews.get("twitch")?.accountSummary ?? "Runtime target unavailable",
@@ -168,11 +166,11 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
     youtube: runtimeViews.get("youtube")?.connectionState ?? null,
     discord: runtimeViews.get("discord")?.connectionState ?? null
   };
-  const twitchSubscriptionsLoaded = props.twitchEventSubDefaults.length > 0;
+  const twitchSubscriptionsLoaded = props.twitchEventSubSubscriptionsLoaded;
   const twitchEnabledCount = props.twitchEventSubDefaults.filter((entry) => entry.state === "enabled").length;
   const twitchMissingCount = props.twitchEventSubDefaults.filter((entry) => entry.state === "missing").length;
   const twitchProblemCount = props.twitchEventSubDefaults.filter((entry) => entry.state === "problem").length;
-  const youtubeConsentActive = props.youtubeCredential?.status === "active";
+  const youtubeConsentActive = props.youtubeCredential?.state === "connected";
   const discordWebhookMissing = providers.get("discord")?.capabilities.some(
     (capability) => capability.key === "discord_webhook_intake" && capability.state === "needs_setup"
   ) ?? false;
@@ -265,7 +263,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
               <h3>Read-only Twitch setup</h3>
               <p>Channel: {targetLabels.twitch}</p>
               <p>Provider subscriptions reported: {props.twitchEventSubSubscriptionCount}</p>
-              <p>EventSub callback: {props.twitchEventSubCallbackUrl ? "Configured" : "Not available"}</p>
+              <p>EventSub callback: {props.twitchEventSubSubscriptionsLoaded ? "Configured" : "Not available"}</p>
               {provider?.guidance ? <p className="error">{provider.guidance}</p> : null}
             </div>
           )}
@@ -289,7 +287,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
               {!youtubeConsentActive ? <button className="secondary-action" onClick={props.onConnectYouTube} type="button">Connect</button> : null}
               <button
                 className="secondary-action"
-                disabled={!youtubeConsentActive || !props.youtubeSelectedChannelId || runtimeIsActive(runtime?.connectionState)}
+                disabled={!youtubeConsentActive || !props.youtubeSelectedChannelRef || runtimeIsActive(runtime?.connectionState)}
                 onClick={() => props.onYouTubeLiveChatAction("start")}
                 type="button"
               >Start polling</button>
@@ -321,8 +319,8 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
               <select
                 id="provider-youtube-channel"
                 onChange={(event) => {
-                  const channelId = resolveYouTubeChannelId(props.youtubeChannels, event.target.value);
-                  if (channelId !== undefined) props.onSelectYouTubeChannel(channelId);
+                  const channelRef = resolveYouTubeChannelId(props.youtubeChannels, event.target.value);
+                  if (channelRef !== undefined) props.onSelectYouTubeChannel(channelRef);
                 }}
                 value={selectedYouTubeChannelToken}
               >
@@ -334,14 +332,13 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
             <div className="provider-workspace-detail-copy">
               <div className="provider-workspace-inline-heading"><h3>PubSub</h3><div className="provider-workspace-actions"><button className="secondary-action" disabled={!props.youtubePubSubSubscription} onClick={() => props.onYouTubePubSubAction("subscribe")} type="button">Subscribe</button><button className="secondary-action" disabled={!props.youtubePubSubSubscription} onClick={() => props.onYouTubePubSubAction("unsubscribe")} type="button">Unsubscribe</button></div></div>
               <p>{props.youtubePubSubSubscription ? "Subscription target ready." : "Subscription target unavailable."}</p>
-              <div className="provider-workspace-inline-heading"><h3>Recent channel activity</h3><button className="secondary-action" disabled={!youtubeConsentActive || !props.youtubeSelectedChannelId} onClick={props.onPollYouTubeActivities} type="button">Poll recent</button></div>
+              <div className="provider-workspace-inline-heading"><h3>Recent channel activity</h3><button className="secondary-action" disabled={!youtubeConsentActive || !props.youtubeSelectedChannelRef} onClick={props.onPollYouTubeActivities} type="button">Poll recent</button></div>
               <p>{props.youtubeActivitiesPoll ? `${props.youtubeActivitiesPoll.fetched} fetched · ${props.youtubeActivitiesPoll.inserted} stored · ${formatDate(props.youtubeActivitiesPoll.polledAt)}` : "No activity poll has run in this session."}</p>
             </div>
           ) : (
             <div className="provider-workspace-detail-copy">
               <h3>Owner-authorized YouTube setup</h3>
-              <p>Consent scope: <code>{props.youtubeRequiredScope}</code></p>
-              <p>Redirect URI: <code>{props.youtubeRedirectUri}</code></p>
+              <p>{youtubeConsentActive ? "Owner consent is connected." : "Connect YouTube owner consent before channel discovery and live-chat polling."}</p>
               {provider?.guidance ? <p className="error">{provider.guidance}</p> : null}
             </div>
           )}
@@ -471,7 +468,7 @@ const ProviderIntegrationsWorkspace = (props: ProviderIntegrationsWorkspaceProps
             {!youtubeConsentActive ? <div><ProviderMark provider="youtube" /><span><strong>YouTube</strong><small>Owner consent disconnected</small></span><button className="secondary-action" onClick={props.onConnectYouTube} type="button">Connect</button></div> : null}
             {twitchMissingCount > 0 ? <div><ProviderMark provider="twitch" /><span><strong>Twitch</strong><small>{twitchMissingCount} EventSub subscriptions missing</small></span><button className="provider-workspace-text-action" onClick={props.onEnsureTwitchSubscriptions} type="button">Create missing</button></div> : null}
             {discordWebhookMissing ? <div><ProviderMark provider="discord" /><span><strong>Discord</strong><small>Public key missing; webhooks unavailable</small></span><button className="provider-workspace-text-action" onClick={() => selectProvider("discord")} type="button">View setup</button></div> : null}
-            {youtubeConsentActive && twitchMissingCount === 0 && !discordWebhookMissing ? <p className="provider-workspace-all-clear"><FiCheckCircle aria-hidden="true" />No setup issues detected.</p> : null}
+            {youtubeConsentActive && twitchSubscriptionsLoaded && twitchMissingCount === 0 && !discordWebhookMissing ? <p className="provider-workspace-all-clear"><FiCheckCircle aria-hidden="true" />No setup issues detected.</p> : null}
           </section>
         </aside>
       </div>

@@ -6,11 +6,17 @@ import {
   resolveYouTubeOwnerOAuthConfig,
   youtubeLiveChatReadOnlyScope
 } from "@maiks-yt/integrations";
+import type { YouTubeOwnerOAuthConfig } from "@maiks-yt/integrations";
 
+import {
+  projectYouTubeCredential,
+  youtubeOwnerConsentConnectPath
+} from "./provider-integrations-browser-contract.rules.js";
 import { normalizeProviderIntegrationPermissions } from "./provider-integration-status.service.js";
 import type {
   YouTubeOwnerConsentExchangeCode,
   YouTubeOwnerConsentRepository,
+  YouTubeOwnerConsentRedirectResult,
   YouTubeOwnerConsentResult
 } from "./youtube-owner-consent.types.js";
 
@@ -122,52 +128,55 @@ export class YouTubeOwnerConsentService {
     }
 
     return {
+      ...projectYouTubeCredential(await this.repository.getYouTubeCredentialSummary(actor.domainUserId)),
       ok: true,
-      credential: await this.repository.getYouTubeCredentialSummary(actor.domainUserId),
-      redirectUri: this.getFallbackRedirectUri(),
-      requiredScope: youtubeLiveChatReadOnlyScope
     };
   }
 
-  public async createConsentUrl(input: { authUserId: string }): Promise<YouTubeOwnerConsentResult> {
+  public async createConsentLauncher(input: { authUserId: string }): Promise<YouTubeOwnerConsentResult> {
     const actor = await this.requireActor(input.authUserId);
 
     if (!actor.ok) {
       return actor;
     }
 
-    const config = resolveYouTubeOwnerOAuthConfig(this.options.env ?? process.env, this.getFallbackRedirectUri());
+    const ready = this.getConsentReadiness();
 
-    if (!config.ok) {
-      return {
-        ok: false,
-        reason: config.reason
-      };
+    if (!ready.ok) {
+      return ready;
+    }
+
+    return {
+      ...projectYouTubeCredential(await this.repository.getYouTubeCredentialSummary(actor.domainUserId)),
+      connectPath: youtubeOwnerConsentConnectPath,
+      ok: true
+    };
+  }
+
+  public async createConsentRedirectUrl(input: { authUserId: string }): Promise<YouTubeOwnerConsentRedirectResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const ready = this.getConsentReadiness();
+
+    if (!ready.ok) {
+      return ready;
     }
 
     const now = this.options.now?.() ?? new Date();
-    const stateSecret = getStateSecret(this.options.env ?? process.env);
-
-    if (!stateSecret) {
-      return {
-        ok: false,
-        reason: "youtube_oauth_state_secret_missing"
-      };
-    }
-
     const state = signStatePayload({
       authUserId: input.authUserId,
       domainUserId: actor.domainUserId,
       issuedAt: now.toISOString(),
       nonce: randomBytes(16).toString("base64url")
-    }, stateSecret);
+    }, ready.stateSecret);
 
     return {
       ok: true,
-      credential: await this.repository.getYouTubeCredentialSummary(actor.domainUserId),
-      consentUrl: createYouTubeOwnerConsentUrl({ config, state }),
-      redirectUri: config.redirectUri,
-      requiredScope: youtubeLiveChatReadOnlyScope
+      redirectUrl: createYouTubeOwnerConsentUrl({ config: ready.config, state })
     };
   }
 
@@ -229,10 +238,8 @@ export class YouTubeOwnerConsentService {
     });
 
     return {
+      ...projectYouTubeCredential(credential),
       ok: true,
-      credential,
-      redirectUri: config.redirectUri,
-      requiredScope: youtubeLiveChatReadOnlyScope
     };
   }
 
@@ -280,5 +287,39 @@ export class YouTubeOwnerConsentService {
     const env = this.options.env ?? process.env;
     const apiBaseUrl = this.options.apiBaseUrl ?? env.API_PUBLIC_BASE_URL ?? "https://api.maiks.yt";
     return new URL("/admin/provider-integrations/youtube/callback", apiBaseUrl).toString();
+  }
+
+  private getConsentReadiness(): (
+    | {
+      ok: true;
+      config: Extract<YouTubeOwnerOAuthConfig, { ok: true }>;
+      stateSecret: string;
+    }
+    | Extract<YouTubeOwnerConsentResult, { ok: false }>
+  ) {
+    const env = this.options.env ?? process.env;
+    const config = resolveYouTubeOwnerOAuthConfig(env, this.getFallbackRedirectUri());
+
+    if (!config.ok) {
+      return {
+        ok: false,
+        reason: config.reason
+      };
+    }
+
+    const stateSecret = getStateSecret(env);
+
+    if (!stateSecret) {
+      return {
+        ok: false,
+        reason: "youtube_oauth_state_secret_missing"
+      };
+    }
+
+    return {
+      ok: true,
+      config,
+      stateSecret
+    };
   }
 }
