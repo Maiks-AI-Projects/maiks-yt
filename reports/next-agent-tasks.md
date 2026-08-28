@@ -15,6 +15,13 @@
 - Real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, and starting a public stream retain their specific gates.
 - Desktop and GUI automation remain forbidden, but non-GUI HTTP/API/service verification is expected and must not be treated as blocked by that restriction.
 
+## Provider Integrations browser contracts deployed
+
+- Production revision `96a5db732ea36d974f18bde99ba20c7af1df718a` is deployed to Web and API. Every owner-workspace support route now uses a finite browser DTO; raw provider ids, diagnostics, messages, callback/hub/topic URLs, scopes, conditions, and storage details remain server-side.
+- The browser receives only the fixed same-origin YouTube connect launcher. Owner auth is rechecked before the API builds and redirects to the provider URL. Opaque YouTube channel references are bound to the authenticated owner and current stored channel list.
+- Strict Web parsing rejects extra fields, provider-crossed failures, contradictory chat guidance, impossible YouTube credential actions, and premature all-clear state. The final independent review reported zero findings, and `pnpm check:review` passed with 667 API and 363 Web tests.
+- Live service and unauthenticated-boundary verification passed with healthy/restart-zero Web and API, preserved Control and Overlay, and rollback tags. Do not repeat the deployment. The next gate is a positive signed-in owner read/control check and real provider behavior under the existing account/credential authority; do not call providers merely to prove source deployment.
+
 ## MaiksPlays discovery and hostname
 
 - Web revision `bd8e8dea117ea85c0f2c034bb631f210d7b06b91` is deployed and live-verified. `/channels` now links to `/plays`, and a 56-page public crawl reaches it with zero bad responses. The same runtime proves the homepage's real project and honest empty schedule/Update states.
