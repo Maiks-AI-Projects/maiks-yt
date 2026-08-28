@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { captureDevAuthTokenFromUrl } from "../../../dev-auth-token";
 import {
@@ -26,6 +26,16 @@ import {
   SelectField,
   TextField
 } from "../admin-music-shared";
+import {
+  buildReviewBlacklistRow,
+  buildReviewSelectionPayload,
+  buildReviewSourceOptions,
+  buildReviewTrackOptions,
+  findReviewSource,
+  getReviewSelectionStateMessage,
+  sourceSelectionUnavailableMessage,
+  trackSelectionUnavailableMessage
+} from "./admin-music-review-selection.rules";
 
 const reviewActions = ["keep", "restrict", "reject", "blacklist"] as const;
 
@@ -33,12 +43,44 @@ const AdminMusicReviewClient = (): React.ReactNode => {
   const [loadState, setLoadState] = useState<MusicAdminLoadState>("loading");
   const [message, setMessage] = useState("Review actions are explicit: keep, restrict, reject, or blacklist.");
   const [overview, setOverview] = useState<MusicAdminOverview>(emptyMusicAdminOverview);
+  const [selectedBlacklistSourceId, setSelectedBlacklistSourceId] = useState<string | null>(null);
+  const [selectedBlacklistTrackId, setSelectedBlacklistTrackId] = useState<string | null>(null);
+  const refreshGeneration = useRef(0);
+  const reviewTrackOptions = useMemo(() => buildReviewTrackOptions(overview.tracks), [overview.tracks]);
+  const reviewSourceOptions = useMemo(
+    () => buildReviewSourceOptions(overview.tracks, selectedBlacklistTrackId),
+    [overview.tracks, selectedBlacklistTrackId]
+  );
+  const reviewSelectionStateMessage = getReviewSelectionStateMessage(loadState);
+  const selectedTrackReturned = selectedBlacklistTrackId
+    ? reviewTrackOptions.some((track) => track.id === selectedBlacklistTrackId)
+    : true;
+  const selectedSourceReturned = selectedBlacklistSourceId
+    ? reviewSourceOptions.some((source) => source.id === selectedBlacklistSourceId)
+    : true;
 
   const refresh = async (): Promise<void> => {
+    const generation = refreshGeneration.current + 1;
+    refreshGeneration.current = generation;
     setLoadState("loading");
     const result = await loadMusicAdminOverview();
+
+    if (generation !== refreshGeneration.current) {
+      return;
+    }
+
     setLoadState(result.loadState);
-    setOverview(result.overview);
+
+    if (result.loadState === "ready") {
+      setOverview(result.overview);
+      return;
+    }
+
+    if (result.loadState === "signed-out" || result.loadState === "forbidden") {
+      setOverview(emptyMusicAdminOverview);
+      setSelectedBlacklistSourceId(null);
+      setSelectedBlacklistTrackId(null);
+    }
   };
 
   useEffect(() => {
@@ -67,6 +109,18 @@ const AdminMusicReviewClient = (): React.ReactNode => {
     event.preventDefault();
     setMessage("Saving blacklist entry...");
     const data = new FormData(event.currentTarget);
+    const selection = buildReviewSelectionPayload(
+      overview.tracks,
+      stringValue(data, "scope"),
+      selectedBlacklistTrackId,
+      selectedBlacklistSourceId,
+      loadState === "ready"
+    );
+
+    if (!selection.ok) {
+      setMessage(selection.reason);
+      return;
+    }
 
     try {
       const response = await createAdminMusicRecord("/admin/music/blacklist", {
@@ -75,8 +129,8 @@ const AdminMusicReviewClient = (): React.ReactNode => {
         reason: stringValue(data, "reason"),
         scope: stringValue(data, "scope"),
         severity: stringValue(data, "severity"),
-        sourceId: nullableStringValue(data, "sourceId"),
-        trackId: nullableStringValue(data, "trackId")
+        sourceId: selection.sourceId,
+        trackId: selection.trackId
       });
 
       if (!response.payload.ok) {
@@ -88,6 +142,35 @@ const AdminMusicReviewClient = (): React.ReactNode => {
       await refresh();
     } catch {
       setMessage("Blacklist save failed.");
+    }
+  };
+
+  const updateBlacklistTrackSelection = (trackId: string | null): void => {
+    setSelectedBlacklistTrackId(trackId);
+
+    if (!trackId) {
+      setSelectedBlacklistSourceId(null);
+      return;
+    }
+
+    if (!selectedBlacklistSourceId) {
+      return;
+    }
+
+    const selectedSource = findReviewSource(overview.tracks, selectedBlacklistSourceId);
+
+    if (selectedSource?.trackId !== trackId) {
+      setSelectedBlacklistSourceId(null);
+    }
+  };
+
+  const updateBlacklistSourceSelection = (sourceId: string | null): void => {
+    setSelectedBlacklistSourceId(sourceId);
+
+    const selectedSource = findReviewSource(overview.tracks, sourceId);
+
+    if (selectedSource) {
+      setSelectedBlacklistTrackId(selectedSource.trackId);
     }
   };
 
@@ -134,8 +217,46 @@ const AdminMusicReviewClient = (): React.ReactNode => {
         <form className={styles.formGrid} onSubmit={(event) => void submitBlacklist(event)}>
           <SelectField name="scope" label="Scope" options={["track", "source", "artist", "provider", "external_id", "keyword"]} />
           <TextField name="normalizedValue" label="Value" required />
-          <TextField name="trackId" label="Track id" />
-          <TextField name="sourceId" label="Source id" />
+          <label className={styles.compactSelect}>
+            <span>Track</span>
+            <select
+              disabled={loadState !== "ready" || (reviewTrackOptions.length === 0 && !selectedBlacklistTrackId)}
+              onChange={(event) => updateBlacklistTrackSelection(event.currentTarget.value || null)}
+              value={selectedBlacklistTrackId ?? ""}
+            >
+              <option value="">No track selected</option>
+              {!selectedTrackReturned && selectedBlacklistTrackId ? (
+                <option value={selectedBlacklistTrackId}>{trackSelectionUnavailableMessage}</option>
+              ) : null}
+              {reviewTrackOptions.map((track) => (
+                <option key={track.id} value={track.id}>{track.label}</option>
+              ))}
+            </select>
+            {reviewSelectionStateMessage || reviewTrackOptions.length === 0 ? (
+              <span>{reviewSelectionStateMessage ?? "No catalog tracks returned."}</span>
+            ) : null}
+            {!selectedTrackReturned ? <span>{trackSelectionUnavailableMessage}</span> : null}
+          </label>
+          <label className={styles.compactSelect}>
+            <span>Source</span>
+            <select
+              disabled={loadState !== "ready" || (reviewSourceOptions.length === 0 && !selectedBlacklistSourceId)}
+              onChange={(event) => updateBlacklistSourceSelection(event.currentTarget.value || null)}
+              value={selectedBlacklistSourceId ?? ""}
+            >
+              <option value="">No source selected</option>
+              {!selectedSourceReturned && selectedBlacklistSourceId ? (
+                <option value={selectedBlacklistSourceId}>{sourceSelectionUnavailableMessage}</option>
+              ) : null}
+              {reviewSourceOptions.map((source) => (
+                <option key={source.id} value={source.id}>{source.label}</option>
+              ))}
+            </select>
+            {reviewSelectionStateMessage || reviewSourceOptions.length === 0 ? (
+              <span>{reviewSelectionStateMessage ?? "No matching sources returned."}</span>
+            ) : null}
+            {!selectedSourceReturned ? <span>{sourceSelectionUnavailableMessage}</span> : null}
+          </label>
           <TextField name="providerKey" label="Provider key" />
           <SelectField name="severity" label="Severity" options={["temporary", "permanent", "safety", "rights"]} />
           <TextField name="reason" label="Reason" required />
@@ -143,12 +264,7 @@ const AdminMusicReviewClient = (): React.ReactNode => {
         </form>
         <CompactRows
           emptyLabel="No active blacklist entries returned."
-          rows={overview.blacklistEntries.map((entry) => ({
-            action: entry.revokedAt ? "Revoked" : "Active",
-            meta: `${entry.scope} / ${entry.providerKey ?? entry.trackId ?? entry.sourceId ?? "catalog"}`,
-            state: entry.severity,
-            title: entry.normalizedValue
-          }))}
+          rows={overview.blacklistEntries.map((entry) => buildReviewBlacklistRow(entry, overview.tracks))}
         />
       </section>
     </>
