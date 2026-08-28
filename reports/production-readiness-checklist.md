@@ -10,13 +10,15 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 - Current result: NOT READY for a live stream.
 - Healthy: production containers are healthy with zero restarts, and no observed 5xx or WebSocket failures were seen.
-- Gaps: revision `30adb56` now exposes truthful Twitch chat-reply readiness, and a sanitized live runtime probe confirms the bot access token is invalid, so replies and `!commands` remain blocked until reauthorization. YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, and the verification token exposed before request-log redaction still needs rotation.
+- Gaps: revision `30adb56` now exposes truthful Twitch chat-reply readiness, and a sanitized live runtime probe confirms the bot access token is invalid, so replies and `!commands` remain blocked until reauthorization. YouTube has no active production credential or selected channel, Discord auto-start is off and the webhook public key is absent, installed-window and signed-in owner-session proof is still missing, OBS/widget fallback is unproven, local playback remains unverified, the verification token exposed before request-log redaction still needs rotation, and `plays.maiks.yt` is still NXDOMAIN because the Cloudflare hostname/tunnel ingress has not been provisioned.
 
 ## Evidence Base
 
 ### Deployed
 
+- Web-only revision `42b30651bbd38b854705fcd552929a7e3e49472f` deploys the factual public Health wording correction as image `sha256:188bfa9382407ac6897a407c35960afb8cd3e79e8f9fa40066b0c5bc00644880` and container `2777d600ea3e2faf17baec30e3d608c0bc0014459e7e32df89e7b7dae2f213f6`. The image labels prove the exact source revision and repository. The preceding MaiksPlays Web image is retained as `maiks-yt-production:rollback-42b3065-web-before`; no migration or volume change occurred, and API, Overlay, and Control were not recreated.
 - Web-only revision `93c353c` deploys the rewritten public Health context page. The previous Web image is retained as `rollback-93c353c-web-before`; no migration or volume change occurred, and API, Overlay, and Control were not recreated.
+- Web-only revision `56791178884f93fa5bb2af6a28d80a4b2a8b7a7d` deployed the MaiksPlays `/plays` slice with immutable OCI provenance labels from the normal production image build. Its initial Web container `a3d3a24a169300cf35e81e0107818e813f8d02f68305a305d1ee2241e487268f` was healthy with zero restarts, and its prior Web image is retained as `maiks-yt-production:rollback-5679117-web-before`. The later Health wording deployment superseded the running Web image while preserving `/plays`.
 - Production revision `c98486f` is deployed across Web, API, Overlay, and Control as image `sha256:d0f80fb56454d582ee0d080df9c7e2c9b698e96fdf859db0e75aa33333309836`; it includes the approved Creator Links admin and accumulated reviewed production source through that revision. No migration was applied.
 - Production revision `30adb56` is deployed to Web and API as image `sha256:f4cd685a613fb98c265b530394d74484511652ffce350126e0145c9fc232aa27`; Overlay and Control remain on the prior image. The previous Web/API image is retained under `rollback-30adb56-*-before`. No migration was applied.
 - Production revision `501613c` is deployed across web, API, overlay, and control.
@@ -30,7 +32,9 @@ This checklist tracks current production readiness, not a dev-to-prod plan. Dev 
 
 ### Verified
 
+- Public `/about/health` returns `200` with the exact sentence `I have a brain tumor, brain damage, and ADHD.` The rejected phrase `serious brain tumor` is absent. `/plays`, Home, API health, Control, and Overlay remained `200`; the current Web container is healthy with zero restarts and zero matching recent error lines.
 - Public `/about/health` returns `200` with the practical current-context copy from `93c353c`. Live HTML contains the current tumor, brain-damage, ADHD, memory/energy/communication context and omits the source-only broken-hand and unrelated head-injury history. Home, `/about/history`, API health, Control, and Overlay remained healthy during the bounded rollout.
+- Direct production-origin `/plays` returns `200` with the MaiksPlays copy, Home remains `200` and unchanged, a synthetic missing route returns `404`, and API health, Control, and Overlay return `200`. Host `plays.maiks.yt` still resolves to `NXDOMAIN`, so the public hostname remains blocked until the missing Cloudflare CNAME and tunnel ingress are added.
 - After the `c98486f` rollout, all four containers were healthy on the same image with zero restarts and no matching recent error, fatal, unhandled, or 5xx log lines. Home, Links, Admin Links, Admin Updates, API health, Control, and Overlay returned `200`; synthetic missing and retired dev routes returned `404`.
 - Live public `GET /links` returned only the bounded public projection. Unauthenticated Creator Links admin read and delete requests returned `401` before mutation.
 - Public-origin smoke has been exercised against the live production host.

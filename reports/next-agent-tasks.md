@@ -20,7 +20,7 @@
 - Commit `30adb56` is deployed to Web and API. Provider Integrations now exposes the finite `twitch_chat_replies` capability through a bounded, cached, read-only Twitch token validation; it does not refresh, rotate, log, return, or use the credential for a provider write.
 - Live container, HTTP, health, restart, log, owner-gate, and rollback checks passed. The sanitized live runtime result is `needs_attention / invalid_access_token`.
 - Next work is credential reauthorization under the existing secret-change gate, followed by signed-in owner status verification and one harmless real `!commands`/viewer-command rehearsal on MaiksPlays. Do not mistake the completed readiness plumbing for a working reply credential.
-- Add immutable OCI source revision/source metadata to the normal production image build under Project Tracker issue `47a660c41b580ccc`; do not rebuild production solely for that metadata fix.
+- Immutable OCI source revision/source metadata is now embedded in the normal production image build under Project Tracker issue `47a660c41b580ccc`. The current Web runtime is artifact-verifiable at exact production revision `42b30651bbd38b854705fcd552929a7e3e49472f`; the supporting build-gate commit was `bba9d3a08de5ef70e93587b4f2f57aabd90820dc`.
 
 ## Production Creator Links deployed implementation reference
 
