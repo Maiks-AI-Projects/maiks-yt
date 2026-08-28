@@ -1,5 +1,6 @@
 import type {
   ContentPageAdminInput,
+  ContentPageAdminBrowserPage,
   ContentPagePathValidationResult,
   ContentPageSource,
   PageCreatorCapability,
@@ -183,3 +184,18 @@ export const buildPublicContentPage = (page: ContentPageSource): PublicContentPa
     updatedAt: page.updatedAt
   };
 };
+
+export const buildContentPageAdminBrowserPage = (
+  page: ContentPageSource
+): ContentPageAdminBrowserPage => ({
+  id: page.id,
+  title: page.title,
+  normalizedPath: page.normalizedPath,
+  status: page.status,
+  visibility: page.visibility,
+  seoTitle: page.seoTitle,
+  seoDescription: page.seoDescription,
+  body: page.body,
+  publishedAt: page.publishedAt,
+  updatedAt: page.updatedAt
+});

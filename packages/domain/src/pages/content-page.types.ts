@@ -30,6 +30,19 @@ export type ContentPageSource = {
   updatedAt: string;
 };
 
+export type ContentPageAdminBrowserPage = {
+  id: string;
+  title: string;
+  normalizedPath: string;
+  status: ContentPageStatus;
+  visibility: ContentPageVisibility;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  body: string;
+  publishedAt: string | null;
+  updatedAt: string;
+};
+
 export type ContentPageAdminInput = {
   title: string;
   path: string;

@@ -6,7 +6,7 @@ import {
   contentPageTitleMaxLength,
   normalizeContentPagePath
 } from "@maiks-yt/domain/pages";
-import type { ContentPageSource } from "@maiks-yt/domain/pages";
+import type { ContentPageAdminBrowserPage } from "@maiks-yt/domain/pages";
 
 export type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 export type WorkspaceTab = "content" | "seo" | "preview";
@@ -27,7 +27,7 @@ export const defaultPageForm: PageFormState = {
   body: "# New Page\n\nDraft the page body here."
 };
 
-export const toPageForm = (page: ContentPageSource): PageFormState => ({
+export const toPageForm = (page: ContentPageAdminBrowserPage): PageFormState => ({
   title: page.title,
   path: page.normalizedPath,
   seoTitle: page.seoTitle ?? "",
@@ -89,7 +89,9 @@ export const getLocalFormIssue = (form: PageFormState): string | null => {
   return null;
 };
 
-export const sortPages = (pages: readonly ContentPageSource[]): readonly ContentPageSource[] =>
+export const sortPages = (
+  pages: readonly ContentPageAdminBrowserPage[]
+): readonly ContentPageAdminBrowserPage[] =>
   pages
     .slice()
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || left.title.localeCompare(right.title));

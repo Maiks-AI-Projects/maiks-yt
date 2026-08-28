@@ -23,7 +23,7 @@ import {
   contentPageTitleMaxLength,
   normalizeContentPagePath
 } from "@maiks-yt/domain/pages";
-import type { ContentPageSource } from "@maiks-yt/domain/pages";
+import type { ContentPageAdminBrowserPage } from "@maiks-yt/domain/pages";
 
 import { captureDevAuthTokenFromUrl, createApiHeaders } from "../../dev-auth-token";
 import { PageMarkdown } from "../../page-markdown";
@@ -47,7 +47,7 @@ import PageCreatorInventory, { type PageFilter } from "./page-creator-inventory"
 type AdminPagesResponse =
   | {
     ok: true;
-    pages: readonly ContentPageSource[];
+    pages: readonly ContentPageAdminBrowserPage[];
   }
   | {
     ok: false;
@@ -57,7 +57,7 @@ type AdminPagesResponse =
 type AdminPageMutationResponse =
   | {
     ok: true;
-    page: ContentPageSource;
+    page: ContentPageAdminBrowserPage;
   }
   | {
     ok: false;
@@ -77,13 +77,13 @@ type AdminPageDeleteResponse =
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
 
 const ContentPageAdminClient = (): React.ReactNode => {
-  const [pages, setPages] = useState<readonly ContentPageSource[]>([]);
+  const [pages, setPages] = useState<readonly ContentPageAdminBrowserPage[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [pageForm, setPageForm] = useState<PageFormState>(defaultPageForm);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState<string>("Loading Page Creator...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
-  const [savedPreview, setSavedPreview] = useState<ContentPageSource | null>(null);
+  const [savedPreview, setSavedPreview] = useState<ContentPageAdminBrowserPage | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [pageFilter, setPageFilter] = useState<PageFilter>("all");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("content");
@@ -117,7 +117,7 @@ const ContentPageAdminClient = (): React.ReactNode => {
     }
   };
 
-  const replacePage = useCallback((page: ContentPageSource): void => {
+  const replacePage = useCallback((page: ContentPageAdminBrowserPage): void => {
     setPages((current) => {
       const exists = current.some((candidate) => candidate.id === page.id);
       const next = exists
@@ -179,7 +179,7 @@ const ContentPageAdminClient = (): React.ReactNode => {
       method: "POST" | "PATCH";
       body?: Record<string, unknown>;
     }
-  ): Promise<ContentPageSource | null> => {
+  ): Promise<ContentPageAdminBrowserPage | null> => {
     setBusyAction(label);
     setMessage(`${label}...`);
 
@@ -421,7 +421,7 @@ const ContentPageAdminClient = (): React.ReactNode => {
     visibility: selectedPage?.visibility ?? "hidden",
     publishedAt: selectedPage?.publishedAt ?? null,
     updatedAt: selectedPage?.updatedAt ?? new Date().toISOString()
-  } as ContentPageSource;
+  } as ContentPageAdminBrowserPage;
 
   return (
     <div className={styles.pageCreator}>

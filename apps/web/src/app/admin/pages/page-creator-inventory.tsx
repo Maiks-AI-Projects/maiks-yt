@@ -1,4 +1,4 @@
-import type { ContentPageSource } from "@maiks-yt/domain/pages";
+import type { ContentPageAdminBrowserPage } from "@maiks-yt/domain/pages";
 import { FiInfo, FiSearch } from "react-icons/fi";
 
 import { getRelativeUpdatedAt } from "./page-creator-admin.rules";
@@ -12,10 +12,10 @@ type PageCreatorInventoryProps = {
   onFilterChange: (filter: PageFilter) => void;
   onSearchChange: (query: string) => void;
   onSelect: (id: string) => void;
-  pages: readonly ContentPageSource[];
+  pages: readonly ContentPageAdminBrowserPage[];
   searchQuery: string;
   selectedId: string;
-  visiblePages: readonly ContentPageSource[];
+  visiblePages: readonly ContentPageAdminBrowserPage[];
 };
 
 const PageCreatorInventory = ({

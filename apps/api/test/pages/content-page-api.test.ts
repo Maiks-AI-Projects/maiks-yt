@@ -1,4 +1,4 @@
-import type { ContentPageSource } from "@maiks-yt/domain/pages";
+import type { ContentPageAdminBrowserPage, ContentPageSource } from "@maiks-yt/domain/pages";
 import Fastify from "fastify";
 import { describe, expect, it, vi } from "vitest";
 
@@ -32,6 +32,27 @@ const createPage = (
   updatedAt: "2026-06-28T09:00:00.000Z",
   ...overrides
 });
+
+const expectedAdminPageKeys = [
+  "body",
+  "id",
+  "normalizedPath",
+  "publishedAt",
+  "seoDescription",
+  "seoTitle",
+  "status",
+  "title",
+  "updatedAt",
+  "visibility"
+];
+
+const expectExactAdminPageResponse = (
+  page: unknown,
+  expected: ContentPageAdminBrowserPage
+): void => {
+  expect(Object.keys(page as Record<string, unknown>).sort()).toEqual(expectedAdminPageKeys);
+  expect(page).toEqual(expected);
+};
 
 class FakeContentPageRepository implements ContentPageRepository {
   public actor: ContentPageAdminActor | null = {
@@ -482,26 +503,114 @@ describe("content page route boundary", () => {
       }
     });
     expect(createResponse.statusCode).toBe(200);
-    expect(createResponse.json()).toMatchObject({
+    expect(createResponse.json()).toEqual({
       ok: true,
       page: {
+        id: "page-1",
+        title: "Campaign",
         normalizedPath: "/campaign",
-        status: "draft"
+        status: "draft",
+        visibility: "hidden",
+        seoTitle: "Campaign page",
+        seoDescription: "A temporary campaign page.",
+        body: "# Campaign\n\nDraft body.",
+        publishedAt: null,
+        updatedAt: "2026-06-28T09:00:00.000Z"
       }
     });
 
-    const pageId = createResponse.json<{ ok: true; page: ContentPageSource }>().page.id;
+    expectExactAdminPageResponse(createResponse.json<{ ok: true; page: ContentPageAdminBrowserPage }>().page, {
+      id: "page-1",
+      title: "Campaign",
+      normalizedPath: "/campaign",
+      status: "draft",
+      visibility: "hidden",
+      seoTitle: "Campaign page",
+      seoDescription: "A temporary campaign page.",
+      body: "# Campaign\n\nDraft body.",
+      publishedAt: null,
+      updatedAt: "2026-06-28T09:00:00.000Z"
+    });
+
+    const listResponse = await server.inject({
+      method: "GET",
+      url: "/admin/pages"
+    });
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toEqual({
+      ok: true,
+      pages: [createResponse.json<{ ok: true; page: ContentPageAdminBrowserPage }>().page]
+    });
+
+    const pageId = createResponse.json<{ ok: true; page: ContentPageAdminBrowserPage }>().page.id;
+    const updateResponse = await server.inject({
+      method: "PATCH",
+      url: `/admin/pages/${pageId}`,
+      payload: {
+        title: "Campaign Updated",
+        body: "# Campaign\n\nPublished body."
+      }
+    });
+    expect(updateResponse.statusCode).toBe(200);
+    expect(updateResponse.json()).toEqual({
+      ok: true,
+      page: {
+        id: pageId,
+        title: "Campaign Updated",
+        normalizedPath: "/campaign",
+        status: "draft",
+        visibility: "hidden",
+        seoTitle: "Campaign page",
+        seoDescription: "A temporary campaign page.",
+        body: "# Campaign\n\nPublished body.",
+        publishedAt: null,
+        updatedAt: "2026-06-28T10:00:00.000Z"
+      }
+    });
+    expectExactAdminPageResponse(updateResponse.json<{ ok: true; page: ContentPageAdminBrowserPage }>().page, {
+      id: pageId,
+      title: "Campaign Updated",
+      normalizedPath: "/campaign",
+      status: "draft",
+      visibility: "hidden",
+      seoTitle: "Campaign page",
+      seoDescription: "A temporary campaign page.",
+      body: "# Campaign\n\nPublished body.",
+      publishedAt: null,
+      updatedAt: "2026-06-28T10:00:00.000Z"
+    });
+
     const previewResponse = await server.inject({
       method: "GET",
       url: `/admin/pages/${pageId}/preview`
     });
     expect(previewResponse.statusCode).toBe(200);
-    expect(previewResponse.json()).toMatchObject({
+    expect(previewResponse.json()).toEqual({
       ok: true,
       page: {
         id: pageId,
-        body: "# Campaign\n\nDraft body."
+        title: "Campaign Updated",
+        normalizedPath: "/campaign",
+        status: "draft",
+        visibility: "hidden",
+        seoTitle: "Campaign page",
+        seoDescription: "A temporary campaign page.",
+        body: "# Campaign\n\nPublished body.",
+        publishedAt: null,
+        updatedAt: "2026-06-28T10:00:00.000Z"
       }
+    });
+    expectExactAdminPageResponse(previewResponse.json<{ ok: true; page: ContentPageAdminBrowserPage }>().page, {
+      id: pageId,
+      title: "Campaign Updated",
+      normalizedPath: "/campaign",
+      status: "draft",
+      visibility: "hidden",
+      seoTitle: "Campaign page",
+      seoDescription: "A temporary campaign page.",
+      body: "# Campaign\n\nPublished body.",
+      publishedAt: null,
+      updatedAt: "2026-06-28T10:00:00.000Z"
     });
 
     const hiddenPublicResponse = await server.inject({
@@ -515,12 +624,32 @@ describe("content page route boundary", () => {
       url: `/admin/pages/${pageId}/publish`
     });
     expect(publishResponse.statusCode).toBe(200);
-    expect(publishResponse.json()).toMatchObject({
+    expect(publishResponse.json()).toEqual({
       ok: true,
       page: {
+        id: pageId,
+        title: "Campaign Updated",
+        normalizedPath: "/campaign",
         status: "published",
-        visibility: "public"
+        visibility: "public",
+        seoTitle: "Campaign page",
+        seoDescription: "A temporary campaign page.",
+        body: "# Campaign\n\nPublished body.",
+        publishedAt: "2026-06-28T10:00:00.000Z",
+        updatedAt: "2026-06-28T10:00:00.000Z"
       }
+    });
+    expectExactAdminPageResponse(publishResponse.json<{ ok: true; page: ContentPageAdminBrowserPage }>().page, {
+      id: pageId,
+      title: "Campaign Updated",
+      normalizedPath: "/campaign",
+      status: "published",
+      visibility: "public",
+      seoTitle: "Campaign page",
+      seoDescription: "A temporary campaign page.",
+      body: "# Campaign\n\nPublished body.",
+      publishedAt: "2026-06-28T10:00:00.000Z",
+      updatedAt: "2026-06-28T10:00:00.000Z"
     });
 
     const publicResponse = await server.inject({
@@ -532,7 +661,7 @@ describe("content page route boundary", () => {
       ok: true,
       page: {
         path: "/campaign",
-        title: "Campaign"
+        title: "Campaign Updated"
       }
     });
 
@@ -541,12 +670,32 @@ describe("content page route boundary", () => {
       url: `/admin/pages/${pageId}/unpublish`
     });
     expect(unpublishResponse.statusCode).toBe(200);
-    expect(unpublishResponse.json()).toMatchObject({
+    expect(unpublishResponse.json()).toEqual({
       ok: true,
       page: {
+        id: pageId,
+        title: "Campaign Updated",
+        normalizedPath: "/campaign",
         status: "draft",
-        visibility: "hidden"
+        visibility: "hidden",
+        seoTitle: "Campaign page",
+        seoDescription: "A temporary campaign page.",
+        body: "# Campaign\n\nPublished body.",
+        publishedAt: null,
+        updatedAt: "2026-06-28T11:00:00.000Z"
       }
+    });
+    expectExactAdminPageResponse(unpublishResponse.json<{ ok: true; page: ContentPageAdminBrowserPage }>().page, {
+      id: pageId,
+      title: "Campaign Updated",
+      normalizedPath: "/campaign",
+      status: "draft",
+      visibility: "hidden",
+      seoTitle: "Campaign page",
+      seoDescription: "A temporary campaign page.",
+      body: "# Campaign\n\nPublished body.",
+      publishedAt: null,
+      updatedAt: "2026-06-28T11:00:00.000Z"
     });
 
     const deleteResponse = await server.inject({

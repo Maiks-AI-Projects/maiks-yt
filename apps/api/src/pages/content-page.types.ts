@@ -1,4 +1,5 @@
 import type {
+  ContentPageAdminBrowserPage,
   ContentPageAdminInput,
   ContentPageAdminUpdateInput,
   ContentPageSource,
@@ -16,7 +17,7 @@ export type ContentPageUpdateInput = ContentPageAdminUpdateInput;
 export type ContentPageAdminListResult =
   | {
     ok: true;
-    pages: readonly ContentPageSource[];
+    pages: readonly ContentPageAdminBrowserPage[];
   }
   | {
     ok: false;
@@ -26,7 +27,7 @@ export type ContentPageAdminListResult =
 export type ContentPageAdminMutationResult =
   | {
     ok: true;
-    page: ContentPageSource;
+    page: ContentPageAdminBrowserPage;
   }
   | {
     ok: false;
@@ -56,7 +57,7 @@ export type ContentPageAdminDeleteResult =
 export type ContentPagePreviewResult =
   | {
     ok: true;
-    page: ContentPageSource;
+    page: ContentPageAdminBrowserPage;
   }
   | {
     ok: false;

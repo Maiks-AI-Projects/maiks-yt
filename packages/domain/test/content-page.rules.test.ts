@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildContentPageAdminBrowserPage,
   buildPublicContentPage,
   canManageContentPages,
   isValidContentPageAdminInput,
@@ -114,5 +115,34 @@ describe("content page validation and public projection", () => {
     expect(buildPublicContentPage(createPage({ status: "draft", visibility: "hidden", publishedAt: null }))).toBeNull();
     expect(buildPublicContentPage(createPage({ visibility: "hidden" }))).toBeNull();
     expect(buildPublicContentPage(createPage({ normalizedPath: "/tools/custom" }))).toBeNull();
+  });
+
+  it("builds the exact Page Creator browser projection", () => {
+    const projection = buildContentPageAdminBrowserPage(createPage());
+
+    expect(Object.keys(projection).sort()).toEqual([
+      "body",
+      "id",
+      "normalizedPath",
+      "publishedAt",
+      "seoDescription",
+      "seoTitle",
+      "status",
+      "title",
+      "updatedAt",
+      "visibility"
+    ]);
+    expect(projection).toEqual({
+      id: "page-1",
+      title: "About Maiks",
+      normalizedPath: "/about-maiks",
+      status: "published",
+      visibility: "public",
+      seoTitle: "About Maiks",
+      seoDescription: "A normal content page.",
+      body: "## Hello\n\nThis is a page.",
+      publishedAt: "2026-06-28T10:00:00.000Z",
+      updatedAt: "2026-06-28T10:00:00.000Z"
+    });
   });
 });

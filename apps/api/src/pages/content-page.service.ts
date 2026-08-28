@@ -1,4 +1,5 @@
 import {
+  buildContentPageAdminBrowserPage,
   buildPublicContentPage,
   canManageContentPages,
   isValidContentPageAdminInput,
@@ -101,7 +102,7 @@ export class ContentPageService {
 
     return {
       ok: true,
-      pages: await this.repository.listPages()
+      pages: (await this.repository.listPages()).map(buildContentPageAdminBrowserPage)
     };
   }
 
@@ -134,10 +135,10 @@ export class ContentPageService {
     try {
       return {
         ok: true,
-        page: await this.repository.createPage({
+        page: buildContentPageAdminBrowserPage(await this.repository.createPage({
           ...page,
           actorUserId: actor.domainUserId
-        })
+        }))
       };
     } catch (error) {
       if (error instanceof Error && error.message === "content_page_path_conflict") {
@@ -223,7 +224,7 @@ export class ContentPageService {
 
     return {
       ok: true,
-      page: result
+      page: buildContentPageAdminBrowserPage(result)
     };
   }
 
@@ -279,7 +280,7 @@ export class ContentPageService {
 
     return {
       ok: true,
-      page: result
+      page: buildContentPageAdminBrowserPage(result)
     };
   }
 
@@ -304,7 +305,7 @@ export class ContentPageService {
 
     return {
       ok: true,
-      page: result
+      page: buildContentPageAdminBrowserPage(result)
     };
   }
 
@@ -355,7 +356,7 @@ export class ContentPageService {
     return page
       ? {
         ok: true,
-        page
+        page: buildContentPageAdminBrowserPage(page)
       }
       : {
         ok: false,
