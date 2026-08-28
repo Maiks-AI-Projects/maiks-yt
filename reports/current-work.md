@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-28 production provider-status operator contract
+
+- The owner provider-status endpoint now returns a finite operator DTO: provider identity and readiness, exact provider-specific capability states, truthful runtime state, bounded safe account/channel summary, relevant activity/retry timestamps, and concise action guidance. Environment-variable names, SDK/library labels, implementation boundaries, raw errors, reconnect counters, provider ids beyond the public provider key, credentials, scopes, callback material, and arbitrary objects no longer cross into the browser status contract.
+- Runtime state now distinguishes first connection from automatic retry. `connecting` stays `connecting`; only validated future retry metadata can produce `retrying`; ordinary stopped, waiting, connected, and unconfigured states remain distinct. The Web parser enforces the same retry/timestamp invariant against the response's `generatedAt` rather than the browser clock.
+- Every production Web caller of `/admin/provider-integrations/status`, including authenticated navigation and the Admin access gate, uses one exact parser. It rejects malformed, legacy, missing, extra, reordered, relabelled, cross-provider, and impossible-state responses before exposing owner navigation.
+- Independent GPT-5.5 review reports zero standards and zero specification findings after four correction passes. `pnpm check:review` passes with 158 Domain tests, 635 API tests, 146 Web tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, architecture rules, and diff checks.
+- No deployment, server state, provider action, environment change, migration, GUI, browser, screenshot, or live signed-in owner verification was performed. Deployment and real verification remain separate gates.
+
 ## 2026-08-28 production operator-contract tranche
 
 - Provider-intake rows now expose an exact allowlisted browser projection and an owner-bound AES-256-GCM review reference instead of raw database, provider, actor, or event identifiers. Review mapping uses one MariaDB transaction, rolls back failed or raced writes, and rejects malformed, noncanonical, tampered, or cross-owner references with the same fail-closed not-found behavior.

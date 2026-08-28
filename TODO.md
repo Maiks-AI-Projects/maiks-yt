@@ -27,7 +27,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Remove simulation-only and test-system event kinds from the production Connections catalogue while preserving real Website, Twitch, YouTube, and Discord entries.
 - [x] Replace provider-intake browser rows with an allowlisted projection and owner-bound opaque review reference, including transactional internal-history mapping and strict canonical reference parsing.
 - [x] Minimize Page Creator, Games suggestion-review, and Session admin browser contracts while preserving their existing owner workflows and internal audit identity.
-- [ ] Replace provider-integration diagnostics with finite operator DTOs.
+- [x] Replace provider-integration diagnostics with finite operator DTOs, exact provider-specific capability sets, truthful connecting/retrying state, bounded safe summaries, finite failures, and fail-closed parsing in every Web consumer.
 - [ ] Generate and review a migration for durable single-use YouTube consent state before implementing the OAuth callback flow. The approved design uses a hashed random state bound to provider, purpose, owner, redirect URI, requested scopes, expiry, and one atomic consume transition.
 - [ ] Deploy the completed operator-contract slices in a separately authorized production window.
 - [ ] Verify the signed-in owner provider-intake review, Page Creator lifecycle, Games suggestion review, and account-scoped Session recovery against the live production database after deployment.
