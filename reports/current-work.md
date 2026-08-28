@@ -1,10 +1,18 @@
 # Current Work
 
+## 2026-08-28 production deployment standing authority
+
+- Michael confirmed that the `production` branch and live production site are the active development path. Ordinary reviewed, reversible Maiks.yt application changes may be committed, pushed, deployed, and non-GUI live-verified without a fresh deployment approval on every slice.
+- Deployment remains an evidence-bearing delivery stage, not an implication of source completion. Every slice must still prove the exact target, pass its review gate, use the established rollback procedure, and have a concrete live verification path. Stop or roll back on failed health or preservation checks; schema work additionally requires the repository backup and migration procedure.
+- This standing authority does not cover real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, or starting a public stream. Those actions retain their specific gates.
+- Desktop, browser, pointer, keyboard, Wayland, screenshot, and GUI automation remain forbidden. That restriction does not block HTTP/API/service verification or ordinary reviewed production deployment.
+- Delivery records must distinguish `authorized to deploy after review`, `deployed`, and `live verified`. Existing reviewed-but-undeployed entries remain undeployed until production evidence is recorded.
+
 ## 2026-08-28 production Creator Links admin approved design
 
 - Michael approved `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` on 2026-08-28 as the source-level acceptance reference for the production Creator Links admin surface. Implementation is not yet complete.
 - The approved image preserves the production admin shell and proposes a compact master/detail Creator Links editor with inventory-only ordering, a selected draft editor, local draft preview using the public row presentation, authoritative saved `/links` preview, and owner-only draft deletion with exact-title confirmation. Funding/support remains protected and unavailable.
-- Current production behavior remains unchanged: database-backed owner controls, dirty-edit protection, inventory ordering, pre-save icon/purpose feedback, public draft exclusion, and the authoritative saved `/links` view. No code/runtime, migration, deployment, server, GUI/browser, or live state changed.
+- Current production behavior remains unchanged at this design record: database-backed owner controls, dirty-edit protection, inventory ordering, pre-save icon/purpose feedback, public draft exclusion, and the authoritative saved `/links` view. Source implementation is in progress. No migration or live state changed as part of design approval.
 
 ## 2026-08-28 production operator-contract review
 

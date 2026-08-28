@@ -1,5 +1,13 @@
 # Next Agent Tasks
 
+## Production deployment policy
+
+- Ordinary reviewed, reversible Maiks.yt application deployments are authorized as part of normal coordinator delivery. Do not pause merely to request deployment permission after a slice has passed review, target proof, rollback preparation, and has a concrete live verification path.
+- Keep states exact: standing deployment authority is not deployment evidence. Mark `deployed` only after the production rollout succeeds and `live verified` only after the real HTTP/API/service or user path is proven.
+- Use the established production deployment and rollback procedure. Take the required protected backup before schema-affecting work, and stop or roll back on failed health or preservation checks.
+- Real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, and starting a public stream retain their specific gates.
+- Desktop and GUI automation remain forbidden, but non-GUI HTTP/API/service verification is expected and must not be treated as blocked by that restriction.
+
 ## Production Creator Links approved implementation reference
 
 - Michael approved `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png` on 2026-08-28 as the source-level acceptance reference.
@@ -10,7 +18,7 @@
 - Admin Overview now uses finite allowlisted operator copy and fails closed on non-2xx, malformed, incomplete, or producer-contradictory health payloads. Counts and ratios are bounded, Money transactions use the Domain validator, and real links, tones, refresh behavior, and valid states remain intact.
 - Page Creator now uses finite reserved-path and unavailable copy. Raw HTTP status and caught exception text no longer reach the owner UI; its existing editor, retry, validation, preview, and publication behavior is unchanged.
 - Independent final review found zero standards and zero specification findings. `pnpm check:review` passes with 159 Domain, 635 API, 227 Web, and 16 Local Agent tests plus the production Web build and required type, architecture, and diff checks.
-- Neither slice is deployed or live/browser/auth-session verified. Deploy and verify only in a separately authorized production window. Desktop and GUI verification remain forbidden by the Owner stop order.
+- Neither slice is deployed or live/auth-session verified. They may be included in an ordinary reviewed reversible production deployment with a concrete non-GUI verification path. Desktop and GUI verification remain forbidden by the Owner stop order.
 
 ## Production Operator Contracts: Deploy And Verify Separately
 
@@ -37,8 +45,8 @@
 ## Reviewed Production Tranche: Deploy And Verify Separately
 
 - `/admin/updates`, Account browser-contract minimization, private Chat/Moderation status projections, and Event Routing operator truthfulness are code-complete and independently reviewed with zero standards and zero specification findings. `pnpm check:review` passes with 155 domain, 609 API, 87 Web, and 16 Local Agent tests plus the production Web build and required type/architecture/diff checks.
-- Do not redesign `/admin/updates` again before its real workflow check. In a separately authorized deployment window, verify signed-in owner create, save, saved preview, exact revision publish, published read-only behavior, unpublish, stale-preview rejection, search/filtering, and responsive layout against the approved image.
-- In the same or later explicitly authorized window, verify account sign-in/OAuth/link/profile/stream-visibility and Control session behavior; installed Chat/Moderation status and reconnect with real providers; and Event Routing current plus legacy saved rules. Keep raw identifiers and runtime internals absent from browser responses.
+- Do not redesign `/admin/updates` again before its real workflow check. After the normal reviewed production deployment, verify signed-in owner create, save, saved preview, exact revision publish, published read-only behavior, unpublish, stale-preview rejection, search/filtering, and responsive layout against the approved image.
+- In the same or a later reviewed deployment, verify account sign-in/OAuth/link/profile/stream-visibility and Control session behavior; installed Chat/Moderation status and reconnect with real providers; and Event Routing current plus legacy saved rules. Keep raw identifiers and runtime internals absent from browser responses.
 - Desktop, browser, screenshot, Computer Use, Wayland, pointer, keyboard, window, and GUI automation remain forbidden until Michael explicitly lifts the stop order. Passing builds and source-level visual contracts do not replace rendered or live verification.
 
 ## Production Active-Grant Authorization
@@ -65,7 +73,7 @@
 - Verify the public schedule returns a currently live visible entry after deployment while planned/cancelled cutoffs and completed/private exclusions remain intact.
 - Configure the streaming-PC Local Agent, deliberately let one expiring play command go unacknowledged, and prove the lease returns to `/music/player` without duplicate terminal acknowledgements. Also prove normal VLC acknowledgement and browser fallback paths.
 - Rehearse the OBS bridge with a pending unstarted effect across send failure and widget readiness loss, then with a started effect across disconnect. Confirm exactly one visual/audio consumer and healthy master-overlay clients still receive fallback when another client is stale.
-- None of these code-complete slices is deployed or live-verified yet. Michael's desktop-control stop order remains active; use an explicitly authorized non-GUI/live rehearsal path or wait for separate authorization.
+- None of these code-complete slices is deployed or live-verified yet. Michael's desktop-control stop order remains active; use non-GUI HTTP/API/service verification for ordinary reviewed deployments, and retain specific approval only for actions such as starting a public stream or sending external messages.
 
 ## Production Admin Overview Hygiene
 
@@ -139,7 +147,7 @@
 - Start from `reports/production-capability-ledger.md`. Keep design, approval, implementation, integration, deployment, and real verification separate.
 - The approved operational PWA redesign is now integrated and locally verified. Its next gate is deployment plus installed Chat, Moderation, Control, and Notifications verification in a deliberate signed-in window.
 - The PWA access checker now has bounded transient retry plus online/foreground/manual recovery. The next recovery slice is the dedicated main-site OAuth return page, pending approval of the candidate image recorded in `reports/current-work.md`. Preserve the existing URL-token plus signed-in-session boundary. Do not weaken Control tokens to token-only access or copy launch tokens across origins.
-- Public reachability was restored on 2026-08-27: Web, API health, Control, and Overlay returned `200` through Cloudflare. This removes the reachability blocker but does not authorize automatic deployment; retain a concrete verification and rollback path for each slice.
+- Public reachability was restored on 2026-08-27: Web, API health, Control, and Overlay returned `200` through Cloudflare. Ordinary reviewed reversible deployment is standing coordinator authority, but each slice still needs a concrete verification and rollback path before rollout.
 
 Updated: 2026-08-27
 

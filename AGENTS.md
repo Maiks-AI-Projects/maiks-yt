@@ -7,7 +7,9 @@ This repository is a TypeScript monorepo for the Maiks.yt website, stream overla
 - The `production` branch and this production worktree are the sole forward-development line.
 - Treat dev branches, older worktrees, and the damaged Windows-era copy as evidence or item-level recovery sources only. Do not merge or synchronize them wholesale and do not spend work keeping them current.
 - Rebuild wanted behavior in production patterns when direct reuse would carry dev-only assumptions.
-- Do not push, deploy, or change live services merely because checks pass. Require a clear real-user verification path and explicit coordinator authority for the live change.
+- Ordinary reviewed, reversible Maiks.yt application changes may be committed, pushed, deployed to production, and live-verified by the coordinator without asking Michael for deployment approval on every slice. A passing check alone is not enough: prove the target, use the established deployment and rollback procedure, define the real-user verification path, and stop or roll back when health or preservation checks fail.
+- Keep delivery states separate. `Authorized to deploy after review` is standing policy; it never means a slice is already `deployed` or `live verified`. Record implementation, integration, deployment, and real verification from evidence.
+- Schema-affecting deployments require the repository's backup, migration review, and rollback procedure. Real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, and starting a public stream retain their specific approval gates.
 
 ## Read Order
 
@@ -76,7 +78,7 @@ The coordinator/reviewer:
 - checks architecture and cross-module behavior
 - runs integration tests and browser verification where relevant
 - updates `TODO.md` and `reports/current-work.md`
-- commits coherent reviewed slices to `production`; pushes or deploys only when authorized and verifies the actual target environment
+- commits and pushes coherent reviewed slices to `production`; ordinary reversible application deployments are authorized after review, target proof, and rollback preparation, and the coordinator verifies the actual target environment
 
 ## Standard Checks
 
@@ -100,4 +102,4 @@ Use `pnpm check:review` before merging reviewed work. Use `pnpm check:full` befo
 
 Use `pnpm test:readiness` for a pre-testing local gate that runs review checks plus the dev smoke dry-run. Add `-- --visual` when screenshot coverage is needed before or after a testing session.
 
-Use deployment scripts only from the reviewer/coordinator after review succeeds and the target environment is proven.
+Use deployment scripts only from the reviewer/coordinator after review succeeds, the target and rollback path are proven, and a concrete live verification path exists. Record `deployed` and `live verified` only after those actions succeed.

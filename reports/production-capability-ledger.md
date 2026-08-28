@@ -2,6 +2,14 @@
 
 Updated: 2026-08-28
 
+## Delivery authority and evidence
+
+- The production branch and live site are the normal forward-development path. Ordinary reviewed, reversible application slices are authorized for coordinator commit, push, production deployment, and non-GUI live verification without a new approval request for each slice.
+- Authorization is not evidence of delivery. Keep `implementation`, `integration`, `deployment`, and `real verification` separate, and advance each state only from the corresponding artifact or live proof.
+- Each deployment still requires exact-target proof, the established rollback procedure, a concrete verification path, and successful health and preservation checks. Schema-affecting work additionally requires the repository backup and migration procedure.
+- Real payments or refunds, purchases, destructive data deletion, account ownership or secret changes, external messages, and starting a public stream retain their specific gates.
+- Desktop and GUI automation remain forbidden. Use HTTP, API, service, container, log, and other non-GUI evidence for live verification where applicable.
+
 ## Direction
 
 `production` is the sole forward-development line. The dev repository and its

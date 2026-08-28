@@ -9,7 +9,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Minimize private Chat and Moderation provider status responses without removing reconnect behavior or the token-plus-session gate.
 - [x] Make Event Routing operator controls and copy match the capabilities the production runtime actually consumes.
 - [x] Complete independent GPT-5.5 standards/specification review and the shared production review gate for all four slices.
-- [ ] Deploy the reviewed tranche in a separately authorized production window.
+- [ ] Deploy the reviewed tranche through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence.
 - [ ] Perform real signed-in, installed-PWA, provider/routing, and rendered `/admin/updates` verification after deployment. Desktop/GUI control remains forbidden until Michael explicitly lifts the stop order.
 
 ## Production Correctness Tranche - 2026-08-28
@@ -19,7 +19,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Preserve every additional Schedule game link when the single visible Game focus is changed or cleared, with deterministic ordering and relationship preservation.
 - [x] Make Project publication use one shared public-status predicate and enforce the invariant atomically in the repository write path.
 - [x] Complete independent GPT-5.5 reviews and `pnpm check:review` for all four corrections.
-- [ ] Deploy this correctness tranche in a separately authorized production window.
+- [ ] Deploy this correctness tranche through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence.
 - [ ] Verify same-account session recovery, terminal token rotation, multi-link Schedule editing, and Project publish/status concurrency against the live production database after deployment.
 
 ## Production Operator Contract Pass - 2026-08-28
@@ -29,10 +29,10 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Minimize Page Creator, Games suggestion-review, and Session admin browser contracts while preserving their existing owner workflows and internal audit identity.
 - [x] Replace provider-integration diagnostics with finite operator DTOs, exact provider-specific capability sets, truthful connecting/retrying state, bounded safe summaries, finite failures, and fail-closed parsing in every Web consumer.
 - [ ] Generate and review a migration for durable single-use YouTube consent state before implementing the OAuth callback flow. The approved design uses a hashed random state bound to provider, purpose, owner, redirect URI, requested scopes, expiry, and one atomic consume transition.
-- [ ] Deploy the completed operator-contract slices in a separately authorized production window.
+- [ ] Deploy the completed operator-contract slices through the normal reviewed production procedure with target, rollback, and non-GUI verification evidence.
 - [ ] Verify the signed-in owner provider-intake review, Page Creator lifecycle, Games suggestion review, and account-scoped Session recovery against the live production database after deployment.
 - 2026-08-28 reviewed source slices now also include the finite Admin Overview health-copy boundary and the finite Page Creator copy cleanup. Both passed independent review with zero standards and zero specification findings, and neither slice is deployed or live/browser/auth-session verified.
-- 2026-08-28 the Creator Links admin image candidate remains an Owner approval gate at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`, and Public Progress truthfulness copy still needs Owner-approved wording.
+- 2026-08-28 Michael approved the Creator Links admin image at `reports/visual-concepts/production-admin-links/admin-links-candidate-v1.png`; source implementation, deployment, and live verification remain separate tracked stages. Public Progress truthfulness copy still needs Owner-approved wording.
 
 ## 0. Organize the Idea Base
 
