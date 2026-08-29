@@ -1,5 +1,13 @@
 # Current Work
 
+## 2026-08-29 production Moderators hygiene deployed
+
+- Removed the inactive `Discord role ID` editor and its future-only sync copy from `/admin/moderators` while preserving any stored mapping in unrelated rank-update payloads. Recent grant audit rows now use finite `Unknown role`, `Unknown user`, `Unknown actor`, or `System` labels instead of rendering raw identifiers. The Grant audit control focuses its existing section, and touched icon-only grant edit/cancel buttons have accessible names.
+- Scope ID, custom rights, rank paths, grants, revocation, protected-role checks, API contracts, schema, and Discord/provider behavior are unchanged. Read-only review found two separate unresolved authority gaps: scope and availability metadata does not constrain effective permissions, and role/rank-path authority changes are absent from the grant audit. Both are tracked independently rather than being hidden inside this UI cleanup.
+- Independent senior review returned `READY` with zero findings. `pnpm check:review` passed with 186 Domain tests, 694 API tests, 518 Web tests, the production Web build, Overlay and Control typechecks, 16 Local Agent tests, 15 provenance tests, architecture rules, and the diff check.
+- Commit `dfaf89696fb494899decfff0195afa1cba4dd264` is pushed and deployed to Web only on image config `sha256:8a3736b4fa8c5546123c4936368ed37ddd30f4ff3d29b0b240416d891c1b21cd`, BuildKit manifest `sha256:a3c16f26bb67498a53b9640f6c059737d80c63f152ed639e1c342ec7aed2ead8`, and OCI created label `2026-08-28T23:59:58Z`. Web container `3c1a66ea...` is healthy with zero restarts. API `be11dd5a...`, Control `ee4559d6...`, and Overlay `07adeebe...` were preserved unchanged.
+- Rollback tag `maiks-yt-production:rollback-dfaf896-web-before` preserves prior image `sha256:89ed7810c77b577d76c368f8aae625e86ee523877fc848cc399216ec87701607`. Home, Moderators, API health, Control, and Overlay returned `200`; anonymous Moderators API access returned finite `401 not_authenticated`; Web startup logs contain no error or warning signal. No migration, database/data, volume, provider/account/credential, DNS/tunnel, stream, GUI, or browser action occurred. Signed-in owner interaction remains unverified.
+
 ## 2026-08-29 readable production Music Review deployed
 
 - Replaced raw Track and Source relationship-id entry on `/admin/music/review` with readable catalog selections while keeping exact ids private in client state and the existing owner API request. Saved blacklist rows now resolve to readable track/source labels or explicit unavailable states instead of rendering raw ids.
