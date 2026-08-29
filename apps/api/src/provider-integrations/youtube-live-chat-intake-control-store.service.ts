@@ -10,6 +10,11 @@ import type {
   YouTubeLiveChatIntakeControlActor,
   YouTubeLiveChatIntakeControlRepository
 } from "./youtube-live-chat-intake-control.types.js";
+import type { AuthDataCipher } from "../auth/auth-sensitive-field-crypto.service.js";
+import {
+  createProviderRuntimeCredentialCipherFromEnvironment,
+  revealProviderRuntimeCredentialTokens
+} from "./provider-runtime-credential-token-crypto.service.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
 
@@ -81,7 +86,8 @@ const resolveActor = async (
 const resolveSelectedLiveChatContext = async (
   pool: QueryExecutor,
   env: Record<string, string | undefined>,
-  fallbackRedirectUri: string
+  fallbackRedirectUri: string,
+  cipher: AuthDataCipher | null
 ): Promise<YouTubeLiveChatContext | null> => {
   const config = resolveYouTubeOwnerOAuthConfig(env, fallbackRedirectUri);
 
@@ -124,15 +130,23 @@ const resolveSelectedLiveChatContext = async (
     } | undefined
     : undefined;
 
-  if (!row?.refreshToken || !parseScopes(row.scopes).includes(youtubeLiveChatReadOnlyScope)) {
+  if (!row || !parseScopes(row.scopes).includes(youtubeLiveChatReadOnlyScope)) {
+    return null;
+  }
+  const tokens = revealProviderRuntimeCredentialTokens({
+    accessToken: row.accessToken,
+    refreshToken: row.refreshToken
+  }, cipher);
+
+  if (!tokens.refreshToken) {
     return null;
   }
 
   return {
     config,
     credential: {
-      accessToken: row.accessToken ?? null,
-      refreshToken: row.refreshToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
       accessTokenExpiresAt: toDateOrNull(row.accessTokenExpiresAt),
       scopes: parseScopes(row.scopes)
     },
@@ -155,6 +169,7 @@ export const createYouTubeLiveChatContextRepository = (
   options: {
     apiBaseUrl?: string;
     env?: Record<string, string | undefined>;
+    cipher?: AuthDataCipher | null;
   } = {}
 ): YouTubeLiveChatContextRepository => ({
   resolveSelectedLiveChatContext: () => resolveSelectedLiveChatContext(
@@ -163,6 +178,9 @@ export const createYouTubeLiveChatContextRepository = (
     new URL(
       "/admin/provider-integrations/youtube/callback",
       options.apiBaseUrl ?? process.env.API_PUBLIC_BASE_URL ?? "https://api.maiks.yt"
-    ).toString()
+    ).toString(),
+    options.cipher === undefined
+      ? createProviderRuntimeCredentialCipherFromEnvironment()
+      : options.cipher
   )
 });

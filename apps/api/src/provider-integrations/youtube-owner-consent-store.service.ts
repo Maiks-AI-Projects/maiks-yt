@@ -7,6 +7,11 @@ import type {
   ProviderRuntimeCredentialSummary,
   YouTubeOwnerConsentRepository
 } from "./youtube-owner-consent.types.js";
+import {
+  createProviderRuntimeCredentialCipherFromEnvironment,
+  protectProviderRuntimeCredentialTokens
+} from "./provider-runtime-credential-token-crypto.service.js";
+import type { AuthDataCipher } from "../auth/auth-sensitive-field-crypto.service.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
 
@@ -122,12 +127,17 @@ const getYouTubeCredentialSummary = async (
 };
 
 export const createYouTubeOwnerConsentRepository = (
-  pool: QueryExecutor
+  pool: QueryExecutor,
+  cipher: AuthDataCipher | null = createProviderRuntimeCredentialCipherFromEnvironment()
 ): YouTubeOwnerConsentRepository => ({
   resolveActor: (authUserId) => resolveActor(pool, authUserId),
   getYouTubeCredentialSummary: (domainUserId) => getYouTubeCredentialSummary(pool, domainUserId),
   async upsertYouTubeCredential(input) {
     const now = input.verifiedAt;
+    const protectedTokens = protectProviderRuntimeCredentialTokens({
+      accessToken: input.accessToken,
+      refreshToken: input.refreshToken
+    }, cipher);
 
     await pool.execute(
       `
@@ -163,8 +173,8 @@ export const createYouTubeOwnerConsentRepository = (
         randomUUID(),
         input.domainUserId,
         JSON.stringify([...input.scopes]),
-        input.accessToken,
-        input.refreshToken,
+        protectedTokens.accessToken,
+        protectedTokens.refreshToken,
         input.accessTokenExpiresAt,
         now,
         now,

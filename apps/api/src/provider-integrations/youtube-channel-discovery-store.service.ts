@@ -9,6 +9,11 @@ import type {
   YouTubePersistedChannel,
   YouTubePersistedChannelInput
 } from "./youtube-channel-discovery.types.js";
+import type { AuthDataCipher } from "../auth/auth-sensitive-field-crypto.service.js";
+import {
+  createProviderRuntimeCredentialCipherFromEnvironment,
+  revealProviderRuntimeCredentialTokens
+} from "./provider-runtime-credential-token-crypto.service.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
 type TransactionExecutor = Pick<Awaited<ReturnType<DatabasePool["getConnection"]>>, "execute">;
@@ -147,7 +152,8 @@ const listYouTubeChannels = async (
 
 const getActiveYouTubeCredential = async (
   executor: QueryExecutor,
-  domainUserId: string
+  domainUserId: string,
+  cipher: AuthDataCipher | null
 ): Promise<YouTubeChannelDiscoveryStoredCredential | null> => {
   const [rows] = await executor.execute(
     `
@@ -179,13 +185,21 @@ const getActiveYouTubeCredential = async (
     } | undefined
     : undefined;
 
-  if (!row?.refreshToken) {
+  if (!row) {
+    return null;
+  }
+  const tokens = revealProviderRuntimeCredentialTokens({
+    accessToken: row.accessToken,
+    refreshToken: row.refreshToken
+  }, cipher);
+
+  if (!tokens.refreshToken) {
     return null;
   }
 
   return {
-    accessToken: row.accessToken ?? null,
-    refreshToken: row.refreshToken,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
     accessTokenExpiresAt: toDateOrNull(row.accessTokenExpiresAt),
     scopes: parseScopes(row.scopes),
     status: row.status,
@@ -291,10 +305,11 @@ const selectYouTubeLiveChatChannel = async (
 };
 
 export const createYouTubeChannelDiscoveryRepository = (
-  pool: DatabasePool
+  pool: DatabasePool,
+  cipher: AuthDataCipher | null = createProviderRuntimeCredentialCipherFromEnvironment()
 ): YouTubeChannelDiscoveryRepository => ({
   resolveActor: (authUserId) => resolveActor(pool, authUserId),
-  getActiveYouTubeCredential: (domainUserId) => getActiveYouTubeCredential(pool, domainUserId),
+  getActiveYouTubeCredential: (domainUserId) => getActiveYouTubeCredential(pool, domainUserId, cipher),
   listYouTubeChannels: (domainUserId) => listYouTubeChannels(pool, domainUserId),
   async upsertYouTubeChannels(input) {
     const connection = await pool.getConnection();
