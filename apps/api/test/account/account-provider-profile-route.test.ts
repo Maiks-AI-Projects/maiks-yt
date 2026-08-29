@@ -3,6 +3,10 @@ import Fastify from "fastify";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createAuthDataCipherFromBase64Key,
+  type AuthDataCipher
+} from "../../src/auth/auth-sensitive-field-crypto.service.js";
+import {
   createProviderProfileOptionRef,
   getProviderProfileOptionRefSecret,
   registerAccountProfileRoutes,
@@ -12,6 +16,7 @@ import {
 
 const originalBetterAuthSecret = process.env.BETTER_AUTH_SECRET;
 const originalNodeEnv = process.env.NODE_ENV;
+const keyV1 = Buffer.from("c".repeat(32), "utf8").toString("base64");
 
 const restoreEnvironment = (): void => {
   if (originalBetterAuthSecret === undefined) {
@@ -53,10 +58,12 @@ const providerProfileResponse = {
 
 const createServer = ({
   execute,
-  session = authSession("auth-user-1")
+  session = authSession("auth-user-1"),
+  authDataCipher = null
 }: {
   execute: DatabasePool["execute"];
   session?: AuthSessionSnapshot;
+  authDataCipher?: AuthDataCipher | null;
 }) => {
   const server = Fastify({ logger: false });
 
@@ -64,7 +71,8 @@ const createServer = ({
     getAuthSession: async () => session,
     getDatabasePool: () => ({
       execute
-    }) as unknown as DatabasePool
+    }) as unknown as DatabasePool,
+    authDataCipher
   });
 
   return server;
@@ -117,6 +125,38 @@ describe("account provider profile production refs", () => {
     expect(serialized).not.toContain("scope");
     expect(serialized).not.toContain("createdAt");
     expect(serialized).not.toContain("updatedAt");
+  });
+
+  it("decrypts encrypted direct SQL account rows before fetching provider profile options", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.BETTER_AUTH_SECRET = "production-secret";
+    const authDataCipher = createAuthDataCipherFromBase64Key(keyV1);
+    const encryptedAccount: ProviderProfileAccount = {
+      ...authAccount,
+      accessToken: authDataCipher.encrypt({
+        model: "account",
+        field: "accessToken",
+        plaintext: authAccount.accessToken ?? ""
+      })
+    };
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(providerProfileResponse), {
+      headers: { "content-type": "application/json" },
+      status: 200
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const server = createServer({
+      execute: (async () => [[encryptedAccount]]) as DatabasePool["execute"],
+      authDataCipher
+    });
+
+    const response = await server.inject({
+      method: "GET",
+      url: "/account/domain/provider-profile-options"
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("authorization")).toBe("Bearer provider-access-token");
+    expect(JSON.stringify(response.json())).not.toContain(String(encryptedAccount.accessToken));
   });
 
   it("accepts a valid same-user provider option ref without accepting a raw account id", async () => {
@@ -196,6 +236,66 @@ describe("account provider profile production refs", () => {
 
     expect(legacyRawIdResponse.statusCode).toBe(400);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("decrypts encrypted direct SQL account rows before applying provider profile choices", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.BETTER_AUTH_SECRET = "production-secret";
+    const authDataCipher = createAuthDataCipherFromBase64Key(keyV1);
+    const encryptedAccount: ProviderProfileAccount = {
+      ...authAccount,
+      accessToken: authDataCipher.encrypt({
+        model: "account",
+        field: "accessToken",
+        plaintext: authAccount.accessToken ?? ""
+      })
+    };
+    const secret = getProviderProfileOptionRefSecret();
+    expect(secret).not.toBeNull();
+    const profileOptionRef = createProviderProfileOptionRef({
+      account: authAccount,
+      authUserId: "auth-user-1",
+      secret: secret ?? ""
+    });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify(providerProfileResponse), {
+      headers: { "content-type": "application/json" },
+      status: 200
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const execute = vi.fn(async (sql: string) => {
+      if (sql.includes("FROM auth_accounts")) {
+        return [[encryptedAccount]];
+      }
+
+      if (sql.includes("auth_user_links")) {
+        return [[{
+          userId: "domain-user-1",
+          displayName: "Current Name",
+          profileVisibility: "private",
+          avatarUrl: null
+        }]];
+      }
+
+      if (sql.includes("UPDATE users")) {
+        return [{ affectedRows: 1 }];
+      }
+
+      throw new Error(`Unexpected query: ${sql}`);
+    }) as unknown as DatabasePool["execute"];
+    const server = createServer({ execute, authDataCipher });
+
+    const response = await server.inject({
+      method: "PUT",
+      url: "/account/domain/provider-profile",
+      payload: {
+        profileOptionRef,
+        useDisplayName: true,
+        useImage: false
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("authorization")).toBe("Bearer provider-access-token");
   });
 
   it("rejects a tampered provider option ref before provider profile fetch", async () => {

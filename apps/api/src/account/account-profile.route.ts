@@ -4,6 +4,11 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import { getApiPublicBaseUrl } from "../api-public-base-url.rules.js";
+import {
+  createAuthDataCipherFromEnvironment,
+  decryptAuthAccountSensitiveFields,
+  type AuthDataCipher
+} from "../auth/auth-sensitive-field-crypto.service.js";
 import { projectDomainUser } from "./account-response-projection.service.js";
 import type { AuthSessionSnapshot } from "./auth-session.types.js";
 import { getDomainUserForAuthUser } from "./domain-identity.service.js";
@@ -60,10 +65,24 @@ const providerProfileApplySchema = z.object({
 type AccountProfileRouteDependencies = {
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
   getDatabasePool: () => DatabasePool;
+  authDataCipher?: AuthDataCipher | null;
 };
 
 const buildAvatarUrl = (userId: string): string =>
   `${getApiPublicBaseUrl()}/profiles/images/${userId}?v=${Date.now()}`;
+
+const getAuthDataCipher = (dependencies: AccountProfileRouteDependencies): AuthDataCipher | null =>
+  dependencies.authDataCipher === undefined
+    ? createAuthDataCipherFromEnvironment()
+    : dependencies.authDataCipher;
+
+const decryptProviderProfileAccounts = (
+  rows: unknown,
+  cipher: AuthDataCipher | null
+): ProviderProfileAccount[] => {
+  const accounts = Array.isArray(rows) ? rows as ProviderProfileAccount[] : [];
+  return accounts.map((account) => decryptAuthAccountSensitiveFields(account, cipher));
+};
 
 export const registerAccountProfileRoutes = (
   server: FastifyInstance,
@@ -90,7 +109,7 @@ export const registerAccountProfileRoutes = (
         "SELECT id, account_id AS accountId, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
         [session.user.id]
       );
-      const accounts = Array.isArray(rows) ? rows as ProviderProfileAccount[] : [];
+      const accounts = decryptProviderProfileAccounts(rows, getAuthDataCipher(dependencies));
       const options = await Promise.all(accounts.map(async (account) => {
         const option = await fetchProviderProfileOption(account, {
           twitchClientId: process.env.TWITCH_CLIENT_ID
@@ -140,7 +159,7 @@ export const registerAccountProfileRoutes = (
         "SELECT id, account_id AS accountId, provider_id AS providerId, access_token AS accessToken FROM auth_accounts WHERE user_id = ? ORDER BY provider_id, created_at",
         [session.user.id]
       );
-      const accounts = Array.isArray(rows) ? rows as ProviderProfileAccount[] : [];
+      const accounts = decryptProviderProfileAccounts(rows, getAuthDataCipher(dependencies));
       const secret = getProviderProfileOptionRefSecret();
       const account = secret
         ? resolveProviderProfileOptionRef({
