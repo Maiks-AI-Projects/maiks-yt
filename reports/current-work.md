@@ -7,7 +7,8 @@
 - Migrated the existing \`TWITCH_EVENTSUB_WEBHOOK_SECRET\` value without displaying or changing it. The source, OpenBao render, and production container SHA-256 matched. Its line is removed from \`.env.production\`; no plaintext rollback duplicate remains.
 - API restarted successfully while the vault tunnel was deliberately unavailable, then recovered its live Agent connection. Final API image remains exact \`sha256:0a765f9ed350a17db63fb94a661c7313f7c0471efe314fe3f4fa6ae73c37a9d4\`, healthy/restart0; Web, Control, Overlay, volumes, database, and public HTTP remained preserved.
 - AppRole boundary verification returned \`200\` for its assigned Maiks path and \`403\` for Password Manager data and policy administration; the one-off verification token was revoked.
-- The normal production Compose path now loads the ignored Agent render after \`.env.production\`, and a focused source test is part of both review gates. Full evidence and remaining provider-backed verification are in \`reports/openbao-production-secret-migration-2026-08-29.md\`.
+- The normal production Compose path now loads the ignored Agent render after \`.env.production\`, and a focused source test is part of both review gates. An API-only recreate through that normal path passed on the exact image, with matching render/container hashes and all companion containers and volumes preserved.
+- The encrypted OpenBao snapshot timer then fired naturally at 03:23 CEST, completed successfully, and scheduled its next run. Full evidence and remaining provider-backed verification are in \`reports/openbao-production-secret-migration-2026-08-29.md\`.
 
 ## 2026-08-29 production Moderators hygiene deployed
 
