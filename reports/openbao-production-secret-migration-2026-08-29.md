@@ -17,6 +17,7 @@ Target environment: Michael-Server-1 production API and Rpi4-Vault OpenBao 2.6.2
 | Twitch chat bot bundle | done | done | done | done | done | done | Access token, refresh token, and expiry moved unchanged as one version-1 \`twitch-chat-bot\` unit. All three source/render/container hashes matched. Twitch validation returned \`401\` before and after, preserving the truthful expired/\`needs_attention\` state. | Reauthorize later; do not refresh credentials as part of migration. |
 | Database and Better Auth runtime | done | done | done | done | done | done | \`database\` and \`auth-signing\` are at version 1. Database health and a real Better Auth GitHub OAuth-start response returned \`200\` after plaintext removal. Current database rows were not changed by this static phase. | Protect OAuth/session values already stored in MariaDB as a separate phase. |
 | Better Auth OAuth account tokens | done | done | done | done | done | done | Commit \`6bddc81\` deploys mixed-read AES-256-GCM account-token protection using the version-1 OpenBao \`auth-data-protection\` key. An encrypted mode-\`0600\` rollback artifact was verified before one transaction converted four account rows and eight non-null fields. All eight envelopes decrypt, zero plaintext non-null OAuth fields remain, an existing session still resolves, and the provider-profile path returned a real GitHub option without envelope leakage. | Encrypt verification values and future provider-runtime writes, then introduce dual-compatible session hashing through a separately reviewed migration. |
+| Better Auth session tokens | done | done | done | done | done | done | Commit \`8994e90\` deploys AES-256-GCM storage plus domain-separated HMAC lookup. Encrypted backup \`session-token-migration-20260829T033209Z.sql.gz.gpg\` was verified before applying only migration 0030 and converting three rows in one compare-and-set transaction. The pre-existing active session and real `/admin/sessions` read both remained valid; zero plaintext session rows remain. | Protect verification identifiers/values next; retain ciphertext because Better Auth list/revoke reads the token. |
 | Steam bootstrap credential | done | done | done | done | done | done | \`steam\` is at version 1. The container-held key returned a valid Steam player-summary response before and after plaintext removal. The app does not yet consume this key, so this proves credential continuity rather than Games integration. | Reuse the protected credential when the Games provider cache is implemented. |
 | Source-controlled render contract | done | done | done | done | done | done | A secret-free Agent template records the exact allowlisted production API key/path mapping. Focused source tests reject extra paths/keys, bootstrap/admin material, and literal values. | Install only reviewed template revisions; never commit the live render. |
 | Ordinary production deployment path | done | done | done | done | done | done | Production Compose loads the ignored Agent render after the ordinary environment. A standard API-only recreate, pinned to the exact existing image, became healthy/restart0 and matched the rendered secret hash without changing Web, Control, Overlay, or either application volume. | Keep the source test in both review and full gates. |
@@ -24,12 +25,12 @@ Target environment: Michael-Server-1 production API and Rpi4-Vault OpenBao 2.6.2
 
 ## Preserved state
 
-- Final API image is \`sha256:9f35485d124502b3f91719f458eba8358d943691cd0e813c5242e2ef94865e8d\` at source revision \`6bddc81e0bf32503fa7fd6b9b174cc68fc5a938f\`.
-- Final API container at receipt time: \`e8e5600d9dfa...\`, healthy, restart count zero.
+- Final API image is \`sha256:52915065fbd660e2bd072191fa6f3bcab000686a7bff077f979818fb1f2302b3\` at source revision \`8994e90a67d343187aa8d1c5ce5fcaeb269ccc5b\`.
+- Final API container is healthy with restart count zero; Web, Control, and Overlay were preserved during the API-only recreate.
 - Web container remained \`3c1a66ea...\` on image \`sha256:8a3736b4...b21cd\`.
 - Control remained \`ee4559d6...\`; Overlay remained \`07adeebe...\`.
 - \`maiks-yt-production-profile-images\` and \`maiks-yt-production-music-audio\` remained mounted read/write.
-- The static credential phase did not change production database contents. The later authorized dynamic phase encrypted only the eight existing OAuth token fields described above and applied no schema migration.
+- The static credential phase did not change production database contents. The authorized dynamic phase encrypted eight existing OAuth token fields, applied only session migration 0030, and protected all three session rows. Profiles migration 0031 remains unapplied.
 
 ## Secret boundaries
 
@@ -38,7 +39,7 @@ Target environment: Michael-Server-1 production API and Rpi4-Vault OpenBao 2.6.2
 - OpenBao Agent owns the rendered file at mode \`0600\`.
 - The temporary \`.env.production\` rollback copy and local bootstrap credential files were removed after live verification.
 - \`.env.production\` retains ordinary configuration only. Every identified application credential now comes from the mode-\`0600\` Agent render.
-- Existing Better Auth OAuth account tokens are now encrypted at rest. Verification values and session lookup tokens remain the next bounded units; \`url_access_tokens\` already stores only hashes and stays unchanged.
+- Existing Better Auth OAuth account tokens and session tokens are now protected at rest. Verification identifiers/values remain the next bounded unit; \`url_access_tokens\` already stores only hashes and stays unchanged.
 
 ## Remaining limits
 

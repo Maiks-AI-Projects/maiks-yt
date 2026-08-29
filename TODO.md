@@ -14,7 +14,7 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Preserve the expired Twitch bot bundle unchanged in OpenBao, keep the runtime truthfully \`needs_attention\`, and separate provider reauthorization from secret-storage migration.
 - [ ] Verify one naturally received Twitch EventSub request through the migrated secret during the next provider rehearsal.
 - [ ] Reauthorize the production Twitch bot credential through the provider workflow; do not mutate or refresh it as part of the OpenBao storage migration.
-- [ ] Finish Better Auth protected storage: OAuth account credentials are deployed and all existing rows are encrypted; verification values and dual-compatible session-token hashing remain. Preserve current sessions and keep \`url_access_tokens.token_hash\` unchanged because it already has the correct at-rest shape.
+- [ ] Finish Better Auth protected storage: OAuth account credentials and session tokens are deployed and all existing rows are protected. Verification identifiers/values remain. Preserve current sessions and keep \`url_access_tokens.token_hash\` unchanged because it already has the correct at-rest shape.
 - [ ] Cover future \`provider_runtime_credentials\` token writes with the same protected-value boundary before that currently empty table receives production rows.
 
 ## Production Reviewed Tranche - 2026-08-28

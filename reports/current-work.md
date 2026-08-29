@@ -1,5 +1,15 @@
 # Current Work
 
+## 2026-08-29 production session tokens protected at rest
+
+- Deployed reviewed commit `8994e90a67d343187aa8d1c5ce5fcaeb269ccc5b`. Better Auth session lookup now uses a domain-separated HMAC-SHA-256 key while the existing token column stores an AES-256-GCM envelope. Reversible encryption remains necessary because Better Auth 1.6.15 reads session tokens for list/revoke flows; a hash alone would break that contract or turn the hash into a bearer token.
+- Added version-1 `AUTH_SESSION_TOKEN_HASH_KEY_V1` at the scoped OpenBao path `secret/data/maiks-yt/production/api/auth-session-token-hash`. The Agent render gained exactly one key, remains mode `0600`, and the API receives both encryption and hash keys without per-request OpenBao calls.
+- Before schema or row changes, created and verified `$HOME/.local/state/maiks-yt-backups/session-token-migration-20260829T033209Z.sql.gz.gpg`: mode `0600`, 3,007 bytes, SHA-256 `479d9f6d94c4b2d56a49e4ec163d4e4063d38fa9db1895292cf74f61ffba5f5f`. It decrypts to a valid gzip stream containing only `auth_sessions` and `__drizzle_migrations`; no plaintext dump was written.
+- Applied only migration `0030_outstanding_pepper_potts.sql` (SHA-256 `7aae3a91f20d3f9295230ccd64aac2302da6fc40f86526924e74cdbb1bffee0e`, ledger timestamp `1787973090232`). It added nullable `token_hash` plus its unique index. The unapplied Profiles migration is now `0031_sharp_yellowjacket.sql` and was explicitly proven absent from the live ledger.
+- The mixed-read API was deployed before row conversion and validated the existing active session while all three rows still had null hashes. One transaction then locked and compare-and-set converted all three session rows. Post-commit proof found three known AES-GCM envelopes, three matching 64-character HMAC hashes, zero plaintext rows, and zero null hashes.
+- The same pre-existing active browser session returned signed-in `200` both before and after conversion. The real owner `/admin/sessions` list also returned `200` after conversion, proving the list/revoke read contract still works without exposing stored tokens. API image config is `sha256:52915065fbd660e2bd072191fa6f3bcab000686a7bff077f979818fb1f2302b3`; rollback tag `maiks-yt-production:rollback-8994e90-api-before` preserves the prior image. Web, Control, Overlay, volumes, DNS/tunnel, and stream state were preserved.
+- Remaining dynamic work is separate: protect `auth_verifications` identifiers/values and future `provider_runtime_credentials` token writes. `url_access_tokens.token_hash` already has the intended hash-only shape and remains unchanged.
+
 ## 2026-08-29 production OAuth account tokens encrypted at rest
 
 - Deployed reviewed commit `6bddc81e0bf32503fa7fd6b9b174cc68fc5a938f`. Better Auth account access, refresh, and ID tokens now pass through one AES-256-GCM boundary with a versioned envelope and field-specific authenticated context. The adapter encrypts new writes and decrypts reads, while direct provider-profile SQL reads use the same boundary. Plaintext rows remain readable only for the bounded migration window.
@@ -8,7 +18,7 @@
 - A single MariaDB transaction locked and migrated all four `auth_accounts` rows. It encrypted eight non-null values: four access tokens, two refresh tokens, and two ID tokens. Compare-and-set updates affected all four expected rows, the in-transaction decrypt comparison matched every original value, and post-commit verification found eight known envelopes and zero remaining plaintext non-null OAuth fields.
 - Existing login continuity is proven through the real API path: an already-active production session returned `200`, `signedIn: true`, and a current user after the backfill. The provider-profile endpoint returned `200` with a real GitHub option and no encrypted envelope in its response. No provider credential was refreshed or changed.
 - API-only deployment uses image config `sha256:9f35485d124502b3f91719f458eba8358d943691cd0e813c5242e2ef94865e8d`, manifest `sha256:0652cfa7f1ca01e0e9ea739b99d5b6e40eaf9afb7c9a8797ca3a975a9ffd1ef1`, and container `e8e5600d9dfa...`, healthy with zero restarts. Rollback tag `maiks-yt-production:rollback-6bddc81-api-before` preserves the prior API image. Web, Control, Overlay, volumes, DNS/tunnel, and stream state were preserved; no schema migration was applied.
-- Remaining dynamic work is separate: encrypt `auth_verifications.value`, protect future `provider_runtime_credentials` token writes, and add the reviewed dual-compatible session-token hash column/backfill before removing plaintext session tokens. `url_access_tokens.token_hash` already has the intended at-rest shape and remains unchanged.
+- The session-token unit is now separately deployed and verified above. Remaining dynamic work is `auth_verifications` and future `provider_runtime_credentials`; `url_access_tokens.token_hash` remains unchanged.
 
 ## 2026-08-29 production runtime credentials moved to OpenBao
 
