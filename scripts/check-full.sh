@@ -16,6 +16,7 @@ run_step "Build all packages and apps" pnpm build
 run_step "Typecheck all packages and apps" pnpm typecheck
 run_step "Run all tests" pnpm test
 run_step "Production image provenance tests" pnpm test:production-image-provenance
+run_step "Production OpenBao configuration tests" pnpm test:production-openbao-config
 run_step "Architecture rules" pnpm check:architecture
 run_step "Diff whitespace check" git diff --check
 

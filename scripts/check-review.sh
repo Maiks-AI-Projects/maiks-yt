@@ -34,6 +34,7 @@ run_step "Control panel typecheck" pnpm --filter @maiks-yt/control-panel typeche
 run_step "Local agent tests" pnpm --filter @maiks-yt/local-agent test
 run_step "Local agent typecheck" pnpm --filter @maiks-yt/local-agent typecheck
 run_step "Production image provenance tests" pnpm test:production-image-provenance
+run_step "Production OpenBao configuration tests" pnpm test:production-openbao-config
 run_step "Architecture rules" pnpm check:architecture
 run_step "Diff whitespace check" git diff --check
 

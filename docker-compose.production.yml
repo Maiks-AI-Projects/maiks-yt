@@ -38,6 +38,7 @@ services:
     command: pnpm --filter @maiks-yt/api start
     env_file:
       - .env.production
+      - .env.openbao.production
     environment:
       API_PUBLIC_BASE_URL: https://api.maiks.yt
       AUTH_TRUSTED_ORIGINS: https://maiks.yt,https://www.maiks.yt,https://control.maiks.yt,https://overlay.maiks.yt

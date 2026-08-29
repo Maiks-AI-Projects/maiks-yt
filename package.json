@@ -24,6 +24,7 @@
     "review:start": "node scripts/start-session-review.mjs",
     "test:obs-live-audience": "node packages/integrations/scripts/run-obs-live-audience-test.mjs",
     "test:production-image-provenance": "node --test scripts/production-image-provenance.test.mjs",
+    "test:production-openbao-config": "node --test scripts/production-openbao-config.test.mjs",
     "test:readiness": "sh scripts/test-readiness.sh",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"

@@ -1,5 +1,14 @@
 # Current Work
 
+## 2026-08-29 first production secret migrated to OpenBao
+
+- Built and live-tested a restricted ms1-to-Rpi4-Vault path: dedicated SSH identity, host-key pin, loopback-only forwarding, OpenBao Agent 2.6.2, AppRole authentication, scoped policy, mode-\`0600\` rendering, automatic token renewal, and boot persistence through enabled user services plus linger.
+- The synthetic canary passed initial injection, two rotations, vault-loss retention, automatic recovery, controlled Docker refresh, and exact rollback. The outage test found and fixed a hard systemd dependency that initially stopped the Agent with the tunnel; the final soft dependency keeps the Agent retrying while preserving the last render.
+- Migrated the existing \`TWITCH_EVENTSUB_WEBHOOK_SECRET\` value without displaying or changing it. The source, OpenBao render, and production container SHA-256 matched. Its line is removed from \`.env.production\`; no plaintext rollback duplicate remains.
+- API restarted successfully while the vault tunnel was deliberately unavailable, then recovered its live Agent connection. Final API image remains exact \`sha256:0a765f9ed350a17db63fb94a661c7313f7c0471efe314fe3f4fa6ae73c37a9d4\`, healthy/restart0; Web, Control, Overlay, volumes, database, and public HTTP remained preserved.
+- AppRole boundary verification returned \`200\` for its assigned Maiks path and \`403\` for Password Manager data and policy administration; the one-off verification token was revoked.
+- The normal production Compose path now loads the ignored Agent render after \`.env.production\`, and a focused source test is part of both review gates. Full evidence and remaining provider-backed verification are in \`reports/openbao-production-secret-migration-2026-08-29.md\`.
+
 ## 2026-08-29 production Moderators hygiene deployed
 
 - Removed the inactive `Discord role ID` editor and its future-only sync copy from `/admin/moderators` while preserving any stored mapping in unrelated rank-update payloads. Recent grant audit rows now use finite `Unknown role`, `Unknown user`, `Unknown actor`, or `System` labels instead of rendering raw identifiers. The Grant audit control focuses its existing section, and touched icon-only grant edit/cancel buttons have accessible names.

@@ -1,6 +1,6 @@
 # Maiks.yt Production Capability Ledger
 
-Updated: 2026-08-28
+Updated: 2026-08-29
 
 ## Delivery authority and evidence
 
@@ -16,6 +16,16 @@ Updated: 2026-08-28
 branches are evidence for product intent and earlier experiments, not a second
 product to maintain and not a history to merge wholesale. Wanted behavior is
 rebuilt or selectively reused in the production architecture and visual system.
+
+## 2026-08-29 OpenBao production-secret pilot
+
+| Slice | Design | Approval | Implementation | Integration | Deployment | Real verification | Evidence / open gate |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Restricted OpenBao transport and AppRole | done | done | done | done | done | done | Dedicated ms1 SSH identity can forward only to Rpi4-Vault loopback OpenBao. Agent 2.6.2 authenticated as \`maiks-yt-api\`; assigned Maiks path returned \`200\`, Password Manager and policy-admin paths returned \`403\`, and the one-off test token was revoked. |
+| Render, rotation, outage, restart, and rollback | done | done | done | done | done | done | Exact hashes proved initial render and rotations. Agent retained the last good render while the tunnel was down, recovered automatically, and API restarted healthy during the outage. Synthetic Docker injection and rollback preserved the exact API image and companion services. |
+| Twitch EventSub webhook secret | done | done | done | done | done | in-progress | The unchanged existing value now comes from OpenBao. Its source/render/container SHA-256 matched; \`.env.production\` no longer contains it; API is healthy on exact image \`sha256:0a765f9e...a9d4\`. A naturally received provider event remains the final behavioral proof. |
+
+Detailed evidence: \`reports/openbao-production-secret-migration-2026-08-29.md\`.
 
 ## 2026-08-27 Readiness Audit
 

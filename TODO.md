@@ -2,6 +2,16 @@
 
 This is the working checklist. We should work down it in order unless a new idea changes the priority.
 
+## OpenBao Production Secrets - 2026-08-29
+
+- [x] Prove a restricted loopback tunnel from ms1 to Rpi4-Vault without exposing OpenBao to the LAN.
+- [x] Prove AppRole authentication and deny access to Password Manager data and policy administration.
+- [x] Prove Agent rendering, rotation, temporary vault loss, automatic recovery, API restart during vault loss, controlled refresh, and rollback with a synthetic canary.
+- [x] Migrate the unchanged Twitch EventSub webhook secret from \`.env.production\` to OpenBao and verify matching source/render/container hashes.
+- [x] Add the ignored Agent render to the normal production Compose path and pin its structure in the review/full gates.
+- [ ] Verify one naturally received Twitch EventSub request through the migrated secret during the next provider rehearsal.
+- [ ] Migrate another low-impact credential only after selecting it from the remaining production inventory; do not bulk-copy \`.env.production\`.
+
 ## Production Reviewed Tranche - 2026-08-28
 
 - [x] Implement the Michael-approved dense `/admin/updates` editor against `reports/visual-concepts/production-admin-updates/admin-updates-candidate-v1.png` while preserving the revision-safe publishing workflow.
