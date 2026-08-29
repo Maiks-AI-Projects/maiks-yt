@@ -9,8 +9,13 @@ This is the working checklist. We should work down it in order unless a new idea
 - [x] Prove Agent rendering, rotation, temporary vault loss, automatic recovery, API restart during vault loss, controlled refresh, and rollback with a synthetic canary.
 - [x] Migrate the unchanged Twitch EventSub webhook secret from \`.env.production\` to OpenBao and verify matching source/render/container hashes.
 - [x] Add the ignored Agent render to the normal production Compose path and pin its structure in the review/full gates.
+- [x] Move every remaining production runtime/bootstrap credential from \`.env.production\` into bounded OpenBao units, preserve exact values, verify the real dependent path where one exists, and leave ordinary IDs/flags/channel configuration in \`.env.production\`.
+- [x] Store the production Agent template as a secret-free reviewed source artifact and test its exact allowlisted key-to-path contract.
+- [x] Preserve the expired Twitch bot bundle unchanged in OpenBao, keep the runtime truthfully \`needs_attention\`, and separate provider reauthorization from secret-storage migration.
 - [ ] Verify one naturally received Twitch EventSub request through the migrated secret during the next provider rehearsal.
-- [ ] Migrate another low-impact credential only after selecting it from the remaining production inventory; do not bulk-copy \`.env.production\`.
+- [ ] Reauthorize the production Twitch bot credential through the provider workflow; do not mutate or refresh it as part of the OpenBao storage migration.
+- [ ] Encrypt Better Auth OAuth credentials, verification values, and session-token storage at the application/database boundary while preserving current accounts and session continuity. Keep \`url_access_tokens.token_hash\` unchanged because it already has the correct at-rest shape.
+- [ ] Cover future \`provider_runtime_credentials\` token writes with the same protected-value boundary before that currently empty table receives production rows.
 
 ## Production Reviewed Tranche - 2026-08-28
 

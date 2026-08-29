@@ -1,5 +1,15 @@
 # Current Work
 
+## 2026-08-29 production runtime credentials moved to OpenBao
+
+- Completed the explicitly authorized static runtime/bootstrap migration one bounded unit at a time. GitHub, Google/YouTube, and Discord OAuth secrets; the Discord bot token; Twitch app secret; the three-field expired Twitch bot bundle; \`DATABASE_URL\`; \`BETTER_AUTH_SECRET\`; the Steam Web API key; and the earlier EventSub webhook secret now render from ten scoped OpenBao KV units. All ten paths are at version 1.
+- Every migrated source value matched the OpenBao Agent render and production API container by SHA-256 without being displayed. The corresponding credential lines are absent from \`.env.production\`; ordinary client/application/guild/owner ids, channel names, bot login, and auto-start flags remain ordinary configuration there.
+- Real checks remained stable after plaintext removal: GitHub, Google, and Discord OAuth rejected deliberate invalid codes with their expected finite provider errors; the Discord bot identity returned \`200\`; Twitch app client credentials minted and immediately revoked one temporary app token; database health and Better Auth OAuth start returned \`200\`; Steam returned a valid player-summary response. No provider credential was rotated or replaced.
+- The expired Twitch bot access/refresh/expiry bundle moved atomically and still returns Twitch validation \`401\` before and after. That is the intended unchanged \`needs_attention\` state. Reauthorization is a later provider action, not a storage-migration blocker.
+- Each unit used an API-only recreate on exact pinned image \`sha256:0a765f9ed350a17db63fb94a661c7313f7c0471efe314fe3f4fa6ae73c37a9d4\`. Final API container \`a8582a4e...\` is healthy/restart0; Web, Control, Overlay, application volumes, database contents, DNS/tunnel, and stream state were preserved.
+- Added a secret-free source-controlled Agent template with exact allowlisted key/path tests. Root, recovery/unseal, AppRole bootstrap, SSH, Docker administration, and other operator authority remain outside application credential paths.
+- The second phase is active but separate: existing Better Auth OAuth tokens and session lookup tokens still need a reviewed encrypted-at-rest adapter/migration that preserves current accounts and sessions. \`url_access_tokens\` remains hash-only and is intentionally excluded.
+
 ## 2026-08-29 first production secret migrated to OpenBao
 
 - Built and live-tested a restricted ms1-to-Rpi4-Vault path: dedicated SSH identity, host-key pin, loopback-only forwarding, OpenBao Agent 2.6.2, AppRole authentication, scoped policy, mode-\`0600\` rendering, automatic token renewal, and boot persistence through enabled user services plus linger.
