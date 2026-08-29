@@ -7,6 +7,7 @@ import {
   type AuthDataCipher
 } from "./auth-sensitive-field-crypto.service.js";
 import type { AuthSessionTokenHasher } from "./auth-session-token-hash.service.js";
+import type { AuthVerificationIdentifierHasher } from "./auth-verification-identifier-hash.service.js";
 import {
   applyFindManyWindow,
   createSessionTokenWherePlans,
@@ -14,6 +15,11 @@ import {
   protectSessionWrite,
   revealSessionToken
 } from "./better-auth-session-token-adapter.rules.js";
+import {
+  createVerificationIdentifierWherePlans,
+  protectVerificationWrite,
+  revealVerification
+} from "./better-auth-verification-adapter.rules.js";
 
 const accountModelName = "account";
 
@@ -23,35 +29,61 @@ const encryptWrite = <T extends Record<string, unknown>>(
   model: string,
   data: T,
   cipher: AuthDataCipher | null,
-  sessionTokenHasher: AuthSessionTokenHasher | null
-): T => protectSessionWrite(
+  sessionTokenHasher: AuthSessionTokenHasher | null,
+  verificationIdentifierHasher: AuthVerificationIdentifierHasher | null
+): T => protectVerificationWrite(
   model,
-  isAccountModel(model)
-    ? encryptAuthAccountSensitiveFields(data, cipher, accountModelName)
-    : data,
+  protectSessionWrite(
+    model,
+    isAccountModel(model)
+      ? encryptAuthAccountSensitiveFields(data, cipher, accountModelName)
+      : data,
+    cipher,
+    sessionTokenHasher
+  ),
   cipher,
-  sessionTokenHasher
+  verificationIdentifierHasher
 );
 
 const decryptRead = <T>(
   model: string,
   data: T,
   cipher: AuthDataCipher | null,
-  sessionTokenHasher: AuthSessionTokenHasher | null
+  sessionTokenHasher: AuthSessionTokenHasher | null,
+  verificationIdentifierHasher: AuthVerificationIdentifierHasher | null
 ): T => {
   const decrypted = isAccountModel(model) && data && typeof data === "object" && !Array.isArray(data)
     ? decryptAuthAccountSensitiveFields(data as T & Record<string, unknown>, cipher, accountModelName)
     : data;
 
-  return revealSessionToken(model, decrypted, sessionTokenHasher ? cipher : null);
+  return revealVerification(
+    model,
+    revealSessionToken(model, decrypted, sessionTokenHasher ? cipher : null),
+    cipher,
+    verificationIdentifierHasher
+  );
 };
+
+const createProtectedWherePlans = (
+  model: string,
+  where: Parameters<DBAdapter<BetterAuthOptions>["count"]>[0]["where"],
+  sessionTokenHasher: AuthSessionTokenHasher | null,
+  verificationIdentifierHasher: AuthVerificationIdentifierHasher | null
+) => createSessionTokenWherePlans(model, where, sessionTokenHasher)
+  ?? createVerificationIdentifierWherePlans(model, where, verificationIdentifierHasher);
 
 const queryFindMany = async <T>(
   adapter: DBTransactionAdapter<BetterAuthOptions> | DBAdapter<BetterAuthOptions>,
   input: Parameters<typeof adapter.findMany<T>>[0],
-  sessionTokenHasher: AuthSessionTokenHasher | null
+  sessionTokenHasher: AuthSessionTokenHasher | null,
+  verificationIdentifierHasher: AuthVerificationIdentifierHasher | null
 ): Promise<T[]> => {
-  const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
+  const plans = createProtectedWherePlans(
+    input.model,
+    input.where,
+    sessionTokenHasher,
+    verificationIdentifierHasher
+  );
 
   if (!plans) {
     return await adapter.findMany<T>(input);
@@ -74,15 +106,21 @@ const decryptMany = <T>(
   model: string,
   rows: T[],
   cipher: AuthDataCipher | null,
-  sessionTokenHasher: AuthSessionTokenHasher | null
-): T[] => isAccountModel(model)
-  ? rows.map((row) => decryptRead(model, row, cipher, sessionTokenHasher))
-  : rows.map((row) => revealSessionToken(model, row, sessionTokenHasher ? cipher : null));
+  sessionTokenHasher: AuthSessionTokenHasher | null,
+  verificationIdentifierHasher: AuthVerificationIdentifierHasher | null
+): T[] => rows.map((row) => decryptRead(
+  model,
+  row,
+  cipher,
+  sessionTokenHasher,
+  verificationIdentifierHasher
+));
 
 const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | DBAdapter<BetterAuthOptions>>(
   adapter: TAdapter,
   cipher: AuthDataCipher | null,
-  sessionTokenHasher: AuthSessionTokenHasher | null
+  sessionTokenHasher: AuthSessionTokenHasher | null,
+  verificationIdentifierHasher: AuthVerificationIdentifierHasher | null
 ): TAdapter => {
   const wrapped = {
     ...adapter,
@@ -94,10 +132,16 @@ const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | 
     }): Promise<R> {
       const result = await adapter.create<T, R>({
         ...input,
-        data: encryptWrite(input.model, input.data, cipher, sessionTokenHasher) as Omit<T, "id">
+        data: encryptWrite(
+          input.model,
+          input.data,
+          cipher,
+          sessionTokenHasher,
+          verificationIdentifierHasher
+        ) as Omit<T, "id">
       });
 
-      return decryptRead(input.model, result, cipher, sessionTokenHasher);
+      return decryptRead(input.model, result, cipher, sessionTokenHasher, verificationIdentifierHasher);
     },
     async findOne<T>(input: {
       model: string;
@@ -105,19 +149,42 @@ const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | 
       select?: string[] | undefined;
       join?: Parameters<typeof adapter.findOne<T>>[0]["join"];
     }): Promise<T | null> {
-      const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
+      const plans = createProtectedWherePlans(
+        input.model,
+        input.where,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
       const result = plans
         ? await adapter.findOne<T>({ ...input, where: plans.hashed })
           ?? await adapter.findOne<T>({ ...input, where: plans.legacy })
         : await adapter.findOne<T>(input);
-      return result ? decryptRead(input.model, result, cipher, sessionTokenHasher) : null;
+      return result
+        ? decryptRead(input.model, result, cipher, sessionTokenHasher, verificationIdentifierHasher)
+        : null;
     },
     async findMany<T>(input: Parameters<typeof adapter.findMany<T>>[0]): Promise<T[]> {
-      const result = await queryFindMany<T>(adapter, input, sessionTokenHasher);
-      return decryptMany(input.model, result, cipher, sessionTokenHasher);
+      const result = await queryFindMany<T>(
+        adapter,
+        input,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
+      return decryptMany(
+        input.model,
+        result,
+        cipher,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
     },
     async count(input: Parameters<typeof adapter.count>[0]): Promise<number> {
-      const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
+      const plans = createProtectedWherePlans(
+        input.model,
+        input.where,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
 
       if (!plans) {
         return await adapter.count(input);
@@ -135,18 +202,42 @@ const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | 
       where: Parameters<typeof adapter.update<T>>[0]["where"];
       update: Record<string, unknown>;
     }): Promise<T | null> {
-      const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
-      const update = encryptWrite(input.model, input.update, cipher, sessionTokenHasher);
+      const plans = createProtectedWherePlans(
+        input.model,
+        input.where,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
+      const update = encryptWrite(
+        input.model,
+        input.update,
+        cipher,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
       const result = plans
         ? await adapter.update<T>({ ...input, where: plans.hashed, update })
           ?? await adapter.update<T>({ ...input, where: plans.legacy, update })
         : await adapter.update<T>({ ...input, update });
 
-      return result ? decryptRead(input.model, result, cipher, sessionTokenHasher) : null;
+      return result
+        ? decryptRead(input.model, result, cipher, sessionTokenHasher, verificationIdentifierHasher)
+        : null;
     },
     async updateMany(input: Parameters<typeof adapter.updateMany>[0]): Promise<number> {
-      const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
-      const update = encryptWrite(input.model, input.update, cipher, sessionTokenHasher);
+      const plans = createProtectedWherePlans(
+        input.model,
+        input.where,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
+      const update = encryptWrite(
+        input.model,
+        input.update,
+        cipher,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
 
       if (!plans) {
         return await adapter.updateMany({ ...input, update });
@@ -157,7 +248,12 @@ const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | 
       return Number(hashedCount) + Number(legacyCount);
     },
     async delete<T>(input: Parameters<typeof adapter.delete<T>>[0]): Promise<void> {
-      const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
+      const plans = createProtectedWherePlans(
+        input.model,
+        input.where,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
 
       if (!plans) {
         await adapter.delete(input);
@@ -168,7 +264,12 @@ const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | 
       await adapter.delete({ ...input, where: plans.legacy });
     },
     async deleteMany(input: Parameters<typeof adapter.deleteMany>[0]): Promise<number> {
-      const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
+      const plans = createProtectedWherePlans(
+        input.model,
+        input.where,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
 
       if (!plans) {
         return await adapter.deleteMany(input);
@@ -179,12 +280,19 @@ const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | 
       return Number(hashedCount) + Number(legacyCount);
     },
     async consumeOne<T>(input: Parameters<typeof adapter.consumeOne<T>>[0]): Promise<T | null> {
-      const plans = createSessionTokenWherePlans(input.model, input.where, sessionTokenHasher);
+      const plans = createProtectedWherePlans(
+        input.model,
+        input.where,
+        sessionTokenHasher,
+        verificationIdentifierHasher
+      );
       const result = plans
         ? await adapter.consumeOne<T>({ ...input, where: plans.hashed })
           ?? await adapter.consumeOne<T>({ ...input, where: plans.legacy })
         : await adapter.consumeOne<T>(input);
-      return result ? decryptRead(input.model, result, cipher, sessionTokenHasher) : null;
+      return result
+        ? decryptRead(input.model, result, cipher, sessionTokenHasher, verificationIdentifierHasher)
+        : null;
     }
   };
 
@@ -192,7 +300,12 @@ const wrapAdapter = <TAdapter extends DBTransactionAdapter<BetterAuthOptions> | 
     return {
       ...wrapped,
       async transaction<R>(callback: (trx: DBTransactionAdapter<BetterAuthOptions>) => Promise<R>): Promise<R> {
-        return await adapter.transaction(async (trx) => callback(wrapAdapter(trx, cipher, sessionTokenHasher)));
+        return await adapter.transaction(async (trx) => callback(wrapAdapter(
+          trx,
+          cipher,
+          sessionTokenHasher,
+          verificationIdentifierHasher
+        )));
       }
     } as TAdapter;
   }
@@ -204,13 +317,19 @@ export const withEncryptedAuthAccountTokens = (
   adapterFactory: DBAdapterInstance<BetterAuthOptions>,
   cipher: AuthDataCipher
 ): DBAdapterInstance<BetterAuthOptions> => (options) =>
-  wrapAdapter(adapterFactory(options), cipher, null);
+  wrapAdapter(adapterFactory(options), cipher, null, null);
 
 export const withProtectedAuthSensitiveFields = (
   adapterFactory: DBAdapterInstance<BetterAuthOptions>,
   protection: {
     cipher: AuthDataCipher | null;
     sessionTokenHasher: AuthSessionTokenHasher | null;
+    verificationIdentifierHasher: AuthVerificationIdentifierHasher | null;
   }
 ): DBAdapterInstance<BetterAuthOptions> => (options) =>
-  wrapAdapter(adapterFactory(options), protection.cipher, protection.sessionTokenHasher);
+  wrapAdapter(
+    adapterFactory(options),
+    protection.cipher,
+    protection.sessionTokenHasher,
+    protection.verificationIdentifierHasher
+  );

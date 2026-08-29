@@ -21,6 +21,7 @@ const expectedOpenBaoApiMappings = new Map([
   ["BETTER_AUTH_SECRET", "secret/data/maiks-yt/production/api/auth-signing"],
   ["AUTH_DATA_ENCRYPTION_KEY_V1", "secret/data/maiks-yt/production/api/auth-data-protection"],
   ["AUTH_SESSION_TOKEN_HASH_KEY_V1", "secret/data/maiks-yt/production/api/auth-session-token-hash"],
+  ["AUTH_VERIFICATION_IDENTIFIER_HASH_KEY_V1", "secret/data/maiks-yt/production/api/auth-verification-identifier-hash"],
   ["TWITCH_CHAT_BOT_ACCESS_TOKEN", "secret/data/maiks-yt/production/api/twitch-chat-bot"],
   ["TWITCH_CHAT_BOT_REFRESH_TOKEN", "secret/data/maiks-yt/production/api/twitch-chat-bot"],
   ["TWITCH_CHAT_BOT_TOKEN_EXPIRES_AT", "secret/data/maiks-yt/production/api/twitch-chat-bot"],

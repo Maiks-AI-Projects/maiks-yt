@@ -71,13 +71,16 @@ export const authVerifications = mysqlTable(
   "auth_verifications",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
-    identifier: varchar("identifier", { length: 191 }).notNull(),
+    identifier: text("identifier").notNull(),
+    identifierHash: varchar("identifier_hash", { length: 64 }),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
   },
-  (table) => [index("auth_verifications_identifier_idx").on(table.identifier)]
+  (table) => [
+    index("auth_verifications_identifier_hash_idx").on(table.identifierHash)
+  ]
 );
 
 export const authUserLinks = mysqlTable(

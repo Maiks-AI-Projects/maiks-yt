@@ -5,6 +5,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 import { createAuthDataCipherFromEnvironment } from "./auth-sensitive-field-crypto.service.js";
 import { createAuthSessionTokenHasherFromEnvironment } from "./auth-session-token-hash.service.js";
+import { createAuthVerificationIdentifierHasherFromEnvironment } from "./auth-verification-identifier-hash.service.js";
 import {
   assertTrustedOriginEnvironment,
   getBetterAuthBaseUrl,
@@ -62,6 +63,7 @@ const database = createDatabase(createDatabasePool());
 const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
 const authDataCipher = createAuthDataCipherFromEnvironment();
 const authSessionTokenHasher = createAuthSessionTokenHasherFromEnvironment();
+const authVerificationIdentifierHasher = createAuthVerificationIdentifierHasherFromEnvironment();
 
 if (process.env.NODE_ENV === "production" && !betterAuthSecret) {
   throw new Error("BETTER_AUTH_SECRET is required in production.");
@@ -78,10 +80,11 @@ export const auth = betterAuth({
   basePath: "/auth",
   secret: betterAuthSecret ?? "development-only-better-auth-secret-change-before-production",
   trustedOrigins: getTrustedOrigins(),
-  database: authDataCipher || authSessionTokenHasher
+  database: authDataCipher || authSessionTokenHasher || authVerificationIdentifierHasher
     ? withProtectedAuthSensitiveFields(authDatabaseAdapter, {
       cipher: authDataCipher,
-      sessionTokenHasher: authSessionTokenHasher
+      sessionTokenHasher: authSessionTokenHasher,
+      verificationIdentifierHasher: authVerificationIdentifierHasher
     })
     : authDatabaseAdapter,
   user: {
@@ -107,7 +110,15 @@ export const auth = betterAuth({
     }
   },
   verification: {
-    modelName: "authVerifications"
+    modelName: "authVerifications",
+    additionalFields: {
+      identifierHash: {
+        type: "string",
+        required: false,
+        input: false,
+        returned: false
+      }
+    }
   },
   socialProviders: createSocialProviders(),
   advanced: {

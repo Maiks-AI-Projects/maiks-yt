@@ -51,7 +51,8 @@ const createBaseAdapter = () => {
   };
   const wrapped = withProtectedAuthSensitiveFields(() => adapter, {
     cipher,
-    sessionTokenHasher: hasher
+    sessionTokenHasher: hasher,
+    verificationIdentifierHasher: null
   })({} as BetterAuthOptions);
 
   return { adapter, calls, wrapped };
