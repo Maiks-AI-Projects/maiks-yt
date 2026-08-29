@@ -29,6 +29,7 @@ export const authSessions = mysqlTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     userId: varchar("user_id", { length: 36 }).notNull(),
     token: varchar("token", { length: 191 }).notNull(),
+    tokenHash: varchar("token_hash", { length: 64 }),
     expiresAt: timestamp("expires_at").notNull(),
     ipAddress: varchar("ip_address", { length: 191 }),
     userAgent: text("user_agent"),
@@ -37,6 +38,7 @@ export const authSessions = mysqlTable(
   },
   (table) => [
     uniqueIndex("auth_sessions_token_uidx").on(table.token),
+    uniqueIndex("auth_sessions_token_hash_uidx").on(table.tokenHash),
     index("auth_sessions_user_id_idx").on(table.userId),
     index("auth_sessions_expires_at_idx").on(table.expiresAt)
   ]

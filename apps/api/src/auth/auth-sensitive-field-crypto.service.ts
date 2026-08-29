@@ -7,7 +7,7 @@ const keyBytes = 32;
 const nonceBytes = 12;
 const tagBytes = 16;
 
-export type AuthSensitiveFieldName = "accessToken" | "refreshToken" | "idToken";
+export type AuthSensitiveFieldName = "accessToken" | "refreshToken" | "idToken" | "token";
 
 export type AuthDataCipher = {
   encrypt: (input: {

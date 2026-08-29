@@ -1,9 +1,538 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "b9896696-e109-4da5-b9a0-2f6b8db3ef6b",
-  "prevId": "157476d5-5e46-4876-a630-f18ae74822c2",
+  "id": "f15c1b33-09f4-434c-80a9-434bc4d89b15",
+  "prevId": "b9896696-e109-4da5-b9a0-2f6b8db3ef6b",
   "tables": {
+    "profile_handle_operations": {
+      "name": "profile_handle_operations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36) character set utf8mb4 collate utf8mb4_general_ci",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operation_version": {
+          "name": "operation_version",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_fingerprint_sha256": {
+          "name": "request_fingerprint_sha256",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operation_type": {
+          "name": "operation_type",
+          "type": "enum('owner_reserve_handle','owner_release_reservation','owner_change_reservation','owner_assign_handle','owner_rename_handle','owner_retire_handle','owner_reuse_retired_handle')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operation_outcome": {
+          "name": "operation_outcome",
+          "type": "enum('applied','denied','invalid','not_found','conflict','stale')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expected_detail_count": {
+          "name": "expected_detail_count",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actor_kind": {
+          "name": "actor_kind",
+          "type": "enum('owner')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actor_user_id_snapshot": {
+          "name": "actor_user_id_snapshot",
+          "type": "varchar(36) character set utf8mb4 collate utf8mb4_general_ci",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actor_authority_snapshot": {
+          "name": "actor_authority_snapshot",
+          "type": "enum('owner')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "subject_user_id_snapshot": {
+          "name": "subject_user_id_snapshot",
+          "type": "varchar(36) character set utf8mb4 collate utf8mb4_general_ci",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "subject_boundary": {
+          "name": "subject_boundary",
+          "type": "enum('user_handle','reserved_handle','retired_handle','normalized_missing_subject')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reason_code": {
+          "name": "reason_code",
+          "type": "enum('owner_brand_reservation','owner_manual_assignment','owner_manual_rename','owner_manual_retirement','reservation_cleanup','invalid_request','authority_denied','handle_unavailable','concurrency_retry')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operator_note": {
+          "name": "operator_note",
+          "type": "varchar(280)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "requested_at": {
+          "name": "requested_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "replay_result": {
+          "name": "replay_result",
+          "type": "enum('stored_applied','stored_denied','stored_invalid','stored_not_found','stored_conflict','stored_stale')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "profile_handle_operations_idempotency_key_uidx": {
+          "name": "profile_handle_operations_idempotency_key_uidx",
+          "columns": [
+            "idempotency_key"
+          ],
+          "isUnique": true
+        },
+        "profile_handle_operations_requested_at_idx": {
+          "name": "profile_handle_operations_requested_at_idx",
+          "columns": [
+            "requested_at"
+          ],
+          "isUnique": false
+        },
+        "profile_handle_operations_actor_requested_idx": {
+          "name": "profile_handle_operations_actor_requested_idx",
+          "columns": [
+            "actor_user_id_snapshot",
+            "requested_at"
+          ],
+          "isUnique": false
+        },
+        "profile_handle_operations_subject_requested_idx": {
+          "name": "profile_handle_operations_subject_requested_idx",
+          "columns": [
+            "subject_user_id_snapshot",
+            "requested_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "profile_handle_operations_id": {
+          "name": "profile_handle_operations_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {
+        "profile_handle_operations_version_check": {
+          "name": "profile_handle_operations_version_check",
+          "value": "`profile_handle_operations`.`operation_version` = 1"
+        },
+        "profile_handle_operations_fingerprint_check": {
+          "name": "profile_handle_operations_fingerprint_check",
+          "value": "length(`profile_handle_operations`.`request_fingerprint_sha256`) = 64\n        and `profile_handle_operations`.`request_fingerprint_sha256` regexp '^[0-9a-f]{64}$'"
+        },
+        "profile_handle_operations_detail_count_check": {
+          "name": "profile_handle_operations_detail_count_check",
+          "value": "(\n        (`profile_handle_operations`.`operation_outcome` = 'applied' and `profile_handle_operations`.`operation_type` in (\n          'owner_reserve_handle',\n          'owner_release_reservation',\n          'owner_assign_handle',\n          'owner_retire_handle',\n          'owner_reuse_retired_handle'\n        ) and `profile_handle_operations`.`expected_detail_count` = 1)\n        or (`profile_handle_operations`.`operation_outcome` = 'applied' and `profile_handle_operations`.`operation_type` in (\n          'owner_change_reservation',\n          'owner_rename_handle'\n        ) and `profile_handle_operations`.`expected_detail_count` = 2)\n        or (`profile_handle_operations`.`operation_outcome` <> 'applied' and `profile_handle_operations`.`expected_detail_count` >= 0 and `profile_handle_operations`.`expected_detail_count` <= 2)\n      )"
+        },
+        "profile_handle_operations_replay_result_check": {
+          "name": "profile_handle_operations_replay_result_check",
+          "value": "(\n        (`profile_handle_operations`.`operation_outcome` = 'applied' and `profile_handle_operations`.`replay_result` = 'stored_applied')\n        or (`profile_handle_operations`.`operation_outcome` = 'denied' and `profile_handle_operations`.`replay_result` = 'stored_denied')\n        or (`profile_handle_operations`.`operation_outcome` = 'invalid' and `profile_handle_operations`.`replay_result` = 'stored_invalid')\n        or (`profile_handle_operations`.`operation_outcome` = 'not_found' and `profile_handle_operations`.`replay_result` = 'stored_not_found')\n        or (`profile_handle_operations`.`operation_outcome` = 'conflict' and `profile_handle_operations`.`replay_result` = 'stored_conflict')\n        or (`profile_handle_operations`.`operation_outcome` = 'stale' and `profile_handle_operations`.`replay_result` = 'stored_stale')\n      )"
+        },
+        "profile_handle_operations_note_check": {
+          "name": "profile_handle_operations_note_check",
+          "value": "`profile_handle_operations`.`operator_note` is null\n        or (\n          char_length(trim(`profile_handle_operations`.`operator_note`)) > 0\n          and `profile_handle_operations`.`operator_note` not regexp '[[:cntrl:]]'\n        )"
+        }
+      }
+    },
+    "profile_handle_transition_events": {
+      "name": "profile_handle_transition_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "operation_id": {
+          "name": "operation_id",
+          "type": "varchar(36) character set utf8mb4 collate utf8mb4_general_ci",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_sequence": {
+          "name": "event_sequence",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "transition_type": {
+          "name": "transition_type",
+          "type": "enum('owner_reserved','reservation_released','reservation_changed_from','reservation_changed_to','owner_assigned','expired_reuse_assigned','renamed_from','renamed_to','manual_retired')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detail_outcome": {
+          "name": "detail_outcome",
+          "type": "enum('applied','denied','invalid','not_found','conflict','stale')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "handle": {
+          "name": "handle",
+          "type": "varchar(32) character set ascii collate ascii_bin",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "related_handle": {
+          "name": "related_handle",
+          "type": "varchar(32) character set ascii collate ascii_bin",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prior_state": {
+          "name": "prior_state",
+          "type": "enum('none','active','reserved','retired')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prior_user_id_snapshot": {
+          "name": "prior_user_id_snapshot",
+          "type": "varchar(36) character set utf8mb4 collate utf8mb4_general_ci",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prior_transition_kind": {
+          "name": "prior_transition_kind",
+          "type": "enum('owner_reserved','policy_reserved','owner_assigned','expired_reuse_assigned','renamed','deleted_user','admin_retired')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "prior_reusable_after": {
+          "name": "prior_reusable_after",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_state": {
+          "name": "new_state",
+          "type": "enum('none','active','reserved','retired')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "new_user_id_snapshot": {
+          "name": "new_user_id_snapshot",
+          "type": "varchar(36) character set utf8mb4 collate utf8mb4_general_ci",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_transition_kind": {
+          "name": "new_transition_kind",
+          "type": "enum('owner_reserved','policy_reserved','owner_assigned','expired_reuse_assigned','renamed','deleted_user','admin_retired')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "new_reusable_after": {
+          "name": "new_reusable_after",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "profile_handle_events_operation_sequence_uidx": {
+          "name": "profile_handle_events_operation_sequence_uidx",
+          "columns": [
+            "operation_id",
+            "event_sequence"
+          ],
+          "isUnique": true
+        },
+        "profile_handle_events_operation_handle_type_uidx": {
+          "name": "profile_handle_events_operation_handle_type_uidx",
+          "columns": [
+            "operation_id",
+            "handle",
+            "transition_type"
+          ],
+          "isUnique": true
+        },
+        "profile_handle_events_operation_idx": {
+          "name": "profile_handle_events_operation_idx",
+          "columns": [
+            "operation_id"
+          ],
+          "isUnique": false
+        },
+        "profile_handle_events_handle_occurred_idx": {
+          "name": "profile_handle_events_handle_occurred_idx",
+          "columns": [
+            "handle",
+            "occurred_at"
+          ],
+          "isUnique": false
+        },
+        "profile_handle_events_related_handle_idx": {
+          "name": "profile_handle_events_related_handle_idx",
+          "columns": [
+            "related_handle"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "profile_handle_events_operation_fk": {
+          "name": "profile_handle_events_operation_fk",
+          "tableFrom": "profile_handle_transition_events",
+          "tableTo": "profile_handle_operations",
+          "columnsFrom": [
+            "operation_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "profile_handle_transition_events_id": {
+          "name": "profile_handle_transition_events_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {
+        "profile_handle_events_sequence_check": {
+          "name": "profile_handle_events_sequence_check",
+          "value": "`profile_handle_transition_events`.`event_sequence` > 0"
+        },
+        "profile_handle_events_handle_check": {
+          "name": "profile_handle_events_handle_check",
+          "value": "`profile_handle_transition_events`.`handle` regexp '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$'\n        and `profile_handle_transition_events`.`handle` not regexp '--'\n        and `profile_handle_transition_events`.`handle` = lower(`profile_handle_transition_events`.`handle`)"
+        },
+        "profile_handle_events_related_handle_check": {
+          "name": "profile_handle_events_related_handle_check",
+          "value": "`profile_handle_transition_events`.`related_handle` is null\n        or (\n          `profile_handle_transition_events`.`related_handle` regexp '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$'\n          and `profile_handle_transition_events`.`related_handle` not regexp '--'\n          and `profile_handle_transition_events`.`related_handle` = lower(`profile_handle_transition_events`.`related_handle`)\n        )"
+        },
+        "profile_handle_events_prior_state_shape_check": {
+          "name": "profile_handle_events_prior_state_shape_check",
+          "value": "(\n        (`profile_handle_transition_events`.`prior_state` = 'none'\n          and `profile_handle_transition_events`.`prior_user_id_snapshot` is null\n          and `profile_handle_transition_events`.`prior_transition_kind` is null\n          and `profile_handle_transition_events`.`prior_reusable_after` is null)\n        or (`profile_handle_transition_events`.`prior_state` = 'active'\n          and `profile_handle_transition_events`.`prior_user_id_snapshot` is not null\n          and `profile_handle_transition_events`.`prior_transition_kind` in ('owner_assigned', 'expired_reuse_assigned')\n          and `profile_handle_transition_events`.`prior_reusable_after` is null)\n        or (`profile_handle_transition_events`.`prior_state` = 'reserved'\n          and `profile_handle_transition_events`.`prior_user_id_snapshot` is null\n          and `profile_handle_transition_events`.`prior_transition_kind` in ('owner_reserved', 'policy_reserved')\n          and `profile_handle_transition_events`.`prior_reusable_after` is null)\n        or (`profile_handle_transition_events`.`prior_state` = 'retired'\n          and `profile_handle_transition_events`.`prior_user_id_snapshot` is null\n          and `profile_handle_transition_events`.`prior_transition_kind` in ('renamed', 'deleted_user', 'admin_retired')\n          and `profile_handle_transition_events`.`prior_reusable_after` is not null)\n      )"
+        },
+        "profile_handle_events_new_state_shape_check": {
+          "name": "profile_handle_events_new_state_shape_check",
+          "value": "(\n        (`profile_handle_transition_events`.`new_state` = 'none'\n          and `profile_handle_transition_events`.`new_user_id_snapshot` is null\n          and `profile_handle_transition_events`.`new_transition_kind` is null\n          and `profile_handle_transition_events`.`new_reusable_after` is null)\n        or (`profile_handle_transition_events`.`new_state` = 'active'\n          and `profile_handle_transition_events`.`new_user_id_snapshot` is not null\n          and `profile_handle_transition_events`.`new_transition_kind` in ('owner_assigned', 'expired_reuse_assigned')\n          and `profile_handle_transition_events`.`new_reusable_after` is null)\n        or (`profile_handle_transition_events`.`new_state` = 'reserved'\n          and `profile_handle_transition_events`.`new_user_id_snapshot` is null\n          and `profile_handle_transition_events`.`new_transition_kind` in ('owner_reserved', 'policy_reserved')\n          and `profile_handle_transition_events`.`new_reusable_after` is null)\n        or (`profile_handle_transition_events`.`new_state` = 'retired'\n          and `profile_handle_transition_events`.`new_user_id_snapshot` is null\n          and `profile_handle_transition_events`.`new_transition_kind` in ('renamed', 'deleted_user', 'admin_retired')\n          and `profile_handle_transition_events`.`new_reusable_after` is not null)\n      )"
+        },
+        "profile_handle_events_transition_shape_check": {
+          "name": "profile_handle_events_transition_shape_check",
+          "value": "(\n        (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'owner_reserved'\n          and `profile_handle_transition_events`.`prior_state` = 'none'\n          and `profile_handle_transition_events`.`new_state` = 'reserved'\n          and `profile_handle_transition_events`.`new_transition_kind` = 'owner_reserved')\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'reservation_released'\n          and `profile_handle_transition_events`.`prior_state` = 'reserved'\n          and `profile_handle_transition_events`.`new_state` = 'none')\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'reservation_changed_from'\n          and `profile_handle_transition_events`.`prior_state` = 'reserved'\n          and `profile_handle_transition_events`.`new_state` = 'none'\n          and `profile_handle_transition_events`.`related_handle` is not null)\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'reservation_changed_to'\n          and `profile_handle_transition_events`.`prior_state` = 'none'\n          and `profile_handle_transition_events`.`new_state` = 'reserved'\n          and `profile_handle_transition_events`.`new_transition_kind` in ('owner_reserved', 'policy_reserved')\n          and `profile_handle_transition_events`.`related_handle` is not null)\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'owner_assigned'\n          and `profile_handle_transition_events`.`prior_state` in ('none', 'reserved')\n          and `profile_handle_transition_events`.`new_state` = 'active'\n          and `profile_handle_transition_events`.`new_transition_kind` = 'owner_assigned')\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'expired_reuse_assigned'\n          and `profile_handle_transition_events`.`prior_state` = 'retired'\n          and `profile_handle_transition_events`.`new_state` = 'active'\n          and `profile_handle_transition_events`.`new_transition_kind` = 'expired_reuse_assigned')\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'renamed_from'\n          and `profile_handle_transition_events`.`prior_state` = 'active'\n          and `profile_handle_transition_events`.`new_state` = 'retired'\n          and `profile_handle_transition_events`.`new_transition_kind` = 'renamed'\n          and `profile_handle_transition_events`.`related_handle` is not null)\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'renamed_to'\n          and `profile_handle_transition_events`.`new_state` = 'active'\n          and (\n            (`profile_handle_transition_events`.`prior_state` in ('none', 'reserved')\n              and `profile_handle_transition_events`.`new_transition_kind` = 'owner_assigned')\n            or (`profile_handle_transition_events`.`prior_state` = 'retired'\n              and `profile_handle_transition_events`.`new_transition_kind` = 'expired_reuse_assigned')\n          )\n          and `profile_handle_transition_events`.`related_handle` is not null)\n        or (`profile_handle_transition_events`.`detail_outcome` = 'applied'\n          and `profile_handle_transition_events`.`transition_type` = 'manual_retired'\n          and `profile_handle_transition_events`.`prior_state` = 'active'\n          and `profile_handle_transition_events`.`new_state` = 'retired'\n          and `profile_handle_transition_events`.`new_transition_kind` = 'admin_retired')\n        or (`profile_handle_transition_events`.`detail_outcome` <> 'applied'\n          and `profile_handle_transition_events`.`new_state` = `profile_handle_transition_events`.`prior_state`\n          and `profile_handle_transition_events`.`new_user_id_snapshot` <=> `profile_handle_transition_events`.`prior_user_id_snapshot`\n          and `profile_handle_transition_events`.`new_transition_kind` <=> `profile_handle_transition_events`.`prior_transition_kind`\n          and `profile_handle_transition_events`.`new_reusable_after` <=> `profile_handle_transition_events`.`prior_reusable_after`)\n      )"
+        }
+      }
+    },
+    "profile_handles": {
+      "name": "profile_handles",
+      "columns": {
+        "handle": {
+          "name": "handle",
+          "type": "varchar(32) character set ascii collate ascii_bin",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "enum('active','reserved','retired')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar(36) character set utf8mb4 collate utf8mb4_general_ci",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reserved_at": {
+          "name": "reserved_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "assigned_at": {
+          "name": "assigned_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "retired_at": {
+          "name": "retired_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reusable_after": {
+          "name": "reusable_after",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "transition_kind": {
+          "name": "transition_kind",
+          "type": "enum('owner_reserved','policy_reserved','owner_assigned','expired_reuse_assigned','renamed','deleted_user','admin_retired')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "profile_handles_user_id_uidx": {
+          "name": "profile_handles_user_id_uidx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": true
+        },
+        "profile_handles_state_reusable_idx": {
+          "name": "profile_handles_state_reusable_idx",
+          "columns": [
+            "state",
+            "reusable_after"
+          ],
+          "isUnique": false
+        },
+        "profile_handles_user_state_idx": {
+          "name": "profile_handles_user_state_idx",
+          "columns": [
+            "user_id",
+            "state"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "profile_handles_handle": {
+          "name": "profile_handles_handle",
+          "columns": [
+            "handle"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {
+        "profile_handles_handle_ascii_check": {
+          "name": "profile_handles_handle_ascii_check",
+          "value": "`profile_handles`.`handle` regexp '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$'\n        and `profile_handles`.`handle` not regexp '--'\n        and `profile_handles`.`handle` = lower(`profile_handles`.`handle`)"
+        },
+        "profile_handles_state_shape_check": {
+          "name": "profile_handles_state_shape_check",
+          "value": "(\n        (\n          `profile_handles`.`state` = 'active'\n          and `profile_handles`.`user_id` is not null\n          and `profile_handles`.`reserved_at` is null\n          and `profile_handles`.`assigned_at` is not null\n          and `profile_handles`.`retired_at` is null\n          and `profile_handles`.`reusable_after` is null\n          and `profile_handles`.`transition_kind` in ('owner_assigned', 'expired_reuse_assigned')\n        )\n        or (\n          `profile_handles`.`state` = 'reserved'\n          and `profile_handles`.`user_id` is null\n          and `profile_handles`.`reserved_at` is not null\n          and `profile_handles`.`assigned_at` is null\n          and `profile_handles`.`retired_at` is null\n          and `profile_handles`.`reusable_after` is null\n          and `profile_handles`.`transition_kind` in ('owner_reserved', 'policy_reserved')\n        )\n        or (\n          `profile_handles`.`state` = 'retired'\n          and `profile_handles`.`user_id` is null\n          and `profile_handles`.`reserved_at` is null\n          and `profile_handles`.`assigned_at` is null\n          and `profile_handles`.`retired_at` is not null\n          and `profile_handles`.`reusable_after` is not null\n          and `profile_handles`.`reusable_after` >= `profile_handles`.`retired_at` + interval 1 year\n          and `profile_handles`.`transition_kind` in ('renamed', 'deleted_user', 'admin_retired')\n        )\n      )"
+        }
+      }
+    },
     "app_metadata": {
       "name": "app_metadata",
       "columns": {

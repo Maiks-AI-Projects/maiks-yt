@@ -4,12 +4,13 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 import { createAuthDataCipherFromEnvironment } from "./auth-sensitive-field-crypto.service.js";
+import { createAuthSessionTokenHasherFromEnvironment } from "./auth-session-token-hash.service.js";
 import {
   assertTrustedOriginEnvironment,
   getBetterAuthBaseUrl,
   getTrustedOrigins
 } from "./better-auth-origin.rules.js";
-import { withEncryptedAuthAccountTokens } from "./better-auth-sensitive-field-adapter.service.js";
+import { withProtectedAuthSensitiveFields } from "./better-auth-sensitive-field-adapter.service.js";
 
 export { getTrustedOrigins } from "./better-auth-origin.rules.js";
 
@@ -60,6 +61,7 @@ assertTrustedOriginEnvironment();
 const database = createDatabase(createDatabasePool());
 const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
 const authDataCipher = createAuthDataCipherFromEnvironment();
+const authSessionTokenHasher = createAuthSessionTokenHasherFromEnvironment();
 
 if (process.env.NODE_ENV === "production" && !betterAuthSecret) {
   throw new Error("BETTER_AUTH_SECRET is required in production.");
@@ -76,14 +78,25 @@ export const auth = betterAuth({
   basePath: "/auth",
   secret: betterAuthSecret ?? "development-only-better-auth-secret-change-before-production",
   trustedOrigins: getTrustedOrigins(),
-  database: authDataCipher
-    ? withEncryptedAuthAccountTokens(authDatabaseAdapter, authDataCipher)
+  database: authDataCipher || authSessionTokenHasher
+    ? withProtectedAuthSensitiveFields(authDatabaseAdapter, {
+      cipher: authDataCipher,
+      sessionTokenHasher: authSessionTokenHasher
+    })
     : authDatabaseAdapter,
   user: {
     modelName: "authUsers"
   },
   session: {
-    modelName: "authSessions"
+    modelName: "authSessions",
+    additionalFields: {
+      tokenHash: {
+        type: "string",
+        required: false,
+        input: false,
+        returned: false
+      }
+    }
   },
   account: {
     modelName: "authAccounts",
