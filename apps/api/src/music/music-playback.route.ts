@@ -88,6 +88,7 @@ export const registerMusicPlaybackRoutes = (
       playback: getPlaybackService(),
       publicApiBaseUrl: dependencies.publicApiBaseUrl,
       runtime: dependencies.localAgentRuntime,
+      reportCorrelation: (fields) => server.log.info({ correlation: "music_local_agent", ...fields }, "Local-agent music transition."),
       reportError: (error) => server.log.warn({ err: error }, "Local-agent music coordination failed.")
     });
     return localAgentCoordinator;
@@ -133,6 +134,14 @@ export const registerMusicPlaybackRoutes = (
       return { ok: false, reason: "music_invalid_input" };
     }
 
+    server.log.info({
+      action: parsedBody.data.action,
+      audioRouteId: parsedBody.data.audioRouteId ?? null,
+      correlation: "music_control",
+      phase: "received",
+      requestId: request.id
+    }, "Music playback control received.");
+
     try {
       const playback = getPlaybackService();
       const coordinator = getLocalAgentCoordinator();
@@ -147,11 +156,30 @@ export const registerMusicPlaybackRoutes = (
         });
         if (coordinated.handled) {
           if (!coordinated.result.ok) {
+            server.log.info({
+              action: parsedBody.data.action,
+              correlation: "music_control",
+              phase: "terminal",
+              reason: coordinated.result.reason,
+              requestId: request.id,
+              status: "rejected"
+            }, "Music playback control completed.");
             reply.code(403);
             return coordinated.result;
           }
 
-          return coordinator.projectControlState(coordinated.result);
+          const projected = coordinator.projectControlState(coordinated.result);
+          server.log.info({
+            action: parsedBody.data.action,
+            commandStatus: projected.player.lastCommand?.status ?? null,
+            correlation: "music_control",
+            phase: "terminal",
+            playerState: projected.player.state,
+            reason: projected.reason,
+            requestId: request.id,
+            status: projected.status
+          }, "Music playback control completed.");
+          return projected;
         }
       }
 
@@ -174,7 +202,18 @@ export const registerMusicPlaybackRoutes = (
         after: result
       });
 
-      return getLocalAgentCoordinator()?.projectControlState(result) ?? result;
+      const projected = getLocalAgentCoordinator()?.projectControlState(result) ?? result;
+      server.log.info({
+        action: parsedBody.data.action,
+        commandStatus: projected.player.lastCommand?.status ?? null,
+        correlation: "music_control",
+        phase: "terminal",
+        playerState: projected.player.state,
+        reason: projected.reason,
+        requestId: request.id,
+        status: projected.status
+      }, "Music playback control completed.");
+      return projected;
     } catch (error) {
       server.log.warn({ err: error }, "Music playback control failed.");
       reply.code(503);
@@ -196,7 +235,7 @@ export const registerMusicPlaybackRoutes = (
       }
 
       const origin = getRequestOrigin(request);
-      return getPlaybackService().getPlayerState({
+      const result = getPlaybackService().getPlayerState({
         clientId: parsedQuery.data.clientId,
         positionSeconds: parsedQuery.data.positionSeconds ?? null,
         createAudioUrl: (playbackId, track) => {
@@ -209,6 +248,17 @@ export const registerMusicPlaybackRoutes = (
           return safeHttpUrlOrNull(track.sourceUrl);
         }
       });
+      server.log.info({
+        authority: result.player.authority,
+        blockedReason: result.player.blockedReason,
+        clientId: parsedQuery.data.clientId,
+        correlation: "music_browser_state",
+        owned: result.player.owned,
+        playerState: result.player.state,
+        requestId: request.id,
+        status: result.status
+      }, "Browser music player lease evaluated.");
+      return result;
     } catch (error) {
       server.log.warn({ err: error }, "Music playback player state failed.");
       reply.code(503);
@@ -239,6 +289,16 @@ export const registerMusicPlaybackRoutes = (
       if (!result.ok) {
         reply.code(result.reason === "music_player_lease_conflict" ? 409 : 404);
       }
+
+      server.log.info({
+        accepted: result.ok,
+        clientId: parsedBody.data.clientId,
+        correlation: "music_browser_event",
+        event: parsedBody.data.event,
+        playbackId: parsedBody.data.playbackId,
+        reason: result.reason,
+        requestId: request.id
+      }, "Browser music player event evaluated.");
 
       return result;
     } catch (error) {

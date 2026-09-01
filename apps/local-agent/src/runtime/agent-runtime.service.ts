@@ -137,6 +137,12 @@ export class AgentRuntime {
 
     this.#inFlight.set(command.eventId, command.commandId);
     try {
+      console.info("Local-agent command", {
+        action: command.action,
+        commandId: command.commandId,
+        eventId: command.eventId,
+        phase: "received"
+      });
       await this.#sendAck(session, this.#ack(command, "received", false));
       let terminal: PersistedAcknowledgement;
       if (command.expiresAt && Date.parse(command.expiresAt) <= Date.now()) {
@@ -148,6 +154,14 @@ export class AgentRuntime {
       } else {
         terminal = await this.#execute(command, signal);
       }
+      console.info("Local-agent command", {
+        action: command.action,
+        commandId: command.commandId,
+        errorCode: terminal.error?.code ?? null,
+        eventId: command.eventId,
+        phase: "terminal",
+        status: terminal.status
+      });
       await this.#options.stateStore.recordAcknowledgement(terminal);
       await this.#sendAck(session, terminal);
     } finally {

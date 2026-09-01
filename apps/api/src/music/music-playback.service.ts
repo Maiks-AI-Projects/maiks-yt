@@ -402,6 +402,14 @@ export class MusicPlaybackService {
       };
     }
 
+    const authoritativePlayer = this.getHealthyAuthoritativePlayer(this.now());
+    if (authoritativePlayer && authoritativePlayer.clientId !== input.clientId) {
+      return {
+        ok: false,
+        reason: "music_player_lease_conflict"
+      };
+    }
+
     if (this.playerLease?.clientId !== input.clientId) {
       return {
         ok: false,

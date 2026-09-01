@@ -373,6 +373,70 @@ describe("MusicPlaybackService", () => {
     expect(historyService.appended).toHaveLength(0);
   });
 
+  it("rejects an intervening browser event while Local Agent play readiness is pending, then allows fallback after explicit failure", async () => {
+    const repository = new PlaybackRepository();
+    repository.catalog = [createSelectableTrack("track")];
+    const { historyService, service } = createPlayback(repository);
+
+    const loaded = await service.control({ action: "play", authUserId: "owner" });
+    expect(loaded.ok).toBe(true);
+    const playbackId = loaded.ok ? loaded.playbackId! : "unexpected";
+    const browser = service.getPlayerState({
+      clientId: "obs-browser-player",
+      createAudioUrl: (id) => `https://api.example.test/music/playback/audio/${id}`,
+      playerKind: "browser-fallback"
+    });
+    expect(browser.player.owned).toBe(true);
+
+    service.setAuthoritativePlayer({
+      clientId: "local-agent-vlc",
+      healthyUntil: "2026-08-20T12:00:30.000Z"
+    });
+    const interveningBrowserEvent = await service.recordPlayerEvent({
+      clientId: "obs-browser-player",
+      event: "started",
+      playbackId,
+      positionSeconds: 0
+    });
+    const localAgentPending = service.getPlayerState({
+      clientId: "local-agent-vlc",
+      createAudioUrl: (id) => `https://api.example.test/music/playback/audio/${id}`,
+      playerKind: "local-agent"
+    });
+
+    expect(interveningBrowserEvent).toEqual({
+      ok: false,
+      reason: "music_player_lease_conflict"
+    });
+    expect(localAgentPending.player).toMatchObject({
+      authority: "local-agent",
+      owned: true,
+      state: "pending"
+    });
+    expect(historyService.appended).toHaveLength(0);
+
+    service.failAuthoritativePlayer("local-agent-vlc", "music_local_agent_play_failed");
+    const fallback = service.getPlayerState({
+      clientId: "obs-browser-player",
+      createAudioUrl: (id) => `https://api.example.test/music/playback/audio/${id}`,
+      playerKind: "browser-fallback"
+    });
+    const fallbackStarted = await service.recordPlayerEvent({
+      clientId: "obs-browser-player",
+      event: "started",
+      playbackId,
+      positionSeconds: 0
+    });
+
+    expect(fallback.player).toMatchObject({
+      authority: "browser-fallback",
+      owned: true,
+      state: "fallback"
+    });
+    expect(fallbackStarted).toMatchObject({ ok: true, status: "playing" });
+    expect(historyService.appended).toHaveLength(0);
+  });
+
   it("allows truthful browser fallback after the Local Agent fails or its authority expires", async () => {
     const repository = new PlaybackRepository();
     repository.catalog = [createSelectableTrack("track")];

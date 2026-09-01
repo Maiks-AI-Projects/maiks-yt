@@ -112,11 +112,14 @@ type PendingAudioRouteControl = {
   volumePercent?: number | undefined;
 };
 
+type MusicPlaybackCorrelation = Readonly<Record<string, boolean | number | string | null>>;
+
 export class MusicLocalAgentPlaybackCoordinator {
   readonly #playback: PlaybackPort;
   readonly #runtime: MusicLocalAgentRuntime;
   readonly #publicApiBaseUrl: string;
   readonly #reportError: (error: unknown) => void;
+  readonly #reportCorrelation: (fields: MusicPlaybackCorrelation) => void;
   readonly #pendingByEventId = new Map<string, string>();
   readonly #pendingSupersedingControls = new Map<string, PendingSupersedingControl>();
   readonly #pendingRouteSwitches = new Map<string, PendingRouteSwitch>();
@@ -141,6 +144,7 @@ export class MusicLocalAgentPlaybackCoordinator {
   constructor(input: {
     playback: PlaybackPort;
     publicApiBaseUrl: string;
+    reportCorrelation?: (fields: MusicPlaybackCorrelation) => void;
     reportError?: (error: unknown) => void;
     runtime: MusicLocalAgentRuntime;
   }) {
@@ -148,6 +152,7 @@ export class MusicLocalAgentPlaybackCoordinator {
     this.#runtime = input.runtime;
     this.#publicApiBaseUrl = new URL(input.publicApiBaseUrl).origin;
     this.#reportError = input.reportError ?? ((error) => console.error("Local-agent music coordination failed", error));
+    this.#reportCorrelation = input.reportCorrelation ?? (() => undefined);
     this.#removeListeners = [
       this.#runtime.subscribeToStatus((status) => this.#enqueue(() => this.#handleStatus(status))),
       this.#runtime.subscribeToAcknowledgements((acknowledgement, command) => {
@@ -499,6 +504,14 @@ export class MusicLocalAgentPlaybackCoordinator {
     if (command.capability !== capabilityId || acknowledgement.status === "received") {
       return;
     }
+    this.#reportCorrelation({
+      action: command.action,
+      commandId: command.commandId,
+      errorCode: acknowledgement.error?.code ?? null,
+      eventId: command.eventId,
+      phase: "terminal",
+      status: acknowledgement.status
+    });
     this.#pendingByEventId.delete(command.eventId);
     if (command.action === "track.play") {
       this.#lastPlayCommand = {
@@ -666,8 +679,28 @@ export class MusicLocalAgentPlaybackCoordinator {
     });
     if (result.ok) {
       this.#pendingByEventId.set(result.command.eventId, signature);
+      const safePayload = typeof payload === "object" && payload !== null && !Array.isArray(payload)
+        ? payload as Record<string, JsonValue>
+        : null;
+      this.#reportCorrelation({
+        action,
+        audioRouteId: typeof safePayload?.audioRouteId === "string" ? safePayload.audioRouteId : null,
+        commandId: result.command.commandId,
+        eventId: result.command.eventId,
+        phase: "issued",
+        playbackId: typeof safePayload?.playbackId === "string" ? safePayload.playbackId : null
+      });
       return result.command;
     }
+    this.#reportCorrelation({
+      action,
+      audioRouteId: null,
+      commandId: null,
+      eventId: null,
+      phase: "rejected",
+      playbackId: null,
+      reason: result.reason
+    });
     return null;
   }
 
