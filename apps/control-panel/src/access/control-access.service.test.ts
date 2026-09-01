@@ -5,6 +5,8 @@ import { apiFetch } from "../dev-auth-token.js";
 
 import {
   getControlAccessRetryDelay,
+  refreshControlSessionCookie,
+  resetControlAccessSessionRefreshStateForTest,
   validateControlPanelAccess
 } from "./control-access.service.js";
 
@@ -26,8 +28,25 @@ const jsonResponse = (body: unknown): Response => new Response(JSON.stringify(bo
   status: 200
 });
 
+const deferredResponse = (): {
+  readonly promise: Promise<Response>;
+  readonly resolve: (response: Response) => void;
+} => {
+  let resolveResponse!: (response: Response) => void;
+  const promise = new Promise<Response>((resolve) => {
+    resolveResponse = resolve;
+  });
+
+  return {
+    promise,
+    resolve: resolveResponse
+  };
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
+  resetControlAccessSessionRefreshStateForTest();
+  vi.restoreAllMocks();
   validateUrlAccessGateMock.mockResolvedValue({
     status: "allowed",
     requiresLogin: true
@@ -40,9 +59,78 @@ describe("control access recovery", () => {
     expect(getControlAccessRetryDelay(2)).toBe(10_000);
     expect(getControlAccessRetryDelay(99)).toBe(30_000);
   });
+
+  it("backs off after transient session refresh failures instead of retrying immediately", async () => {
+    let nowMs = 1_000;
+    vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+    apiFetchMock.mockResolvedValueOnce(new Response("Too many requests", { status: 429 }));
+
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({
+      ok: false,
+      kind: "unavailable",
+      message: "Session refresh failed with 429."
+    });
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({
+      ok: false,
+      kind: "unavailable",
+      message: "Session refresh failed with 429."
+    });
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+
+    nowMs += getControlAccessRetryDelay(0) + 1;
+    apiFetchMock.mockResolvedValueOnce(jsonResponse({
+      session: { id: "rotated-session" },
+      user: { id: "auth-owner" }
+    }));
+
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({ ok: true });
+    expect(apiFetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("login-required control access", () => {
+  it("coalesces overlapping Better Auth cookie refreshes before reading the safe session projection", async () => {
+    const refreshRequest = deferredResponse();
+
+    apiFetchMock.mockImplementation(async (url) => {
+      if (String(url).endsWith("/auth/get-session")) {
+        return await refreshRequest.promise;
+      }
+
+      return jsonResponse({
+        ok: true,
+        signedIn: true,
+        currentUser: {
+          name: "Michael",
+          email: "owner@example.test",
+          imageUrl: null
+        }
+      });
+    });
+
+    const firstAccessCheck = validateControlPanelAccess("https://api.example.test");
+    const secondAccessCheck = validateControlPanelAccess("https://api.example.test");
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(apiFetchMock.mock.calls.filter(([url]) => String(url).endsWith("/auth/get-session"))).toHaveLength(1);
+
+    refreshRequest.resolve(jsonResponse({
+      session: { id: "session-1" },
+      user: { id: "auth-owner" }
+    }));
+
+    await expect(firstAccessCheck).resolves.toEqual({
+      status: "allowed",
+      displayName: "Michael"
+    });
+    await expect(secondAccessCheck).resolves.toEqual({
+      status: "allowed",
+      displayName: "Michael"
+    });
+  });
+
   it("allows a valid token with the minimal signed-in session projection", async () => {
     apiFetchMock.mockResolvedValueOnce(jsonResponse({
       session: {
@@ -169,6 +257,18 @@ describe("login-required control access", () => {
     expect(apiFetchMock).toHaveBeenCalledWith("https://api.example.test/auth/get-session", {
       cache: "no-store"
     });
+  });
+
+  it("marks transient refresh failures as safe to retry without evicting an already allowed shell", async () => {
+    apiFetchMock.mockResolvedValueOnce(new Response("Too many requests", { status: 429 }));
+
+    await expect(validateControlPanelAccess("https://api.example.test")).resolves.toEqual({
+      status: "blocked",
+      kind: "unavailable",
+      message: "Session refresh failed with 429.",
+      preserveOperationalShell: true
+    });
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
   });
 
   it.each([

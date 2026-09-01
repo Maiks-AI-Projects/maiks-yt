@@ -86,7 +86,8 @@ const updateManifestForRoute = (): void => {
 const getCurrentSurfaceLabel = (): string =>
   controlRouteLabels[currentRoutePath] ?? "Control Panel";
 
-type ControlPanelBlockedState = Exclude<ControlPanelAuthState, { status: "allowed" }>;
+type ControlPanelBlockedState = Extract<ControlPanelAuthState, { status: "blocked" }>;
+type ControlPanelPendingState = Extract<ControlPanelAuthState, { status: "checking" | "reconnecting" }>;
 type ControlPanelAllowedState = Extract<ControlPanelAuthState, { status: "allowed" }>;
 type LoadedControlNavigation = {
   readonly authState: ControlPanelAllowedState;
@@ -132,7 +133,7 @@ const AccessRequired = ({
     <section className="access-required-panel">
       <p className="access-required-eyebrow">{getCurrentSurfaceLabel()}</p>
       <h1>Access Required</h1>
-      <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
+      <p>{authState.message}</p>
       {authState.status === "blocked" ? (
         <>
           <p className="access-required-help">
@@ -167,8 +168,25 @@ const AccessRequired = ({
   </main>
 );
 
+const ReconnectingAccessStatus = ({
+  authState
+}: {
+  authState: ControlPanelPendingState;
+}): React.ReactNode => (
+  <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRoute ? "chat-surface" : ""}`}>
+    <section className="access-required-panel neutral-access-panel">
+      <p className="access-required-eyebrow">{getCurrentSurfaceLabel()}</p>
+      <h1>{authState.status === "checking" ? "Checking access" : "Reconnecting"}</h1>
+      <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
+      <p className="access-required-help">
+        This window is retrying without showing account details or live controls until access is verified.
+      </p>
+    </section>
+  </main>
+);
+
 const App = (): React.ReactNode => {
-  const { authState, retryAccess } = useControlAccess(apiBaseUrl);
+  const { authState, retryAccess, transientIssue } = useControlAccess(apiBaseUrl);
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
   const [controlPage, setControlPage] = useState<ControlPanelPageKey>(getInitialControlPage);
   const [loadedControlNavigation, setLoadedControlNavigation] = useState<LoadedControlNavigation | null>(null);
@@ -269,7 +287,11 @@ const App = (): React.ReactNode => {
     });
   };
 
-  if (authState.status !== "allowed") {
+  if (authState.status === "checking" || authState.status === "reconnecting") {
+    return <ReconnectingAccessStatus authState={authState} />;
+  }
+
+  if (authState.status === "blocked") {
     return <AccessRequired authState={authState} onRetry={retryAccess} />;
   }
 
@@ -280,6 +302,7 @@ const App = (): React.ReactNode => {
         <div className="chat-compact-title">
           <h1>Streamer Chat</h1>
           <span>{authState.displayName}</span>
+          {transientIssue ? <span className="control-session-health">Session retrying</span> : null}
         </div>
         <ChatServiceStatusStrip apiBaseUrl={apiBaseUrl} />
         <ChatWindowHeader apiBaseUrl={apiBaseUrl} />
@@ -301,6 +324,7 @@ const App = (): React.ReactNode => {
           <div className="surface-title">
             <h1>Moderation</h1>
             <p>{authState.displayName}</p>
+            {transientIssue ? <p className="control-session-health">Session retrying: {transientIssue.message}</p> : null}
           </div>
           <div className="ui-scale-control" aria-label="UI scale">
             <button type="button" onClick={() => updateUiScale(-5)}>-</button>
@@ -331,7 +355,7 @@ const App = (): React.ReactNode => {
     : null;
 
   if (availableControlPages === null) {
-    return <AccessRequired authState={{ status: "checking" }} onRetry={retryAccess} />;
+    return <ReconnectingAccessStatus authState={{ status: "checking" }} />;
   }
 
   const shellStyle = { fontSize: `${uiScale}%` } satisfies CSSProperties;
@@ -426,6 +450,7 @@ const App = (): React.ReactNode => {
           <div>
             <h1>Control</h1>
             <p>{controlPageLabels[activeControlPage]} · {authState.displayName}</p>
+            {transientIssue ? <p className="control-session-health">Session retrying: {transientIssue.message}</p> : null}
           </div>
           <div className="operations-header-actions">
             <button

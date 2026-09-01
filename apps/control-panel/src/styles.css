@@ -1476,6 +1476,12 @@ a {
   font-size: 0.8rem;
 }
 
+.control-session-health {
+  color: #f6c76f !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.01em;
+}
+
 .operations-header-actions {
   align-items: center;
   display: flex;
