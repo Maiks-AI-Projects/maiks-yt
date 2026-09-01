@@ -1,4 +1,5 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { pathToFileURL } from "node:url";
 import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -281,7 +282,7 @@ export class VlcProcessBackend implements VlcMusicBackend {
       state: "pending"
     });
     try {
-      this.#send(`add ${JSON.stringify(resolvedMedia.input)}`);
+      this.#send(`add ${pathToFileURL(resolvedMedia.input).href}`);
       this.#send("volume 256");
       if (request.startAtSeconds > 0) {
         this.#send(`seek ${request.startAtSeconds}`);

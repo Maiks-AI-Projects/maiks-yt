@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -39,6 +40,71 @@ describe("VLC process audio route environment", () => {
       PULSE_PROP: `application.id=org.VideoLAN.VLC application.name=maiks-audio-agent media.role=${mediaRole}`,
       PULSE_SINK: sink
     });
+  });
+
+  it("passes a filesystem media path to VLC RC as an unquoted file URI", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "maiks vlc media-input [test]-"));
+    temporaryDirectories.add(directory);
+    const mediaPath = path.join(directory, "track #1 [safe] & ready?.mp3");
+    const expectedInput = `add ${pathToFileURL(mediaPath).href}`;
+    const commandLog = path.join(directory, "vlc-commands.log");
+    const inputAccepted = path.join(directory, "input-accepted");
+    const oldPath = process.env.PATH;
+    await writeFile(path.join(directory, "cvlc"), `#!/usr/bin/env bash
+set -euo pipefail
+while IFS= read -r line; do
+  printf '%s\\n' "$line" >> ${JSON.stringify(commandLog)}
+  if [[ "$line" == ${JSON.stringify(expectedInput)} ]]; then
+    : > ${JSON.stringify(inputAccepted)}
+  elif [[ "$line" == add* ]]; then
+    printf 'VLC RC rejected media input: %s\\n' "$line" >&2
+    exit 64
+  elif [[ "$line" == "quit" ]]; then
+    exit 0
+  fi
+done
+`, { mode: 0o700 });
+    await writeFile(path.join(directory, "pactl"), `#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == "--format=json list sinks" ]]; then
+  printf '[{"index":41,"name":"stream_music"}]\\n'
+elif [[ "$*" == "--format=json list sink-inputs" ]]; then
+  if [[ -f ${JSON.stringify(inputAccepted)} ]]; then
+    printf '[{"index":91,"sink":41,"properties":{"application.id":"org.VideoLAN.VLC","application.name":"maiks-audio-agent","media.role":"Music"}}]\\n'
+  else
+    printf '[]\\n'
+  fi
+elif [[ "$*" == "list short sinks" ]]; then
+  printf '41\\tstream_music\\tPipeWire\\ts16le 2ch 48000Hz\\tRUNNING\\n'
+elif [[ "$*" == "get-sink-volume stream_music" ]]; then
+  printf 'Volume: front-left: 65536 / 100%%%% / 0.00 dB\\n'
+elif [[ "$*" == "get-sink-mute stream_music" ]]; then
+  printf 'Mute: no\\n'
+fi
+`, { mode: 0o700 });
+    process.env.PATH = `${directory}${path.delimiter}${oldPath ?? ""}`;
+    const backend = createBackend({ readinessPollMs: 10, readinessTimeoutMs: 250 });
+
+    try {
+      await backend.inspect();
+      await expect(backend.play({
+        audioRouteId: "music",
+        playbackId: "playback-safe-input",
+        sourceUrl: mediaPath,
+        startAtSeconds: 0,
+        startPaused: false
+      }, new AbortController().signal)).resolves.toMatchObject({
+        activeAudioRouteId: "music",
+        playbackId: "playback-safe-input",
+        status: "playing"
+      });
+      const commands = await readFile(commandLog, "utf8");
+      expect(commands).toContain(`${expectedInput}\n`);
+      expect(commands).not.toContain(`add ${JSON.stringify(mediaPath)}`);
+    } finally {
+      await backend.shutdown().catch(() => undefined);
+      process.env.PATH = oldPath;
+    }
   });
 
   it("stops the old VLC child before rejecting an unavailable replacement route", async () => {

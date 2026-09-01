@@ -12,6 +12,8 @@ import { ModuleCommandError } from "../modules/agent-module.types.js";
 import { ModuleHost } from "../modules/module-host.service.js";
 import { getReconnectDelayMs, type ReconnectBackoff } from "./reconnect-backoff.rules.js";
 
+const maximumAcknowledgementErrorMessageLength = 500;
+
 export type AgentRuntimeOptions = {
   connector: OutboundConnector;
   heartbeatIntervalMs: number;
@@ -223,7 +225,13 @@ export class AgentRuntime {
       acknowledgedAt: new Date().toISOString(),
       replayed,
       ...(result === undefined ? {} : { result }),
-      ...(error === undefined ? {} : { error })
+      ...(error === undefined ? {} : {
+        error: {
+          ...error,
+          message: error.message.trim().slice(0, maximumAcknowledgementErrorMessageLength)
+            || "Local module command failed"
+        }
+      })
     };
   }
 
