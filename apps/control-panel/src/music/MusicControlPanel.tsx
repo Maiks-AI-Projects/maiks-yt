@@ -399,13 +399,22 @@ export const MusicControlPanel = (): React.ReactNode => {
     volumePercent: null
   }))).map((route) => [route.id, route]));
   const selectedRoute = routeStatus.get(selectedAudioRouteId);
+  const selectedRouteCanCarryPlayback = selectedRoute?.state === "available";
+  const hasCurrentPlayback = Boolean(state?.playbackId || state?.currentTrack);
+  const playbackActionUnavailable = busyAction !== null
+    || !state
+    || state.status === "blocked"
+    || !selectedRouteCanCarryPlayback;
+  const displayedMessage = state && state.status !== "blocked" && !state.reason && !selectedRouteCanCarryPlayback
+    ? "Music route is unavailable; stop remains available."
+    : message;
 
   return (
     <section className="music-control-panel" aria-label="Music playback">
       <div className="music-control-header">
         <div>
           <h2>Music</h2>
-          <p>{message}</p>
+          <p>{displayedMessage}</p>
         </div>
         <span className={`music-status-pill ${state?.status ?? "idle"}`}>
           {playbackStatusLabels[state?.status ?? "idle"]}
@@ -526,25 +535,25 @@ export const MusicControlPanel = (): React.ReactNode => {
         </select>
       </label>
       <div className="music-control-actions">
-        <button type="button" disabled={busyAction !== null} onClick={() => void sendControl(state?.status === "paused" ? "resume" : "play")}>
+        <button type="button" disabled={playbackActionUnavailable} onClick={() => void sendControl(state?.status === "paused" ? "resume" : "play")}>
           {state?.status === "paused" ? "Resume" : "Play"}
         </button>
         <button
           type="button"
-          disabled={busyAction !== null || (state?.status !== "playing" && state?.status !== "loading")}
+          disabled={playbackActionUnavailable || (state?.status !== "playing" && state?.status !== "loading")}
           onClick={() => void sendControl("pause")}
         >
           Pause
         </button>
-        <button type="button" disabled={busyAction !== null || !state?.currentTrack} onClick={() => void sendControl("next")}>Next</button>
+        <button type="button" disabled={playbackActionUnavailable || !state?.currentTrack} onClick={() => void sendControl("next")}>Next</button>
         <button
           type="button"
-          disabled={busyAction !== null || !selectedTrackId}
+          disabled={playbackActionUnavailable || !selectedTrackId}
           onClick={() => void sendControl("select", selectedAudioRouteId, selectedTrackId)}
         >
           Select
         </button>
-        <button type="button" disabled={busyAction !== null || !state?.currentTrack} onClick={() => void sendControl("stop")}>Stop</button>
+        <button type="button" disabled={busyAction !== null || !hasCurrentPlayback} onClick={() => void sendControl("stop")}>Stop</button>
       </div>
     </section>
   );

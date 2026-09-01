@@ -283,13 +283,54 @@ describe("MusicPlaybackService", () => {
       positionSeconds: 0
     });
     const stopped = await service.control({ action: "stop", authUserId: "owner" });
+    const idlePlayer = service.getPlayerState({
+      clientId: "obs-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`
+    });
 
     expect(stopped.ok ? stopped.currentTrack : "unexpected").toBeNull();
+    expect(idlePlayer).toMatchObject({
+      audioUrl: null,
+      currentTrack: null,
+      playbackId: null,
+      player: {
+        authority: "none",
+        connected: false,
+        owned: false,
+        state: "idle"
+      },
+      status: "idle"
+    });
     expect(historyService.appended).toEqual([{
       outcome: "stopped",
       trackId: "first",
       durationPlayedSeconds: 0
     }]);
+  });
+
+  it("does not let idle browser-player polling claim fallback authority", () => {
+    const repository = new PlaybackRepository();
+    const { service } = createPlayback(repository);
+
+    const idlePlayer = service.getPlayerState({
+      clientId: "obs-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "browser-fallback"
+    });
+
+    expect(idlePlayer).toMatchObject({
+      audioUrl: null,
+      currentTrack: null,
+      playbackId: null,
+      player: {
+        authority: "none",
+        connected: false,
+        kind: "browser-fallback",
+        owned: false,
+        state: "idle"
+      },
+      status: "idle"
+    });
   });
 
   it("dedupes active OBS players while allowing same-client reload", async () => {

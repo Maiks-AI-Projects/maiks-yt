@@ -160,6 +160,30 @@ const playbackState = (
   ...overrides
 });
 
+const unavailableRoutes = (): readonly MusicPlaybackState["audioRoutes"][number][] =>
+  localAgentAudioRouteDefinitions.map((definition) => route(0, "unavailable", {
+    ...definition,
+    detail: "Route was not reported by the Local Agent",
+    muted: null,
+    state: "unavailable",
+    volumePercent: null
+  }));
+
+const browserFallbackPlaybackState = (): MusicPlaybackState =>
+  playbackState("Fallback Track", {
+    audioRoutes: unavailableRoutes(),
+    player: {
+      authority: "browser-fallback",
+      blockedReason: null,
+      connected: true,
+      kind: "browser-fallback",
+      lastCommand: null,
+      owned: true,
+      state: "fallback"
+    },
+    status: "paused"
+  });
+
 const catalogResponse = {
   ok: true as const,
   tracks: [{
@@ -432,5 +456,52 @@ describe("MusicControlPanel route controls", () => {
     expect(text).toContain("Music control is temporarily unavailable.");
     expect(text).toContain("Current Playing Track");
     expect(stopButton.props?.disabled).toBe(false);
+  });
+
+  it("fails closed on unavailable routes while keeping Stop wired to stop", async () => {
+    const initialStateRequest = deferredResponse();
+    const catalogRequest = deferredResponse();
+    const stopRequest = deferredResponse();
+    apiFetchMock
+      .mockReturnValueOnce(initialStateRequest.promise)
+      .mockReturnValueOnce(catalogRequest.promise)
+      .mockReturnValueOnce(stopRequest.promise);
+
+    const renderer = await renderMountedPanel();
+
+    await act(async () => {
+      initialStateRequest.resolve(jsonResponse(browserFallbackPlaybackState()));
+      catalogRequest.resolve(jsonResponse(catalogResponse));
+      await flushPromises();
+    });
+
+    expect(collectText(renderer.toJSON())).toContain("Music route is unavailable; stop remains available.");
+    expect(findButton(renderer, "Resume").props?.disabled).toBe(true);
+    expect(findButton(renderer, "Pause").props?.disabled).toBe(true);
+    expect(findButton(renderer, "Next").props?.disabled).toBe(true);
+    expect(findButton(renderer, "Select").props?.disabled).toBe(true);
+
+    const stopButton = findButton(renderer, "Stop");
+    expect(stopButton.props?.disabled).toBe(false);
+
+    await act(async () => {
+      (stopButton.props?.onClick as (() => void) | undefined)?.();
+      await flushPromises();
+    });
+
+    const [, init] = apiFetchMock.mock.calls[2] ?? [];
+    expect(init?.body).toBeTypeOf("string");
+    expect(JSON.parse(String(init?.body))).toMatchObject({
+      action: "stop",
+      audioRouteId: "music"
+    });
+
+    await act(async () => {
+      stopRequest.resolve(jsonResponse({
+        ok: false,
+        reason: "not_authenticated"
+      }, 401));
+      await flushPromises();
+    });
   });
 });

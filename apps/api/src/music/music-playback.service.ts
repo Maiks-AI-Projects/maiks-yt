@@ -299,6 +299,12 @@ export class MusicPlaybackService {
     const now = this.now();
     const playerKind = input.playerKind ?? "browser-fallback";
 
+    if (!this.current) {
+      this.playerLease = null;
+      this.authoritativePlayer = null;
+      return this.snapshot({ clientId: input.clientId, audioUrl: null, playerKind });
+    }
+
     if (this.current && typeof input.positionSeconds === "number" && Number.isFinite(input.positionSeconds)) {
       this.current.lastPositionSeconds = Math.max(0, input.positionSeconds);
     }
@@ -587,6 +593,8 @@ export class MusicPlaybackService {
     const startedAt = current.startedAt;
 
     this.current = null;
+    this.playerLease = null;
+    this.authoritativePlayer = null;
 
     if (!startedAt) {
       this.reason = input.outcome === "failed" ? "music_audio_failed_before_start" : null;
