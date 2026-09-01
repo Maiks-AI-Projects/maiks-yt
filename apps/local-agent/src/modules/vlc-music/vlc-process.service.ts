@@ -37,6 +37,7 @@ type VlcProcessTerminal = {
 };
 
 type PipeWireVlcAttachment = {
+  observedCandidate: string | null;
   observedSink: string | null;
   ready: boolean;
 };
@@ -66,7 +67,7 @@ const parsePactlArray = (stdout: string, label: string): readonly Record<string,
 const inspectVlcAttachment = async (
   runPactl: (args: readonly string[]) => Promise<{ stdout: string }>,
   expectedSink: string,
-  expectedMediaRole: string
+  expectedProcessId: number
 ): Promise<PipeWireVlcAttachment> => {
   const [sinksResult, inputsResult] = await Promise.all([
     runPactl(["--format=json", "list", "sinks"]),
@@ -79,24 +80,48 @@ const inspectVlcAttachment = async (
     }
   }
 
+  let observedCandidate: string | null = null;
   let observedSink: string | null = null;
   for (const input of parsePactlArray(inputsResult.stdout, "sink-input")) {
     const properties = asRecord(input.properties);
-    if (!properties
-      || properties["application.id"] !== "org.VideoLAN.VLC"
-      || properties["application.name"] !== "maiks-audio-agent"
-      || properties["media.role"] !== expectedMediaRole) {
+    if (!properties) {
       continue;
     }
+    const applicationId = typeof properties["application.id"] === "string"
+      ? properties["application.id"]
+      : null;
+    const applicationName = typeof properties["application.name"] === "string"
+      ? properties["application.name"]
+      : null;
+    const mediaRole = typeof properties["media.role"] === "string"
+      ? properties["media.role"]
+      : null;
+    const processId = typeof properties["application.process.id"] === "number"
+      || typeof properties["application.process.id"] === "string"
+      ? String(properties["application.process.id"])
+      : null;
     const sink = typeof input.sink === "number" || typeof input.sink === "string"
       ? sinkNames.get(String(input.sink)) ?? null
       : null;
+    const processMatches = processId === String(expectedProcessId);
+    if (applicationId === "org.VideoLAN.VLC" || processMatches) {
+      observedCandidate = sanitizeDiagnostic([
+        `appId=${applicationId ?? "missing"}`,
+        `processId=${processMatches ? "expected" : processId ? "other" : "missing"}`,
+        `name=${applicationName ?? "missing"}`,
+        `role=${mediaRole ?? "missing"}`,
+        `sink=${sink ?? "unmapped"}`
+      ].join(" "));
+    }
+    if (applicationId !== "org.VideoLAN.VLC" || !processMatches) {
+      continue;
+    }
     if (sink === expectedSink) {
-      return { observedSink: sink, ready: true };
+      return { observedCandidate, observedSink: sink, ready: true };
     }
     observedSink = sink;
   }
-  return { observedSink, ready: false };
+  return { observedCandidate, observedSink, ready: false };
 };
 export const buildVlcAudioRouteEnvironment = (
   audioRouteId: LocalAgentAudioRouteId
@@ -214,6 +239,7 @@ export class VlcProcessBackend implements VlcMusicBackend {
     this.#positionBaseSeconds = request.startAtSeconds;
     this.#positionStartedAtMs = request.startPaused ? null : Date.now();
     const child = spawn(this.#vlcPath, [
+      "--aout=pulse",
       "--intf", "rc",
       "--rc-fake-tty",
       "--no-video",
@@ -282,6 +308,9 @@ export class VlcProcessBackend implements VlcMusicBackend {
       state: "pending"
     });
     try {
+      if (child.pid === undefined) {
+        throw new Error("VLC process ID is unavailable for audio readiness");
+      }
       this.#send(`add ${pathToFileURL(resolvedMedia.input).href}`);
       this.#send("volume 256");
       if (request.startAtSeconds > 0) {
@@ -289,7 +318,7 @@ export class VlcProcessBackend implements VlcMusicBackend {
       }
       await this.#waitForReadiness({
         child,
-        expectedMediaRole: expectedRoute.mediaRole,
+        expectedProcessId: child.pid,
         expectedSink: expectedRoute.pipeWireSink,
         getStderr: () => stderr,
         getTerminal: readTerminal,
@@ -482,7 +511,7 @@ export class VlcProcessBackend implements VlcMusicBackend {
 
   async #waitForReadiness(input: {
     child: ChildProcessWithoutNullStreams;
-    expectedMediaRole: string;
+    expectedProcessId: number;
     expectedSink: string;
     getStderr: () => string;
     getTerminal: () => VlcProcessTerminal | null;
@@ -490,6 +519,7 @@ export class VlcProcessBackend implements VlcMusicBackend {
     terminalPromise: Promise<VlcProcessTerminal>;
   }): Promise<void> {
     const deadline = Date.now() + this.#readinessTimeoutMs;
+    let observedCandidate: string | null = null;
     let observedSink: string | null = null;
     let probeError: string | null = null;
     while (Date.now() <= deadline) {
@@ -504,8 +534,9 @@ export class VlcProcessBackend implements VlcMusicBackend {
         const attachment = await inspectVlcAttachment(
           this.#runPactl,
           input.expectedSink,
-          input.expectedMediaRole
+          input.expectedProcessId
         );
+        observedCandidate = attachment.observedCandidate;
         observedSink = attachment.observedSink;
         probeError = null;
         if (attachment.ready && input.child.exitCode === null && !input.getTerminal()) {
@@ -523,8 +554,10 @@ export class VlcProcessBackend implements VlcMusicBackend {
         waitForDelay(Math.min(this.#readinessPollMs, remainingMs), input.signal)
       ]);
     }
-    const diagnostic = observedSink
-      ? `matching VLC sink-input was attached to ${observedSink}`
+    const diagnostic = observedCandidate
+      ? `observed ${observedCandidate}`
+      : observedSink
+        ? `matching VLC sink-input was attached to ${observedSink}`
       : probeError
         ? `last PipeWire probe failed: ${probeError}`
         : "matching VLC sink-input was not present";
