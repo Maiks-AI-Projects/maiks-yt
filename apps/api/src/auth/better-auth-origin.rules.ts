@@ -21,6 +21,12 @@ const productionTrustedOrigins = [
   "https://overlay.maiks.yt"
 ] as const;
 
+const dayInSeconds = 24 * 60 * 60;
+export const betterAuthSessionPolicy = {
+  expiresIn: 30 * dayInSeconds,
+  updateAge: dayInSeconds
+} as const;
+
 const readProcessEnvironment = (): BetterAuthOriginEnvironment => ({
   AUTH_TRUSTED_ORIGINS: process.env.AUTH_TRUSTED_ORIGINS,
   BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,

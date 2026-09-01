@@ -8,6 +8,7 @@ import { createAuthSessionTokenHasherFromEnvironment } from "./auth-session-toke
 import { createAuthVerificationIdentifierHasherFromEnvironment } from "./auth-verification-identifier-hash.service.js";
 import {
   assertTrustedOriginEnvironment,
+  betterAuthSessionPolicy,
   getBetterAuthBaseUrl,
   getTrustedOrigins
 } from "./better-auth-origin.rules.js";
@@ -92,6 +93,8 @@ export const auth = betterAuth({
   },
   session: {
     modelName: "authSessions",
+    expiresIn: betterAuthSessionPolicy.expiresIn,
+    updateAge: betterAuthSessionPolicy.updateAge,
     additionalFields: {
       tokenHash: {
         type: "string",

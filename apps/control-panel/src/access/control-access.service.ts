@@ -51,9 +51,42 @@ const isSignedInAccountSession = (
 };
 
 export const controlAccessRetryDelaysMs = [2_000, 5_000, 10_000, 20_000, 30_000] as const;
+export const controlAccessSessionRefreshIntervalMs = 10 * 60 * 1_000;
 
 export const getControlAccessRetryDelay = (attempt: number): number =>
   controlAccessRetryDelaysMs[Math.min(Math.max(attempt, 0), controlAccessRetryDelaysMs.length - 1)]!;
+
+export const refreshControlSessionCookie = async (apiBaseUrl: string): Promise<{
+  ok: true;
+} | {
+  ok: false;
+  kind: "login-required" | "unavailable";
+  message: string;
+}> => {
+  try {
+    const response = await apiFetch(`${apiBaseUrl}/auth/get-session`, {
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        kind: response.status === 401 ? "login-required" : "unavailable",
+        message: response.status === 401
+          ? "Your sign-in needs to be renewed."
+          : `Session refresh failed with ${response.status}.`
+      };
+    }
+
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      kind: "unavailable",
+      message: "The account service is temporarily unavailable."
+    };
+  }
+};
 
 export const validateControlPanelAccess = async (apiBaseUrl: string): Promise<ControlPanelAuthState> => {
   const gateState = await validateUrlAccessGate({
@@ -83,6 +116,16 @@ export const validateControlPanelAccess = async (apiBaseUrl: string): Promise<Co
     return {
       status: "allowed",
       displayName: "Token user"
+    };
+  }
+
+  const refreshState = await refreshControlSessionCookie(apiBaseUrl);
+
+  if (!refreshState.ok) {
+    return {
+      status: "blocked",
+      kind: refreshState.kind,
+      message: refreshState.message
     };
   }
 

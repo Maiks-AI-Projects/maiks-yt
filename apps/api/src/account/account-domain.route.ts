@@ -113,7 +113,8 @@ export const registerAccountDomainRoutes = (
     };
   });
 
-  server.get("/account/session", async (request) => {
+  server.get("/account/session", async (request, reply) => {
+    reply.header("Cache-Control", "private, no-store");
     return projectAccountSession(await getAuthSession(request));
   });
 

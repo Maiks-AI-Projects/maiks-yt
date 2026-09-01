@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
   localAgentAudioRouteDefinitions,
@@ -72,6 +72,11 @@ type MusicCatalogResponse = {
   readonly tracks: readonly MusicCatalogTrack[];
 } | MusicPlaybackFailure;
 
+type MusicPlaybackRequestResult<TResult> = {
+  readonly payload: TResult;
+  readonly status: number;
+};
+
 const playbackStatusLabels: Record<MusicPlaybackStatus, string> = {
   blocked: "Blocked",
   error: "Needs attention",
@@ -107,6 +112,48 @@ const routeControlRank: Readonly<Record<LocalAgentAudioRouteStatus["controlState
   error: 3,
   acknowledged: 4
 };
+
+export const createUnavailableMusicPlaybackState = (
+  reason: "not_authenticated" | "music_play_control_forbidden" | "music_play_control_user_unlinked"
+): MusicPlaybackState => ({
+  ok: true,
+  status: "blocked",
+  audioRouteId: DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
+  audioRoutes: localAgentAudioRouteDefinitions.map((route) => ({
+    ...route,
+    controlState: "unavailable",
+    detail: reason,
+    muted: null,
+    revision: 0,
+    state: "unavailable",
+    volumePercent: null
+  })),
+  playbackId: null,
+  currentTrack: null,
+  reason,
+  player: {
+    authority: "none",
+    blockedReason: reason,
+    connected: false,
+    kind: null,
+    lastCommand: null,
+    owned: false,
+    state: "unavailable"
+  }
+});
+
+export const shouldClearMusicPlaybackState = (
+  status: number,
+  payload: { readonly ok: true } | MusicPlaybackFailure
+): payload is MusicPlaybackFailure & {
+  reason: "not_authenticated" | "music_play_control_forbidden" | "music_play_control_user_unlinked";
+} =>
+  status === 401
+  || (status === 403 && payload.ok === false && (
+    payload.reason === "music_play_control_forbidden"
+    || payload.reason === "music_play_control_user_unlinked"
+  ))
+  || (payload.ok === false && payload.reason === "not_authenticated");
 
 export const mergeMusicPlaybackState = (
   current: MusicPlaybackState | null,
@@ -183,16 +230,20 @@ const readPlaybackMessage = (state: MusicPlaybackState | null, fallback: string)
 const requestPlayback = async <TResult,>(
   path: string,
   init: RequestInit = {}
-): Promise<TResult> => {
+): Promise<MusicPlaybackRequestResult<TResult>> => {
   const response = await apiFetch(`${apiBaseUrl}${path}`, {
     cache: "no-store",
     ...init,
   });
 
-  return await response.json() as TResult;
+  return {
+    payload: await response.json() as TResult,
+    status: response.status
+  };
 };
 
 export const MusicControlPanel = (): React.ReactNode => {
+  const authRequestEpochRef = useRef(0);
   const [state, setState] = useState<MusicPlaybackState | null>(null);
   const [catalogTracks, setCatalogTracks] = useState<readonly MusicCatalogTrack[]>([]);
   const [message, setMessage] = useState<string>("Loading music playback.");
@@ -200,9 +251,33 @@ export const MusicControlPanel = (): React.ReactNode => {
   const [selectedAudioRouteId, setSelectedAudioRouteId] = useState<LocalAgentAudioRouteId>(DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID);
   const [selectedTrackId, setSelectedTrackId] = useState<string>("");
 
+  const isCurrentAuthRequestEpoch = (requestEpoch: number): boolean =>
+    requestEpoch === authRequestEpochRef.current;
+
+  const clearAuthenticatedMusicState = (
+    reason: "not_authenticated" | "music_play_control_forbidden" | "music_play_control_user_unlinked"
+  ): void => {
+    authRequestEpochRef.current += 1;
+    setState(createUnavailableMusicPlaybackState(reason));
+    setCatalogTracks([]);
+    setBusyAction(null);
+    setSelectedAudioRouteId(DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID);
+    setSelectedTrackId("");
+    setMessage(playbackReasonLabels[reason] ?? "Your sign-in needs to be renewed.");
+  };
+
   const loadState = async (): Promise<void> => {
+    const requestEpoch = authRequestEpochRef.current;
     try {
-      const payload = await requestPlayback<MusicPlaybackState | MusicPlaybackFailure>("/admin/music/play-control/state");
+      const { payload, status } = await requestPlayback<MusicPlaybackState | MusicPlaybackFailure>("/admin/music/play-control/state");
+      if (!isCurrentAuthRequestEpoch(requestEpoch)) {
+        return;
+      }
+
+      if (shouldClearMusicPlaybackState(status, payload)) {
+        clearAuthenticatedMusicState(payload.reason);
+        return;
+      }
 
       if (!payload.ok) {
         setMessage(playbackReasonLabels[payload.reason] ?? "Music control is unavailable.");
@@ -217,13 +292,24 @@ export const MusicControlPanel = (): React.ReactNode => {
       }
       setMessage(readPlaybackMessage(payload, "Music control is ready."));
     } catch {
+      if (!isCurrentAuthRequestEpoch(requestEpoch)) {
+        return;
+      }
       setMessage("Music control is temporarily unavailable.");
     }
   };
 
   const loadCatalog = async (): Promise<void> => {
+    const requestEpoch = authRequestEpochRef.current;
     try {
-      const payload = await requestPlayback<MusicCatalogResponse>("/admin/music/catalog");
+      const { payload, status } = await requestPlayback<MusicCatalogResponse>("/admin/music/catalog");
+      if (!isCurrentAuthRequestEpoch(requestEpoch)) {
+        return;
+      }
+      if (shouldClearMusicPlaybackState(status, payload)) {
+        clearAuthenticatedMusicState(payload.reason);
+        return;
+      }
       if (!payload.ok) {
         return;
       }
@@ -255,6 +341,7 @@ export const MusicControlPanel = (): React.ReactNode => {
       setMessage(playbackReasonLabels.music_track_selection_required ?? "Pick a track before selecting it.");
       return;
     }
+    const requestEpoch = authRequestEpochRef.current;
     setBusyAction(action);
 
     try {
@@ -267,13 +354,21 @@ export const MusicControlPanel = (): React.ReactNode => {
               audioRouteId,
               ...(trackId ? { trackId } : {})
             };
-      const payload = await requestPlayback<MusicPlaybackState | MusicPlaybackFailure>("/admin/music/play-control/control", {
+      const { payload, status } = await requestPlayback<MusicPlaybackState | MusicPlaybackFailure>("/admin/music/play-control/control", {
         body: JSON.stringify(requestBody),
         headers: {
           "Content-Type": "application/json"
         },
         method: "POST"
       });
+      if (!isCurrentAuthRequestEpoch(requestEpoch)) {
+        return;
+      }
+
+      if (shouldClearMusicPlaybackState(status, payload)) {
+        clearAuthenticatedMusicState(payload.reason);
+        return;
+      }
 
       if (!payload.ok) {
         setMessage(playbackReasonLabels[payload.reason] ?? "Music control is unavailable.");
@@ -284,9 +379,14 @@ export const MusicControlPanel = (): React.ReactNode => {
       setSelectedAudioRouteId(payload.audioRouteId);
       setMessage(readPlaybackMessage(payload, "Music control is ready."));
     } catch {
+      if (!isCurrentAuthRequestEpoch(requestEpoch)) {
+        return;
+      }
       setMessage("Music control is temporarily unavailable.");
     } finally {
-      setBusyAction(null);
+      if (isCurrentAuthRequestEpoch(requestEpoch)) {
+        setBusyAction(null);
+      }
     }
   };
   const routeStatus = new Map((state?.audioRoutes ?? localAgentAudioRouteDefinitions.map((route) => ({

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  controlAccessSessionRefreshIntervalMs,
   getControlAccessRetryDelay,
   validateControlPanelAccess,
   type ControlPanelAuthState
@@ -49,6 +50,11 @@ export const useControlAccess = (apiBaseUrl: string): {
     }
 
     retryAttempt.current = 0;
+    if (nextState.status === "allowed") {
+      retryTimer.current = window.setTimeout(() => {
+        void checkAccess(false);
+      }, controlAccessSessionRefreshIntervalMs);
+    }
   }, [apiBaseUrl, clearRetry]);
 
   const retryAccess = useCallback((): void => {

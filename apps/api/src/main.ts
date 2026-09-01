@@ -591,6 +591,7 @@ server.route({
 
       reply.status(authResponse.status);
       authResponse.headers.forEach((value, key) => reply.header(key, value));
+      reply.header("Cache-Control", "private, no-store");
 
       return reply.send(authResponse.body ? await authResponse.text() : null);
     } catch (error) {

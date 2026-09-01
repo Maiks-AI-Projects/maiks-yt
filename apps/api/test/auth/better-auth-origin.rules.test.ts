@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertTrustedOriginEnvironment,
+  betterAuthSessionPolicy,
   getBetterAuthBaseUrl,
   getTrustedOrigins
 } from "../../src/auth/better-auth-origin.rules.js";
@@ -64,5 +65,13 @@ describe("Better Auth origin policy", () => {
       BETTER_AUTH_URL: " https://auth.example.test ",
       NODE_ENV: "production"
     })).toBe("https://auth.example.test");
+  });
+
+  it("uses an explicit bounded persistent session policy for installed PWAs", () => {
+    expect(betterAuthSessionPolicy).toEqual({
+      expiresIn: 30 * 24 * 60 * 60,
+      updateAge: 24 * 60 * 60
+    });
+    expect(betterAuthSessionPolicy.expiresIn).toBeGreaterThan(betterAuthSessionPolicy.updateAge);
   });
 });

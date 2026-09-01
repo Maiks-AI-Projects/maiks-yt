@@ -44,7 +44,16 @@ describe("control access recovery", () => {
 
 describe("login-required control access", () => {
   it("allows a valid token with the minimal signed-in session projection", async () => {
-    apiFetchMock.mockResolvedValue(jsonResponse({
+    apiFetchMock.mockResolvedValueOnce(jsonResponse({
+      session: {
+        id: "session-1",
+        userId: "auth-owner"
+      },
+      user: {
+        id: "auth-owner"
+      }
+    }));
+    apiFetchMock.mockResolvedValueOnce(jsonResponse({
       ok: true,
       signedIn: true,
       currentUser: {
@@ -64,11 +73,18 @@ describe("login-required control access", () => {
       scope: "control:open",
       storageKey: "maiks.yt.control.accessToken"
     });
-    expect(apiFetchMock).toHaveBeenCalledWith("https://api.example.test/account/session");
+    expect(apiFetchMock).toHaveBeenNthCalledWith(1, "https://api.example.test/auth/get-session", {
+      cache: "no-store"
+    });
+    expect(apiFetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/account/session");
   });
 
   it("preserves the email and generic display-name fallbacks", async () => {
     apiFetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        session: { id: "session-1" },
+        user: { id: "auth-owner" }
+      }))
       .mockResolvedValueOnce(jsonResponse({
         ok: true,
         signedIn: true,
@@ -77,6 +93,10 @@ describe("login-required control access", () => {
           email: "owner@example.test",
           imageUrl: null
         }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        session: { id: "session-1" },
+        user: { id: "auth-owner" }
       }))
       .mockResolvedValueOnce(jsonResponse({
         ok: true,
@@ -99,12 +119,55 @@ describe("login-required control access", () => {
   });
 
   it("denies a signed-out null session", async () => {
-    apiFetchMock.mockResolvedValue(jsonResponse(null));
+    apiFetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        session: { id: "session-1" },
+        user: { id: "auth-owner" }
+      }))
+      .mockResolvedValueOnce(jsonResponse(null));
 
     await expect(validateControlPanelAccess("https://api.example.test")).resolves.toEqual({
       status: "blocked",
       kind: "login-required",
       message: "Your sign-in needs to be renewed."
+    });
+  });
+
+  it("refreshes the Better Auth cookie through the auth endpoint before reading the safe session projection", async () => {
+    apiFetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        session: { id: "session-1" },
+        user: { id: "auth-owner" }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        signedIn: true,
+        currentUser: {
+          name: "Michael",
+          email: "owner@example.test",
+          imageUrl: null
+        }
+      }));
+
+    await validateControlPanelAccess("https://api.example.test");
+
+    expect(apiFetchMock).toHaveBeenNthCalledWith(1, "https://api.example.test/auth/get-session", {
+      cache: "no-store"
+    });
+    expect(apiFetchMock).toHaveBeenNthCalledWith(2, "https://api.example.test/account/session");
+  });
+
+  it("fails closed before private data reads when session refresh is rejected", async () => {
+    apiFetchMock.mockResolvedValue(new Response("null", { status: 401 }));
+
+    await expect(validateControlPanelAccess("https://api.example.test")).resolves.toEqual({
+      status: "blocked",
+      kind: "login-required",
+      message: "Your sign-in needs to be renewed."
+    });
+    expect(apiFetchMock).toHaveBeenCalledTimes(1);
+    expect(apiFetchMock).toHaveBeenCalledWith("https://api.example.test/auth/get-session", {
+      cache: "no-store"
     });
   });
 
@@ -132,7 +195,12 @@ describe("login-required control access", () => {
       }
     }
   ])("fails closed for malformed session payload %#", async (session) => {
-    apiFetchMock.mockResolvedValue(jsonResponse(session));
+    apiFetchMock
+      .mockResolvedValueOnce(jsonResponse({
+        session: { id: "session-1" },
+        user: { id: "auth-owner" }
+      }))
+      .mockResolvedValueOnce(jsonResponse(session));
 
     await expect(validateControlPanelAccess("https://api.example.test")).resolves.toEqual({
       status: "blocked",
