@@ -5,7 +5,11 @@ The Local Agent is the single modular system service for outbound Maiks.yt-to-st
 The Stream Audio Mixer remains responsible for PipeWire routing. Local modules target stable sinks directly:
 
 - Private cue/TTS: `stream_private`
-- VLC music (contract only in this slice): `stream_music`
+- VLC music routes:
+  - `communication` -> `stream_communication`
+  - `music` -> `stream_music`
+  - `private` -> `stream_private`
+  - `game` -> `stream_game`
 
 The audio client sets its PipeWire application name to `maiks-audio-agent`, matching the existing Private routing rule. Browser/PWA audio and `/music/player` remain supported fallbacks; this app does not remove or redirect them.
 
@@ -22,7 +26,9 @@ Reconnect uses capped exponential backoff with jitter. Module startup is ordered
 - `cue.play` synthesizes a bounded WAV cue locally and sends it to `pw-play --target stream_private`.
 - `tts.speak` validates bounded text/voice/rate input, runs `espeak-ng` without a shell, and pipes its WAV output to the same stable sink.
 
-VLC music is an executable module when `cvlc` or `vlc` is installed. It accepts bounded play, pause, resume, stop, seek, volume, and status commands, launches VLC without a shell, and pins playback to PipeWire sink `stream_music`. Countdown remains a typed module/command contract only.
+VLC music is an executable module when `cvlc` or `vlc` is installed and the selected PipeWire sink is present. It accepts bounded play, pause, resume, stop, seek, volume, and status commands, launches VLC without a shell, and pins playback to the selected typed route. The default route is `music` / `stream_music`. Unknown route IDs and missing selected sinks fail instead of falling back silently. Countdown remains a typed module/command contract only.
+
+The external control contract for OpenDeck and music-library work is recorded in `ops/playback-contract.md`.
 
 ## Dedicated credential design
 
@@ -63,7 +69,7 @@ Automated tests use an in-memory transport and fake audio backend. Later live te
 2. Run `--self-test-cue`, verify it is audible on Private only, and verify the PipeWire client identity is `maiks-audio-agent`.
 3. If `espeak-ng` is installed, run `--self-test-tts` and verify Private-only speech plus clean cancellation.
 4. Provision a least-privilege test device credential after the server endpoint exists; verify broad owner/dev/provider tokens are rejected.
-5. Start the unit manually and verify one outbound connection, registration status, heartbeats, reconnect jitter, and clean SIGTERM shutdown.
+5. Start the unit manually and verify one outbound connection to `/local-agent/live`, registration status, heartbeats, reconnect jitter, and clean SIGTERM shutdown.
 6. Send a fake harmless cue command twice with the same event ID; verify one playback and a replayed terminal acknowledgement. Restart between deliveries and repeat to prove disk-backed dedupe.
 7. Send expired, malformed, unknown-capability, and event-ID-collision commands; verify they fail closed without audio.
 8. Interrupt the connection after receipt and before terminal delivery; reconnect and verify the persisted terminal acknowledgement is replayed without re-execution.

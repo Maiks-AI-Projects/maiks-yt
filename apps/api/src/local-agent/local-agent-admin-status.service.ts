@@ -2,7 +2,14 @@ import type {
   CapabilityAvailability,
   CapabilityRegistration,
   JsonValue,
+  LocalAgentAudioRouteId,
+  LocalAgentAudioRouteStatus,
   ModuleStatus
+} from "@maiks-yt/events";
+import {
+  DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
+  localAgentAudioRouteDefinitions,
+  localAgentAudioRouteIds
 } from "@maiks-yt/events";
 
 import type {
@@ -54,6 +61,34 @@ const vlcPlaybackStatuses = new Set([
   "ended",
   "error"
 ]);
+const audioRouteStates = new Set(["available", "unavailable", "error", "reconnecting"]);
+
+const parseAudioRouteId = (value: JsonValue | undefined): LocalAgentAudioRouteId =>
+  typeof value === "string" && localAgentAudioRouteIds.includes(value as LocalAgentAudioRouteId)
+    ? value as LocalAgentAudioRouteId
+    : DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID;
+
+const projectAudioRoutes = (state: Readonly<Record<string, JsonValue>>): readonly LocalAgentAudioRouteStatus[] => {
+  const rawRoutes = Array.isArray(state.routes) ? state.routes : [];
+
+  return localAgentAudioRouteDefinitions.map((route) => {
+    const reported = rawRoutes.find((candidate): candidate is Readonly<Record<string, JsonValue>> =>
+      isRecord(candidate) && candidate.id === route.id
+    );
+    const reportedState = typeof reported?.state === "string" && audioRouteStates.has(reported.state)
+      ? reported.state as LocalAgentAudioRouteStatus["state"]
+      : "unavailable";
+    const detail = typeof reported?.detail === "string" && reported.detail.length <= 240
+      ? reported.detail
+      : undefined;
+
+    return {
+      ...route,
+      state: reportedState,
+      ...(detail ? { detail } : {})
+    };
+  });
+};
 
 const projectVlcState = (state: JsonValue | undefined): LocalAgentAdminVlcState | null => {
   if (!isRecord(state)) {
@@ -66,9 +101,11 @@ const projectVlcState = (state: JsonValue | undefined): LocalAgentAdminVlcState 
     : null;
 
   return {
+    activeAudioRouteId: parseAudioRouteId(state.activeAudioRouteId),
     hasPlayback: typeof playbackId === "string" && playbackId.length > 0,
     playbackStatus,
     positionSeconds: asBoundedNumber(state.positionSeconds, 0, 24 * 60 * 60),
+    routes: projectAudioRoutes(state),
     volumePercent: asBoundedNumber(state.volumePercent, 0, 100)
   };
 };

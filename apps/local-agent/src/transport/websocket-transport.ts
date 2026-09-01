@@ -1,9 +1,10 @@
 import WebSocket, { type RawData } from "ws";
+import { LOCAL_AGENT_WEBSOCKET_SUBPROTOCOL } from "@maiks-yt/events";
+
 import type { AgentClientMessage } from "../protocol/agent-protocol.types.js";
 import type { OutboundConnector, OutboundSession, TransportClose } from "./outbound-transport.js";
 
 const MAX_MESSAGE_BYTES = 64 * 1_024;
-const SUBPROTOCOL = "maiks-local-agent.v1";
 
 function decodeMessage(data: RawData): unknown {
   const buffer = Array.isArray(data)
@@ -83,7 +84,7 @@ export class WebSocketOutboundConnector implements OutboundConnector {
         reject(signal.reason ?? new Error("Connection aborted"));
         return;
       }
-      const socket = new WebSocket(this.#url, SUBPROTOCOL, {
+      const socket = new WebSocket(this.#url, LOCAL_AGENT_WEBSOCKET_SUBPROTOCOL, {
         followRedirects: false,
         handshakeTimeout: 10_000,
         maxPayload: MAX_MESSAGE_BYTES,

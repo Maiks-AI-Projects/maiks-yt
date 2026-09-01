@@ -1,5 +1,5 @@
 import { LOCAL_AGENT_PROTOCOL_VERSION } from "@maiks-yt/events";
-import type { CapabilityAvailability } from "@maiks-yt/events";
+import type { CapabilityAvailability, LocalAgentAudioRouteId, LocalAgentAudioRouteStatus } from "@maiks-yt/events";
 
 import type { LocalAgentRuntimeStatus } from "./local-agent-runtime.service.js";
 
@@ -23,9 +23,11 @@ export type LocalAgentAdminConnectionState =
   | "degraded";
 
 export type LocalAgentAdminVlcState = {
+  activeAudioRouteId: LocalAgentAudioRouteId;
   hasPlayback: boolean;
   playbackStatus: "idle" | "loading" | "playing" | "paused" | "stopped" | "ended" | "error" | null;
   positionSeconds: number | null;
+  routes: readonly LocalAgentAudioRouteStatus[];
   volumePercent: number | null;
 };
 

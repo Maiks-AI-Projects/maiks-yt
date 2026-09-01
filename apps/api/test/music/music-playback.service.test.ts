@@ -201,6 +201,97 @@ describe("MusicPlaybackService", () => {
     expect(skipped.ok ? skipped.currentTrack?.trackId : null).toBe("second");
   });
 
+  it("selects an explicit catalog track and keeps the chosen audio route in state", async () => {
+    const repository = new PlaybackRepository();
+    repository.catalog = [
+      createSelectableTrack("first"),
+      createSelectableTrack("second")
+    ];
+    const { service } = createPlayback(repository);
+
+    const selected = await service.control({
+      action: "select",
+      audioRouteId: "game",
+      authUserId: "owner",
+      trackId: "second"
+    });
+
+    expect(selected.ok ? selected.currentTrack?.trackId : null).toBe("second");
+    expect(selected.ok ? selected.audioRouteId : null).toBe("game");
+    expect(selected.ok ? selected.audioRoutes.map((route) => [route.id, route.pipeWireSink]) : []).toEqual([
+      ["communication", "stream_communication"],
+      ["music", "stream_music"],
+      ["private", "stream_private"],
+      ["game", "stream_game"]
+    ]);
+  });
+
+  it("selects an audio route without changing catalog playback or history", async () => {
+    const repository = new PlaybackRepository();
+    repository.catalog = [createSelectableTrack("first")];
+    const { historyService, service } = createPlayback(repository);
+
+    await service.control({ action: "play", authUserId: "owner" });
+    const routed = await service.control({
+      action: "route.select",
+      audioRouteId: "communication",
+      authUserId: "owner"
+    });
+
+    expect(routed.ok ? routed.currentTrack?.trackId : null).toBe("first");
+    expect(routed.ok ? routed.audioRouteId : null).toBe("communication");
+    expect(historyService.appended).toHaveLength(0);
+  });
+
+  it("reports unsupported explicit selection and resume cases without fabricating playback", async () => {
+    const repository = new PlaybackRepository();
+    repository.catalog = [
+      createSelectableTrack("blocked", { liveSafe: false })
+    ];
+    const { service } = createPlayback(repository);
+
+    const missingSelection = await service.control({ action: "select", authUserId: "owner" });
+    expect(missingSelection.ok ? missingSelection.reason : null).toBe("music_track_selection_required");
+    expect(missingSelection.ok ? missingSelection.currentTrack : "unexpected").toBeNull();
+
+    const blockedSelection = await service.control({ action: "select", authUserId: "owner", trackId: "blocked" });
+    expect(blockedSelection.ok ? blockedSelection.reason : null).toBe("music_selected_track_not_playable");
+    expect(blockedSelection.ok ? blockedSelection.currentTrack : "unexpected").toBeNull();
+
+    const resume = await service.control({ action: "resume", authUserId: "owner" });
+    expect(resume.ok ? resume.reason : null).toBe("music_resume_without_paused_track");
+    expect(resume.ok ? resume.currentTrack : "unexpected").toBeNull();
+  });
+
+  it("stops current playback without selecting the next track", async () => {
+    const repository = new PlaybackRepository();
+    repository.catalog = [
+      createSelectableTrack("first"),
+      createSelectableTrack("second")
+    ];
+    const { historyService, service } = createPlayback(repository);
+
+    await service.control({ action: "play", authUserId: "owner" });
+    const playerState = service.getPlayerState({
+      clientId: "obs-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`
+    });
+    await service.recordPlayerEvent({
+      clientId: "obs-player",
+      event: "started",
+      playbackId: playerState.playbackId!,
+      positionSeconds: 0
+    });
+    const stopped = await service.control({ action: "stop", authUserId: "owner" });
+
+    expect(stopped.ok ? stopped.currentTrack : "unexpected").toBeNull();
+    expect(historyService.appended).toEqual([{
+      outcome: "stopped",
+      trackId: "first",
+      durationPlayedSeconds: 0
+    }]);
+  });
+
   it("dedupes active OBS players while allowing same-client reload", async () => {
     const repository = new PlaybackRepository();
     repository.catalog = [createSelectableTrack("track")];

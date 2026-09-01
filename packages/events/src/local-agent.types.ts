@@ -1,4 +1,108 @@
 export const LOCAL_AGENT_PROTOCOL_VERSION = 1 as const;
+export const LOCAL_AGENT_LIVE_PATH = "/local-agent/live" as const;
+export const LOCAL_AGENT_WEBSOCKET_SUBPROTOCOL = "maiks-local-agent.v1" as const;
+export const LOCAL_AGENT_VLC_MUSIC_CAPABILITY = "vlc-music" as const;
+
+export const localAgentAudioRouteIds = [
+  "communication",
+  "music",
+  "private",
+  "game"
+] as const;
+
+export type LocalAgentAudioRouteId = typeof localAgentAudioRouteIds[number];
+export type LocalAgentAudioRouteState = "available" | "unavailable" | "error" | "reconnecting";
+
+export type LocalAgentAudioRouteDefinition = {
+  id: LocalAgentAudioRouteId;
+  label: string;
+  pipeWireSink: string;
+  mediaRole: string;
+};
+
+export const localAgentAudioRouteDefinitions = [
+  {
+    id: "communication",
+    label: "Communication",
+    pipeWireSink: "stream_communication",
+    mediaRole: "Communication"
+  },
+  {
+    id: "music",
+    label: "Music",
+    pipeWireSink: "stream_music",
+    mediaRole: "Music"
+  },
+  {
+    id: "private",
+    label: "Private",
+    pipeWireSink: "stream_private",
+    mediaRole: "Private"
+  },
+  {
+    id: "game",
+    label: "Game",
+    pipeWireSink: "stream_game",
+    mediaRole: "Game"
+  }
+] as const satisfies readonly LocalAgentAudioRouteDefinition[];
+
+export type LocalAgentAudioRouteStatus = LocalAgentAudioRouteDefinition & {
+  state: LocalAgentAudioRouteState;
+  detail?: string | undefined;
+};
+
+export const DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID = "music" as const satisfies LocalAgentAudioRouteId;
+
+export const isLocalAgentAudioRouteId = (value: unknown): value is LocalAgentAudioRouteId =>
+  typeof value === "string" && localAgentAudioRouteIds.includes(value as LocalAgentAudioRouteId);
+
+export const getLocalAgentAudioRouteDefinition = (
+  id: LocalAgentAudioRouteId
+): LocalAgentAudioRouteDefinition =>
+  localAgentAudioRouteDefinitions.find((route) => route.id === id)
+  ?? localAgentAudioRouteDefinitions[1]!;
+
+export const vlcMusicActions = [
+  "track.play",
+  "track.pause",
+  "track.resume",
+  "track.stop",
+  "track.seek",
+  "volume.set",
+  "status.get"
+] as const;
+
+export type VlcMusicAction = typeof vlcMusicActions[number];
+
+export type VlcMusicPlaybackStatus =
+  | "idle"
+  | "loading"
+  | "playing"
+  | "paused"
+  | "stopped"
+  | "ended"
+  | "error";
+
+export type VlcMusicPlayCommandPayload = {
+  playbackId: string;
+  sourceUrl: string;
+  startPaused: boolean;
+  startAtSeconds: number;
+  volumePercent: number;
+  audioRouteId: LocalAgentAudioRouteId;
+};
+
+export type VlcMusicPlaybackState = {
+  available: boolean;
+  activeAudioRouteId: LocalAgentAudioRouteId;
+  detail?: string | undefined;
+  playbackId: string | null;
+  positionSeconds: number | null;
+  routes: readonly LocalAgentAudioRouteStatus[];
+  status: VlcMusicPlaybackStatus;
+  volumePercent: number;
+};
 
 export type AgentId = string;
 export type DeviceId = string;

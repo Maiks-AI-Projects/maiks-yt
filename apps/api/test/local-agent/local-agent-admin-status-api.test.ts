@@ -42,10 +42,19 @@ const agentStatus: AgentStatus = {
     availability: "available",
     detail: "secret raw module detail",
     state: {
+      activeAudioRouteId: "music",
       available: true,
       detail: "/secret/media/file.mp3",
       playbackId: "secret-playback-id",
       positionSeconds: 18,
+      routes: [{
+        id: "music",
+        state: "available"
+      }, {
+        id: "private",
+        state: "error",
+        detail: "route unavailable"
+      }],
       status: "playing",
       volumePercent: 65
     }
@@ -101,9 +110,36 @@ describe("LocalAgentAdminStatusService", () => {
         actions: ["track.play", "track.stop", "volume.set"],
         availability: "available",
         vlc: {
+          activeAudioRouteId: "music",
           hasPlayback: true,
           playbackStatus: "playing",
           positionSeconds: 18,
+          routes: [{
+            id: "communication",
+            label: "Communication",
+            mediaRole: "Communication",
+            pipeWireSink: "stream_communication",
+            state: "unavailable"
+          }, {
+            id: "music",
+            label: "Music",
+            mediaRole: "Music",
+            pipeWireSink: "stream_music",
+            state: "available"
+          }, {
+            id: "private",
+            label: "Private",
+            mediaRole: "Private",
+            pipeWireSink: "stream_private",
+            state: "error",
+            detail: "route unavailable"
+          }, {
+            id: "game",
+            label: "Game",
+            mediaRole: "Game",
+            pipeWireSink: "stream_game",
+            state: "unavailable"
+          }],
           volumePercent: 65
         }
       }]

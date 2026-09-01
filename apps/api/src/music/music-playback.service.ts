@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 
 import { decideMusicTrackSelection } from "@maiks-yt/domain/music";
+import {
+  DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
+  localAgentAudioRouteDefinitions,
+  type LocalAgentAudioRouteId,
+  type LocalAgentAudioRouteStatus
+} from "@maiks-yt/events";
 
 import { requireMusicPlayControlActor } from "./music-service-authorization.service.js";
 import { safeHttpUrlOrNull } from "./music-service-catalog.service.js";
@@ -9,8 +15,20 @@ import type { MusicPlayHistoryRecord, MusicPlaylistRecord, MusicSelectableTrack 
 import type { MusicRepository } from "./music-repository.types.js";
 
 export type MusicPlaybackStatus = "idle" | "loading" | "playing" | "paused" | "blocked" | "error";
-export type MusicPlaybackControlAction = "play" | "pause" | "skip";
+export type MusicPlaybackControlAction =
+  | "play"
+  | "pause"
+  | "resume"
+  | "stop"
+  | "next"
+  | "skip"
+  | "select"
+  | "route.select";
 export type MusicPlaybackPlayerEvent = "started" | "ended" | "failed";
+export type MusicPlaybackControlFailure = {
+  ok: false;
+  reason: "music_play_control_user_unlinked" | "music_play_control_forbidden" | "music_play_control_unavailable";
+};
 
 export type MusicPlaybackPublicTrack = {
   trackId: string;
@@ -29,6 +47,8 @@ export type MusicPlaybackPublicTrack = {
 export type MusicPlaybackSnapshot = {
   ok: true;
   status: MusicPlaybackStatus;
+  audioRouteId: LocalAgentAudioRouteId;
+  audioRoutes: readonly LocalAgentAudioRouteStatus[];
   playbackId: string | null;
   currentTrack: MusicPlaybackPublicTrack | null;
   audioUrl: string | null;
@@ -121,6 +141,7 @@ export class MusicPlaybackService {
   private current: ActivePlayback | null = null;
   private playerLease: PlayerLease | null = null;
   private reason: string | null = null;
+  private audioRouteId: LocalAgentAudioRouteId = DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID;
 
   public constructor(
     private readonly repository: MusicRepository,
@@ -145,15 +166,23 @@ export class MusicPlaybackService {
 
   public async control(input: {
     action: MusicPlaybackControlAction;
+    audioRouteId?: LocalAgentAudioRouteId | undefined;
     authUserId: string;
-  }): Promise<MusicPlaybackSnapshot | {
-    ok: false;
-    reason: "music_play_control_user_unlinked" | "music_play_control_forbidden" | "music_play_control_unavailable";
-  }> {
+    trackId?: string | undefined;
+  }): Promise<MusicPlaybackSnapshot | MusicPlaybackControlFailure> {
     const actor = await requireMusicPlayControlActor(this.repository, input.authUserId);
 
     if (!actor.ok) {
       return actor;
+    }
+
+    if (input.audioRouteId) {
+      this.audioRouteId = input.audioRouteId;
+    }
+
+    if (input.action === "route.select") {
+      this.reason = null;
+      return this.snapshot({ clientId: null, audioUrl: null });
     }
 
     if (input.action === "pause") {
@@ -165,7 +194,29 @@ export class MusicPlaybackService {
       return this.snapshot({ clientId: null, audioUrl: null });
     }
 
-    if (input.action === "skip") {
+    if (input.action === "resume") {
+      if (this.current?.status === "paused") {
+        this.current.status = "playing";
+        this.current.reason = null;
+        this.reason = null;
+      } else {
+        this.reason = "music_resume_without_paused_track";
+      }
+
+      return this.snapshot({ clientId: null, audioUrl: null });
+    }
+
+    if (input.action === "stop") {
+      await this.finishCurrent({
+        outcome: "stopped",
+        outcomeReason: "owner_stop",
+        positionSeconds: this.current?.lastPositionSeconds ?? null
+      });
+
+      return this.snapshot({ clientId: null, audioUrl: null });
+    }
+
+    if (input.action === "next" || input.action === "skip") {
       const skippedTrackId = this.current?.track.trackId ?? null;
       await this.finishCurrent({
         outcome: "skipped",
@@ -177,9 +228,31 @@ export class MusicPlaybackService {
       return this.snapshot({ clientId: null, audioUrl: null });
     }
 
+    if (input.action === "select") {
+      if (!input.trackId) {
+        this.reason = "music_track_selection_required";
+        return this.snapshot({ clientId: null, audioUrl: null });
+      }
+
+      const selected = await this.selectTrack(input.trackId);
+      if (!selected) {
+        return this.snapshot({ clientId: null, audioUrl: null });
+      }
+
+      await this.finishCurrent({
+        outcome: "skipped",
+        outcomeReason: "owner_select",
+        positionSeconds: this.current?.lastPositionSeconds ?? null
+      });
+      this.startPlayback(input.authUserId, selected);
+
+      return this.snapshot({ clientId: null, audioUrl: null });
+    }
+
     if (this.current?.status === "paused") {
       this.current.status = "playing";
       this.current.reason = null;
+      this.reason = null;
       return this.snapshot({ clientId: null, audioUrl: null });
     }
 
@@ -301,6 +374,13 @@ export class MusicPlaybackService {
       return;
     }
 
+    this.startPlayback(authUserId, selected);
+  }
+
+  private startPlayback(authUserId: string, selected: {
+    track: MusicSelectableTrack;
+    playlistId: string | null;
+  }): void {
     this.current = {
       playbackId: randomUUID(),
       authUserId,
@@ -315,6 +395,31 @@ export class MusicPlaybackService {
       reason: null
     };
     this.reason = null;
+  }
+
+  private async selectTrack(trackId: string): Promise<{
+    track: MusicSelectableTrack;
+    playlistId: string | null;
+  } | null> {
+    const [catalog, playlists] = await Promise.all([
+      this.repository.listPlaybackCatalog({ context: "live", limit: playbackCatalogLimit }),
+      this.repository.listPlaylists()
+    ]);
+    const track = catalog.find((candidate) => candidate.trackId === trackId);
+    if (!track) {
+      this.reason = "music_selected_track_not_found";
+      return null;
+    }
+    if (!decideMusicTrackSelection(track, "live").ok || !isPlayableSource(track)) {
+      this.reason = "music_selected_track_not_playable";
+      return null;
+    }
+    const playlistEntry = sortPlaylistTracks(playlists).find((entry) => entry.trackId === track.trackId);
+
+    return {
+      track,
+      playlistId: playlistEntry?.playlistId ?? null
+    };
   }
 
   private async selectNextTrack(excludedTrackIds: ReadonlySet<string>): Promise<{
@@ -371,7 +476,7 @@ export class MusicPlaybackService {
   }
 
   private async finishCurrent(input: {
-    outcome: "played-full" | "skipped" | "failed";
+    outcome: "played-full" | "skipped" | "stopped" | "failed";
     outcomeReason: string | null;
     positionSeconds: number | null;
   }): Promise<void> {
@@ -419,6 +524,12 @@ export class MusicPlaybackService {
     return {
       ok: true,
       status: this.current?.status ?? "idle",
+      audioRouteId: this.audioRouteId,
+      audioRoutes: localAgentAudioRouteDefinitions.map((route) => ({
+        ...route,
+        state: "reconnecting" as const,
+        detail: "Waiting for local-agent route status"
+      })),
       playbackId: this.current?.playbackId ?? null,
       currentTrack: this.current ? toPublicTrack(this.current.track) : null,
       audioUrl: owned || !input.clientId ? input.audioUrl : null,

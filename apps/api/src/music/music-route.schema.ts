@@ -5,6 +5,7 @@ import {
   publicMusicPreviewUrlMaxLength,
   publicMusicSelectionReferenceMaxLength
 } from "@maiks-yt/domain/music";
+import { localAgentAudioRouteIds } from "@maiks-yt/events";
 import { z } from "zod";
 
 export const idParamsSchema = z.object({
@@ -203,8 +204,18 @@ export const historyPayloadSchema = z.object({
 }).strict();
 
 export const musicPlaybackControlPayloadSchema = z.object({
-  action: z.enum(["play", "pause", "skip"])
-}).strict();
+  action: z.enum(["play", "pause", "resume", "stop", "next", "skip", "select", "route.select"]),
+  audioRouteId: z.enum(localAgentAudioRouteIds).optional(),
+  trackId: z.string().trim().min(1).max(36).optional()
+}).strict().superRefine((value, context) => {
+  if (value.action === "select" && !value.trackId) {
+    context.addIssue({
+      code: "custom",
+      message: "music_track_selection_required",
+      path: ["trackId"]
+    });
+  }
+});
 
 export const musicPlaybackPlayerQuerySchema = z.object({
   accessToken: z.string().trim().min(1),

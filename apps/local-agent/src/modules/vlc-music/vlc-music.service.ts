@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
+  localAgentAudioRouteIds,
+  vlcMusicActions
+} from "@maiks-yt/events";
 
 import type { CommandEnvelope, JsonValue, ModuleStatus } from "../../protocol/agent-protocol.types.js";
 import {
@@ -24,6 +29,7 @@ const sourceUrlSchema = z.url().max(2_048).refine((value) => {
 const playSchema = z.object({
   playbackId: playbackIdSchema,
   sourceUrl: sourceUrlSchema,
+  audioRouteId: z.enum(localAgentAudioRouteIds).default(DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID),
   startPaused: z.boolean().default(false),
   startAtSeconds: z.number().min(0).max(24 * 60 * 60).default(0),
   volumePercent: z.number().min(0).max(100).default(70)
@@ -37,6 +43,24 @@ const seekSchema = z.object({
 const volumeSchema = z.object({ volumePercent: z.number().min(0).max(100) }).strict();
 const emptySchema = z.object({}).strict();
 
+const toVlcMusicJson = (snapshot: VlcMusicSnapshot): JsonValue => ({
+  activeAudioRouteId: snapshot.activeAudioRouteId,
+  available: snapshot.available,
+  ...(snapshot.detail ? { detail: snapshot.detail } : {}),
+  playbackId: snapshot.playbackId,
+  positionSeconds: snapshot.positionSeconds,
+  routes: snapshot.routes.map((route) => ({
+    id: route.id,
+    label: route.label,
+    mediaRole: route.mediaRole,
+    pipeWireSink: route.pipeWireSink,
+    state: route.state,
+    ...(route.detail ? { detail: route.detail } : {})
+  })),
+  status: snapshot.status,
+  volumePercent: snapshot.volumePercent
+});
+
 export class VlcMusicModule implements VlcMusicAgentModule {
   readonly capabilityId = VLC_MUSIC_CAPABILITY;
   readonly #backend: VlcMusicBackend;
@@ -45,9 +69,11 @@ export class VlcMusicModule implements VlcMusicAgentModule {
   #queue: Promise<unknown> = Promise.resolve();
   #removeBackendListener: (() => void) | null = null;
   #snapshot: VlcMusicSnapshot = {
+    activeAudioRouteId: DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
     available: false,
     playbackId: null,
     positionSeconds: null,
+    routes: [],
     status: "idle" as const,
     volumePercent: 70
   };
@@ -78,9 +104,7 @@ export class VlcMusicModule implements VlcMusicAgentModule {
     return {
       id: this.capabilityId,
       version: 1,
-      actions: this.#available
-        ? ["track.play", "track.pause", "track.resume", "track.stop", "track.seek", "volume.set", "status.get"]
-        : [],
+      actions: this.#available ? vlcMusicActions : [],
       availability: this.#available ? "available" as const : "unavailable" as const,
       detail: this.#detail
     };
@@ -91,14 +115,7 @@ export class VlcMusicModule implements VlcMusicAgentModule {
       capabilityId: this.capabilityId,
       availability: this.#available ? "available" : "unavailable",
       detail: this.#detail,
-      state: {
-        available: this.#snapshot.available,
-        ...(this.#snapshot.detail ? { detail: this.#snapshot.detail } : {}),
-        playbackId: this.#snapshot.playbackId,
-        positionSeconds: this.#snapshot.positionSeconds,
-        status: this.#snapshot.status,
-        volumePercent: this.#snapshot.volumePercent
-      }
+      state: toVlcMusicJson(this.#snapshot)
     };
   }
 
@@ -115,27 +132,27 @@ export class VlcMusicModule implements VlcMusicAgentModule {
 
     try {
       if (command.action === "track.play") {
-        return await this.#backend.play(playSchema.parse(command.payload), signal);
+        return toVlcMusicJson(await this.#backend.play(playSchema.parse(command.payload), signal));
       }
       if (command.action === "track.pause") {
-        return await this.#backend.pause(playbackSchema.parse(command.payload).playbackId);
+        return toVlcMusicJson(await this.#backend.pause(playbackSchema.parse(command.payload).playbackId));
       }
       if (command.action === "track.resume") {
-        return await this.#backend.resume(playbackSchema.parse(command.payload).playbackId);
+        return toVlcMusicJson(await this.#backend.resume(playbackSchema.parse(command.payload).playbackId));
       }
       if (command.action === "track.stop") {
-        return await this.#backend.stop(stopSchema.parse(command.payload).playbackId);
+        return toVlcMusicJson(await this.#backend.stop(stopSchema.parse(command.payload).playbackId));
       }
       if (command.action === "track.seek") {
         const request = seekSchema.parse(command.payload);
-        return await this.#backend.seek(request.playbackId, request.positionSeconds);
+        return toVlcMusicJson(await this.#backend.seek(request.playbackId, request.positionSeconds));
       }
       if (command.action === "volume.set") {
-        return await this.#backend.setVolume(volumeSchema.parse(command.payload).volumePercent);
+        return toVlcMusicJson(await this.#backend.setVolume(volumeSchema.parse(command.payload).volumePercent));
       }
       if (command.action === "status.get") {
         emptySchema.parse(command.payload);
-        return this.#backend.getSnapshot();
+        return toVlcMusicJson(this.#backend.getSnapshot());
       }
     } catch (error) {
       if (error instanceof z.ZodError) {

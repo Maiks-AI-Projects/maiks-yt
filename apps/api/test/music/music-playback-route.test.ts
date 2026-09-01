@@ -4,12 +4,78 @@ import { describe, expect, it, vi } from "vitest";
 
 import { registerMusicRoutes } from "../../src/music/music.route.js";
 import type { MusicPlaybackService } from "../../src/music/music-playback.service.js";
+import type { MusicPlaybackSnapshot } from "../../src/music/music-playback.service.js";
 
 const playbackService = {
   getCurrentAudioTrack: () => null
 } as unknown as MusicPlaybackService;
 
+const controlState: MusicPlaybackSnapshot = {
+  ok: true,
+  status: "idle",
+  audioRouteId: "private",
+  audioRoutes: [{
+    id: "private",
+    label: "Private",
+    mediaRole: "Private",
+    pipeWireSink: "stream_private",
+    state: "reconnecting"
+  }],
+  playbackId: null,
+  currentTrack: null,
+  audioUrl: null,
+  startedAt: null,
+  updatedAt: "2026-09-01T00:00:00.000Z",
+  player: {
+    connected: false,
+    owned: false,
+    blockedReason: null
+  },
+  reason: null
+};
+
 describe("music playback media route", () => {
+  it("accepts only typed play-control route ids and passes them to playback", async () => {
+    const control = vi.fn(async () => controlState);
+    const getInternalState = vi.fn(() => ({ ...controlState, audioRouteId: "music" as const }));
+    const server = Fastify({ logger: false });
+    registerMusicRoutes(server, {
+      createPlaybackService: () => ({
+        control,
+        getControlState: vi.fn(async () => controlState),
+        getCurrentAudioTrack: () => null,
+        getInternalState,
+        getPlayerState: vi.fn(),
+        recordPlayerEvent: vi.fn(),
+        releasePlayerLease: vi.fn()
+      }) as unknown as MusicPlaybackService,
+      getAuthSession: async () => ({ user: { id: "owner-auth-user" } }),
+      getDatabasePool: () => ({}) as DatabasePool
+    });
+
+    const invalid = await server.inject({
+      method: "POST",
+      url: "/admin/music/play-control/control",
+      payload: { action: "play", audioRouteId: "stream_music;bad" }
+    });
+    const valid = await server.inject({
+      method: "POST",
+      url: "/admin/music/play-control/control",
+      payload: { action: "play", audioRouteId: "private" }
+    });
+
+    expect(invalid.statusCode).toBe(400);
+    expect(valid.statusCode).toBe(200);
+    expect(control).toHaveBeenCalledTimes(1);
+    expect(control).toHaveBeenCalledWith({
+      action: "play",
+      audioRouteId: "private",
+      authUserId: "owner-auth-user",
+      trackId: undefined
+    });
+    await server.close();
+  });
+
   it("accepts the dedicated local-agent bearer without exposing it in the URL", async () => {
     const validateLocalAgent = vi.fn((authorization: string | undefined) =>
       authorization === "Bearer dedicated-local-agent-secret"

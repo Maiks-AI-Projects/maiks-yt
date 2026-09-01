@@ -5,9 +5,17 @@ import { VlcMusicModule } from "./vlc-music.service.js";
 import type { VlcMusicBackend, VlcMusicSnapshot } from "./vlc-music.types.js";
 
 const snapshot: VlcMusicSnapshot = {
+  activeAudioRouteId: "music",
   available: true,
   playbackId: "playback-1",
   positionSeconds: 0,
+  routes: [{
+    id: "music",
+    label: "Music",
+    mediaRole: "Music",
+    pipeWireSink: "stream_music",
+    state: "available"
+  }],
   status: "playing",
   volumePercent: 70
 };
@@ -61,12 +69,14 @@ describe("VlcMusicModule", () => {
     });
     await module.execute(command("track.play", {
       playbackId: "playback-1",
+      audioRouteId: "game",
       sourceUrl: "https://api.maiks.yt/music/playback/audio/playback-1",
       startAtSeconds: 12,
       volumePercent: 55
     }), { signal });
     expect(backend.play).toHaveBeenCalledWith({
       playbackId: "playback-1",
+      audioRouteId: "game",
       sourceUrl: "https://api.maiks.yt/music/playback/audio/playback-1",
       startPaused: false,
       startAtSeconds: 12,
@@ -87,6 +97,27 @@ describe("VlcMusicModule", () => {
     expect(backend.play).not.toHaveBeenCalled();
   });
 
+  it("defaults VLC play requests to the Music route and rejects unknown routes", async () => {
+    const backend = createBackend();
+    const module = new VlcMusicModule(backend);
+    const signal = new AbortController().signal;
+    await module.start({ signal, reportStatus: vi.fn() });
+
+    await module.execute(command("track.play", {
+      playbackId: "playback-1",
+      sourceUrl: "https://api.maiks.yt/music/playback/audio/playback-1"
+    }), { signal });
+    expect(backend.play).toHaveBeenLastCalledWith(expect.objectContaining({
+      audioRouteId: "music"
+    }), signal);
+
+    await expect(module.execute(command("track.play", {
+      playbackId: "playback-2",
+      audioRouteId: "shell;bad",
+      sourceUrl: "https://api.maiks.yt/music/playback/audio/playback-2"
+    }), { signal })).rejects.toThrow();
+  });
+
   it("publishes backend state changes through module status", async () => {
     const backend = createBackend();
     const module = new VlcMusicModule(backend);
@@ -99,6 +130,7 @@ describe("VlcMusicModule", () => {
     expect(module.getStatus().state).toMatchObject({
       playbackId: "playback-1",
       positionSeconds: 180,
+      routes: snapshot.routes,
       status: "ended"
     });
   });

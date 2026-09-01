@@ -1,5 +1,5 @@
 # Required outbound endpoint. Production must use wss://.
-MAIKS_LOCAL_AGENT_URL=wss://api.maiks.yt/local-agent/connect
+MAIKS_LOCAL_AGENT_URL=wss://api.maiks.yt/local-agent/live
 
 # Logical installation name. The durable device UUID lives in the local state file.
 MAIKS_LOCAL_AGENT_ID=maiks-audio-agent

@@ -1,9 +1,16 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { access } from "node:fs/promises";
 import path from "node:path";
+import { promisify } from "node:util";
+import {
+  DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
+  getLocalAgentAudioRouteDefinition,
+  localAgentAudioRouteDefinitions,
+  type LocalAgentAudioRouteId,
+  type LocalAgentAudioRouteStatus
+} from "@maiks-yt/events";
 
 import {
-  MUSIC_PIPEWIRE_SINK,
   type VlcMusicBackend,
   type VlcMusicPlayRequest,
   type VlcMusicSnapshot
@@ -11,6 +18,20 @@ import {
 import type { ResolvedVlcMediaSource, VlcMediaSourceResolver } from "./vlc-media-source.service.js";
 
 const stopTimeoutMs = 2_000;
+const execFileAsync = promisify(execFile);
+
+export const buildVlcAudioRouteEnvironment = (
+  audioRouteId: LocalAgentAudioRouteId
+): {
+  PULSE_PROP: string;
+  PULSE_SINK: string;
+} => {
+  const route = getLocalAgentAudioRouteDefinition(audioRouteId);
+  return {
+    PULSE_PROP: `application.name=maiks-audio-agent media.role=${route.mediaRole}`,
+    PULSE_SINK: route.pipeWireSink
+  };
+};
 
 const findExecutable = async (name: string): Promise<string | null> => {
   for (const directory of (process.env.PATH ?? "").split(path.delimiter)) {
@@ -31,6 +52,7 @@ const findExecutable = async (name: string): Promise<string | null> => {
 export class VlcProcessBackend implements VlcMusicBackend {
   #child: ChildProcessWithoutNullStreams | null = null;
   #expectedStop = false;
+  #activeAudioRouteId: LocalAgentAudioRouteId = DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID;
   #positionBaseSeconds = 0;
   #positionStartedAtMs: number | null = null;
   #vlcPath: string | null = null;
@@ -38,9 +60,11 @@ export class VlcProcessBackend implements VlcMusicBackend {
   readonly #mediaSourceResolver: VlcMediaSourceResolver;
   #resolvedMedia: ResolvedVlcMediaSource | null = null;
   #snapshot: VlcMusicSnapshot = {
+    activeAudioRouteId: DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
     available: false,
     playbackId: null,
     positionSeconds: null,
+    routes: [],
     status: "idle",
     volumePercent: 70
   };
@@ -51,9 +75,14 @@ export class VlcProcessBackend implements VlcMusicBackend {
 
   async inspect(): Promise<{ available: boolean; detail?: string }> {
     this.#vlcPath = await findExecutable("cvlc") ?? await findExecutable("vlc");
+    const routes = await this.#inspectAudioRoutes();
+    const activeRoute = routes.find((route) => route.id === this.#activeAudioRouteId);
+    this.#snapshot.routes = routes;
     this.#snapshot.available = Boolean(this.#vlcPath);
     this.#snapshot.detail = this.#vlcPath
-      ? `VLC ready on ${MUSIC_PIPEWIRE_SINK}`
+      ? activeRoute?.state === "available"
+        ? `VLC ready on ${activeRoute.pipeWireSink}`
+        : `VLC ready; route ${activeRoute?.pipeWireSink ?? this.#activeAudioRouteId} is not available`
       : "VLC is not installed or not on PATH";
     return {
       available: this.#snapshot.available,
@@ -68,13 +97,21 @@ export class VlcProcessBackend implements VlcMusicBackend {
     if (signal.aborted) {
       throw signal.reason ?? new Error("VLC playback was aborted");
     }
-
     await this.stop(null);
+    this.#activeAudioRouteId = request.audioRouteId;
+    this.#snapshot.activeAudioRouteId = request.audioRouteId;
+    await this.inspect();
+    const requestedRoute = this.#snapshot.routes.find((route) => route.id === request.audioRouteId);
+    if (requestedRoute?.state !== "available") {
+      throw new Error(`Audio route ${request.audioRouteId} is not available`);
+    }
+
     const resolvedMedia = await this.#mediaSourceResolver.resolve(request.sourceUrl, signal);
     this.#resolvedMedia = resolvedMedia;
     this.#expectedStop = false;
     this.#snapshot = {
       ...this.#snapshot,
+      activeAudioRouteId: request.audioRouteId,
       playbackId: request.playbackId,
       positionSeconds: request.startAtSeconds,
       status: "loading",
@@ -93,8 +130,7 @@ export class VlcProcessBackend implements VlcMusicBackend {
     ], {
       env: {
         ...process.env,
-        PULSE_PROP: "application.name=maiks-audio-agent media.role=Music",
-        PULSE_SINK: MUSIC_PIPEWIRE_SINK
+        ...buildVlcAudioRouteEnvironment(request.audioRouteId)
       },
       stdio: ["pipe", "pipe", "pipe"]
     });
@@ -269,5 +305,37 @@ export class VlcProcessBackend implements VlcMusicBackend {
     const media = this.#resolvedMedia;
     this.#resolvedMedia = null;
     await media?.release().catch(() => undefined);
+  }
+
+  async #inspectAudioRoutes(): Promise<readonly LocalAgentAudioRouteStatus[]> {
+    const pactlPath = await findExecutable("pactl");
+    if (!pactlPath) {
+      return localAgentAudioRouteDefinitions.map((route) => ({
+        ...route,
+        state: "unavailable" as const,
+        detail: "pactl is not installed or not on PATH"
+      }));
+    }
+
+    try {
+      const { stdout } = await execFileAsync(pactlPath, ["list", "short", "sinks"], {
+        timeout: 2_000,
+        maxBuffer: 256 * 1_024
+      });
+      const sinkNames = new Set(stdout
+        .split("\n")
+        .map((line) => line.split(/\s+/u)[1])
+        .filter((value): value is string => Boolean(value)));
+      return localAgentAudioRouteDefinitions.map((route) => ({
+        ...route,
+        state: sinkNames.has(route.pipeWireSink) ? "available" as const : "unavailable" as const
+      }));
+    } catch (error) {
+      return localAgentAudioRouteDefinitions.map((route) => ({
+        ...route,
+        state: "error" as const,
+        detail: error instanceof Error ? error.message : "Unable to inspect PipeWire sinks"
+      }));
+    }
   }
 }

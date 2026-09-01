@@ -1,7 +1,14 @@
 import type {
   CommandAcknowledgement,
   CommandEnvelope,
-  JsonValue
+  JsonValue,
+  LocalAgentAudioRouteStatus
+} from "@maiks-yt/events";
+import {
+  DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID,
+  LOCAL_AGENT_VLC_MUSIC_CAPABILITY,
+  localAgentAudioRouteDefinitions,
+  localAgentAudioRouteIds
 } from "@maiks-yt/events";
 import { z } from "zod";
 
@@ -13,18 +20,26 @@ import type {
 import { safeHttpUrlOrNull } from "./music-service-catalog.service.js";
 import type {
   MusicPlaybackControlAction,
+  MusicPlaybackControlFailure,
   MusicPlaybackService,
   MusicPlaybackSnapshot
 } from "./music-playback.service.js";
 import type { MusicSelectableTrack } from "./music.types.js";
 
-const capabilityId = "vlc-music";
+const capabilityId = LOCAL_AGENT_VLC_MUSIC_CAPABILITY;
 const playerClientId = "local-agent-vlc";
 const commandTtlMs = 15_000;
+const routeStateSchema = z.object({
+  id: z.enum(localAgentAudioRouteIds),
+  state: z.enum(["available", "unavailable", "error", "reconnecting"]),
+  detail: z.string().trim().min(1).max(240).optional()
+}).passthrough();
 const vlcStateSchema = z.object({
+  activeAudioRouteId: z.enum(localAgentAudioRouteIds).optional().default(DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID),
   available: z.boolean(),
   playbackId: z.string().nullable(),
   positionSeconds: z.number().min(0).nullable(),
+  routes: z.array(routeStateSchema).optional().default([]),
   status: z.enum(["idle", "loading", "playing", "paused", "stopped", "ended", "error"]),
   volumePercent: z.number().min(0).max(100)
 }).passthrough();
@@ -47,6 +62,7 @@ export interface MusicLocalAgentRuntime {
 }
 
 type PlaybackPort = Pick<MusicPlaybackService,
+  | "control"
   | "getCurrentAudioTrack"
   | "getInternalState"
   | "getPlayerState"
@@ -54,12 +70,37 @@ type PlaybackPort = Pick<MusicPlaybackService,
   | "releasePlayerLease"
 >;
 
+type OwnerControlInput = {
+  action: MusicPlaybackControlAction;
+  audioRouteId?: MusicPlaybackSnapshot["audioRouteId"] | undefined;
+  authUserId: string;
+  trackId?: string | undefined;
+};
+
+type PendingSupersedingControl = OwnerControlInput & {
+  oldPlaybackId: string;
+};
+
+type PendingRouteSwitch = OwnerControlInput & {
+  playbackId: string;
+};
+
+const toOwnerControlInput = (input: OwnerControlInput): OwnerControlInput => ({
+  action: input.action,
+  audioRouteId: input.audioRouteId,
+  authUserId: input.authUserId,
+  trackId: input.trackId
+});
+
 export class MusicLocalAgentPlaybackCoordinator {
   readonly #playback: PlaybackPort;
   readonly #runtime: MusicLocalAgentRuntime;
   readonly #publicApiBaseUrl: string;
   readonly #reportError: (error: unknown) => void;
   readonly #pendingByEventId = new Map<string, string>();
+  readonly #pendingSupersedingControls = new Map<string, PendingSupersedingControl>();
+  readonly #pendingRouteSwitches = new Map<string, PendingRouteSwitch>();
+  readonly #acknowledgedRouteSwitches = new Map<string, MusicPlaybackSnapshot["audioRouteId"]>();
   readonly #processedTerminalStates = new Set<string>();
   readonly #removeListeners: readonly (() => void)[];
   #queue: Promise<void> = Promise.resolve();
@@ -95,6 +136,92 @@ export class MusicLocalAgentPlaybackCoordinator {
       }
       await this.#reconcile(input.after);
     });
+  }
+
+  async handleOwnerControl(input: OwnerControlInput): Promise<{
+    handled: false;
+  } | {
+    handled: true;
+    result: MusicPlaybackSnapshot | MusicPlaybackControlFailure;
+  }> {
+    const before = this.#playback.getInternalState();
+    const actual = this.#readVlcState(this.#runtime.getStatus());
+
+    if (!this.#hasPlaybackCapability(this.#runtime.getStatus()) || !before.playbackId) {
+      return { handled: false };
+    }
+
+    const oldPlaybackIsActive = actual?.playbackId === before.playbackId
+      && !["idle", "stopped", "ended", "error"].includes(actual.status);
+    if (!oldPlaybackIsActive) {
+      return { handled: false };
+    }
+
+    if (input.action === "route.select") {
+      if (!input.audioRouteId || input.audioRouteId === before.audioRouteId) {
+        return { handled: false };
+      }
+
+      const playCommand = this.#issuePlay({
+        ...before,
+        audioRouteId: input.audioRouteId
+      }, Math.max(0, actual.positionSeconds ?? 0));
+      if (!playCommand) {
+        return {
+          handled: true,
+          result: {
+            ...this.projectControlState(before),
+            reason: "music_play_control_unavailable"
+          }
+        };
+      }
+      this.#pendingRouteSwitches.set(playCommand.eventId, {
+        ...input,
+        playbackId: before.playbackId
+      });
+
+      return {
+        handled: true,
+        result: {
+          ...this.projectControlState(before),
+          reason: "music_local_agent_transition_pending"
+        }
+      };
+    }
+
+    if (input.action !== "next" && input.action !== "skip" && input.action !== "select") {
+      return { handled: false };
+    }
+
+    const stopCommand = this.#issue("track.stop", { playbackId: before.playbackId });
+    if (!stopCommand) {
+      return {
+        handled: true,
+        result: {
+          ...this.projectControlState(before),
+          reason: "music_play_control_unavailable"
+        }
+      };
+    }
+    this.#pendingSupersedingControls.set(stopCommand.eventId, {
+      ...input,
+      oldPlaybackId: before.playbackId
+    });
+
+    return {
+      handled: true,
+      result: {
+        ...this.projectControlState(before),
+        reason: "music_local_agent_transition_pending"
+      }
+    };
+  }
+
+  projectControlState(snapshot: MusicPlaybackSnapshot): MusicPlaybackSnapshot {
+    return {
+      ...snapshot,
+      audioRoutes: this.#projectAudioRoutes(this.#runtime.getStatus())
+    };
   }
 
   dispose(): void {
@@ -161,6 +288,13 @@ export class MusicLocalAgentPlaybackCoordinator {
     }
 
     if (actual?.playbackId === desired.playbackId) {
+      if (actual.activeAudioRouteId === desired.audioRouteId) {
+        this.#acknowledgedRouteSwitches.delete(desired.playbackId);
+      } else if (this.#acknowledgedRouteSwitches.get(desired.playbackId) !== desired.audioRouteId) {
+        this.#issuePlay(desired, Math.max(0, actual.positionSeconds ?? 0));
+        return;
+      }
+
       if (desired.status === "paused" && actual.status !== "paused") {
         this.#issue("track.pause", { playbackId: desired.playbackId });
       } else if (desired.status === "playing" && actual.status === "paused") {
@@ -169,18 +303,27 @@ export class MusicLocalAgentPlaybackCoordinator {
       return;
     }
 
+    this.#issuePlay(desired, 0);
+  }
+
+  #issuePlay(desired: MusicPlaybackSnapshot, startAtSeconds: number): CommandEnvelope | null {
+    if (!desired.playbackId || !desired.currentTrack) {
+      return null;
+    }
+
     const playerState = this.#playback.getPlayerState({
       clientId: playerClientId,
       createAudioUrl: (playbackId, track) => this.#createAudioUrl(playbackId, track)
     });
     if (!playerState.player.owned || !playerState.audioUrl) {
-      return;
+      return null;
     }
-    this.#issue("track.play", {
+    return this.#issue("track.play", {
       playbackId: desired.playbackId,
       sourceUrl: playerState.audioUrl,
+      audioRouteId: desired.audioRouteId,
       startPaused: desired.status === "paused",
-      startAtSeconds: 0,
+      startAtSeconds,
       volumePercent: 70
     });
   }
@@ -200,15 +343,72 @@ export class MusicLocalAgentPlaybackCoordinator {
       return;
     }
     this.#pendingByEventId.delete(command.eventId);
+    const routeSwitch = this.#pendingRouteSwitches.get(command.eventId);
+    if (routeSwitch) {
+      this.#pendingRouteSwitches.delete(command.eventId);
+      if (acknowledgement.status === "succeeded") {
+        this.#enqueue(async () => {
+          if (routeSwitch.audioRouteId) {
+            this.#acknowledgedRouteSwitches.set(routeSwitch.playbackId, routeSwitch.audioRouteId);
+          }
+          await this.#playback.control(toOwnerControlInput(routeSwitch));
+        });
+        return;
+      }
+      this.#enqueue(async () => {
+        await this.#playback.recordPlayerEvent({
+          clientId: playerClientId,
+          event: "failed",
+          playbackId: routeSwitch.playbackId,
+          positionSeconds: null
+        });
+        this.#playback.releasePlayerLease(playerClientId);
+      });
+      return;
+    }
+
+    const supersedingControl = this.#pendingSupersedingControls.get(command.eventId);
+    if (supersedingControl) {
+      this.#pendingSupersedingControls.delete(command.eventId);
+      if (acknowledgement.status === "succeeded") {
+        this.#enqueue(async () => {
+          const result = await this.#playback.control(toOwnerControlInput(supersedingControl));
+          if (result.ok) {
+            await this.#reconcile(result);
+          }
+        });
+      }
+      return;
+    }
+
     if (acknowledgement.status !== "succeeded" && command.action === "track.play") {
-      this.#playback.releasePlayerLease(playerClientId);
+      const payload = command.payload;
+      const playbackId = typeof payload === "object"
+        && payload !== null
+        && !Array.isArray(payload)
+        && typeof (payload as { playbackId?: unknown }).playbackId === "string"
+        ? (payload as { playbackId: string }).playbackId
+        : null;
+      if (playbackId) {
+        this.#enqueue(async () => {
+          await this.#playback.recordPlayerEvent({
+            clientId: playerClientId,
+            event: "failed",
+            playbackId,
+            positionSeconds: null
+          });
+          this.#playback.releasePlayerLease(playerClientId);
+        });
+      } else {
+        this.#playback.releasePlayerLease(playerClientId);
+      }
     }
   }
 
-  #issue(action: string, payload: JsonValue): void {
+  #issue(action: string, payload: JsonValue): CommandEnvelope | null {
     const signature = `${action}:${JSON.stringify(payload)}`;
     if ([...this.#pendingByEventId.values()].includes(signature)) {
-      return;
+      return null;
     }
     const result = this.#runtime.issueCommand({
       action,
@@ -218,7 +418,9 @@ export class MusicLocalAgentPlaybackCoordinator {
     });
     if (result.ok) {
       this.#pendingByEventId.set(result.command.eventId, signature);
+      return result.command;
     }
+    return null;
   }
 
   #hasPlaybackCapability(status: LocalAgentRuntimeStatus): boolean {
@@ -233,6 +435,35 @@ export class MusicLocalAgentPlaybackCoordinator {
     const moduleStatus = status.status?.modules.find((module) => module.capabilityId === capabilityId);
     const parsed = vlcStateSchema.safeParse(moduleStatus?.state);
     return parsed.success ? parsed.data : null;
+  }
+
+  #projectAudioRoutes(status: LocalAgentRuntimeStatus): readonly LocalAgentAudioRouteStatus[] {
+    if (!status.connected) {
+      return localAgentAudioRouteDefinitions.map((route) => ({
+        ...route,
+        state: "reconnecting" as const,
+        detail: "Local Agent is not connected"
+      }));
+    }
+
+    const actual = this.#readVlcState(status);
+
+    return localAgentAudioRouteDefinitions.map((route) => {
+      const reported = actual?.routes.find((candidate) => candidate.id === route.id);
+      if (reported) {
+        return {
+          ...route,
+          state: reported.state,
+          ...(reported.detail ? { detail: reported.detail } : {})
+        };
+      }
+
+      return {
+        ...route,
+        state: "unavailable" as const,
+        detail: "Route was not reported by the Local Agent"
+      };
+    });
   }
 
   #enqueue(operation: () => Promise<void>): void {

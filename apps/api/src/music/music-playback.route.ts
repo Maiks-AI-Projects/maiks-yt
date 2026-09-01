@@ -110,9 +110,10 @@ export const registerMusicPlaybackRoutes = (
 
       if (!result.ok) {
         reply.code(403);
+        return result;
       }
 
-      return result;
+      return getLocalAgentCoordinator()?.projectControlState(result) ?? result;
     } catch (error) {
       server.log.warn({ err: error }, "Music playback state read failed.");
       reply.code(503);
@@ -134,23 +135,44 @@ export const registerMusicPlaybackRoutes = (
 
     try {
       const playback = getPlaybackService();
+      const coordinator = getLocalAgentCoordinator();
+      if (coordinator) {
+        const coordinated = await coordinator.handleOwnerControl({
+          action: parsedBody.data.action,
+          audioRouteId: parsedBody.data.audioRouteId,
+          authUserId: session.user.id,
+          trackId: parsedBody.data.trackId
+        });
+        if (coordinated.handled) {
+          if (!coordinated.result.ok) {
+            reply.code(403);
+            return coordinated.result;
+          }
+
+          return coordinator.projectControlState(coordinated.result);
+        }
+      }
+
       const before = playback.getInternalState();
       const result = await playback.control({
-        action: parsedBody.data.action,
-        authUserId: session.user.id
-      });
+          action: parsedBody.data.action,
+          audioRouteId: parsedBody.data.audioRouteId,
+          authUserId: session.user.id,
+          trackId: parsedBody.data.trackId
+        });
 
       if (!result.ok) {
         reply.code(403);
-      } else {
-        getLocalAgentCoordinator()?.handleControl({
-          action: parsedBody.data.action,
-          before,
-          after: result
-        });
+        return result;
       }
 
-      return result;
+      getLocalAgentCoordinator()?.handleControl({
+        action: parsedBody.data.action,
+        before,
+        after: result
+      });
+
+      return getLocalAgentCoordinator()?.projectControlState(result) ?? result;
     } catch (error) {
       server.log.warn({ err: error }, "Music playback control failed.");
       reply.code(503);

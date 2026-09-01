@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { LOCAL_AGENT_PROTOCOL_VERSION } from "@maiks-yt/events";
+import { LOCAL_AGENT_LIVE_PATH, LOCAL_AGENT_PROTOCOL_VERSION } from "@maiks-yt/events";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -86,7 +86,7 @@ export const registerLocalAgentRoutes = (
     runtime: LocalAgentRuntimeService;
   }
 ): void => {
-  server.get("/local-agent/live", { websocket: true }, (socket: LocalAgentSocket, request) => {
+  server.get(LOCAL_AGENT_LIVE_PATH, { websocket: true }, (socket: LocalAgentSocket, request) => {
     const credential = readBearerCredential(request.headers.authorization);
     if (!dependencies.config.configured
       || !validateLocalAgentCredential(dependencies.config.token, credential)) {
