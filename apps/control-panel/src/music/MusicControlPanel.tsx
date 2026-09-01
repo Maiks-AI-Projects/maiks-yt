@@ -10,7 +10,16 @@ import { apiFetch } from "../dev-auth-token.js";
 import { apiBaseUrl } from "../runtime-config.service.js";
 
 type MusicPlaybackStatus = "idle" | "loading" | "playing" | "paused" | "blocked" | "error";
-type MusicPlaybackControlAction = "play" | "pause" | "resume" | "stop" | "next" | "select" | "route.select";
+type MusicPlaybackControlAction =
+  | "play"
+  | "pause"
+  | "resume"
+  | "stop"
+  | "next"
+  | "select"
+  | "route.select"
+  | "route.volume.set"
+  | "route.mute.set";
 
 type MusicPlaybackTrack = {
   readonly trackId?: string;
@@ -21,7 +30,7 @@ type MusicPlaybackTrack = {
   readonly licenseName: string;
 };
 
-type MusicPlaybackState = {
+export type MusicPlaybackState = {
   readonly ok: true;
   readonly status: MusicPlaybackStatus;
   readonly audioRouteId: LocalAgentAudioRouteId;
@@ -30,9 +39,19 @@ type MusicPlaybackState = {
   readonly currentTrack: MusicPlaybackTrack | null;
   readonly reason: string | null;
   readonly player: {
+    readonly authority: "browser-fallback" | "local-agent" | "none";
     readonly connected: boolean;
+    readonly kind: "browser-fallback" | "local-agent" | null;
+    readonly lastCommand: {
+      readonly action: "track.play";
+      readonly acknowledgedAt: string | null;
+      readonly error: string | null;
+      readonly eventId: string | null;
+      readonly status: "pending" | "succeeded" | "failed" | "rejected" | "expired";
+    } | null;
     readonly owned: boolean;
     readonly blockedReason: string | null;
+    readonly state: "idle" | "pending" | "active" | "blocked" | "fallback" | "error" | "unavailable";
   };
 };
 
@@ -73,7 +92,76 @@ const playbackReasonLabels: Readonly<Record<string, string>> = {
   music_selected_track_not_found: "The selected track is not in the playable catalog.",
   music_selected_track_not_playable: "The selected track is not playable for live music.",
   music_track_selection_required: "Pick a track before selecting it.",
-  music_local_agent_transition_pending: "Waiting for the VLC agent to confirm the change."
+  music_local_agent_transition_pending: "Waiting for the VLC agent to confirm the change.",
+  music_local_agent_lease_unavailable: "The VLC agent could not claim playback. Browser fallback is available.",
+  music_local_agent_play_failed: "VLC playback failed. Browser fallback is available.",
+  music_local_agent_unavailable: "The Local Agent is unavailable.",
+  music_audio_route_command_unavailable: "The route command could not be sent.",
+  music_audio_route_unavailable: "That audio route is unavailable."
+};
+
+const routeControlRank: Readonly<Record<LocalAgentAudioRouteStatus["controlState"], number>> = {
+  reconnecting: 0,
+  unavailable: 1,
+  pending: 2,
+  error: 3,
+  acknowledged: 4
+};
+
+export const mergeMusicPlaybackState = (
+  current: MusicPlaybackState | null,
+  incoming: MusicPlaybackState
+): MusicPlaybackState => {
+  if (!current) {
+    return incoming;
+  }
+  const currentRoutes = new Map(current.audioRoutes.map((route) => [route.id, route]));
+  return {
+    ...incoming,
+    audioRoutes: incoming.audioRoutes.map((route) => {
+      const previous = currentRoutes.get(route.id);
+      if (!previous || route.revision > previous.revision) {
+        return route;
+      }
+      if (route.revision < previous.revision) {
+        return previous;
+      }
+      return routeControlRank[route.controlState] >= routeControlRank[previous.controlState]
+        ? route
+        : previous;
+    })
+  };
+};
+
+export const createRouteControlPayload = (input: {
+  audioRouteId: LocalAgentAudioRouteId;
+  muted: boolean;
+} | {
+  audioRouteId: LocalAgentAudioRouteId;
+  volumePercent: number;
+}): Readonly<Record<string, boolean | number | string>> => "volumePercent" in input
+  ? {
+      action: "route.volume.set",
+      audioRouteId: input.audioRouteId,
+      volumePercent: input.volumePercent
+    }
+  : {
+      action: "route.mute.set",
+      audioRouteId: input.audioRouteId,
+      muted: input.muted
+    };
+
+export const readRouteControlMessage = (route: LocalAgentAudioRouteStatus): string => {
+  if (route.controlState === "pending") {
+    return `Pending revision ${route.revision}`;
+  }
+  if (route.controlState === "error") {
+    return route.lastError ? `Error: ${route.lastError}` : "Route control failed";
+  }
+  if (route.state !== "available" || route.volumePercent === null || route.muted === null) {
+    return route.state === "reconnecting" ? "Reconnecting" : "Unavailable";
+  }
+  return `${route.volumePercent}% / ${route.muted ? "Muted" : "Unmuted"} / revision ${route.revision}`;
 };
 
 const readPlaybackMessage = (state: MusicPlaybackState | null, fallback: string): string => {
@@ -121,7 +209,7 @@ export const MusicControlPanel = (): React.ReactNode => {
         return;
       }
 
-      setState(payload);
+      setState((current) => mergeMusicPlaybackState(current, payload));
       setSelectedAudioRouteId(payload.audioRouteId);
       const currentTrackId = payload.currentTrack?.trackId;
       if (currentTrackId) {
@@ -160,7 +248,8 @@ export const MusicControlPanel = (): React.ReactNode => {
   const sendControl = async (
     action: MusicPlaybackControlAction,
     audioRouteId: LocalAgentAudioRouteId = selectedAudioRouteId,
-    trackId?: string
+    trackId?: string,
+    routeValue?: { muted?: boolean | undefined; volumePercent?: number | undefined }
   ): Promise<void> => {
     if (action === "select" && !trackId) {
       setMessage(playbackReasonLabels.music_track_selection_required ?? "Pick a track before selecting it.");
@@ -169,12 +258,17 @@ export const MusicControlPanel = (): React.ReactNode => {
     setBusyAction(action);
 
     try {
+      const requestBody = action === "route.volume.set" && routeValue?.volumePercent !== undefined
+        ? createRouteControlPayload({ audioRouteId, volumePercent: routeValue.volumePercent })
+        : action === "route.mute.set" && routeValue?.muted !== undefined
+          ? createRouteControlPayload({ audioRouteId, muted: routeValue.muted })
+          : {
+              action,
+              audioRouteId,
+              ...(trackId ? { trackId } : {})
+            };
       const payload = await requestPlayback<MusicPlaybackState | MusicPlaybackFailure>("/admin/music/play-control/control", {
-        body: JSON.stringify({
-          action,
-          audioRouteId,
-          ...(trackId ? { trackId } : {})
-        }),
+        body: JSON.stringify(requestBody),
         headers: {
           "Content-Type": "application/json"
         },
@@ -186,7 +280,7 @@ export const MusicControlPanel = (): React.ReactNode => {
         return;
       }
 
-      setState(payload);
+      setState((current) => mergeMusicPlaybackState(current, payload));
       setSelectedAudioRouteId(payload.audioRouteId);
       setMessage(readPlaybackMessage(payload, "Music control is ready."));
     } catch {
@@ -197,8 +291,12 @@ export const MusicControlPanel = (): React.ReactNode => {
   };
   const routeStatus = new Map((state?.audioRoutes ?? localAgentAudioRouteDefinitions.map((route) => ({
     ...route,
+    controlState: "reconnecting" as const,
     state: "reconnecting" as const,
-    detail: "Waiting for local-agent route status"
+    detail: "Waiting for local-agent route status",
+    muted: null,
+    revision: 0,
+    volumePercent: null
   }))).map((route) => [route.id, route]));
   const selectedRoute = routeStatus.get(selectedAudioRouteId);
 
@@ -221,7 +319,15 @@ export const MusicControlPanel = (): React.ReactNode => {
       <div className={`music-output-state ${state?.player.connected ? "connected" : "disconnected"}`}>
         <span aria-hidden="true" />
         <strong>Playback output</strong>
-        <small>{state?.player.connected ? "Connected" : "Waiting for the VLC agent or browser player"}</small>
+        <small>{state?.player.state === "fallback"
+          ? "Browser fallback active"
+          : state?.player.state === "pending"
+            ? "Waiting for VLC acknowledgement"
+            : state?.player.state === "error"
+              ? "VLC failed, browser fallback available"
+              : state?.player.connected
+                ? `${state.player.authority === "local-agent" ? "VLC" : "Browser"} connected`
+                : "Waiting for the VLC agent or browser player"}</small>
       </div>
       <label className="music-route-selector">
         <span>Audio route</span>
@@ -246,6 +352,65 @@ export const MusicControlPanel = (): React.ReactNode => {
         </select>
         <small>{selectedRoute ? `${selectedRoute.label} maps to ${selectedRoute.pipeWireSink}. ${selectedRoute.state}` : "Waiting for route state."}</small>
       </label>
+      <div className="music-route-gain-grid" aria-label="Channel gain and mute">
+        {localAgentAudioRouteDefinitions.map((definition) => {
+          const route = routeStatus.get(definition.id)!;
+          const unavailable = route.state !== "available"
+            || route.volumePercent === null
+            || route.muted === null;
+          const pending = route.controlState === "pending";
+
+          return (
+            <section className={`music-route-gain ${route.controlState}`} key={route.id} aria-label={`${route.label} gain`}>
+              <div className="music-route-gain-heading">
+                <strong>{route.label}</strong>
+                <span>{route.volumePercent === null ? "--" : `${route.volumePercent}%`}</span>
+              </div>
+              <input
+                aria-label={`${route.label} volume`}
+                defaultValue={route.volumePercent ?? 0}
+                disabled={busyAction !== null || unavailable || pending}
+                key={`${route.id}:${route.revision}:${route.volumePercent ?? "unavailable"}`}
+                max="100"
+                min="0"
+                onKeyUp={(event) => {
+                  if (["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home", "PageDown", "PageUp"]
+                    .includes(event.key)) {
+                    void sendControl(
+                      "route.volume.set",
+                      route.id,
+                      undefined,
+                      { volumePercent: Number(event.currentTarget.value) }
+                    );
+                  }
+                }}
+                onPointerUp={(event) => void sendControl(
+                  "route.volume.set",
+                  route.id,
+                  undefined,
+                  { volumePercent: Number(event.currentTarget.value) }
+                )}
+                step="1"
+                type="range"
+              />
+              <button
+                aria-pressed={route.muted ?? false}
+                disabled={busyAction !== null || unavailable || pending}
+                onClick={() => void sendControl(
+                  "route.mute.set",
+                  route.id,
+                  undefined,
+                  { muted: !(route.muted ?? false) }
+                )}
+                type="button"
+              >
+                {route.muted ? "Unmute" : "Mute"}
+              </button>
+              <small>{readRouteControlMessage(route)}</small>
+            </section>
+          );
+        })}
+      </div>
       <label className="music-track-selector">
         <span>Track</span>
         <select

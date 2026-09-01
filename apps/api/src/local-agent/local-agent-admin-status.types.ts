@@ -28,7 +28,6 @@ export type LocalAgentAdminVlcState = {
   playbackStatus: "idle" | "loading" | "playing" | "paused" | "stopped" | "ended" | "error" | null;
   positionSeconds: number | null;
   routes: readonly LocalAgentAudioRouteStatus[];
-  volumePercent: number | null;
 };
 
 export type LocalAgentAdminModuleStatus = {

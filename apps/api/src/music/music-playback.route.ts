@@ -141,7 +141,9 @@ export const registerMusicPlaybackRoutes = (
           action: parsedBody.data.action,
           audioRouteId: parsedBody.data.audioRouteId,
           authUserId: session.user.id,
-          trackId: parsedBody.data.trackId
+          muted: parsedBody.data.muted,
+          trackId: parsedBody.data.trackId,
+          volumePercent: parsedBody.data.volumePercent
         });
         if (coordinated.handled) {
           if (!coordinated.result.ok) {

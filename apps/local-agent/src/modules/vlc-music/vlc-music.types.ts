@@ -22,7 +22,6 @@ export type VlcMusicSnapshot = {
   positionSeconds: number | null;
   routes: readonly LocalAgentAudioRouteStatus[];
   status: VlcMusicPlaybackStatus;
-  volumePercent: number;
 };
 
 export type VlcMusicPlayRequest = {
@@ -31,7 +30,6 @@ export type VlcMusicPlayRequest = {
   audioRouteId: LocalAgentAudioRouteId;
   startPaused: boolean;
   startAtSeconds: number;
-  volumePercent: number;
 };
 
 export interface VlcMusicBackend {
@@ -41,7 +39,16 @@ export interface VlcMusicBackend {
   resume(playbackId: string): Promise<VlcMusicSnapshot>;
   stop(playbackId: string | null): Promise<VlcMusicSnapshot>;
   seek(playbackId: string, positionSeconds: number): Promise<VlcMusicSnapshot>;
-  setVolume(volumePercent: number): Promise<VlcMusicSnapshot>;
+  setAudioRouteVolume(input: {
+    audioRouteId: LocalAgentAudioRouteId;
+    revision: number;
+    volumePercent: number;
+  }): Promise<LocalAgentAudioRouteStatus>;
+  setAudioRouteMute(input: {
+    audioRouteId: LocalAgentAudioRouteId;
+    muted: boolean;
+    revision: number;
+  }): Promise<LocalAgentAudioRouteStatus>;
   getSnapshot(): VlcMusicSnapshot;
   subscribe(listener: (snapshot: VlcMusicSnapshot) => void): () => void;
   shutdown(): Promise<void>;

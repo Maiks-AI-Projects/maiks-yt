@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { registerMusicRoutes } from "../../src/music/music.route.js";
 import type { MusicPlaybackService } from "../../src/music/music-playback.service.js";
 import type { MusicPlaybackSnapshot } from "../../src/music/music-playback.service.js";
+import { musicPlaybackControlPayloadSchema } from "../../src/music/music-route.schema.js";
 
 const playbackService = {
   getCurrentAudioTrack: () => null
@@ -35,6 +36,36 @@ const controlState: MusicPlaybackSnapshot = {
 };
 
 describe("music playback media route", () => {
+  it("requires typed values for logical route gain and mute actions", () => {
+    expect(musicPlaybackControlPayloadSchema.parse({
+      action: "route.volume.set",
+      audioRouteId: "communication",
+      volumePercent: 35
+    })).toEqual({
+      action: "route.volume.set",
+      audioRouteId: "communication",
+      volumePercent: 35
+    });
+    expect(musicPlaybackControlPayloadSchema.parse({
+      action: "route.mute.set",
+      audioRouteId: "private",
+      muted: true
+    })).toEqual({
+      action: "route.mute.set",
+      audioRouteId: "private",
+      muted: true
+    });
+    expect(() => musicPlaybackControlPayloadSchema.parse({
+      action: "route.volume.set",
+      audioRouteId: "stream_music",
+      volumePercent: 35
+    })).toThrow();
+    expect(() => musicPlaybackControlPayloadSchema.parse({
+      action: "route.mute.set",
+      audioRouteId: "music"
+    })).toThrow();
+  });
+
   it("accepts only typed play-control route ids and passes them to playback", async () => {
     const control = vi.fn(async () => controlState);
     const getInternalState = vi.fn(() => ({ ...controlState, audioRouteId: "music" as const }));

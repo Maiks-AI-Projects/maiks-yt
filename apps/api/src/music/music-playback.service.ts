@@ -23,8 +23,19 @@ export type MusicPlaybackControlAction =
   | "next"
   | "skip"
   | "select"
-  | "route.select";
+  | "route.mute.set"
+  | "route.select"
+  | "route.volume.set";
 export type MusicPlaybackPlayerEvent = "started" | "ended" | "failed";
+export type MusicPlaybackPlayerKind = "browser-fallback" | "local-agent";
+export type MusicPlaybackPlayerState = "idle" | "pending" | "active" | "blocked" | "fallback" | "error" | "unavailable";
+export type MusicPlaybackCommandOutcome = {
+  action: "track.play";
+  acknowledgedAt: string | null;
+  error: string | null;
+  eventId: string | null;
+  status: "pending" | "succeeded" | "failed" | "rejected" | "expired";
+};
 export type MusicPlaybackControlFailure = {
   ok: false;
   reason: "music_play_control_user_unlinked" | "music_play_control_forbidden" | "music_play_control_unavailable";
@@ -55,9 +66,13 @@ export type MusicPlaybackSnapshot = {
   startedAt: string | null;
   updatedAt: string;
   player: {
+    authority: MusicPlaybackPlayerKind | "none";
     connected: boolean;
+    kind: MusicPlaybackPlayerKind | null;
+    lastCommand: MusicPlaybackCommandOutcome | null;
     owned: boolean;
     blockedReason: string | null;
+    state: MusicPlaybackPlayerState;
   };
   reason: string | null;
 };
@@ -79,6 +94,12 @@ type ActivePlayback = {
 type PlayerLease = {
   clientId: string;
   expiresAt: Date;
+  kind: MusicPlaybackPlayerKind;
+};
+
+type AuthoritativePlayer = {
+  clientId: string;
+  healthyUntil: Date;
 };
 
 const playerLeaseTtlMs = 15_000;
@@ -139,6 +160,7 @@ const sortPlaylistTracks = (playlists: readonly MusicPlaylistRecord[]): readonly
 
 export class MusicPlaybackService {
   private current: ActivePlayback | null = null;
+  private authoritativePlayer: AuthoritativePlayer | null = null;
   private playerLease: PlayerLease | null = null;
   private reason: string | null = null;
   private audioRouteId: LocalAgentAudioRouteId = DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID;
@@ -174,6 +196,11 @@ export class MusicPlaybackService {
 
     if (!actor.ok) {
       return actor;
+    }
+
+    if (input.action === "route.volume.set" || input.action === "route.mute.set") {
+      this.reason = "music_local_agent_unavailable";
+      return this.snapshot({ clientId: null, audioUrl: null });
     }
 
     if (input.audioRouteId) {
@@ -266,35 +293,97 @@ export class MusicPlaybackService {
   public getPlayerState(input: {
     clientId: string;
     createAudioUrl: (playbackId: string, track: MusicSelectableTrack) => string | null;
+    playerKind?: MusicPlaybackPlayerKind | undefined;
     positionSeconds?: number | null;
   }): MusicPlaybackSnapshot {
     const now = this.now();
+    const playerKind = input.playerKind ?? "browser-fallback";
 
     if (this.current && typeof input.positionSeconds === "number" && Number.isFinite(input.positionSeconds)) {
       this.current.lastPositionSeconds = Math.max(0, input.positionSeconds);
     }
 
-    if (!this.playerLease || this.playerLease.expiresAt <= now || this.playerLease.clientId === input.clientId) {
+    const authoritativePlayer = this.getHealthyAuthoritativePlayer(now);
+    if (playerKind === "browser-fallback" && authoritativePlayer) {
+      return {
+        ...this.snapshot({ clientId: input.clientId, audioUrl: null, playerKind }),
+        status: "blocked",
+        player: {
+          authority: "local-agent",
+          connected: true,
+          kind: playerKind,
+          lastCommand: null,
+          owned: false,
+          blockedReason: "music_local_agent_authoritative",
+          state: "blocked"
+        }
+      };
+    }
+
+    const localAgentCanPreempt = playerKind === "local-agent"
+      && authoritativePlayer?.clientId === input.clientId;
+    if (localAgentCanPreempt
+      || !this.playerLease
+      || this.playerLease.expiresAt <= now
+      || this.playerLease.clientId === input.clientId) {
       this.playerLease = {
         clientId: input.clientId,
-        expiresAt: new Date(now.getTime() + playerLeaseTtlMs)
+        expiresAt: new Date(now.getTime() + playerLeaseTtlMs),
+        kind: playerKind
       };
 
       return this.snapshot({
         clientId: input.clientId,
-        audioUrl: this.current ? input.createAudioUrl(this.current.playbackId, this.current.track) : null
+        audioUrl: this.current ? input.createAudioUrl(this.current.playbackId, this.current.track) : null,
+        playerKind
       });
     }
 
     return {
-      ...this.snapshot({ clientId: input.clientId, audioUrl: null }),
+      ...this.snapshot({ clientId: input.clientId, audioUrl: null, playerKind }),
       status: "blocked",
       player: {
+        authority: this.playerLease.kind,
         connected: true,
+        kind: playerKind,
+        lastCommand: null,
         owned: false,
-        blockedReason: "music_player_already_connected"
+        blockedReason: "music_player_already_connected",
+        state: "blocked"
       }
     };
+  }
+
+  public setAuthoritativePlayer(input: {
+    clientId: string;
+    healthyUntil: string;
+  }): void {
+    const healthyUntil = new Date(input.healthyUntil);
+    if (!Number.isFinite(healthyUntil.getTime()) || healthyUntil <= this.now()) {
+      this.failAuthoritativePlayer(input.clientId, "music_local_agent_expired");
+      return;
+    }
+
+    this.authoritativePlayer = {
+      clientId: input.clientId,
+      healthyUntil
+    };
+    if (this.playerLease?.kind === "browser-fallback") {
+      this.playerLease = null;
+    }
+    if (this.reason?.startsWith("music_local_agent_")) {
+      this.reason = null;
+    }
+  }
+
+  public failAuthoritativePlayer(clientId: string, reason: string): void {
+    if (this.authoritativePlayer?.clientId === clientId) {
+      this.authoritativePlayer = null;
+    }
+    if (this.playerLease?.clientId === clientId) {
+      this.playerLease = null;
+    }
+    this.reason = reason;
   }
 
   public async recordPlayerEvent(input: {
@@ -518,8 +607,23 @@ export class MusicPlaybackService {
   private snapshot(input: {
     clientId: string | null;
     audioUrl: string | null;
+    playerKind?: MusicPlaybackPlayerKind | undefined;
   }): MusicPlaybackSnapshot {
-    const owned = Boolean(input.clientId && this.playerLease?.clientId === input.clientId);
+    const now = this.now();
+    const lease = this.playerLease && this.playerLease.expiresAt > now ? this.playerLease : null;
+    const authoritativePlayer = this.getHealthyAuthoritativePlayer(now);
+    const owned = Boolean(input.clientId && lease?.clientId === input.clientId);
+    const kind = input.playerKind ?? lease?.kind ?? null;
+    const authority = authoritativePlayer ? "local-agent" : lease?.kind ?? "none";
+    const playerState: MusicPlaybackPlayerState = !this.current
+      ? "idle"
+      : lease?.kind === "browser-fallback"
+        ? "fallback"
+        : lease?.kind === "local-agent"
+          ? this.current.status === "loading" ? "pending" : "active"
+          : authoritativePlayer
+            ? "pending"
+            : "idle";
 
     return {
       ok: true,
@@ -527,8 +631,12 @@ export class MusicPlaybackService {
       audioRouteId: this.audioRouteId,
       audioRoutes: localAgentAudioRouteDefinitions.map((route) => ({
         ...route,
+        controlState: "reconnecting" as const,
         state: "reconnecting" as const,
-        detail: "Waiting for local-agent route status"
+        detail: "Waiting for local-agent route status",
+        muted: null,
+        revision: 0,
+        volumePercent: null
       })),
       playbackId: this.current?.playbackId ?? null,
       currentTrack: this.current ? toPublicTrack(this.current.track) : null,
@@ -536,9 +644,13 @@ export class MusicPlaybackService {
       startedAt: this.current?.startedAt?.toISOString() ?? null,
       updatedAt: this.now().toISOString(),
       player: {
-        connected: Boolean(this.playerLease && this.playerLease.expiresAt > this.now()),
+        authority,
+        connected: Boolean(lease || authoritativePlayer),
+        kind,
+        lastCommand: null,
         owned,
-        blockedReason: null
+        blockedReason: null,
+        state: playerState
       },
       reason: this.current?.reason ?? this.reason
     };
@@ -546,5 +658,18 @@ export class MusicPlaybackService {
 
   private now(): Date {
     return this.options.getNow?.() ?? new Date();
+  }
+
+  private getHealthyAuthoritativePlayer(now: Date): AuthoritativePlayer | null {
+    if (this.authoritativePlayer && this.authoritativePlayer.healthyUntil <= now) {
+      const clientId = this.authoritativePlayer.clientId;
+      this.authoritativePlayer = null;
+      if (this.playerLease?.clientId === clientId) {
+        this.playerLease = null;
+      }
+      this.reason = "music_local_agent_expired";
+    }
+
+    return this.authoritativePlayer;
   }
 }

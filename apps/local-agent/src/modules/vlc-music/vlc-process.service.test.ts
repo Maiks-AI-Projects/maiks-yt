@@ -26,7 +26,7 @@ describe("VLC process audio route environment", () => {
     ["game", "stream_game", "Game"]
   ] as const)("maps %s to its fixed PipeWire sink", (audioRouteId, sink, mediaRole) => {
     expect(buildVlcAudioRouteEnvironment(audioRouteId)).toEqual({
-      PULSE_PROP: `application.name=maiks-audio-agent media.role=${mediaRole}`,
+      PULSE_PROP: `application.id=org.VideoLAN.VLC application.name=maiks-audio-agent media.role=${mediaRole}`,
       PULSE_SINK: sink
     });
   });
@@ -49,7 +49,17 @@ done
 `, { mode: 0o700 });
     await writeFile(pactlPath, `#!/usr/bin/env bash
 set -euo pipefail
-printf '1\\tstream_music\\tPipeWire\\ts16le 2ch 48000Hz\\tRUNNING\\n'
+case "\${1:-}" in
+  list)
+    printf '1\\tstream_music\\tPipeWire\\ts16le 2ch 48000Hz\\tRUNNING\\n'
+    ;;
+  get-sink-volume)
+    printf 'Volume: front-left: 65536 / 100%% / 0.00 dB, front-right: 65536 / 100%% / 0.00 dB\\n'
+    ;;
+  get-sink-mute)
+    printf 'Mute: no\\n'
+    ;;
+esac
 `, { mode: 0o700 });
     process.env.PATH = `${directory}${path.delimiter}${oldPath ?? ""}`;
     const backend = new VlcProcessBackend({
@@ -66,8 +76,7 @@ printf '1\\tstream_music\\tPipeWire\\ts16le 2ch 48000Hz\\tRUNNING\\n'
         playbackId: "playback-1",
         sourceUrl: "first-media",
         startAtSeconds: 0,
-        startPaused: false,
-        volumePercent: 70
+        startPaused: false
       }, new AbortController().signal);
 
       await expect(backend.play({
@@ -75,11 +84,11 @@ printf '1\\tstream_music\\tPipeWire\\ts16le 2ch 48000Hz\\tRUNNING\\n'
         playbackId: "playback-2",
         sourceUrl: "second-media",
         startAtSeconds: 0,
-        startPaused: false,
-        volumePercent: 70
+        startPaused: false
       }, new AbortController().signal)).rejects.toThrow("Audio route game is not available");
 
       await expect(readFile(commandLog, "utf8")).resolves.toContain("quit");
+      await expect(readFile(commandLog, "utf8")).resolves.toContain("volume 256");
     } finally {
       await backend.shutdown().catch(() => undefined);
       process.env.PATH = oldPath;

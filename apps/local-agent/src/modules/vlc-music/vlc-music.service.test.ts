@@ -14,10 +14,13 @@ const snapshot: VlcMusicSnapshot = {
     label: "Music",
     mediaRole: "Music",
     pipeWireSink: "stream_music",
-    state: "available"
+    controlState: "acknowledged",
+    muted: false,
+    revision: 0,
+    state: "available",
+    volumePercent: 70
   }],
-  status: "playing",
-  volumePercent: 70
+  status: "playing"
 };
 
 const command = (action: string, payload: unknown): CommandEnvelope => ({
@@ -41,7 +44,8 @@ const createBackend = (): VlcMusicBackend & {
     resume: vi.fn(async () => snapshot),
     stop: vi.fn(async () => ({ ...snapshot, status: "stopped" as const })),
     seek: vi.fn(async (_playbackId, positionSeconds) => ({ ...snapshot, positionSeconds })),
-    setVolume: vi.fn(async (volumePercent) => ({ ...snapshot, volumePercent })),
+    setAudioRouteVolume: vi.fn(async () => snapshot.routes[0]!),
+    setAudioRouteMute: vi.fn(async () => snapshot.routes[0]!),
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
       listeners.add(listener);
@@ -65,22 +69,29 @@ describe("VlcMusicModule", () => {
 
     expect(module.getCapability()).toMatchObject({
       availability: "available",
-      actions: ["track.play", "track.pause", "track.resume", "track.stop", "track.seek", "volume.set", "status.get"]
+      actions: [
+        "track.play",
+        "track.pause",
+        "track.resume",
+        "track.stop",
+        "track.seek",
+        "audio-route.volume.set",
+        "audio-route.mute.set",
+        "status.get"
+      ]
     });
     await module.execute(command("track.play", {
       playbackId: "playback-1",
       audioRouteId: "game",
       sourceUrl: "https://api.maiks.yt/music/playback/audio/playback-1",
-      startAtSeconds: 12,
-      volumePercent: 55
+      startAtSeconds: 12
     }), { signal });
     expect(backend.play).toHaveBeenCalledWith({
       playbackId: "playback-1",
       audioRouteId: "game",
       sourceUrl: "https://api.maiks.yt/music/playback/audio/playback-1",
       startPaused: false,
-      startAtSeconds: 12,
-      volumePercent: 55
+      startAtSeconds: 12
     }, signal);
   });
 
@@ -132,6 +143,35 @@ describe("VlcMusicModule", () => {
       positionSeconds: 180,
       routes: snapshot.routes,
       status: "ended"
+    });
+  });
+
+  it("routes stable-name gain and mute commands through revisioned backend actions", async () => {
+    const backend = createBackend();
+    const module = new VlcMusicModule(backend);
+    const signal = new AbortController().signal;
+    await module.start({ signal, reportStatus: vi.fn() });
+
+    await module.execute(command("audio-route.volume.set", {
+      audioRouteId: "music",
+      revision: 4,
+      volumePercent: 42
+    }), { signal });
+    await module.execute(command("audio-route.mute.set", {
+      audioRouteId: "music",
+      muted: true,
+      revision: 5
+    }), { signal });
+
+    expect(backend.setAudioRouteVolume).toHaveBeenCalledWith({
+      audioRouteId: "music",
+      revision: 4,
+      volumePercent: 42
+    });
+    expect(backend.setAudioRouteMute).toHaveBeenCalledWith({
+      audioRouteId: "music",
+      muted: true,
+      revision: 5
     });
   });
 });

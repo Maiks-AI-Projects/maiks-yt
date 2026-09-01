@@ -64,7 +64,11 @@ const snapshot = (
     label: "Music",
     mediaRole: "Music",
     pipeWireSink: "stream_music",
-    state: "reconnecting"
+    controlState: "reconnecting",
+    muted: null,
+    revision: 0,
+    state: "reconnecting",
+    volumePercent: null
   }],
   playbackId,
   currentTrack: playbackId ? {
@@ -83,7 +87,15 @@ const snapshot = (
   audioUrl: null,
   startedAt: status === "playing" ? "2026-08-27T12:00:00.000Z" : null,
   updatedAt: "2026-08-27T12:00:00.000Z",
-  player: { connected: false, owned: false, blockedReason: null },
+  player: {
+    authority: "none",
+    connected: false,
+    kind: null,
+    lastCommand: null,
+    owned: false,
+    blockedReason: null,
+    state: "idle"
+  },
   reason: null
 });
 
@@ -91,7 +103,14 @@ const agentStatus = (input: {
   audioRouteId?: "communication" | "music" | "private" | "game";
   connected?: boolean;
   playbackId?: string | null;
-  routes?: readonly { id: "communication" | "music" | "private" | "game"; state: "available" | "unavailable" | "error" | "reconnecting" }[];
+  routes?: readonly {
+    controlState?: "acknowledged" | "pending" | "error" | "unavailable" | "reconnecting";
+    id: "communication" | "music" | "private" | "game";
+    muted?: boolean | null;
+    revision?: number;
+    state: "available" | "unavailable" | "error" | "reconnecting";
+    volumePercent?: number | null;
+  }[];
   status?: "idle" | "loading" | "playing" | "paused" | "stopped" | "ended" | "error";
 } = {}): LocalAgentRuntimeStatus => {
   const moduleStatus: AgentStatus = {
@@ -105,15 +124,20 @@ const agentStatus = (input: {
         available: true,
         playbackId: input.playbackId ?? null,
         positionSeconds: 0,
-        routes: input.routes ?? [{
+        routes: (input.routes ?? [{
           id: "music",
           state: "available"
         }, {
           id: "game",
           state: "unavailable"
-        }],
-        status: input.status ?? "idle",
-        volumePercent: 70
+        }]).map((route) => ({
+          controlState: route.controlState ?? (route.state === "available" ? "acknowledged" : route.state),
+          muted: route.muted ?? (route.state === "available" ? false : null),
+          revision: route.revision ?? 0,
+          volumePercent: route.volumePercent ?? (route.state === "available" ? 70 : null),
+          ...route
+        })),
+        status: input.status ?? "idle"
       }
     }]
   };
@@ -129,7 +153,14 @@ const agentStatus = (input: {
     capabilities: connected ? [{
       id: "vlc-music",
       version: 1,
-      actions: ["track.play", "track.pause", "track.resume", "track.stop"],
+      actions: [
+        "track.play",
+        "track.pause",
+        "track.resume",
+        "track.stop",
+        "audio-route.volume.set",
+        "audio-route.mute.set"
+      ],
       availability: "available"
     }] : [],
     status: connected ? moduleStatus : null,
@@ -181,13 +212,14 @@ class RuntimeFixture implements MusicLocalAgentRuntime {
     }
   }
 
-  acknowledge(command: CommandEnvelope, status: CommandAcknowledgement["status"]): void {
+  acknowledge(command: CommandEnvelope, status: CommandAcknowledgement["status"], result?: CommandAcknowledgement["result"]): void {
     const acknowledgement: CommandAcknowledgement = {
       eventId: command.eventId,
       commandId: command.commandId,
       status,
       acknowledgedAt: new Date().toISOString(),
-      replayed: false
+      replayed: false,
+      ...(result === undefined ? {} : { result })
     };
     for (const listener of this.#acknowledgementListeners) {
       listener(acknowledgement, command);
@@ -198,6 +230,16 @@ class RuntimeFixture implements MusicLocalAgentRuntime {
 const settle = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
+
+const ownedLocalPlayer = (): MusicPlaybackSnapshot["player"] => ({
+  authority: "local-agent",
+  connected: true,
+  kind: "local-agent",
+  lastCommand: null,
+  owned: true,
+  blockedReason: null,
+  state: "pending"
+});
 
 const createPlaybackFixture = (initialState: MusicPlaybackSnapshot = snapshot("playback-1", "playing")) => {
   const fixture = {
@@ -229,7 +271,7 @@ const createPlaybackFixture = (initialState: MusicPlaybackSnapshot = snapshot("p
       audioUrl: fixture.state.playbackId
         ? input.createAudioUrl(fixture.state.playbackId, track(fixture.state.playbackId))
         : null,
-      player: { connected: true, owned: true, blockedReason: null }
+      player: ownedLocalPlayer()
     })),
     recordPlayerEvent: vi.fn(async (input: {
       event: "started" | "ended" | "failed";
@@ -241,6 +283,8 @@ const createPlaybackFixture = (initialState: MusicPlaybackSnapshot = snapshot("p
         : snapshot(input.playbackId, "playing", fixture.state.audioRouteId);
       return fixture.state;
     }),
+    failAuthoritativePlayer: vi.fn(),
+    setAuthoritativePlayer: vi.fn(),
     releasePlayerLease: vi.fn()
   };
 
@@ -256,6 +300,8 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       getInternalState: vi.fn(() => snapshot("playback-1")),
       getPlayerState: vi.fn(),
       recordPlayerEvent: vi.fn(),
+      failAuthoritativePlayer: vi.fn(),
+      setAuthoritativePlayer: vi.fn(),
       releasePlayerLease: vi.fn()
     };
     const coordinator = new MusicLocalAgentPlaybackCoordinator({
@@ -273,7 +319,66 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
 
     expect(runtime.commands).toHaveLength(0);
     expect(playback.getPlayerState).not.toHaveBeenCalled();
-    expect(playback.releasePlayerLease).toHaveBeenCalledWith("local-agent-vlc");
+    expect(playback.failAuthoritativePlayer).toHaveBeenCalledWith(
+      "local-agent-vlc",
+      "music_local_agent_disconnected"
+    );
+    coordinator.dispose();
+  });
+
+  it("marks an unclaimable Local Agent play as failed instead of suppressing track.play silently", async () => {
+    const runtime = new RuntimeFixture();
+    const playback = {
+      getCurrentAudioTrack: vi.fn(() => track("playback-1")),
+      getInternalState: vi.fn(() => snapshot("playback-1")),
+      getPlayerState: vi.fn(() => ({
+        ...snapshot("playback-1"),
+        audioUrl: null,
+        player: {
+          authority: "browser-fallback" as const,
+          connected: true,
+          kind: "local-agent" as const,
+          lastCommand: null,
+          owned: false,
+          blockedReason: "music_player_already_connected",
+          state: "blocked" as const
+        }
+      })),
+      recordPlayerEvent: vi.fn(),
+      failAuthoritativePlayer: vi.fn(),
+      setAuthoritativePlayer: vi.fn(),
+      releasePlayerLease: vi.fn()
+    };
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    coordinator.handleControl({ action: "play", before: snapshot(null), after: snapshot("playback-1") });
+    await settle();
+
+    expect(playback.getPlayerState).toHaveBeenCalledWith(expect.objectContaining({
+      clientId: "local-agent-vlc",
+      playerKind: "local-agent"
+    }));
+    expect(runtime.commands).toHaveLength(0);
+    expect(playback.failAuthoritativePlayer).toHaveBeenCalledWith(
+      "local-agent-vlc",
+      "music_local_agent_lease_unavailable"
+    );
+    expect(coordinator.projectControlState(snapshot("playback-1"))).toMatchObject({
+      player: {
+        authority: "browser-fallback",
+        lastCommand: {
+          action: "track.play",
+          error: "music_local_agent_lease_unavailable",
+          status: "failed"
+        },
+        state: "error"
+      },
+      reason: "music_local_agent_lease_unavailable"
+    });
     coordinator.dispose();
   });
 
@@ -286,7 +391,7 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       getPlayerState: vi.fn((input: { createAudioUrl: (id: string, value: MusicSelectableTrack) => string | null }) => ({
         ...playback.state,
         audioUrl: input.createAudioUrl("playback-1", track("playback-1")),
-        player: { connected: true, owned: true, blockedReason: null }
+        player: ownedLocalPlayer()
       })),
       recordPlayerEvent: vi.fn(async (input: { event: "started" | "ended" | "failed" }) => {
         playback.state = input.event === "started"
@@ -294,6 +399,8 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
           : snapshot("playback-2", "loading");
         return playback.state;
       }),
+      failAuthoritativePlayer: vi.fn(),
+      setAuthoritativePlayer: vi.fn(),
       releasePlayerLease: vi.fn()
     };
     const coordinator = new MusicLocalAgentPlaybackCoordinator({
@@ -329,7 +436,7 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
   });
 
   it.each(["failed", "expired"] as const)(
-    "releases the player lease when local playback %s",
+    "opens browser fallback when local playback %s",
     async (acknowledgementStatus) => {
       const runtime = new RuntimeFixture();
       const playback = {
@@ -338,9 +445,11 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
         getPlayerState: vi.fn((input: { createAudioUrl: (id: string, value: MusicSelectableTrack) => string | null }) => ({
           ...snapshot("playback-1"),
           audioUrl: input.createAudioUrl("playback-1", track("playback-1")),
-          player: { connected: true, owned: true, blockedReason: null }
+          player: ownedLocalPlayer()
         })),
         recordPlayerEvent: vi.fn(),
+        failAuthoritativePlayer: vi.fn(),
+        setAuthoritativePlayer: vi.fn(),
         releasePlayerLease: vi.fn()
       };
       const coordinator = new MusicLocalAgentPlaybackCoordinator({
@@ -354,7 +463,10 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       runtime.acknowledge(runtime.commands[0]!, acknowledgementStatus);
       await settle();
 
-      expect(playback.releasePlayerLease).toHaveBeenCalledWith("local-agent-vlc");
+      expect(playback.failAuthoritativePlayer).toHaveBeenCalledWith(
+        "local-agent-vlc",
+        "music_local_agent_play_failed"
+      );
       coordinator.dispose();
     }
   );
@@ -368,9 +480,11 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       getPlayerState: vi.fn((input: { createAudioUrl: (id: string, value: MusicSelectableTrack) => string | null }) => ({
         ...playback.state,
         audioUrl: input.createAudioUrl("playback-1", track("playback-1")),
-        player: { connected: true, owned: true, blockedReason: null }
+        player: ownedLocalPlayer()
       })),
       recordPlayerEvent: vi.fn(),
+      failAuthoritativePlayer: vi.fn(),
+      setAuthoritativePlayer: vi.fn(),
       releasePlayerLease: vi.fn()
     };
     const coordinator = new MusicLocalAgentPlaybackCoordinator({
@@ -394,27 +508,43 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       label: "Communication",
       mediaRole: "Communication",
       pipeWireSink: "stream_communication",
+      controlState: "unavailable",
+      muted: null,
+      revision: 0,
       state: "unavailable",
-      detail: "Route was not reported by the Local Agent"
+      detail: "Route was not reported by the Local Agent",
+      volumePercent: null
     }, {
       id: "music",
       label: "Music",
       mediaRole: "Music",
       pipeWireSink: "stream_music",
-      state: "available"
+      controlState: "acknowledged",
+      muted: false,
+      revision: 0,
+      state: "available",
+      volumePercent: 70
     }, {
       id: "private",
       label: "Private",
       mediaRole: "Private",
       pipeWireSink: "stream_private",
+      controlState: "unavailable",
+      muted: null,
+      revision: 0,
       state: "unavailable",
-      detail: "Route was not reported by the Local Agent"
+      detail: "Route was not reported by the Local Agent",
+      volumePercent: null
     }, {
       id: "game",
       label: "Game",
       mediaRole: "Game",
       pipeWireSink: "stream_game",
-      state: "unavailable"
+      controlState: "unavailable",
+      muted: null,
+      revision: 0,
+      state: "unavailable",
+      volumePercent: null
     }]);
     coordinator.dispose();
   });
@@ -429,9 +559,11 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       getPlayerState: vi.fn((input: { createAudioUrl: (id: string, value: MusicSelectableTrack) => string | null }) => ({
         ...playback.state,
         audioUrl: input.createAudioUrl("playback-1", track("playback-1")),
-        player: { connected: true, owned: true, blockedReason: null }
+        player: ownedLocalPlayer()
       })),
       recordPlayerEvent: vi.fn(),
+      failAuthoritativePlayer: vi.fn(),
+      setAuthoritativePlayer: vi.fn(),
       releasePlayerLease: vi.fn()
     };
     const coordinator = new MusicLocalAgentPlaybackCoordinator({
@@ -576,13 +708,12 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       runtime.acknowledge(runtime.commands[1]!, "expired");
       await settle();
 
-      expect(playback.recordPlayerEvent).toHaveBeenCalledWith({
-        clientId: "local-agent-vlc",
-        event: "failed",
-        playbackId: action === "select" ? "playback-selected" : "playback-2",
-        positionSeconds: null
-      });
-      expect(playback.releasePlayerLease).toHaveBeenCalledWith("local-agent-vlc");
+      expect(playback.recordPlayerEvent).not.toHaveBeenCalled();
+      expect(playback.failAuthoritativePlayer).toHaveBeenCalledWith(
+        "local-agent-vlc",
+        "music_local_agent_play_failed"
+      );
+      expect(playback.state.playbackId).toBe(action === "select" ? "playback-selected" : "playback-2");
       coordinator.dispose();
     }
   );
@@ -801,13 +932,11 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       await settle();
 
       expect(playback.control).not.toHaveBeenCalled();
-      expect(playback.recordPlayerEvent).toHaveBeenCalledWith({
-        clientId: "local-agent-vlc",
-        event: "failed",
-        playbackId: "playback-1",
-        positionSeconds: null
-      });
-      expect(playback.releasePlayerLease).toHaveBeenCalledWith("local-agent-vlc");
+      expect(playback.recordPlayerEvent).not.toHaveBeenCalled();
+      expect(playback.failAuthoritativePlayer).toHaveBeenCalledWith(
+        "local-agent-vlc",
+        "music_local_agent_play_failed"
+      );
       coordinator.dispose();
     }
   );
@@ -832,6 +961,220 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       state: "unavailable",
       detail: "Route was not reported by the Local Agent"
     });
+    coordinator.dispose();
+  });
+
+  it("returns pending route gain immediately and acknowledges the exact read-back revision", async () => {
+    const runtime = new RuntimeFixture();
+    runtime.status = agentStatus({
+      routes: [{
+        id: "music",
+        state: "available",
+        controlState: "acknowledged",
+        muted: false,
+        revision: 3,
+        volumePercent: 70
+      }]
+    });
+    const playback = createPlaybackFixture(snapshot(null));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    const pending = await coordinator.handleOwnerControl({
+      action: "route.volume.set",
+      audioRouteId: "music",
+      authUserId: "owner-auth-user",
+      volumePercent: 42
+    });
+
+    expect(runtime.commands[0]).toMatchObject({
+      action: "audio-route.volume.set",
+      payload: {
+        audioRouteId: "music",
+        revision: 4,
+        volumePercent: 42
+      }
+    });
+    expect(pending).toMatchObject({
+      handled: true,
+      result: {
+        audioRoutes: expect.arrayContaining([expect.objectContaining({
+          controlState: "pending",
+          id: "music",
+          muted: false,
+          revision: 4,
+          volumePercent: 42
+        })])
+      }
+    });
+
+    runtime.acknowledge(runtime.commands[0]!, "succeeded", {
+      activeAudioRouteId: "music",
+      available: true,
+      playbackId: null,
+      positionSeconds: null,
+      routes: [{
+        id: "music",
+        state: "available",
+        controlState: "acknowledged",
+        muted: false,
+        revision: 4,
+        volumePercent: 42
+      }],
+      status: "idle"
+    });
+    await settle();
+
+    expect(coordinator.projectControlState(playback.state).audioRoutes).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        controlState: "acknowledged",
+        id: "music",
+        muted: false,
+        revision: 4,
+        volumePercent: 42
+      })
+    ]));
+    coordinator.dispose();
+  });
+
+  it("keeps the newest route acknowledgement when an older command arrives late", async () => {
+    const runtime = new RuntimeFixture();
+    runtime.status = agentStatus({ routes: [{ id: "music", state: "available", revision: 5, volumePercent: 50 }] });
+    const playback = createPlaybackFixture(snapshot(null));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({ playback, publicApiBaseUrl: "https://api.maiks.yt", runtime });
+
+    await coordinator.handleOwnerControl({
+      action: "route.volume.set",
+      audioRouteId: "music",
+      authUserId: "owner-auth-user",
+      volumePercent: 35
+    });
+    await coordinator.handleOwnerControl({
+      action: "route.mute.set",
+      audioRouteId: "music",
+      authUserId: "owner-auth-user",
+      muted: true
+    });
+    const newer = runtime.commands[1]!;
+    const older = runtime.commands[0]!;
+    const result = (revision: number, muted: boolean, volumePercent: number) => ({
+      activeAudioRouteId: "music",
+      available: true,
+      playbackId: null,
+      positionSeconds: null,
+      routes: [{ id: "music", state: "available", controlState: "acknowledged", muted, revision, volumePercent }],
+      status: "idle"
+    });
+
+    runtime.acknowledge(newer, "succeeded", result(7, true, 35));
+    runtime.acknowledge(older, "succeeded", result(6, false, 35));
+    await settle();
+
+    expect(coordinator.projectControlState(playback.state).audioRoutes.find((route) => route.id === "music")).toMatchObject({
+      controlState: "acknowledged",
+      muted: true,
+      revision: 7,
+      volumePercent: 35
+    });
+    coordinator.dispose();
+  });
+
+  it("reports route control unavailable without issuing a command when the Agent is disconnected", async () => {
+    const runtime = new RuntimeFixture();
+    runtime.status = agentStatus({ connected: false });
+    const playback = createPlaybackFixture(snapshot(null));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({ playback, publicApiBaseUrl: "https://api.maiks.yt", runtime });
+
+    const result = await coordinator.handleOwnerControl({
+      action: "route.mute.set",
+      audioRouteId: "private",
+      authUserId: "owner-auth-user",
+      muted: true
+    });
+
+    expect(runtime.commands).toHaveLength(0);
+    expect(result).toMatchObject({
+      handled: true,
+      result: {
+        audioRoutes: expect.arrayContaining([expect.objectContaining({
+          controlState: "reconnecting",
+          id: "private",
+          muted: null,
+          state: "reconnecting",
+          volumePercent: null
+        })]),
+        reason: "music_local_agent_unavailable"
+      }
+    });
+    coordinator.dispose();
+  });
+
+  it("keeps the last applied route value and exposes a failed acknowledgement", async () => {
+    const runtime = new RuntimeFixture();
+    runtime.status = agentStatus({ routes: [{ id: "game", state: "available", revision: 2, volumePercent: 60 }] });
+    const playback = createPlaybackFixture(snapshot(null));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({ playback, publicApiBaseUrl: "https://api.maiks.yt", runtime });
+
+    await coordinator.handleOwnerControl({
+      action: "route.volume.set",
+      audioRouteId: "game",
+      authUserId: "owner-auth-user",
+      volumePercent: 25
+    });
+    runtime.acknowledge(runtime.commands[0]!, "failed");
+    await settle();
+
+    expect(coordinator.projectControlState(playback.state).audioRoutes.find((route) => route.id === "game"))
+      .toMatchObject({
+        controlState: "error",
+        lastError: "music_audio_route_command_failed",
+        revision: 3,
+        volumePercent: 60
+      });
+    coordinator.dispose();
+  });
+
+  it("turns an in-flight route command into an error on disconnect and rehydrates newer truth on reconnect", async () => {
+    const runtime = new RuntimeFixture();
+    runtime.status = agentStatus({ routes: [{ id: "communication", state: "available", revision: 3, volumePercent: 70 }] });
+    const playback = createPlaybackFixture(snapshot(null));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({ playback, publicApiBaseUrl: "https://api.maiks.yt", runtime });
+
+    await coordinator.handleOwnerControl({
+      action: "route.volume.set",
+      audioRouteId: "communication",
+      authUserId: "owner-auth-user",
+      volumePercent: 40
+    });
+    runtime.publishStatus(agentStatus({ connected: false }));
+    await settle();
+
+    expect(coordinator.projectControlState(playback.state).audioRoutes.find((route) => route.id === "communication"))
+      .toMatchObject({
+        controlState: "error",
+        lastError: "music_local_agent_disconnected",
+        revision: 5,
+        state: "reconnecting",
+        volumePercent: null
+      });
+
+    runtime.publishStatus(agentStatus({
+      routes: [{ id: "communication", state: "available", revision: 0, volumePercent: 70 }]
+    }));
+    await settle();
+
+    const reconnectedRoute = coordinator.projectControlState(playback.state).audioRoutes
+      .find((route) => route.id === "communication");
+    expect(reconnectedRoute).toMatchObject({
+        controlState: "acknowledged",
+        revision: 6,
+        state: "available",
+        volumePercent: 70
+      });
+    expect(reconnectedRoute).not.toHaveProperty("lastError");
     coordinator.dispose();
   });
 });

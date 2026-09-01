@@ -12,6 +12,7 @@ export const localAgentAudioRouteIds = [
 
 export type LocalAgentAudioRouteId = typeof localAgentAudioRouteIds[number];
 export type LocalAgentAudioRouteState = "available" | "unavailable" | "error" | "reconnecting";
+export type LocalAgentAudioRouteControlState = "acknowledged" | "pending" | "error" | "unavailable" | "reconnecting";
 
 export type LocalAgentAudioRouteDefinition = {
   id: LocalAgentAudioRouteId;
@@ -48,9 +49,28 @@ export const localAgentAudioRouteDefinitions = [
 ] as const satisfies readonly LocalAgentAudioRouteDefinition[];
 
 export type LocalAgentAudioRouteStatus = LocalAgentAudioRouteDefinition & {
+  controlState: LocalAgentAudioRouteControlState;
   state: LocalAgentAudioRouteState;
   detail?: string | undefined;
+  lastError?: string | undefined;
+  muted: boolean | null;
+  revision: number;
+  volumePercent: number | null;
 };
+
+export const localAgentAudioRouteGainMigrationContract = {
+  version: 1,
+  applyMode: "once",
+  defaultVolumePercent: 70,
+  defaultMuted: false,
+  ephemeralNodeIdsAllowed: false,
+  headphoneLoopbackAfterMigration: "neutral-transport",
+  routes: localAgentAudioRouteDefinitions.map((route) => ({
+    id: route.id,
+    effectiveStateSourceName: `${route.pipeWireSink}_to_headphones`,
+    targetSinkName: route.pipeWireSink
+  }))
+} as const;
 
 export const DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID = "music" as const satisfies LocalAgentAudioRouteId;
 
@@ -69,7 +89,8 @@ export const vlcMusicActions = [
   "track.resume",
   "track.stop",
   "track.seek",
-  "volume.set",
+  "audio-route.volume.set",
+  "audio-route.mute.set",
   "status.get"
 ] as const;
 
@@ -89,8 +110,19 @@ export type VlcMusicPlayCommandPayload = {
   sourceUrl: string;
   startPaused: boolean;
   startAtSeconds: number;
-  volumePercent: number;
   audioRouteId: LocalAgentAudioRouteId;
+};
+
+export type LocalAgentAudioRouteVolumeSetPayload = {
+  audioRouteId: LocalAgentAudioRouteId;
+  revision: number;
+  volumePercent: number;
+};
+
+export type LocalAgentAudioRouteMuteSetPayload = {
+  audioRouteId: LocalAgentAudioRouteId;
+  muted: boolean;
+  revision: number;
 };
 
 export type VlcMusicPlaybackState = {
@@ -101,7 +133,6 @@ export type VlcMusicPlaybackState = {
   positionSeconds: number | null;
   routes: readonly LocalAgentAudioRouteStatus[];
   status: VlcMusicPlaybackStatus;
-  volumePercent: number;
 };
 
 export type AgentId = string;

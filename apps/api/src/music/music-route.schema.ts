@@ -204,8 +204,21 @@ export const historyPayloadSchema = z.object({
 }).strict();
 
 export const musicPlaybackControlPayloadSchema = z.object({
-  action: z.enum(["play", "pause", "resume", "stop", "next", "skip", "select", "route.select"]),
+  action: z.enum([
+    "play",
+    "pause",
+    "resume",
+    "stop",
+    "next",
+    "skip",
+    "select",
+    "route.select",
+    "route.volume.set",
+    "route.mute.set"
+  ]),
   audioRouteId: z.enum(localAgentAudioRouteIds).optional(),
+  muted: z.boolean().optional(),
+  volumePercent: z.number().min(0).max(100).optional(),
   trackId: z.string().trim().min(1).max(36).optional()
 }).strict().superRefine((value, context) => {
   if (value.action === "select" && !value.trackId) {
@@ -213,6 +226,27 @@ export const musicPlaybackControlPayloadSchema = z.object({
       code: "custom",
       message: "music_track_selection_required",
       path: ["trackId"]
+    });
+  }
+  if (value.action.startsWith("route.") && !value.audioRouteId) {
+    context.addIssue({
+      code: "custom",
+      message: "music_audio_route_required",
+      path: ["audioRouteId"]
+    });
+  }
+  if (value.action === "route.volume.set" && value.volumePercent === undefined) {
+    context.addIssue({
+      code: "custom",
+      message: "music_audio_route_volume_required",
+      path: ["volumePercent"]
+    });
+  }
+  if (value.action === "route.mute.set" && value.muted === undefined) {
+    context.addIssue({
+      code: "custom",
+      message: "music_audio_route_mute_required",
+      path: ["muted"]
     });
   }
 });

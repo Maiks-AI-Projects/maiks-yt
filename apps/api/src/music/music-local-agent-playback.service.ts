@@ -20,6 +20,7 @@ import type {
 import { safeHttpUrlOrNull } from "./music-service-catalog.service.js";
 import type {
   MusicPlaybackControlAction,
+  MusicPlaybackCommandOutcome,
   MusicPlaybackControlFailure,
   MusicPlaybackService,
   MusicPlaybackSnapshot
@@ -31,8 +32,13 @@ const playerClientId = "local-agent-vlc";
 const commandTtlMs = 15_000;
 const routeStateSchema = z.object({
   id: z.enum(localAgentAudioRouteIds),
+  controlState: z.enum(["acknowledged", "pending", "error", "unavailable", "reconnecting"]).optional(),
+  lastError: z.string().trim().min(1).max(240).optional(),
+  muted: z.boolean().nullable().optional().default(null),
+  revision: z.number().int().min(0).optional().default(0),
   state: z.enum(["available", "unavailable", "error", "reconnecting"]),
-  detail: z.string().trim().min(1).max(240).optional()
+  detail: z.string().trim().min(1).max(240).optional(),
+  volumePercent: z.number().min(0).max(100).nullable().optional().default(null)
 }).passthrough();
 const vlcStateSchema = z.object({
   activeAudioRouteId: z.enum(localAgentAudioRouteIds).optional().default(DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID),
@@ -40,8 +46,7 @@ const vlcStateSchema = z.object({
   playbackId: z.string().nullable(),
   positionSeconds: z.number().min(0).nullable(),
   routes: z.array(routeStateSchema).optional().default([]),
-  status: z.enum(["idle", "loading", "playing", "paused", "stopped", "ended", "error"]),
-  volumePercent: z.number().min(0).max(100)
+  status: z.enum(["idle", "loading", "playing", "paused", "stopped", "ended", "error"])
 }).passthrough();
 
 type VlcState = z.infer<typeof vlcStateSchema>;
@@ -66,15 +71,20 @@ type PlaybackPort = Pick<MusicPlaybackService,
   | "getCurrentAudioTrack"
   | "getInternalState"
   | "getPlayerState"
+  | "getControlState"
   | "recordPlayerEvent"
+  | "failAuthoritativePlayer"
   | "releasePlayerLease"
+  | "setAuthoritativePlayer"
 >;
 
 type OwnerControlInput = {
   action: MusicPlaybackControlAction;
   audioRouteId?: MusicPlaybackSnapshot["audioRouteId"] | undefined;
   authUserId: string;
+  muted?: boolean | undefined;
   trackId?: string | undefined;
+  volumePercent?: number | undefined;
 };
 
 type PendingSupersedingControl = OwnerControlInput & {
@@ -89,8 +99,18 @@ const toOwnerControlInput = (input: OwnerControlInput): OwnerControlInput => ({
   action: input.action,
   audioRouteId: input.audioRouteId,
   authUserId: input.authUserId,
-  trackId: input.trackId
+  trackId: input.trackId,
+  muted: input.muted,
+  volumePercent: input.volumePercent
 });
+
+type PendingAudioRouteControl = {
+  audioRouteId: MusicPlaybackSnapshot["audioRouteId"];
+  eventId: string;
+  muted?: boolean | undefined;
+  revision: number;
+  volumePercent?: number | undefined;
+};
 
 export class MusicLocalAgentPlaybackCoordinator {
   readonly #playback: PlaybackPort;
@@ -101,8 +121,20 @@ export class MusicLocalAgentPlaybackCoordinator {
   readonly #pendingSupersedingControls = new Map<string, PendingSupersedingControl>();
   readonly #pendingRouteSwitches = new Map<string, PendingRouteSwitch>();
   readonly #acknowledgedRouteSwitches = new Map<string, MusicPlaybackSnapshot["audioRouteId"]>();
+  readonly #acknowledgedAudioRoutes = new Map<MusicPlaybackSnapshot["audioRouteId"], LocalAgentAudioRouteStatus>();
+  readonly #audioRouteErrors = new Map<MusicPlaybackSnapshot["audioRouteId"], {
+    detail: string;
+    revision: number;
+  }>();
+  readonly #pendingAudioRouteControls = new Map<string, PendingAudioRouteControl>();
+  readonly #routeRevisionFloors = new Map<MusicPlaybackSnapshot["audioRouteId"], number>();
+  readonly #lastProjectedRouteRevisions = new Map<MusicPlaybackSnapshot["audioRouteId"], number>();
   readonly #processedTerminalStates = new Set<string>();
   readonly #removeListeners: readonly (() => void)[];
+  #failedConnectionAt: string | null = null;
+  #hasObservedConnection = false;
+  #lastPlayCommand: MusicPlaybackCommandOutcome | null = null;
+  #observedConnectionAt: string | null = null;
   #queue: Promise<void> = Promise.resolve();
   #disposed = false;
 
@@ -122,6 +154,7 @@ export class MusicLocalAgentPlaybackCoordinator {
         this.#handleAcknowledgement(acknowledgement, command);
       })
     ];
+    this.#refreshAuthoritativePlayer(this.#runtime.getStatus());
   }
 
   handleControl(input: {
@@ -146,6 +179,84 @@ export class MusicLocalAgentPlaybackCoordinator {
   }> {
     const before = this.#playback.getInternalState();
     const actual = this.#readVlcState(this.#runtime.getStatus());
+
+    if (input.action === "route.volume.set" || input.action === "route.mute.set") {
+      const authorized = await this.#playback.getControlState(input.authUserId);
+      if (!authorized.ok) {
+        return { handled: true, result: authorized };
+      }
+      if (!input.audioRouteId || !this.#hasRouteControlCapability(this.#runtime.getStatus())) {
+        return {
+          handled: true,
+          result: {
+            ...this.projectControlState(authorized),
+            reason: "music_local_agent_unavailable"
+          }
+        };
+      }
+      if ((input.action === "route.volume.set" && input.volumePercent === undefined)
+        || (input.action === "route.mute.set" && input.muted === undefined)) {
+        return {
+          handled: true,
+          result: {
+            ...this.projectControlState(authorized),
+            reason: "music_invalid_input"
+          }
+        };
+      }
+      const projected = this.projectControlState(authorized);
+      const currentRoute = projected.audioRoutes.find((route) => route.id === input.audioRouteId);
+      if (!currentRoute || currentRoute.state !== "available") {
+        return {
+          handled: true,
+          result: {
+            ...projected,
+            reason: "music_audio_route_unavailable"
+          }
+        };
+      }
+      const revision = this.#nextAudioRouteRevision(input.audioRouteId, projected.audioRoutes);
+      const payload = input.action === "route.volume.set"
+        ? {
+            audioRouteId: input.audioRouteId,
+            revision,
+            volumePercent: input.volumePercent!
+          }
+        : {
+            audioRouteId: input.audioRouteId,
+            muted: input.muted!,
+            revision
+          };
+      const command = this.#issue(
+        input.action === "route.volume.set" ? "audio-route.volume.set" : "audio-route.mute.set",
+        payload
+      );
+      if (!command) {
+        this.#audioRouteErrors.set(input.audioRouteId, {
+          detail: "music_audio_route_command_unavailable",
+          revision
+        });
+        return {
+          handled: true,
+          result: {
+            ...this.projectControlState(authorized),
+            reason: "music_audio_route_command_unavailable"
+          }
+        };
+      }
+      this.#audioRouteErrors.delete(input.audioRouteId);
+      this.#pendingAudioRouteControls.set(command.eventId, {
+        audioRouteId: input.audioRouteId,
+        eventId: command.eventId,
+        ...(input.muted === undefined ? {} : { muted: input.muted }),
+        revision,
+        ...(input.volumePercent === undefined ? {} : { volumePercent: input.volumePercent })
+      });
+      return {
+        handled: true,
+        result: this.projectControlState(authorized)
+      };
+    }
 
     if (!this.#hasPlaybackCapability(this.#runtime.getStatus()) || !before.playbackId) {
       return { handled: false };
@@ -218,9 +329,44 @@ export class MusicLocalAgentPlaybackCoordinator {
   }
 
   projectControlState(snapshot: MusicPlaybackSnapshot): MusicPlaybackSnapshot {
+    const runtimeStatus = this.#runtime.getStatus();
+    const actual = this.#readVlcState(runtimeStatus);
+    const hasCapability = this.#hasPlaybackCapability(runtimeStatus)
+      && this.#failedConnectionAt !== runtimeStatus.connectedAt;
+    const commandFailed = this.#lastPlayCommand
+      && ["failed", "rejected", "expired"].includes(this.#lastPlayCommand.status);
+    const localPlaybackActive = Boolean(snapshot.playbackId
+      && actual?.playbackId === snapshot.playbackId
+      && !["idle", "stopped", "ended", "error"].includes(actual.status));
+    const player: MusicPlaybackSnapshot["player"] = hasCapability
+      ? {
+          ...snapshot.player,
+          authority: "local-agent" as const,
+          connected: true,
+          kind: "local-agent" as const,
+          lastCommand: this.#lastPlayCommand,
+          state: !snapshot.playbackId ? "idle" : localPlaybackActive ? "active" : "pending"
+        }
+      : commandFailed
+        ? {
+            ...snapshot.player,
+            authority: "browser-fallback" as const,
+            kind: snapshot.player.kind === "browser-fallback" ? "browser-fallback" : null,
+            lastCommand: this.#lastPlayCommand,
+            state: snapshot.player.state === "fallback" ? "fallback" as const : "error" as const
+          }
+        : {
+            ...snapshot.player,
+            authority: snapshot.player.authority === "browser-fallback" ? "browser-fallback" as const : "none" as const,
+            lastCommand: this.#lastPlayCommand,
+            state: snapshot.player.state === "fallback" ? "fallback" as const : "unavailable" as const
+          };
+
     return {
       ...snapshot,
-      audioRoutes: this.#projectAudioRoutes(this.#runtime.getStatus())
+      audioRoutes: this.#projectAudioRoutes(runtimeStatus),
+      player,
+      reason: commandFailed ? this.#lastPlayCommand?.error ?? "music_local_agent_play_failed" : snapshot.reason
     };
   }
 
@@ -233,8 +379,7 @@ export class MusicLocalAgentPlaybackCoordinator {
   }
 
   async #handleStatus(status: LocalAgentRuntimeStatus): Promise<void> {
-    if (!this.#hasPlaybackCapability(status)) {
-      this.#playback.releasePlayerLease(playerClientId);
+    if (!this.#refreshAuthoritativePlayer(status)) {
       return;
     }
 
@@ -276,8 +421,7 @@ export class MusicLocalAgentPlaybackCoordinator {
   }
 
   async #reconcile(desired: MusicPlaybackSnapshot, actual = this.#readVlcState(this.#runtime.getStatus())): Promise<void> {
-    if (!this.#hasPlaybackCapability(this.#runtime.getStatus())) {
-      this.#playback.releasePlayerLease(playerClientId);
+    if (!this.#refreshAuthoritativePlayer(this.#runtime.getStatus())) {
       return;
     }
     if (!desired.playbackId || !desired.currentTrack) {
@@ -313,19 +457,32 @@ export class MusicLocalAgentPlaybackCoordinator {
 
     const playerState = this.#playback.getPlayerState({
       clientId: playerClientId,
-      createAudioUrl: (playbackId, track) => this.#createAudioUrl(playbackId, track)
+      createAudioUrl: (playbackId, track) => this.#createAudioUrl(playbackId, track),
+      playerKind: "local-agent"
     });
     if (!playerState.player.owned || !playerState.audioUrl) {
+      this.#markPlayFailed("music_local_agent_lease_unavailable");
       return null;
     }
-    return this.#issue("track.play", {
+    const command = this.#issue("track.play", {
       playbackId: desired.playbackId,
       sourceUrl: playerState.audioUrl,
       audioRouteId: desired.audioRouteId,
       startPaused: desired.status === "paused",
-      startAtSeconds,
-      volumePercent: 70
+      startAtSeconds
     });
+    if (!command) {
+      this.#markPlayFailed("music_local_agent_command_unavailable");
+      return null;
+    }
+    this.#lastPlayCommand = {
+      action: "track.play",
+      acknowledgedAt: null,
+      error: null,
+      eventId: command.eventId,
+      status: "pending"
+    };
+    return command;
   }
 
   #createAudioUrl(playbackId: string, track: MusicSelectableTrack): string | null {
@@ -343,6 +500,48 @@ export class MusicLocalAgentPlaybackCoordinator {
       return;
     }
     this.#pendingByEventId.delete(command.eventId);
+    if (command.action === "track.play") {
+      this.#lastPlayCommand = {
+        action: "track.play",
+        acknowledgedAt: acknowledgement.acknowledgedAt,
+        error: acknowledgement.status === "succeeded"
+          ? null
+          : acknowledgement.error?.code ?? "music_local_agent_play_failed",
+        eventId: command.eventId,
+        status: acknowledgement.status
+      };
+    }
+    const audioRouteControl = this.#pendingAudioRouteControls.get(command.eventId);
+    if (audioRouteControl) {
+      this.#pendingAudioRouteControls.delete(command.eventId);
+      if (acknowledgement.status !== "succeeded") {
+        this.#audioRouteErrors.set(audioRouteControl.audioRouteId, {
+          detail: acknowledgement.error?.code ?? "music_audio_route_command_failed",
+          revision: audioRouteControl.revision
+        });
+        return;
+      }
+      const current = this.#acknowledgedAudioRoutes.get(audioRouteControl.audioRouteId);
+      if (current && audioRouteControl.revision < current.revision) {
+        return;
+      }
+      const state = vlcStateSchema.safeParse(acknowledgement.result);
+      const route = state.success
+        ? state.data.routes.find((candidate) => candidate.id === audioRouteControl.audioRouteId)
+        : undefined;
+      if (!route || route.revision !== audioRouteControl.revision) {
+        this.#audioRouteErrors.set(audioRouteControl.audioRouteId, {
+          detail: "music_audio_route_stale_ack",
+          revision: audioRouteControl.revision
+        });
+        return;
+      }
+      if (!current || route.revision >= current.revision) {
+        this.#acknowledgedAudioRoutes.set(audioRouteControl.audioRouteId, this.#completeRouteStatus(route));
+        this.#audioRouteErrors.delete(audioRouteControl.audioRouteId);
+      }
+      return;
+    }
     const routeSwitch = this.#pendingRouteSwitches.get(command.eventId);
     if (routeSwitch) {
       this.#pendingRouteSwitches.delete(command.eventId);
@@ -355,15 +554,7 @@ export class MusicLocalAgentPlaybackCoordinator {
         });
         return;
       }
-      this.#enqueue(async () => {
-        await this.#playback.recordPlayerEvent({
-          clientId: playerClientId,
-          event: "failed",
-          playbackId: routeSwitch.playbackId,
-          positionSeconds: null
-        });
-        this.#playback.releasePlayerLease(playerClientId);
-      });
+      this.#markPlayFailed(acknowledgement.error?.code ?? "music_local_agent_play_failed");
       return;
     }
 
@@ -382,26 +573,83 @@ export class MusicLocalAgentPlaybackCoordinator {
     }
 
     if (acknowledgement.status !== "succeeded" && command.action === "track.play") {
-      const payload = command.payload;
-      const playbackId = typeof payload === "object"
-        && payload !== null
-        && !Array.isArray(payload)
-        && typeof (payload as { playbackId?: unknown }).playbackId === "string"
-        ? (payload as { playbackId: string }).playbackId
-        : null;
-      if (playbackId) {
-        this.#enqueue(async () => {
-          await this.#playback.recordPlayerEvent({
-            clientId: playerClientId,
-            event: "failed",
-            playbackId,
-            positionSeconds: null
-          });
-          this.#playback.releasePlayerLease(playerClientId);
-        });
-      } else {
-        this.#playback.releasePlayerLease(playerClientId);
+      this.#markPlayFailed(acknowledgement.error?.code ?? "music_local_agent_play_failed");
+    }
+  }
+
+  #markPlayFailed(reason: string): void {
+    this.#failedConnectionAt = this.#runtime.getStatus().connectedAt;
+    this.#lastPlayCommand = {
+      action: "track.play",
+      acknowledgedAt: this.#lastPlayCommand?.acknowledgedAt ?? new Date().toISOString(),
+      error: reason,
+      eventId: this.#lastPlayCommand?.eventId ?? null,
+      status: this.#lastPlayCommand?.status === "expired"
+        ? "expired"
+        : this.#lastPlayCommand?.status === "rejected"
+          ? "rejected"
+          : "failed"
+    };
+    this.#playback.failAuthoritativePlayer(playerClientId, reason);
+  }
+
+  #refreshAuthoritativePlayer(status: LocalAgentRuntimeStatus): boolean {
+    this.#observeConnection(status.connectedAt);
+    if (!this.#hasPlaybackCapability(status)) {
+      this.#failedConnectionAt = null;
+      this.#playback.failAuthoritativePlayer(
+        playerClientId,
+        status.connected ? "music_local_agent_unavailable" : "music_local_agent_disconnected"
+      );
+      return false;
+    }
+    if (this.#failedConnectionAt === status.connectedAt) {
+      this.#playback.failAuthoritativePlayer(playerClientId, "music_local_agent_play_failed");
+      return false;
+    }
+
+    this.#failedConnectionAt = null;
+    this.#playback.setAuthoritativePlayer({
+      clientId: playerClientId,
+      healthyUntil: new Date(Date.now() + commandTtlMs * 2).toISOString()
+    });
+    return true;
+  }
+
+  #observeConnection(connectedAt: string | null): void {
+    if (this.#hasObservedConnection && connectedAt === this.#observedConnectionAt) {
+      return;
+    }
+    const previousConnectionAt = this.#observedConnectionAt;
+    const isFirstObservation = !this.#hasObservedConnection;
+    this.#hasObservedConnection = true;
+    this.#observedConnectionAt = connectedAt;
+    if (!isFirstObservation) {
+      for (const route of localAgentAudioRouteDefinitions) {
+        const pendingRevisions = [...this.#pendingAudioRouteControls.values()]
+          .filter((pending) => pending.audioRouteId === route.id)
+          .map((pending) => pending.revision);
+        const previous = Math.max(
+          this.#routeRevisionFloors.get(route.id) ?? 0,
+          this.#lastProjectedRouteRevisions.get(route.id) ?? 0,
+          this.#acknowledgedAudioRoutes.get(route.id)?.revision ?? 0,
+          this.#audioRouteErrors.get(route.id)?.revision ?? 0,
+          ...pendingRevisions
+        );
+        this.#routeRevisionFloors.set(route.id, previous + 1);
       }
+    }
+    this.#acknowledgedAudioRoutes.clear();
+    this.#audioRouteErrors.clear();
+    if (previousConnectionAt !== null) {
+      for (const pending of this.#pendingAudioRouteControls.values()) {
+        this.#audioRouteErrors.set(pending.audioRouteId, {
+          detail: "music_local_agent_disconnected",
+          revision: pending.revision
+        });
+        this.#pendingByEventId.delete(pending.eventId);
+      }
+      this.#pendingAudioRouteControls.clear();
     }
   }
 
@@ -431,6 +679,15 @@ export class MusicLocalAgentPlaybackCoordinator {
     );
   }
 
+  #hasRouteControlCapability(status: LocalAgentRuntimeStatus): boolean {
+    return status.connected && status.capabilities.some((capability) =>
+      capability.id === capabilityId
+      && capability.availability !== "unavailable"
+      && capability.actions.includes("audio-route.volume.set")
+      && capability.actions.includes("audio-route.mute.set")
+    );
+  }
+
   #readVlcState(status: LocalAgentRuntimeStatus): VlcState | null {
     const moduleStatus = status.status?.modules.find((module) => module.capabilityId === capabilityId);
     const parsed = vlcStateSchema.safeParse(moduleStatus?.state);
@@ -439,31 +696,100 @@ export class MusicLocalAgentPlaybackCoordinator {
 
   #projectAudioRoutes(status: LocalAgentRuntimeStatus): readonly LocalAgentAudioRouteStatus[] {
     if (!status.connected) {
-      return localAgentAudioRouteDefinitions.map((route) => ({
-        ...route,
-        state: "reconnecting" as const,
-        detail: "Local Agent is not connected"
-      }));
+      return localAgentAudioRouteDefinitions.map((route) => {
+        const error = this.#audioRouteErrors.get(route.id);
+        return this.#recordProjectedRoute({
+          ...route,
+          controlState: error ? "error" as const : "reconnecting" as const,
+          state: "reconnecting" as const,
+          detail: "Local Agent is not connected",
+          ...(error ? { lastError: error.detail } : {}),
+          muted: null,
+          revision: Math.max(this.#routeRevisionFloors.get(route.id) ?? 0, error?.revision ?? 0),
+          volumePercent: null
+        });
+      });
     }
 
     const actual = this.#readVlcState(status);
 
     return localAgentAudioRouteDefinitions.map((route) => {
       const reported = actual?.routes.find((candidate) => candidate.id === route.id);
-      if (reported) {
-        return {
-          ...route,
-          state: reported.state,
-          ...(reported.detail ? { detail: reported.detail } : {})
-        };
-      }
-
-      return {
+      const acknowledged = this.#acknowledgedAudioRoutes.get(route.id);
+      let projected: LocalAgentAudioRouteStatus = reported
+        ? this.#completeRouteStatus(reported)
+        : {
         ...route,
+        controlState: "unavailable" as const,
         state: "unavailable" as const,
-        detail: "Route was not reported by the Local Agent"
+        detail: "Route was not reported by the Local Agent",
+        muted: null,
+        revision: 0,
+        volumePercent: null
       };
+      if (acknowledged && acknowledged.revision > projected.revision) {
+        projected = acknowledged;
+      }
+      const newestPending = [...this.#pendingAudioRouteControls.values()]
+        .filter((pending) => pending.audioRouteId === route.id && pending.revision > projected.revision)
+        .sort((left, right) => right.revision - left.revision)[0];
+      if (newestPending) {
+        projected = {
+          ...projected,
+          controlState: "pending",
+          ...(newestPending.muted === undefined ? {} : { muted: newestPending.muted }),
+          revision: newestPending.revision,
+          ...(newestPending.volumePercent === undefined ? {} : { volumePercent: newestPending.volumePercent })
+        };
+      } else {
+        const error = this.#audioRouteErrors.get(route.id);
+        if (error) {
+          projected = {
+            ...projected,
+            controlState: "error",
+            lastError: error.detail,
+            revision: Math.max(projected.revision, error.revision)
+          };
+        }
+      }
+      return this.#recordProjectedRoute(projected);
     });
+  }
+
+  #completeRouteStatus(reported: z.infer<typeof routeStateSchema>): LocalAgentAudioRouteStatus {
+    const route = localAgentAudioRouteDefinitions.find((candidate) => candidate.id === reported.id)!;
+    const controlState = reported.controlState
+      ?? (reported.state === "available" ? "acknowledged" : reported.state);
+    return {
+      ...route,
+      controlState,
+      state: reported.state,
+      ...(reported.detail ? { detail: reported.detail } : {}),
+      ...(reported.lastError ? { lastError: reported.lastError } : {}),
+      muted: reported.muted,
+      revision: Math.max(reported.revision, this.#routeRevisionFloors.get(reported.id) ?? 0),
+      volumePercent: reported.volumePercent
+    };
+  }
+
+  #recordProjectedRoute(route: LocalAgentAudioRouteStatus): LocalAgentAudioRouteStatus {
+    const previous = this.#lastProjectedRouteRevisions.get(route.id) ?? 0;
+    this.#lastProjectedRouteRevisions.set(route.id, Math.max(previous, route.revision));
+    return route;
+  }
+
+  #nextAudioRouteRevision(
+    audioRouteId: MusicPlaybackSnapshot["audioRouteId"],
+    routes: readonly LocalAgentAudioRouteStatus[]
+  ): number {
+    const revisions = [
+      routes.find((route) => route.id === audioRouteId)?.revision ?? 0,
+      this.#acknowledgedAudioRoutes.get(audioRouteId)?.revision ?? 0,
+      ...[...this.#pendingAudioRouteControls.values()]
+        .filter((pending) => pending.audioRouteId === audioRouteId)
+        .map((pending) => pending.revision)
+    ];
+    return Math.max(...revisions) + 1;
   }
 
   #enqueue(operation: () => Promise<void>): void {

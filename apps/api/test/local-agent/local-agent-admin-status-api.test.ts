@@ -30,7 +30,7 @@ const identity: AgentIdentity = {
 const capabilities: CapabilityRegistration[] = [{
   id: "vlc-music",
   version: 1,
-  actions: ["track.play", "track.stop", "volume.set"],
+  actions: ["audio-route.mute.set", "audio-route.volume.set", "track.play", "track.stop"],
   availability: "available",
   detail: "/secret/path/to/vlc"
 }];
@@ -49,14 +49,22 @@ const agentStatus: AgentStatus = {
       positionSeconds: 18,
       routes: [{
         id: "music",
+        controlState: "acknowledged",
+        muted: false,
+        revision: 8,
+        volumePercent: 65,
         state: "available"
       }, {
         id: "private",
+        controlState: "error",
+        lastError: "route unavailable",
+        muted: null,
+        revision: 3,
+        volumePercent: null,
         state: "error",
         detail: "route unavailable"
       }],
-      status: "playing",
-      volumePercent: 65
+      status: "playing"
     }
   }]
 };
@@ -107,7 +115,7 @@ describe("LocalAgentAdminStatusService", () => {
       modules: [{
         id: "vlc-music",
         version: 1,
-        actions: ["track.play", "track.stop", "volume.set"],
+        actions: ["audio-route.mute.set", "audio-route.volume.set", "track.play", "track.stop"],
         availability: "available",
         vlc: {
           activeAudioRouteId: "music",
@@ -119,28 +127,44 @@ describe("LocalAgentAdminStatusService", () => {
             label: "Communication",
             mediaRole: "Communication",
             pipeWireSink: "stream_communication",
-            state: "unavailable"
+            controlState: "unavailable",
+            muted: null,
+            revision: 0,
+            state: "unavailable",
+            volumePercent: null
           }, {
             id: "music",
             label: "Music",
             mediaRole: "Music",
             pipeWireSink: "stream_music",
-            state: "available"
+            controlState: "acknowledged",
+            muted: false,
+            revision: 8,
+            state: "available",
+            volumePercent: 65
           }, {
             id: "private",
             label: "Private",
             mediaRole: "Private",
             pipeWireSink: "stream_private",
+            controlState: "error",
             state: "error",
-            detail: "route unavailable"
+            detail: "route unavailable",
+            lastError: "route unavailable",
+            muted: null,
+            revision: 3,
+            volumePercent: null
           }, {
             id: "game",
             label: "Game",
             mediaRole: "Game",
             pipeWireSink: "stream_game",
-            state: "unavailable"
-          }],
-          volumePercent: 65
+            controlState: "unavailable",
+            muted: null,
+            revision: 0,
+            state: "unavailable",
+            volumePercent: null
+          }]
         }
       }]
     });

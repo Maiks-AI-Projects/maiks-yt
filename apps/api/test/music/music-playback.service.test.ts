@@ -318,6 +318,118 @@ describe("MusicPlaybackService", () => {
     expect(reload.audioUrl).toBe(first.audioUrl);
   });
 
+  it("lets a healthy Local Agent preempt an existing browser lease without changing selection or history", async () => {
+    const repository = new PlaybackRepository();
+    repository.catalog = [createSelectableTrack("track")];
+    const { historyService, service } = createPlayback(repository);
+
+    const loaded = await service.control({ action: "play", authUserId: "owner" });
+    const browser = service.getPlayerState({
+      clientId: "obs-browser-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "browser-fallback"
+    });
+    service.setAuthoritativePlayer({
+      clientId: "local-agent-vlc",
+      healthyUntil: "2026-08-20T12:00:30.000Z"
+    });
+    const localAgent = service.getPlayerState({
+      clientId: "local-agent-vlc",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "local-agent"
+    });
+    const blockedBrowser = service.getPlayerState({
+      clientId: "obs-browser-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "browser-fallback"
+    });
+    const spoofedBrowser = service.getPlayerState({
+      clientId: "local-agent-vlc",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "browser-fallback"
+    });
+
+    expect(browser.player.owned).toBe(true);
+    expect(localAgent.player).toMatchObject({
+      kind: "local-agent",
+      owned: true,
+      state: "pending"
+    });
+    expect(localAgent.playbackId).toBe(loaded.ok ? loaded.playbackId : null);
+    expect(blockedBrowser).toMatchObject({
+      status: "blocked",
+      audioUrl: null,
+      player: {
+        authority: "local-agent",
+        blockedReason: "music_local_agent_authoritative",
+        owned: false
+      }
+    });
+    expect(spoofedBrowser.player).toMatchObject({
+      blockedReason: "music_local_agent_authoritative",
+      owned: false,
+      state: "blocked"
+    });
+    expect(historyService.appended).toHaveLength(0);
+  });
+
+  it("allows truthful browser fallback after the Local Agent fails or its authority expires", async () => {
+    const repository = new PlaybackRepository();
+    repository.catalog = [createSelectableTrack("track")];
+    let now = new Date("2026-08-20T12:00:00.000Z");
+    const historyService = new PlaybackHistoryService();
+    const service = new MusicPlaybackService(
+      repository as unknown as MusicRepository,
+      historyService,
+      { getNow: () => now }
+    );
+    await service.control({ action: "play", authUserId: "owner" });
+    service.setAuthoritativePlayer({
+      clientId: "local-agent-vlc",
+      healthyUntil: "2026-08-20T12:00:15.000Z"
+    });
+
+    const blocked = service.getPlayerState({
+      clientId: "obs-browser-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "browser-fallback"
+    });
+    expect(blocked.player.blockedReason).toBe("music_local_agent_authoritative");
+
+    service.failAuthoritativePlayer("local-agent-vlc", "music_local_agent_play_failed");
+    const failedFallback = service.getPlayerState({
+      clientId: "obs-browser-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "browser-fallback"
+    });
+    expect(failedFallback.player).toMatchObject({
+      authority: "browser-fallback",
+      kind: "browser-fallback",
+      owned: true,
+      state: "fallback"
+    });
+    expect(failedFallback.reason).toBe("music_local_agent_play_failed");
+
+    service.releasePlayerLease("obs-browser-player");
+    service.setAuthoritativePlayer({
+      clientId: "local-agent-vlc",
+      healthyUntil: "2026-08-20T12:00:15.000Z"
+    });
+    now = new Date("2026-08-20T12:00:16.000Z");
+    const expiredFallback = service.getPlayerState({
+      clientId: "obs-browser-player",
+      createAudioUrl: (playbackId) => `https://api.example.test/music/playback/audio/${playbackId}`,
+      playerKind: "browser-fallback"
+    });
+    expect(expiredFallback.player).toMatchObject({
+      authority: "browser-fallback",
+      owned: true,
+      state: "fallback"
+    });
+    expect(expiredFallback.currentTrack?.trackId).toBe("track");
+    expect(historyService.appended).toHaveLength(0);
+  });
+
   it("writes played history only after a started track ends", async () => {
     const repository = new PlaybackRepository();
     repository.catalog = [createSelectableTrack("track")];

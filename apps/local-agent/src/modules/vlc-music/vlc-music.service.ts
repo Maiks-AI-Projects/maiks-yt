@@ -31,8 +31,7 @@ const playSchema = z.object({
   sourceUrl: sourceUrlSchema,
   audioRouteId: z.enum(localAgentAudioRouteIds).default(DEFAULT_LOCAL_AGENT_AUDIO_ROUTE_ID),
   startPaused: z.boolean().default(false),
-  startAtSeconds: z.number().min(0).max(24 * 60 * 60).default(0),
-  volumePercent: z.number().min(0).max(100).default(70)
+  startAtSeconds: z.number().min(0).max(24 * 60 * 60).default(0)
 }).strict();
 const playbackSchema = z.object({ playbackId: playbackIdSchema }).strict();
 const stopSchema = z.object({ playbackId: playbackIdSchema.nullable().default(null) }).strict();
@@ -40,7 +39,16 @@ const seekSchema = z.object({
   playbackId: playbackIdSchema,
   positionSeconds: z.number().min(0).max(24 * 60 * 60)
 }).strict();
-const volumeSchema = z.object({ volumePercent: z.number().min(0).max(100) }).strict();
+const routeVolumeSchema = z.object({
+  audioRouteId: z.enum(localAgentAudioRouteIds),
+  revision: z.number().int().positive(),
+  volumePercent: z.number().min(0).max(100)
+}).strict();
+const routeMuteSchema = z.object({
+  audioRouteId: z.enum(localAgentAudioRouteIds),
+  muted: z.boolean(),
+  revision: z.number().int().positive()
+}).strict();
 const emptySchema = z.object({}).strict();
 
 const toVlcMusicJson = (snapshot: VlcMusicSnapshot): JsonValue => ({
@@ -54,11 +62,15 @@ const toVlcMusicJson = (snapshot: VlcMusicSnapshot): JsonValue => ({
     label: route.label,
     mediaRole: route.mediaRole,
     pipeWireSink: route.pipeWireSink,
+    controlState: route.controlState,
+    muted: route.muted,
+    revision: route.revision,
     state: route.state,
+    volumePercent: route.volumePercent,
+    ...(route.lastError ? { lastError: route.lastError } : {}),
     ...(route.detail ? { detail: route.detail } : {})
   })),
-  status: snapshot.status,
-  volumePercent: snapshot.volumePercent
+  status: snapshot.status
 });
 
 export class VlcMusicModule implements VlcMusicAgentModule {
@@ -74,8 +86,7 @@ export class VlcMusicModule implements VlcMusicAgentModule {
     playbackId: null,
     positionSeconds: null,
     routes: [],
-    status: "idle" as const,
-    volumePercent: 70
+    status: "idle" as const
   };
 
   constructor(backend: VlcMusicBackend) {
@@ -147,8 +158,13 @@ export class VlcMusicModule implements VlcMusicAgentModule {
         const request = seekSchema.parse(command.payload);
         return toVlcMusicJson(await this.#backend.seek(request.playbackId, request.positionSeconds));
       }
-      if (command.action === "volume.set") {
-        return toVlcMusicJson(await this.#backend.setVolume(volumeSchema.parse(command.payload).volumePercent));
+      if (command.action === "audio-route.volume.set") {
+        const route = await this.#backend.setAudioRouteVolume(routeVolumeSchema.parse(command.payload));
+        return toVlcMusicJson(this.#snapshotWithRoute(route));
+      }
+      if (command.action === "audio-route.mute.set") {
+        const route = await this.#backend.setAudioRouteMute(routeMuteSchema.parse(command.payload));
+        return toVlcMusicJson(this.#snapshotWithRoute(route));
       }
       if (command.action === "status.get") {
         emptySchema.parse(command.payload);
@@ -166,6 +182,14 @@ export class VlcMusicModule implements VlcMusicAgentModule {
     }
 
     throw new ModuleCommandError("ACTION_NOT_REGISTERED", `VLC action ${command.action} is not registered`);
+  }
+
+  #snapshotWithRoute(route: VlcMusicSnapshot["routes"][number]): VlcMusicSnapshot {
+    this.#snapshot = {
+      ...this.#backend.getSnapshot(),
+      routes: this.#backend.getSnapshot().routes.map((current) => current.id === route.id ? route : current)
+    };
+    return this.#snapshot;
   }
 
 }

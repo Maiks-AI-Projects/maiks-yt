@@ -62,6 +62,7 @@ const vlcPlaybackStatuses = new Set([
   "error"
 ]);
 const audioRouteStates = new Set(["available", "unavailable", "error", "reconnecting"]);
+const audioRouteControlStates = new Set(["acknowledged", "pending", "error", "unavailable", "reconnecting"]);
 
 const parseAudioRouteId = (value: JsonValue | undefined): LocalAgentAudioRouteId =>
   typeof value === "string" && localAgentAudioRouteIds.includes(value as LocalAgentAudioRouteId)
@@ -81,11 +82,22 @@ const projectAudioRoutes = (state: Readonly<Record<string, JsonValue>>): readonl
     const detail = typeof reported?.detail === "string" && reported.detail.length <= 240
       ? reported.detail
       : undefined;
+    const lastError = typeof reported?.lastError === "string" && reported.lastError.length <= 240
+      ? reported.lastError
+      : undefined;
+    const controlState = typeof reported?.controlState === "string" && audioRouteControlStates.has(reported.controlState)
+      ? reported.controlState as LocalAgentAudioRouteStatus["controlState"]
+      : reportedState === "available" ? "acknowledged" : reportedState;
 
     return {
       ...route,
+      controlState,
       state: reportedState,
-      ...(detail ? { detail } : {})
+      ...(detail ? { detail } : {}),
+      ...(lastError ? { lastError } : {}),
+      muted: typeof reported?.muted === "boolean" ? reported.muted : null,
+      revision: asBoundedNumber(reported?.revision, 0, Number.MAX_SAFE_INTEGER) ?? 0,
+      volumePercent: asBoundedNumber(reported?.volumePercent, 0, 100)
     };
   });
 };
@@ -105,8 +117,7 @@ const projectVlcState = (state: JsonValue | undefined): LocalAgentAdminVlcState 
     hasPlayback: typeof playbackId === "string" && playbackId.length > 0,
     playbackStatus,
     positionSeconds: asBoundedNumber(state.positionSeconds, 0, 24 * 60 * 60),
-    routes: projectAudioRoutes(state),
-    volumePercent: asBoundedNumber(state.volumePercent, 0, 100)
+    routes: projectAudioRoutes(state)
   };
 };
 
