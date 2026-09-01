@@ -102,6 +102,7 @@ const snapshot = (
 const agentStatus = (input: {
   audioRouteId?: "communication" | "music" | "private" | "game";
   connected?: boolean;
+  connectedAt?: string;
   playbackId?: string | null;
   routes?: readonly {
     controlState?: "acknowledged" | "pending" | "error" | "unavailable" | "reconnecting";
@@ -164,7 +165,7 @@ const agentStatus = (input: {
       availability: "available"
     }] : [],
     status: connected ? moduleStatus : null,
-    connectedAt: connected ? "2026-08-27T12:00:00.000Z" : null,
+    connectedAt: connected ? input.connectedAt ?? "2026-08-27T12:00:00.000Z" : null,
     lastSeenAt: connected ? "2026-08-27T12:00:00.000Z" : null,
     pendingCommands: 0
   };
@@ -470,6 +471,197 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
       coordinator.dispose();
     }
   );
+
+  it("keeps an identical play pending when pre-readiness idle status is published", async () => {
+    const runtime = new RuntimeFixture();
+    const playback = createPlaybackFixture(snapshot("playback-1", "loading"));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    await coordinator.handleControl({
+      action: "play",
+      before: snapshot(null),
+      after: playback.state
+    });
+    runtime.publishStatus(agentStatus({ playbackId: null, status: "idle" }));
+    await settle();
+
+    expect(runtime.commands.filter((command) => command.action === "track.play")).toHaveLength(1);
+    expect(playback.failAuthoritativePlayer).not.toHaveBeenCalledWith(
+      "local-agent-vlc",
+      "music_local_agent_command_unavailable"
+    );
+    expect(coordinator.projectControlState(playback.state)).toMatchObject({
+      player: {
+        authority: "local-agent",
+        lastCommand: {
+          eventId: runtime.commands[0]!.eventId,
+          status: "pending"
+        },
+        state: "pending"
+      }
+    });
+    coordinator.dispose();
+  });
+
+  it("refreshes Local Agent authority when the exact active play succeeds", async () => {
+    const runtime = new RuntimeFixture();
+    const playback = createPlaybackFixture(snapshot("playback-1", "loading"));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+    playback.setAuthoritativePlayer.mockClear();
+
+    await coordinator.handleControl({
+      action: "play",
+      before: snapshot(null),
+      after: playback.state
+    });
+    runtime.acknowledge(runtime.commands[0]!, "succeeded");
+    await settle();
+
+    expect(playback.setAuthoritativePlayer).toHaveBeenCalledWith(expect.objectContaining({
+      clientId: "local-agent-vlc"
+    }));
+    expect(coordinator.projectControlState(playback.state)).toMatchObject({
+      player: {
+        authority: "local-agent",
+        lastCommand: {
+          eventId: runtime.commands[0]!.eventId,
+          status: "succeeded"
+        }
+      }
+    });
+    coordinator.dispose();
+  });
+
+  it("does not duplicate an exact successful play while Agent status is still idle", async () => {
+    const runtime = new RuntimeFixture();
+    const playback = createPlaybackFixture(snapshot("playback-1", "loading"));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    await coordinator.handleControl({
+      action: "play",
+      before: snapshot(null),
+      after: playback.state
+    });
+    runtime.acknowledge(runtime.commands[0]!, "succeeded");
+    runtime.publishStatus(agentStatus({ playbackId: null, status: "idle" }));
+    await settle();
+
+    expect(runtime.commands.filter((command) => command.action === "track.play")).toHaveLength(1);
+    coordinator.dispose();
+  });
+
+  it("ignores a stale failed play acknowledgement after a newer connection issues a play", async () => {
+    const runtime = new RuntimeFixture();
+    const playback = createPlaybackFixture(snapshot("playback-old", "loading"));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    await coordinator.handleControl({
+      action: "play",
+      before: snapshot(null),
+      after: playback.state
+    });
+    const oldCommand = runtime.commands[0]!;
+    runtime.publishStatus(agentStatus({ connected: false }));
+    runtime.acknowledge(oldCommand, "failed");
+    expect(playback.failAuthoritativePlayer).not.toHaveBeenLastCalledWith(
+      "local-agent-vlc",
+      "music_local_agent_play_failed"
+    );
+    playback.state = snapshot("playback-new", "loading", "private");
+    runtime.publishStatus(agentStatus({
+      connectedAt: "2026-08-27T12:01:00.000Z",
+      playbackId: null,
+      status: "idle"
+    }));
+    await settle();
+    const newCommand = runtime.commands.find((command) => command.eventId !== oldCommand.eventId)!;
+
+    runtime.acknowledge(oldCommand, "failed");
+    await settle();
+
+    expect(coordinator.projectControlState(playback.state)).toMatchObject({
+      player: {
+        authority: "local-agent",
+        lastCommand: {
+          eventId: newCommand.eventId,
+          status: "pending"
+        }
+      }
+    });
+    expect(playback.failAuthoritativePlayer).not.toHaveBeenLastCalledWith(
+      "local-agent-vlc",
+      "music_local_agent_play_failed"
+    );
+    coordinator.dispose();
+  });
+
+  it("stops actual Agent playback from desired idle even after the current play failed", async () => {
+    const runtime = new RuntimeFixture();
+    const playback = createPlaybackFixture(snapshot("playback-1", "loading"));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    await coordinator.handleControl({
+      action: "play",
+      before: snapshot(null),
+      after: playback.state
+    });
+    runtime.acknowledge(runtime.commands[0]!, "failed");
+    runtime.status = agentStatus({ playbackId: "playback-1", status: "playing" });
+    playback.state = snapshot(null);
+
+    await coordinator.handleControl({
+      action: "stop",
+      before: snapshot("playback-1", "playing"),
+      after: playback.state
+    });
+
+    expect(runtime.commands.at(-1)).toMatchObject({
+      action: "track.stop",
+      payload: { playbackId: "playback-1" }
+    });
+    coordinator.dispose();
+  });
+
+  it("does not replay when an idle desired state reconnects", async () => {
+    const runtime = new RuntimeFixture();
+    runtime.status = agentStatus({ connected: false });
+    const playback = createPlaybackFixture(snapshot(null));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    runtime.publishStatus(agentStatus({
+      connectedAt: "2026-08-27T12:01:00.000Z",
+      playbackId: null,
+      status: "idle"
+    }));
+    await settle();
+
+    expect(runtime.commands).toHaveLength(0);
+    coordinator.dispose();
+  });
 
   it("passes the selected audio route to local-agent play commands and returns route truth", async () => {
     const runtime = new RuntimeFixture();

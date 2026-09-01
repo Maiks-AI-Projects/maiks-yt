@@ -196,13 +196,16 @@ export const registerMusicPlaybackRoutes = (
         return result;
       }
 
-      getLocalAgentCoordinator()?.handleControl({
-        action: parsedBody.data.action,
-        before,
-        after: result
-      });
+      const activeCoordinator = getLocalAgentCoordinator();
+      if (activeCoordinator) {
+        await activeCoordinator.handleControl({
+          action: parsedBody.data.action,
+          before,
+          after: result
+        });
+      }
 
-      const projected = getLocalAgentCoordinator()?.projectControlState(result) ?? result;
+      const projected = activeCoordinator?.projectControlState(result) ?? result;
       server.log.info({
         action: parsedBody.data.action,
         commandStatus: projected.player.lastCommand?.status ?? null,

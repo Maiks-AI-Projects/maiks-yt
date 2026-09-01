@@ -114,13 +114,35 @@ type PendingAudioRouteControl = {
 
 type MusicPlaybackCorrelation = Readonly<Record<string, boolean | number | string | null>>;
 
+type PendingCommand = {
+  command: CommandEnvelope;
+  connectedAt: string | null;
+  signature: string;
+};
+
+type IssueCommandResult = {
+  command: CommandEnvelope;
+  status: "issued" | "pending";
+} | {
+  status: "rejected";
+};
+
+type ActivePlayCommand = {
+  audioRouteId: MusicPlaybackSnapshot["audioRouteId"];
+  command: CommandEnvelope;
+  commandId: string;
+  connectedAt: string;
+  eventId: string;
+  playbackId: string;
+};
+
 export class MusicLocalAgentPlaybackCoordinator {
   readonly #playback: PlaybackPort;
   readonly #runtime: MusicLocalAgentRuntime;
   readonly #publicApiBaseUrl: string;
   readonly #reportError: (error: unknown) => void;
   readonly #reportCorrelation: (fields: MusicPlaybackCorrelation) => void;
-  readonly #pendingByEventId = new Map<string, string>();
+  readonly #pendingByEventId = new Map<string, PendingCommand>();
   readonly #pendingSupersedingControls = new Map<string, PendingSupersedingControl>();
   readonly #pendingRouteSwitches = new Map<string, PendingRouteSwitch>();
   readonly #acknowledgedRouteSwitches = new Map<string, MusicPlaybackSnapshot["audioRouteId"]>();
@@ -134,6 +156,7 @@ export class MusicLocalAgentPlaybackCoordinator {
   readonly #lastProjectedRouteRevisions = new Map<MusicPlaybackSnapshot["audioRouteId"], number>();
   readonly #processedTerminalStates = new Set<string>();
   readonly #removeListeners: readonly (() => void)[];
+  #activePlayCommand: ActivePlayCommand | null = null;
   #failedConnectionAt: string | null = null;
   #hasObservedConnection = false;
   #lastPlayCommand: MusicPlaybackCommandOutcome | null = null;
@@ -166,9 +189,14 @@ export class MusicLocalAgentPlaybackCoordinator {
     action: MusicPlaybackControlAction;
     before: MusicPlaybackSnapshot;
     after: MusicPlaybackSnapshot;
-  }): void {
+  }): Promise<void> {
     this.#processedTerminalStates.clear();
-    this.#enqueue(async () => {
+    return this.#enqueue(async () => {
+      const startsNewPlayback = Boolean(input.after.playbackId
+        && input.after.playbackId !== input.before.playbackId);
+      if (startsNewPlayback && this.#hasPlaybackCapability(this.#runtime.getStatus())) {
+        this.#failedConnectionAt = null;
+      }
       if (input.action === "skip" && input.before.playbackId) {
         this.#issue("track.stop", { playbackId: input.before.playbackId });
       }
@@ -232,11 +260,11 @@ export class MusicLocalAgentPlaybackCoordinator {
             muted: input.muted!,
             revision
           };
-      const command = this.#issue(
+      const issueResult = this.#issue(
         input.action === "route.volume.set" ? "audio-route.volume.set" : "audio-route.mute.set",
         payload
       );
-      if (!command) {
+      if (issueResult.status === "rejected") {
         this.#audioRouteErrors.set(input.audioRouteId, {
           detail: "music_audio_route_command_unavailable",
           revision
@@ -249,6 +277,7 @@ export class MusicLocalAgentPlaybackCoordinator {
           }
         };
       }
+      const command = issueResult.command;
       this.#audioRouteErrors.delete(input.audioRouteId);
       this.#pendingAudioRouteControls.set(command.eventId, {
         audioRouteId: input.audioRouteId,
@@ -309,8 +338,8 @@ export class MusicLocalAgentPlaybackCoordinator {
       return { handled: false };
     }
 
-    const stopCommand = this.#issue("track.stop", { playbackId: before.playbackId });
-    if (!stopCommand) {
+    const stopResult = this.#issue("track.stop", { playbackId: before.playbackId });
+    if (stopResult.status === "rejected") {
       return {
         handled: true,
         result: {
@@ -319,6 +348,7 @@ export class MusicLocalAgentPlaybackCoordinator {
         }
       };
     }
+    const stopCommand = stopResult.command;
     this.#pendingSupersedingControls.set(stopCommand.eventId, {
       ...input,
       oldPlaybackId: before.playbackId
@@ -384,12 +414,15 @@ export class MusicLocalAgentPlaybackCoordinator {
   }
 
   async #handleStatus(status: LocalAgentRuntimeStatus): Promise<void> {
+    const actual = this.#readVlcState(status);
+    const desired = this.#playback.getInternalState();
+    if (!desired.playbackId || !desired.currentTrack) {
+      await this.#reconcile(desired, actual);
+      return;
+    }
     if (!this.#refreshAuthoritativePlayer(status)) {
       return;
     }
-
-    const actual = this.#readVlcState(status);
-    const desired = this.#playback.getInternalState();
     if (actual && actual.playbackId === desired.playbackId && desired.playbackId) {
       if (actual.status === "playing" && desired.status === "loading") {
         const started = await this.#playback.recordPlayerEvent({
@@ -426,13 +459,19 @@ export class MusicLocalAgentPlaybackCoordinator {
   }
 
   async #reconcile(desired: MusicPlaybackSnapshot, actual = this.#readVlcState(this.#runtime.getStatus())): Promise<void> {
-    if (!this.#refreshAuthoritativePlayer(this.#runtime.getStatus())) {
-      return;
-    }
+    const runtimeStatus = this.#runtime.getStatus();
+    this.#observeConnection(runtimeStatus.connectedAt);
     if (!desired.playbackId || !desired.currentTrack) {
-      if (actual?.playbackId && actual.status !== "idle" && actual.status !== "stopped") {
+      if (this.#hasPlaybackCapability(runtimeStatus)
+        && actual?.playbackId
+        && actual.status !== "idle"
+        && actual.status !== "stopped") {
         this.#issue("track.stop", { playbackId: actual.playbackId });
       }
+      this.#refreshAuthoritativePlayer(runtimeStatus);
+      return;
+    }
+    if (!this.#refreshAuthoritativePlayer(runtimeStatus)) {
       return;
     }
 
@@ -459,6 +498,15 @@ export class MusicLocalAgentPlaybackCoordinator {
     if (!desired.playbackId || !desired.currentTrack) {
       return null;
     }
+    const active = this.#activePlayCommand;
+    if (active
+      && active.connectedAt === this.#runtime.getStatus().connectedAt
+      && active.playbackId === desired.playbackId
+      && active.audioRouteId === desired.audioRouteId
+      && this.#lastPlayCommand?.eventId === active.eventId
+      && ["pending", "succeeded"].includes(this.#lastPlayCommand.status)) {
+      return active.command;
+    }
 
     const playerState = this.#playback.getPlayerState({
       clientId: playerClientId,
@@ -469,17 +517,31 @@ export class MusicLocalAgentPlaybackCoordinator {
       this.#markPlayFailed("music_local_agent_lease_unavailable");
       return null;
     }
-    const command = this.#issue("track.play", {
+    const issueResult = this.#issue("track.play", {
       playbackId: desired.playbackId,
       sourceUrl: playerState.audioUrl,
       audioRouteId: desired.audioRouteId,
       startPaused: desired.status === "paused",
       startAtSeconds
     });
-    if (!command) {
+    if (issueResult.status === "rejected") {
       this.#markPlayFailed("music_local_agent_command_unavailable");
       return null;
     }
+    const command = issueResult.command;
+    const connectedAt = this.#runtime.getStatus().connectedAt;
+    if (!connectedAt) {
+      this.#markPlayFailed("music_local_agent_disconnected");
+      return null;
+    }
+    this.#activePlayCommand = {
+      audioRouteId: desired.audioRouteId,
+      command,
+      commandId: command.commandId,
+      connectedAt,
+      eventId: command.eventId,
+      playbackId: desired.playbackId
+    };
     this.#lastPlayCommand = {
       action: "track.play",
       acknowledgedAt: null,
@@ -514,6 +576,10 @@ export class MusicLocalAgentPlaybackCoordinator {
     });
     this.#pendingByEventId.delete(command.eventId);
     if (command.action === "track.play") {
+      if (!this.#isCurrentPlayCommand(command)) {
+        this.#pendingRouteSwitches.delete(command.eventId);
+        return;
+      }
       this.#lastPlayCommand = {
         action: "track.play",
         acknowledgedAt: acknowledgement.acknowledgedAt,
@@ -523,6 +589,17 @@ export class MusicLocalAgentPlaybackCoordinator {
         eventId: command.eventId,
         status: acknowledgement.status
       };
+      if (acknowledgement.status === "succeeded") {
+        const runtimeStatus = this.#runtime.getStatus();
+        if (this.#hasPlaybackCapability(runtimeStatus)
+          && this.#activePlayCommand?.connectedAt === runtimeStatus.connectedAt) {
+          this.#failedConnectionAt = null;
+          this.#playback.setAuthoritativePlayer({
+            clientId: playerClientId,
+            healthyUntil: new Date(Date.now() + commandTtlMs * 2).toISOString()
+          });
+        }
+      }
     }
     const audioRouteControl = this.#pendingAudioRouteControls.get(command.eventId);
     if (audioRouteControl) {
@@ -666,10 +743,13 @@ export class MusicLocalAgentPlaybackCoordinator {
     }
   }
 
-  #issue(action: string, payload: JsonValue): CommandEnvelope | null {
+  #issue(action: string, payload: JsonValue): IssueCommandResult {
     const signature = `${action}:${JSON.stringify(payload)}`;
-    if ([...this.#pendingByEventId.values()].includes(signature)) {
-      return null;
+    const connectedAt = this.#runtime.getStatus().connectedAt;
+    const pending = [...this.#pendingByEventId.values()]
+      .find((candidate) => candidate.connectedAt === connectedAt && candidate.signature === signature);
+    if (pending) {
+      return { command: pending.command, status: "pending" };
     }
     const result = this.#runtime.issueCommand({
       action,
@@ -678,7 +758,11 @@ export class MusicLocalAgentPlaybackCoordinator {
       payload
     });
     if (result.ok) {
-      this.#pendingByEventId.set(result.command.eventId, signature);
+      this.#pendingByEventId.set(result.command.eventId, {
+        command: result.command,
+        connectedAt,
+        signature
+      });
       const safePayload = typeof payload === "object" && payload !== null && !Array.isArray(payload)
         ? payload as Record<string, JsonValue>
         : null;
@@ -690,7 +774,7 @@ export class MusicLocalAgentPlaybackCoordinator {
         phase: "issued",
         playbackId: typeof safePayload?.playbackId === "string" ? safePayload.playbackId : null
       });
-      return result.command;
+      return { command: result.command, status: "issued" };
     }
     this.#reportCorrelation({
       action,
@@ -701,7 +785,25 @@ export class MusicLocalAgentPlaybackCoordinator {
       playbackId: null,
       reason: result.reason
     });
-    return null;
+    return { status: "rejected" };
+  }
+
+  #isCurrentPlayCommand(command: CommandEnvelope): boolean {
+    const active = this.#activePlayCommand;
+    if (!active
+      || active.commandId !== command.commandId
+      || active.eventId !== command.eventId
+      || active.connectedAt !== this.#observedConnectionAt
+      || active.connectedAt !== this.#runtime.getStatus().connectedAt) {
+      return false;
+    }
+    const payload = typeof command.payload === "object"
+      && command.payload !== null
+      && !Array.isArray(command.payload)
+      ? command.payload as Record<string, JsonValue>
+      : null;
+    return payload?.playbackId === active.playbackId
+      && payload.audioRouteId === active.audioRouteId;
   }
 
   #hasPlaybackCapability(status: LocalAgentRuntimeStatus): boolean {
@@ -825,10 +927,11 @@ export class MusicLocalAgentPlaybackCoordinator {
     return Math.max(...revisions) + 1;
   }
 
-  #enqueue(operation: () => Promise<void>): void {
+  #enqueue(operation: () => Promise<void>): Promise<void> {
     if (this.#disposed) {
-      return;
+      return Promise.resolve();
     }
     this.#queue = this.#queue.then(operation).catch((error: unknown) => this.#reportError(error));
+    return this.#queue;
   }
 }
