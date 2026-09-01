@@ -992,6 +992,45 @@ describe("MusicLocalAgentPlaybackCoordinator", () => {
     coordinator.dispose();
   });
 
+  it("does not reassert the old route when replacement status arrives before its acknowledgement", async () => {
+    const runtime = new RuntimeFixture();
+    runtime.status = agentStatus({ audioRouteId: "music", playbackId: "playback-1", status: "playing" });
+    const playback = createPlaybackFixture(snapshot("playback-1", "playing", "music"));
+    const coordinator = new MusicLocalAgentPlaybackCoordinator({
+      playback,
+      publicApiBaseUrl: "https://api.maiks.yt",
+      runtime
+    });
+
+    await coordinator.handleOwnerControl({
+      action: "route.select",
+      audioRouteId: "communication",
+      authUserId: "owner-auth-user"
+    });
+    const replacement = runtime.commands[0]!;
+
+    runtime.publishStatus(agentStatus({
+      audioRouteId: "communication",
+      playbackId: "playback-1",
+      status: "playing"
+    }));
+    await settle();
+
+    expect(runtime.commands.filter((command) => command.action === "track.play")).toHaveLength(1);
+    expect(runtime.commands[0]).toBe(replacement);
+
+    runtime.acknowledge(replacement, "succeeded");
+    await settle();
+
+    expect(playback.state).toMatchObject({
+      audioRouteId: "communication",
+      playbackId: "playback-1",
+      status: "playing"
+    });
+    expect(runtime.commands.filter((command) => command.action === "track.play")).toHaveLength(1);
+    coordinator.dispose();
+  });
+
   it("delivers pause, resume, and stop after an acknowledged route switch while status is stale", async () => {
     const runtime = new RuntimeFixture();
     runtime.status = agentStatus({ audioRouteId: "music", playbackId: "playback-1", status: "playing" });

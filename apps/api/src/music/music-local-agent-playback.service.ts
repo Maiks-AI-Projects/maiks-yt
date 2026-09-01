@@ -476,9 +476,12 @@ export class MusicLocalAgentPlaybackCoordinator {
     }
 
     if (actual?.playbackId === desired.playbackId) {
+      const pendingRouteTarget = this.#pendingRouteSwitchTarget(desired.playbackId);
+      const routeMatchesPendingSwitch = actual.activeAudioRouteId === pendingRouteTarget;
       if (actual.activeAudioRouteId === desired.audioRouteId) {
         this.#acknowledgedRouteSwitches.delete(desired.playbackId);
-      } else if (this.#acknowledgedRouteSwitches.get(desired.playbackId) !== desired.audioRouteId) {
+      } else if (!routeMatchesPendingSwitch
+        && this.#acknowledgedRouteSwitches.get(desired.playbackId) !== desired.audioRouteId) {
         this.#issuePlay(desired, Math.max(0, actual.positionSeconds ?? 0));
         return;
       }
@@ -492,6 +495,19 @@ export class MusicLocalAgentPlaybackCoordinator {
     }
 
     this.#issuePlay(desired, 0);
+  }
+
+  #pendingRouteSwitchTarget(
+    playbackId: string
+  ): MusicPlaybackSnapshot["audioRouteId"] | null {
+    const active = this.#activePlayCommand;
+    if (!active || active.playbackId !== playbackId) {
+      return null;
+    }
+    const pending = this.#pendingRouteSwitches.get(active.eventId);
+    return pending?.playbackId === playbackId
+      ? pending.audioRouteId ?? null
+      : null;
   }
 
   #issuePlay(desired: MusicPlaybackSnapshot, startAtSeconds: number): CommandEnvelope | null {
