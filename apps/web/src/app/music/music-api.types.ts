@@ -1,4 +1,5 @@
 import type {
+  IncompetechBulkManifest,
   YouTubeAudioLibraryBulkManifest,
   YouTubeAudioLibraryRejectedTrack
 } from "@maiks-yt/domain/music";
@@ -302,3 +303,4 @@ export type MusicYouTubeAudioLibraryImportResult = MusicApiResult<{
 }>;
 
 export type MusicYouTubeAudioLibraryManifest = YouTubeAudioLibraryBulkManifest;
+export type MusicIncompetechManifest = IncompetechBulkManifest;

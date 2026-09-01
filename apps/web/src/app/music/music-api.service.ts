@@ -6,6 +6,7 @@ import type {
   MusicAudioUploadResult,
   MusicAccountCatalogTrack,
   MusicApiResult,
+  MusicIncompetechManifest,
   MusicRequestResult,
   MusicReviewAction,
   MusicTopTrackPick,
@@ -23,6 +24,7 @@ export const musicApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://
 type ApiRequestOptions = {
   readonly body?: unknown;
   readonly method?: "GET" | "POST" | "PUT";
+  readonly sessionOnly?: boolean;
 };
 
 export type MusicApiResponse<TPayload> = {
@@ -34,9 +36,10 @@ const requestMusicJson = async <TPayload>(
   path: string,
   options: ApiRequestOptions = {}
 ): Promise<MusicApiResponse<TPayload>> => {
-  const headers = createApiHeaders(options.body === undefined
+  const baseHeaders = options.body === undefined
     ? {}
-    : { "Content-Type": "application/json" });
+    : { "Content-Type": "application/json" };
+  const headers = options.sessionOnly ? baseHeaders : createApiHeaders(baseHeaders);
   const init: RequestInit = {
     cache: "no-store",
     credentials: "include",
@@ -221,4 +224,22 @@ export const applyYouTubeAudioLibraryImport = async (
   await requestMusicJson("/admin/music/imports/youtube-audio-library/apply", {
     body: { manifest },
     method: "POST"
+  });
+
+export const dryRunIncompetechImport = async (
+  manifest: MusicIncompetechManifest
+): Promise<MusicApiResponse<MusicYouTubeAudioLibraryImportResult>> =>
+  await requestMusicJson("/admin/music/imports/incompetech/dry-run", {
+    body: { manifest },
+    method: "POST",
+    sessionOnly: true
+  });
+
+export const applyIncompetechImport = async (
+  manifest: MusicIncompetechManifest
+): Promise<MusicApiResponse<MusicYouTubeAudioLibraryImportResult>> =>
+  await requestMusicJson("/admin/music/imports/incompetech/apply", {
+    body: { manifest },
+    method: "POST",
+    sessionOnly: true
   });

@@ -1,10 +1,20 @@
+import {
+  incompetechExpectedTrackCount,
+  incompetechManifestVersion,
+  incompetechProviderKey,
+  validateIncompetechManifest,
+  type IncompetechBulkManifest
+} from "@maiks-yt/domain/music";
+
 import type { MusicAudioUploadResult, MusicYouTubeAudioLibraryManifest } from "../../../music/music-api.types";
 
 export type ImportAudioFileCandidate = {
   readonly name: string;
+  readonly webkitRelativePath?: string;
 };
 
 export type ImportAudioUpload = Extract<MusicAudioUploadResult, { ok: true }>["upload"];
+export type ImportManifestProvider = "youtube-audio-library" | "incompetech";
 
 export type ManifestTrackWithFileName = MusicYouTubeAudioLibraryManifest["tracks"][number] & {
   readonly fileName?: string | null;
@@ -25,6 +35,26 @@ export type PreparedManifestResult =
     readonly errors: readonly string[];
   };
 
+export type PreparedIncompetechManifestResult =
+  | {
+    readonly ok: true;
+    readonly manifest: IncompetechBulkManifest;
+    readonly uploadedTrackCount: number;
+  }
+  | {
+    readonly ok: false;
+    readonly errors: readonly string[];
+  };
+
+export type IncompetechAudioSelectionReport = {
+  readonly duplicates: readonly string[];
+  readonly expectedCount: number;
+  readonly extra: readonly string[];
+  readonly missing: readonly string[];
+};
+
+export const expectedIncompetechManifestSha256 = "a9b84960595facde28c3f6b5183b442dfe31168130052bf46a12996841676ce5";
+
 export const safeImportFileName = (value: string): string => {
   const normalized = value.replaceAll("\\", "/").split("/").pop()?.trim() ?? "";
   return normalized.slice(0, 191) || "unnamed-file";
@@ -33,6 +63,7 @@ export const safeImportFileName = (value: string): string => {
 const normalizeFileKey = (value: string): string => safeImportFileName(value).toLowerCase();
 const musicAudioStorageRefPattern = /^music-audio:([a-f0-9]{64}):[A-Za-z0-9._:-]+$/u;
 const safeVocalsClasses = new Set(["none", "minimal"]);
+const sha256Mp3FilePattern = /^([a-f0-9]{64})\.mp3$/u;
 
 const normalizeGenre = (value: unknown): string | null => {
   if (typeof value !== "string" || !value.trim()) {
@@ -98,6 +129,85 @@ export const indexAudioFilesByName = <TFile extends ImportAudioFileCandidate>(
   }
 
   return indexed;
+};
+
+const normalizeRelativeFilePath = (value: string | undefined): string | null => {
+  const normalized = value?.replaceAll("\\", "/").trim() ?? "";
+  return normalized.length > 0 ? normalized.toLowerCase() : null;
+};
+
+const incompetechAudioExpectation = (track: IncompetechBulkManifest["tracks"][number]): {
+  readonly fileName: string;
+  readonly key: string;
+  readonly relativeTail: string;
+  readonly sha256: string;
+} | null => {
+  const sha256 = track.audio?.sha256?.trim().toLowerCase() ?? "";
+  const genre = track.normalizedGenre?.trim().toLowerCase() ?? "";
+
+  if (!sha256Mp3FilePattern.test(`${sha256}.mp3`) || !genre) {
+    return null;
+  }
+
+  return {
+    fileName: `${sha256}.mp3`,
+    key: sha256,
+    relativeTail: `library/${genre}/${sha256}.mp3`,
+    sha256
+  };
+};
+
+const candidateHashKey = (file: ImportAudioFileCandidate): string | null => {
+  const fileName = normalizeFileKey(file.name);
+  const nameMatch = sha256Mp3FilePattern.exec(fileName);
+  if (nameMatch) {
+    return nameMatch[1] ?? null;
+  }
+
+  const relativePath = normalizeRelativeFilePath(file.webkitRelativePath);
+  const relativeName = relativePath?.split("/").pop() ?? null;
+  const relativeMatch = relativeName ? sha256Mp3FilePattern.exec(relativeName) : null;
+
+  return relativeMatch?.[1] ?? null;
+};
+
+export const analyzeIncompetechAudioSelection = (
+  manifest: IncompetechBulkManifest,
+  files: readonly ImportAudioFileCandidate[]
+): IncompetechAudioSelectionReport => {
+  const expected = manifest.tracks
+    .map(incompetechAudioExpectation)
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+  const expectedByHash = new Map(expected.map((item) => [item.key, item]));
+  const seenByHash = new Map<string, string[]>();
+  const missing = new Set(expected.map((item) => item.fileName));
+  const extra: string[] = [];
+
+  for (const file of files) {
+    const safeName = safeImportFileName(file.name);
+    const hashKey = candidateHashKey(file);
+    const expectation = hashKey ? expectedByHash.get(hashKey) : undefined;
+    const relativePath = normalizeRelativeFilePath(file.webkitRelativePath);
+    const relativeMatches = !relativePath
+      || relativePath.endsWith(expectation?.relativeTail ?? "\0");
+
+    if (!hashKey || !expectation || !relativeMatches) {
+      extra.push(safeName);
+      continue;
+    }
+
+    missing.delete(expectation.fileName);
+    seenByHash.set(hashKey, [...seenByHash.get(hashKey) ?? [], safeName]);
+  }
+
+  return {
+    duplicates: [...seenByHash.values()]
+      .filter((names) => names.length > 1)
+      .map((names) => names[0] ?? "duplicate audio"),
+    expectedCount: expected.length,
+    extra,
+    missing: [...missing]
+  };
 };
 
 export const getManifestAudioFileNames = (
@@ -185,6 +295,59 @@ export const buildPreparedManifest = (
   };
 };
 
+export const buildPreparedIncompetechManifest = (
+  manifest: IncompetechBulkManifest,
+  uploadsBySha256: ReadonlyMap<string, ImportAudioUpload>
+): PreparedIncompetechManifestResult => {
+  const errors: string[] = [];
+
+  if (manifest.manifestVersion !== incompetechManifestVersion || manifest.source !== incompetechProviderKey) {
+    errors.push("Manifest must be a typed Incompetech CC BY 4.0 export.");
+  }
+  if (manifest.tracks.length !== incompetechExpectedTrackCount) {
+    errors.push(`Incompetech manifest must contain exactly ${incompetechExpectedTrackCount} tracks.`);
+  }
+
+  let uploadedTrackCount = 0;
+  for (const track of manifest.tracks) {
+    const expected = incompetechAudioExpectation(track);
+    if (!expected) {
+      errors.push(`Track ${track.title || track.externalId || "unknown"} is missing SHA-256 MP3 audio evidence.`);
+      continue;
+    }
+
+    const upload = uploadsBySha256.get(expected.sha256);
+    if (!upload) {
+      errors.push(`Missing upload for ${expected.fileName}.`);
+      continue;
+    }
+    if (upload.sha256.toLowerCase() !== expected.sha256 || upload.contentType !== "audio/mpeg") {
+      errors.push(`Uploaded audio evidence does not match ${expected.fileName}.`);
+      continue;
+    }
+
+    uploadedTrackCount += 1;
+  }
+
+  const validation = validateIncompetechManifest(manifest);
+  if (!validation.ok) {
+    errors.push(`Incompetech manifest rejected: ${validation.reason}.`);
+  }
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors
+    };
+  }
+
+  return {
+    ok: true,
+    manifest,
+    uploadedTrackCount
+  };
+};
+
 export const hasUnsavedImportSelection = (input: {
   readonly applied: boolean;
   readonly audioFileCount: number;
@@ -196,9 +359,11 @@ export const hasUnsavedImportSelection = (input: {
 export const summarizeImportCounts = (summary: {
   readonly accepted: number;
   readonly created: number;
+  readonly licenseSnapshotsAppended?: number;
+  readonly markedUnavailable?: number;
   readonly rejected: number;
   readonly received: number;
   readonly unchanged: number;
   readonly updated: number;
 }): string =>
-  `${summary.accepted}/${summary.received} accepted, ${summary.rejected} rejected, ${summary.created} create, ${summary.updated} update, ${summary.unchanged} unchanged`;
+  `${summary.accepted}/${summary.received} accepted, ${summary.rejected} rejected, ${summary.created} created, ${summary.updated} updated, ${summary.unchanged} unchanged, ${summary.markedUnavailable ?? 0} unavailable, ${summary.licenseSnapshotsAppended ?? 0} snapshots`;

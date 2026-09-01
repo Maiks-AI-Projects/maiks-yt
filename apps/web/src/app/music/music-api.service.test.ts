@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  dryRunIncompetechImport,
   createMusicRequest,
   fetchPublicMusicCatalog
 } from "./music-api.service";
 
-const stubWindow = (): void => {
+const stubWindow = (storedDevToken: string | null = null): void => {
   vi.stubGlobal("window", {
     localStorage: {
-      getItem: () => null,
+      getItem: () => storedDevToken,
       removeItem: () => undefined,
       setItem: () => undefined
     }
@@ -129,5 +130,41 @@ describe("public music API service", () => {
       },
       status: 429
     });
+  });
+
+  it("posts Incompetech imports with the signed-in browser session and no bearer token", async () => {
+    stubWindow("dev-token-that-must-not-be-used");
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({
+        ok: false,
+        reason: "not_authenticated"
+      }),
+      status: 401
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(dryRunIncompetechImport({
+      manifestVersion: "incompetech-ccby4.v1",
+      source: "incompetech",
+      generatedAt: "2026-09-01T00:00:00.000Z",
+      providerEvidence: [],
+      tracks: []
+    })).resolves.toEqual({
+      payload: {
+        ok: false,
+        reason: "not_authenticated"
+      },
+      status: 401
+    });
+
+    const firstCall = fetchMock.mock.calls[0] as unknown as [string, RequestInit] | undefined;
+    expect(firstCall).toBeDefined();
+    const [url, init] = firstCall ?? ["", {}];
+    expect(url).toContain("/admin/music/imports/incompetech/dry-run");
+    expect(init).toMatchObject({
+      credentials: "include",
+      method: "POST"
+    });
+    expect(Object.fromEntries(new Headers((init as RequestInit).headers))).not.toHaveProperty("authorization");
   });
 });
