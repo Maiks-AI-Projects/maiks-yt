@@ -679,15 +679,26 @@ describe("MusicService public catalog", () => {
       "storageRef",
       "sha256",
       "sourceUrl",
+      "directFileUrl",
       "licenseName",
       "licenseKind",
       "licenseUrl",
       "providerPolicyUrl",
-      "providerTermsUrl"
+      "providerTermsUrl",
+      "downloadedAt",
+      "genre",
+      "vocalsClass",
+      "proofUrl",
+      "proofStorageRef",
+      "itemPagePath",
+      "catalogRowPath",
+      "providerEvidence",
+      "licensePayload"
     ]) {
       expect(firstTrack).not.toHaveProperty(field);
       expect(JSON.stringify(result)).not.toContain(`"${field}"`);
     }
+    expect(JSON.stringify(result)).not.toContain("incompetech.com/music/royalty-free/mp3-royaltyfree");
   });
 
   it("builds deterministic distinct opaque references for exact track-source pairs", () => {
@@ -1671,7 +1682,21 @@ describe("Music routes", () => {
     expect(response.statusCode).toBe(200);
     expect(responseBody).toEqual({ ok: true, accepted: true });
     expect(Object.keys(responseBody).sort()).toEqual(["accepted", "ok"]);
-    for (const field of ["request", "id", "trackId", "sourceId", "status", "amsterdamDate", "createdAt"]) {
+    for (const field of [
+      "request",
+      "id",
+      "trackId",
+      "sourceId",
+      "status",
+      "amsterdamDate",
+      "createdAt",
+      "downloadedAt",
+      "genre",
+      "vocalsClass",
+      "proofUrl",
+      "proofStorageRef",
+      "licensePayload"
+    ]) {
       expect(responseBody).not.toHaveProperty(field);
       expect(response.body).not.toContain(`"${field}"`);
     }
@@ -1766,7 +1791,13 @@ describe("Music routes", () => {
       "licenseKind",
       "licenseUrl",
       "providerPolicyUrl",
-      "providerTermsUrl"
+      "providerTermsUrl",
+      "downloadedAt",
+      "genre",
+      "vocalsClass",
+      "proofUrl",
+      "proofStorageRef",
+      "licensePayload"
     ]) {
       expect(authenticatedBody.tracks[0]).not.toHaveProperty(field);
     }

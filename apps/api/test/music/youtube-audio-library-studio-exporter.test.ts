@@ -12,7 +12,35 @@ const loadExporterHelpers = async () =>
       licenseText?: string | null;
       sourceText?: string | null;
     }) => boolean;
+    buildManifestTrack: (input: {
+      row: {
+        text: string;
+        title?: string | null;
+        artist?: string | null;
+        genre?: string | null;
+        vocalsClass?: string | null;
+      };
+      evidence: {
+        dialogText?: string | null;
+        attributionText?: string | null;
+        licenseText?: string | null;
+        sourceText?: string | null;
+        sourceUrl?: string | null;
+        proofUrl?: string | null;
+        licenseUrl?: string | null;
+      };
+      download: {
+        fileName: string;
+        sha256: string;
+        downloadedAt: string;
+        url?: string | null;
+      };
+      studioUrl: string;
+    }) => Record<string, unknown> | null;
     extractStableExternalId: (urls: readonly (string | null | undefined)[], audioSha256: string) => string;
+    inferGenreFromRow: (row: { text: string; genre?: string | null }) => string | null;
+    inferVocalsClassFromRow: (row: { text: string; vocalsClass?: string | null }) => string;
+    normalizeManifestGenre: (value: string | null | undefined) => string | null;
     rowTextMatchesMetadata: (rowText: string | null, row: {
       text: string;
       title?: string | null;
@@ -102,5 +130,60 @@ describe("YouTube Audio Library Studio exporter helpers", () => {
       licenseText: "Creative Commons Attribution 4.0",
       sourceText: "Source: YouTube Studio Audio Library"
     })).toBe(false);
+  });
+
+  it("normalizes genre and requires explicit safe vocal classification", async () => {
+    const { buildManifestTrack, inferGenreFromRow, inferVocalsClassFromRow, normalizeManifestGenre } = await loadExporterHelpers();
+    const evidence = {
+      dialogText: "Clean Arc by Studio Artist",
+      attributionText: "Clean Arc by Studio Artist is licensed under CC BY 4.0.",
+      licenseText: "Creative Commons Attribution 4.0",
+      sourceText: "Source: YouTube Studio Audio Library",
+      sourceUrl: "https://artist.example.com/source/clean-arc",
+      proofUrl: "https://artist.example.com/source/clean-arc",
+      licenseUrl: "https://creativecommons.org/licenses/by/4.0/"
+    };
+    const download = {
+      fileName: "clean-arc.mp3",
+      sha256: "a".repeat(64),
+      downloadedAt: "2026-08-18T10:01:02.000Z"
+    };
+
+    expect(normalizeManifestGenre("  Electronic / Dance  ")).toBe("electronic / dance");
+    expect(inferGenreFromRow({ text: "Clean Arc\nGenre\nCinematic" })).toBe("cinematic");
+    expect(inferVocalsClassFromRow({ text: "Clean Arc\nInstrumental" })).toBe("none");
+    expect(inferVocalsClassFromRow({ text: "Clean Arc\nLead vocals" })).toBe("prominent");
+
+    expect(buildManifestTrack({
+      row: {
+        text: "Clean Arc\nStudio Artist\n2:00",
+        title: "Clean Arc",
+        artist: "Studio Artist",
+        genre: "Cinematic",
+        vocalsClass: "minimal"
+      },
+      evidence,
+      download,
+      studioUrl: "https://studio.youtube.com/channel/example/music"
+    })).toMatchObject({
+      title: "Clean Arc",
+      downloadedAt: "2026-08-18T10:01:02.000Z",
+      genre: "cinematic",
+      vocalsClass: "minimal",
+      liveSafe: true,
+      vodSafe: true
+    });
+    expect(buildManifestTrack({
+      row: {
+        text: "Clean Arc\nStudio Artist\n2:00",
+        title: "Clean Arc",
+        artist: "Studio Artist",
+        genre: "Cinematic",
+        vocalsClass: "unknown"
+      },
+      evidence,
+      download,
+      studioUrl: "https://studio.youtube.com/channel/example/music"
+    })).toBeNull();
   });
 });

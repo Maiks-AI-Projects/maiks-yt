@@ -2,12 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 
 import type { DatabasePool } from "@maiks-yt/database";
 import {
+  incompetechProviderKey,
   youtubeAudioLibraryProviderKey,
-  type YouTubeAudioLibraryValidatedTrack
+  type IncompetechValidatedTrack,
 } from "@maiks-yt/domain/music";
 
 import { bool, mapRows, parseStringArray, type QueryExecutor } from "./music-store-shared.service.js";
 import type {
+  MusicLibraryImportProvider,
+  MusicLibraryImportValidatedTrack,
   MusicYouTubeAudioLibraryImportApplyInput,
   MusicYouTubeAudioLibraryImportRepository,
   MusicYouTubeAudioLibraryImportState,
@@ -41,9 +44,27 @@ type ImportStateRow = {
   licensePayload?: unknown;
 };
 
-const providerDisplayName = "YouTube Audio Library CC BY";
-const providerPolicyUrl = "https://creativecommons.org/licenses/by/4.0/";
-const providerTermsUrl = "https://www.youtube.com/audiolibrary";
+export const youtubeAudioLibraryImportProvider: MusicLibraryImportProvider = {
+  providerKey: youtubeAudioLibraryProviderKey,
+  displayName: "YouTube Audio Library CC BY",
+  sourceLabel: "YouTube Audio Library",
+  policyUrl: "https://creativecommons.org/licenses/by/4.0/",
+  termsUrl: "https://www.youtube.com/audiolibrary",
+  notesPrivate: "Bulk managed from current owner-exported YouTube Studio Audio Library CC BY manifest.",
+  trackSlugPrefix: "youtube-audio-library",
+  trackNotesPrivate: "Managed by YouTube Audio Library bulk import."
+};
+
+export const incompetechImportProvider: MusicLibraryImportProvider = {
+  providerKey: incompetechProviderKey,
+  displayName: "Incompetech CC BY",
+  sourceLabel: "Incompetech",
+  policyUrl: "https://creativecommons.org/licenses/by/4.0/",
+  termsUrl: "https://incompetech.com/music/royalty-free/licenses/",
+  notesPrivate: "Bulk managed from accepted Incompetech CC BY 4.0 manifest.",
+  trackSlugPrefix: "incompetech",
+  trackNotesPrivate: "Managed by Incompetech CC BY 4.0 bulk import."
+};
 
 const emptySummary = (received = 0, accepted = 0, rejected = 0): MusicYouTubeAudioLibraryImportSummary => ({
   received,
@@ -65,12 +86,12 @@ const slugify = (value: string): string =>
     .slice(0, 120)
   || "track";
 
-const buildTrackSlug = (track: YouTubeAudioLibraryValidatedTrack): string => {
+const buildTrackSlug = (track: MusicLibraryImportValidatedTrack, provider: MusicLibraryImportProvider): string => {
   const hash = createHash("sha256").update(track.externalId).digest("hex").slice(0, 12);
-  return `youtube-audio-library-${slugify(track.externalId)}-${hash}`.slice(0, 191);
+  return `${provider.trackSlugPrefix}-${slugify(track.externalId)}-${hash}`.slice(0, 191);
 };
 
-const comparableForTrack = (track: YouTubeAudioLibraryValidatedTrack): string =>
+const comparableForTrack = (track: MusicLibraryImportValidatedTrack): string =>
   JSON.stringify({
     title: track.title,
     artist: track.artist,
@@ -128,7 +149,7 @@ const comparableForStateRow = (row: ImportStateRow): string | null => {
   });
 };
 
-const readProviderPolicyId = async (executor: QueryExecutor): Promise<string | null> => {
+const readProviderPolicyId = async (executor: QueryExecutor, providerKey: string): Promise<string | null> => {
   const [rows] = await executor.execute(
     `
       SELECT id
@@ -136,15 +157,19 @@ const readProviderPolicyId = async (executor: QueryExecutor): Promise<string | n
       WHERE provider_key = ?
       LIMIT 1
     `,
-    [youtubeAudioLibraryProviderKey]
+    [providerKey]
   );
   const row = Array.isArray(rows) ? rows[0] as { id?: string } | undefined : undefined;
 
   return row?.id ?? null;
 };
 
-const ensureProviderPolicy = async (executor: QueryExecutor, actorUserId: string): Promise<string> => {
-  const existingId = await readProviderPolicyId(executor);
+const ensureProviderPolicy = async (
+  executor: QueryExecutor,
+  actorUserId: string,
+  provider: MusicLibraryImportProvider
+): Promise<string> => {
+  const existingId = await readProviderPolicyId(executor, provider.providerKey);
 
   if (existingId) {
     await executor.execute(
@@ -154,7 +179,7 @@ const ensureProviderPolicy = async (executor: QueryExecutor, actorUserId: string
           policy_url = ?, terms_url = ?, updated_at = NOW()
         WHERE id = ?
       `,
-      [providerDisplayName, providerPolicyUrl, providerTermsUrl, existingId]
+      [provider.displayName, provider.policyUrl, provider.termsUrl, existingId]
     );
 
     return existingId;
@@ -172,11 +197,11 @@ const ensureProviderPolicy = async (executor: QueryExecutor, actorUserId: string
     `,
     [
       id,
-      youtubeAudioLibraryProviderKey,
-      providerDisplayName,
-      providerPolicyUrl,
-      providerTermsUrl,
-      "Bulk managed from current owner-exported YouTube Studio Audio Library CC BY manifest.",
+      provider.providerKey,
+      provider.displayName,
+      provider.policyUrl,
+      provider.termsUrl,
+      provider.notesPrivate,
       actorUserId
     ]
   );
@@ -184,7 +209,10 @@ const ensureProviderPolicy = async (executor: QueryExecutor, actorUserId: string
   return id;
 };
 
-const readImportState = async (executor: QueryExecutor): Promise<MusicYouTubeAudioLibraryImportState> => {
+const readImportState = async (
+  executor: QueryExecutor,
+  providerKey: string
+): Promise<MusicYouTubeAudioLibraryImportState> => {
   const [rows] = await executor.execute(
     `
       SELECT
@@ -227,11 +255,11 @@ const readImportState = async (executor: QueryExecutor): Promise<MusicYouTubeAud
         AND sources.source_external_id IS NOT NULL
       ORDER BY sources.created_at
     `,
-    [youtubeAudioLibraryProviderKey]
+    [providerKey]
   );
 
   return {
-    providerPolicyId: await readProviderPolicyId(executor),
+    providerPolicyId: await readProviderPolicyId(executor, providerKey),
     sources: mapRows<ImportStateRow, MusicYouTubeAudioLibraryImportState["sources"][number]>(rows, (row) => ({
       sourceId: row.sourceId,
       trackId: row.trackId,
@@ -261,10 +289,15 @@ const readImportState = async (executor: QueryExecutor): Promise<MusicYouTubeAud
 const insertTrack = async (
   executor: QueryExecutor,
   input: {
-    track: YouTubeAudioLibraryValidatedTrack;
+    track: MusicLibraryImportValidatedTrack;
+    provider: MusicLibraryImportProvider;
     actorUserId: string;
   }
 ): Promise<string> => {
+  const isrc = "isrc" in input.track && typeof (input.track as IncompetechValidatedTrack).isrc === "string"
+    ? (input.track as IncompetechValidatedTrack).isrc
+    : null;
+
   const id = randomUUID();
   await executor.execute(
     `
@@ -272,19 +305,20 @@ const insertTrack = async (
         (id, slug, title, artist, album, duration_seconds, isrc, normalized_title_artist_key,
           rights_state, review_state, live_safe, vod_safe, explicit_content, instrumental,
           safety_tags, notes_private, created_by_user_id, updated_by_user_id)
-      VALUES (?, ?, ?, ?, NULL, ?, NULL, ?, 'eligible', 'unreviewed', TRUE, TRUE, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 'eligible', 'unreviewed', TRUE, TRUE, ?, ?, ?, ?, ?, ?)
     `,
     [
       id,
-      buildTrackSlug(input.track),
+      buildTrackSlug(input.track, input.provider),
       input.track.title,
       input.track.artist,
       input.track.durationSeconds,
+      isrc,
       `${input.track.title.toLowerCase()}::${input.track.artist.toLowerCase()}`.slice(0, 191),
       input.track.explicitContent,
       input.track.instrumental,
       JSON.stringify(input.track.safetyTags),
-      "Managed by YouTube Audio Library bulk import.",
+      input.provider.trackNotesPrivate,
       input.actorUserId,
       input.actorUserId
     ]
@@ -297,24 +331,30 @@ const updateTrack = async (
   executor: QueryExecutor,
   input: {
     trackId: string;
-    track: YouTubeAudioLibraryValidatedTrack;
+    track: MusicLibraryImportValidatedTrack;
+    provider: MusicLibraryImportProvider;
     actorUserId: string;
   }
 ): Promise<void> => {
+  const isrc = "isrc" in input.track && typeof (input.track as IncompetechValidatedTrack).isrc === "string"
+    ? (input.track as IncompetechValidatedTrack).isrc
+    : null;
+
   await executor.execute(
     `
       UPDATE music_tracks
-      SET slug = ?, title = ?, artist = ?, duration_seconds = ?,
+      SET slug = ?, title = ?, artist = ?, duration_seconds = ?, isrc = ?,
         normalized_title_artist_key = ?, rights_state = 'eligible', live_safe = TRUE,
         vod_safe = TRUE, explicit_content = ?, instrumental = ?, safety_tags = ?,
         updated_by_user_id = ?, updated_at = NOW()
       WHERE id = ?
     `,
     [
-      buildTrackSlug(input.track),
+      buildTrackSlug(input.track, input.provider),
       input.track.title,
       input.track.artist,
       input.track.durationSeconds,
+      isrc,
       `${input.track.title.toLowerCase()}::${input.track.artist.toLowerCase()}`.slice(0, 191),
       input.track.explicitContent,
       input.track.instrumental,
@@ -326,13 +366,14 @@ const updateTrack = async (
 };
 
 const sourceValues = (
-  track: YouTubeAudioLibraryValidatedTrack,
-  providerPolicyId: string
+  track: MusicLibraryImportValidatedTrack,
+  providerPolicyId: string,
+  provider: MusicLibraryImportProvider
 ) => ({
   providerPolicyId,
-  providerKey: youtubeAudioLibraryProviderKey,
+  providerKey: provider.providerKey,
   sourceType: track.audio.sourceType,
-  sourceLabel: "YouTube Audio Library",
+  sourceLabel: provider.sourceLabel,
   sourceExternalId: track.externalId,
   sourceUrl: null,
   storageRef: track.audio.storageRef,
@@ -347,11 +388,12 @@ const insertSource = async (
   input: {
     trackId: string;
     providerPolicyId: string;
-    track: YouTubeAudioLibraryValidatedTrack;
+    provider: MusicLibraryImportProvider;
+    track: MusicLibraryImportValidatedTrack;
   }
 ): Promise<string> => {
   const id = randomUUID();
-  const values = sourceValues(input.track, input.providerPolicyId);
+  const values = sourceValues(input.track, input.providerPolicyId, input.provider);
 
   await executor.execute(
     `
@@ -387,10 +429,11 @@ const updateSource = async (
   input: {
     sourceId: string;
     providerPolicyId: string;
-    track: YouTubeAudioLibraryValidatedTrack;
+    provider: MusicLibraryImportProvider;
+    track: MusicLibraryImportValidatedTrack;
   }
 ): Promise<void> => {
-  const values = sourceValues(input.track, input.providerPolicyId);
+  const values = sourceValues(input.track, input.providerPolicyId, input.provider);
 
   await executor.execute(
     `
@@ -425,7 +468,7 @@ const insertLicenseSnapshot = async (
     trackId: string;
     sourceId: string;
     providerPolicyId: string;
-    track: YouTubeAudioLibraryValidatedTrack;
+    track: MusicLibraryImportValidatedTrack;
     actorUserId: string;
   }
 ): Promise<void> => {
@@ -456,18 +499,19 @@ const insertLicenseSnapshot = async (
 export const createMusicYouTubeAudioLibraryImportRepository = (
   pool: DatabasePool
 ): MusicYouTubeAudioLibraryImportRepository => ({
-  async getImportState() {
-    return await readImportState(pool);
+  async getImportState(input = {}) {
+    return await readImportState(pool, input.providerKey ?? youtubeAudioLibraryProviderKey);
   },
 
   async applyImport(input: MusicYouTubeAudioLibraryImportApplyInput) {
     const connection = await pool.getConnection();
+    const provider = input.provider ?? youtubeAudioLibraryImportProvider;
     const summary = emptySummary(input.manifest.tracks.length, input.tracks.length, 0);
 
     try {
       await connection.beginTransaction();
-      const providerPolicyId = await ensureProviderPolicy(connection, input.actorUserId);
-      const state = await readImportState(connection);
+      const providerPolicyId = await ensureProviderPolicy(connection, input.actorUserId, provider);
+      const state = await readImportState(connection, provider.providerKey);
       const existingByExternalId = new Map(state.sources.map((source) => [source.externalId.toLowerCase(), source]));
       const acceptedExternalIds = new Set(input.tracks.map((track) => track.externalId.toLowerCase()));
 
@@ -478,11 +522,13 @@ export const createMusicYouTubeAudioLibraryImportRepository = (
         if (!existing) {
           const trackId = await insertTrack(connection, {
             track,
+            provider,
             actorUserId: input.actorUserId
           });
           const sourceId = await insertSource(connection, {
             trackId,
             providerPolicyId,
+            provider,
             track
           });
           await insertLicenseSnapshot(connection, {
@@ -500,11 +546,13 @@ export const createMusicYouTubeAudioLibraryImportRepository = (
         await updateTrack(connection, {
           trackId: existing.trackId,
           track,
+          provider,
           actorUserId: input.actorUserId
         });
         await updateSource(connection, {
           sourceId: existing.sourceId,
           providerPolicyId,
+          provider,
           track
         });
 

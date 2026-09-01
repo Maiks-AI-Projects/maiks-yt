@@ -1,8 +1,34 @@
 import type {
+  IncompetechBulkManifest,
+  IncompetechRejectedTrack,
+  IncompetechValidatedTrack,
   YouTubeAudioLibraryBulkManifest,
   YouTubeAudioLibraryRejectedTrack,
   YouTubeAudioLibraryValidatedTrack
 } from "@maiks-yt/domain/music";
+
+export type MusicLibraryImportProvider = {
+  providerKey: string;
+  displayName: string;
+  sourceLabel: string;
+  policyUrl: string;
+  termsUrl: string;
+  notesPrivate: string;
+  trackSlugPrefix: string;
+  trackNotesPrivate: string;
+};
+
+export type MusicLibraryImportManifest =
+  | YouTubeAudioLibraryBulkManifest
+  | (IncompetechBulkManifest & { refreshMode: "full" });
+
+export type MusicLibraryImportValidatedTrack =
+  | YouTubeAudioLibraryValidatedTrack
+  | IncompetechValidatedTrack;
+
+export type MusicLibraryImportRejectedTrack =
+  | YouTubeAudioLibraryRejectedTrack
+  | IncompetechRejectedTrack;
 
 export type MusicYouTubeAudioLibraryImportAction =
   | "create"
@@ -34,7 +60,7 @@ export type MusicYouTubeAudioLibraryImportResult = {
   mode: "dry-run" | "apply";
   summary: MusicYouTubeAudioLibraryImportSummary;
   items: readonly MusicYouTubeAudioLibraryImportItem[];
-  rejectedTracks: readonly YouTubeAudioLibraryRejectedTrack[];
+  rejectedTracks: readonly MusicLibraryImportRejectedTrack[];
 };
 
 export type MusicYouTubeAudioLibraryImportFailure = {
@@ -78,12 +104,13 @@ export type MusicYouTubeAudioLibraryImportState = {
 
 export type MusicYouTubeAudioLibraryImportApplyInput = {
   actorUserId: string;
-  manifest: YouTubeAudioLibraryBulkManifest;
-  tracks: readonly YouTubeAudioLibraryValidatedTrack[];
+  provider?: MusicLibraryImportProvider;
+  manifest: MusicLibraryImportManifest;
+  tracks: readonly MusicLibraryImportValidatedTrack[];
 };
 
 export type MusicYouTubeAudioLibraryImportRepository = {
-  getImportState(): Promise<MusicYouTubeAudioLibraryImportState>;
+  getImportState(input?: { providerKey?: string }): Promise<MusicYouTubeAudioLibraryImportState>;
   applyImport(input: MusicYouTubeAudioLibraryImportApplyInput): Promise<MusicYouTubeAudioLibraryImportSummary>;
 };
 

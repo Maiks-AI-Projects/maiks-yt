@@ -119,6 +119,63 @@ const durationSecondsFromText = (value) => {
   return (hours * 3600) + (minutes * 60) + seconds;
 };
 
+export const normalizeManifestGenre = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9 &/-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+
+  return normalized.length > 0 ? normalized : null;
+};
+
+const valueAfterLabel = (text, label) => {
+  const lines = text.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
+  const labelPattern = new RegExp(`^${label}\\s*:?\\s*(.+)$`, "iu");
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const inline = labelPattern.exec(line);
+    if (inline?.[1]?.trim()) {
+      return inline[1].trim();
+    }
+    if (line && new RegExp(`^${label}$`, "iu").test(line) && lines[index + 1]) {
+      return lines[index + 1];
+    }
+  }
+
+  return null;
+};
+
+export const inferGenreFromRow = (row) =>
+  normalizeManifestGenre(row.genre ?? valueAfterLabel(row.text ?? "", "genre"));
+
+export const inferVocalsClassFromRow = (row) => {
+  const explicit = typeof row.vocalsClass === "string" ? row.vocalsClass.trim().toLowerCase() : "";
+  if (["none", "minimal", "prominent", "unknown"].includes(explicit)) {
+    return explicit;
+  }
+
+  const text = `${row.vocalsText ?? ""}\n${row.text ?? ""}`.toLowerCase();
+  if (/\b(instrumental|no vocals|without vocals)\b/u.test(text)) {
+    return "none";
+  }
+  if (/\b(minimal vocals|sparse vocals|light vocals|vocal chops)\b/u.test(text)) {
+    return "minimal";
+  }
+  if (/\b(prominent vocals|lead vocals|vocal)\b/u.test(text)) {
+    return "prominent";
+  }
+
+  return "unknown";
+};
+
 const extractRowsFromDom = (input) => {
   const { selectorList, runId, markerAttribute } = input;
   const getTextForSelectors = (root, selectorListForText) => {
@@ -320,6 +377,7 @@ const downloadRowAudio = async (page, rowLocator, row, outputAudioDir, fallbackN
     fileName: suggested,
     filePath,
     sha256,
+    downloadedAt: new Date().toISOString(),
     url: typeof download.url === "function" ? download.url() : null
   };
 };
@@ -398,11 +456,18 @@ const readRowLicenseDialogEvidence = async (page, rowLocator) => {
   return evidence;
 };
 
-const buildManifestTrack = ({ row, evidence, download, studioUrl }) => {
+export const buildManifestTrack = ({ row, evidence, download, studioUrl }) => {
   const { title, artist } = inferTitleArtist(row);
+  const genre = inferGenreFromRow(row);
+  const vocalsClass = inferVocalsClassFromRow(row);
+  const durationSeconds = durationSecondsFromText(row.text);
   if (!title
     || !download
+    || !download.downloadedAt
     || !studioUrl
+    || !durationSeconds
+    || !genre
+    || (vocalsClass !== "none" && vocalsClass !== "minimal")
     || !evidence?.attributionText
     || !evidence.licenseText
     || !evidence.sourceText
@@ -420,7 +485,12 @@ const buildManifestTrack = ({ row, evidence, download, studioUrl }) => {
     externalId,
     title,
     artist,
-    durationSeconds: durationSecondsFromText(row.text),
+    durationSeconds,
+    downloadedAt: new Date(download.downloadedAt).toISOString(),
+    genre,
+    vocalsClass,
+    liveSafe: true,
+    vodSafe: true,
     licenseName: "Creative Commons Attribution 4.0",
     licenseUrl: evidence.licenseUrl ?? ccBy4Url,
     attributionRequired: true,
@@ -441,6 +511,7 @@ const buildManifestTrack = ({ row, evidence, download, studioUrl }) => {
       sourceUrl: evidence.sourceUrl,
       proofUrl: evidence.proofUrl
     },
+    genres: [genre],
     tags: ["youtube-audio-library", "cc-by-4.0", "studio-ui-export"],
     fileName: download.fileName
   };

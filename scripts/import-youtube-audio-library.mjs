@@ -5,6 +5,10 @@ import path from "node:path";
 
 const apiBaseUrl = process.env.MAIKS_API_BASE_URL ?? "http://localhost:3001";
 const manifestVersion = "youtube-audio-library.v1";
+const ccBy4Url = "https://creativecommons.org/licenses/by/4.0/";
+const sha256Pattern = /^[a-f0-9]{64}$/u;
+const musicAudioStorageRefPattern = /^music-audio:([a-f0-9]{64}):[A-Za-z0-9._:-]+$/u;
+const safeVocalsClasses = new Set(["none", "minimal"]);
 
 const usage = `
 Usage:
@@ -159,6 +163,102 @@ const parseDurationSeconds = (value) => {
   return parts.reduce((total, part) => (total * 60) + part, 0);
 };
 
+const normalizeGenre = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9 &/-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+
+  return normalized.length > 0 ? normalized : null;
+};
+
+const safeHttpUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
+const assertCompletePreparedTrack = (track, index) => {
+  const label = `track[${index}] ${track?.externalId ?? "<missing externalId>"}`;
+  const audio = track?.audio;
+  const sha256 = typeof audio?.sha256 === "string" ? audio.sha256.trim().toLowerCase() : null;
+  const storageRef = typeof audio?.storageRef === "string" ? audio.storageRef.trim() : null;
+  const storageRefMatch = storageRef ? musicAudioStorageRefPattern.exec(storageRef) : null;
+  const genre = normalizeGenre(track?.genre);
+  const vocalsClass = typeof track?.vocalsClass === "string" ? track.vocalsClass.trim().toLowerCase() : "";
+  const downloadedAt = typeof track?.downloadedAt === "string" ? Date.parse(track.downloadedAt) : Number.NaN;
+  const proofUrl = safeHttpUrl(track?.proof?.url);
+  const studioEvidence = track?.studioEvidence;
+  const studioProofUrl = safeHttpUrl(studioEvidence?.proofUrl);
+  const studioSourceUrl = safeHttpUrl(studioEvidence?.sourceUrl);
+
+  if (!track?.externalId || !track.title || !track.artist) {
+    throw new Error(`${label} is missing title, artist, or externalId.`);
+  }
+  if (!Number.isInteger(track.durationSeconds) || track.durationSeconds <= 0) {
+    throw new Error(`${label} is missing positive durationSeconds.`);
+  }
+  if (!Number.isFinite(downloadedAt)) {
+    throw new Error(`${label} is missing downloadedAt.`);
+  }
+  if (!genre || genre !== track.genre) {
+    throw new Error(`${label} must carry a normalized genre.`);
+  }
+  if (!safeVocalsClasses.has(vocalsClass)) {
+    throw new Error(`${label} must carry vocalsClass none or minimal.`);
+  }
+  if (track.liveSafe !== true || track.vodSafe !== true) {
+    throw new Error(`${label} must be liveSafe and vodSafe.`);
+  }
+  if (!track.attributionRequired || typeof track.attributionText !== "string" || !track.attributionText.trim()) {
+    throw new Error(`${label} is missing required attribution.`);
+  }
+  if (!(typeof track.licenseName === "string" && track.licenseName.toLowerCase().includes("creative commons"))
+    || !(typeof track.licenseUrl === "string" && track.licenseUrl.toLowerCase().startsWith(ccBy4Url))) {
+    throw new Error(`${label} must have item-scoped CC BY 4.0 license evidence.`);
+  }
+  if (!proofUrl || !studioEvidence?.dialogText || !studioEvidence.attributionText || !studioEvidence.licenseText
+    || !studioEvidence.sourceText || !studioProofUrl || !studioSourceUrl || proofUrl !== studioProofUrl) {
+    throw new Error(`${label} is missing item-scoped proof evidence.`);
+  }
+  if (!sha256 || !sha256Pattern.test(sha256) || !storageRefMatch || storageRefMatch[1] !== sha256) {
+    throw new Error(`${label} must have deterministic SHA-addressed storageRef.`);
+  }
+  if (typeof audio?.mimeType !== "string" || !audio.mimeType.toLowerCase().startsWith("audio/")) {
+    throw new Error(`${label} is missing audio MIME evidence.`);
+  }
+};
+
+const assertCompletePreparedManifest = (manifest) => {
+  if (manifest?.manifestVersion !== manifestVersion || manifest.source !== "youtube-studio" || !Array.isArray(manifest.tracks)) {
+    throw new Error("Manifest must be a YouTube Audio Library typed manifest.");
+  }
+
+  const seenSha256 = new Set();
+  for (const [index, track] of manifest.tracks.entries()) {
+    assertCompletePreparedTrack(track, index);
+    const sha256 = track.audio.sha256.trim().toLowerCase();
+    if (seenSha256.has(sha256)) {
+      throw new Error(`Duplicate audio content rejected for sha256 ${sha256}.`);
+    }
+    seenSha256.add(sha256);
+  }
+};
+
 const mimeTypeForFile = (filename) => {
   const extension = path.extname(filename).toLowerCase();
 
@@ -201,6 +301,11 @@ const toTypedTrack = (row) => {
     title,
     artist,
     durationSeconds: parseDurationSeconds(getAny(row, ["duration", "length", "duration seconds", "durationSeconds"])),
+    downloadedAt: getAny(row, ["downloaded at", "downloadedAt", "download timestamp", "downloaded timestamp"]),
+    genre: normalizeGenre(getAny(row, ["genre", "genres"])),
+    vocalsClass: getAny(row, ["vocals class", "vocalsClass", "vocals", "vocal class"])?.toLowerCase() ?? "unknown",
+    liveSafe: parseBoolean(getAny(row, ["live safe", "liveSafe"]), false),
+    vodSafe: parseBoolean(getAny(row, ["vod safe", "vodSafe"]), false),
     licenseName,
     licenseUrl: getAny(row, ["license url", "licenseUrl"]) ?? "https://creativecommons.org/licenses/by/4.0/",
     attributionRequired,
@@ -379,6 +484,7 @@ const main = async () => {
 
   const inputManifest = await readInputManifest(args.manifest, args.refreshMode);
   const manifest = await attachUploads(inputManifest, args.audioDir, baseUrl, token, args.upload);
+  assertCompletePreparedManifest(manifest);
   const endpoint = args.apply
     ? "/admin/music/imports/youtube-audio-library/apply"
     : "/admin/music/imports/youtube-audio-library/dry-run";

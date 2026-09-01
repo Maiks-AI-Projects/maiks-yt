@@ -1,6 +1,7 @@
 import {
   youtubeAudioLibraryManifestVersion,
   youtubeAudioLibraryMaxManifestTracks,
+  youtubeAudioLibraryVocalsClasses,
   type YouTubeAudioLibraryBulkManifest,
   type YouTubeAudioLibraryManifestAudio,
   type YouTubeAudioLibraryManifestProof,
@@ -27,6 +28,31 @@ const textArray = (value: unknown): readonly string[] =>
   Array.isArray(value)
     ? value.flatMap((item) => typeof item === "string" && item.trim() ? [item.trim().slice(0, 80)] : [])
     : [];
+
+const normalizeGenre = (value: unknown): string | null => {
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9 &/-]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .slice(0, 80);
+
+  return normalized.length > 0 ? normalized : null;
+};
+
+const isVocalsClass = (value: unknown): value is YouTubeAudioLibraryManifestTrack["vocalsClass"] =>
+  typeof value === "string"
+    && (youtubeAudioLibraryVocalsClasses as readonly string[]).includes(value);
+
+const isSafeUniversalVocalsClass = (
+  value: YouTubeAudioLibraryManifestTrack["vocalsClass"]
+): value is YouTubeAudioLibraryValidatedTrack["vocalsClass"] =>
+  value === "none" || value === "minimal";
 
 const safeHttpUrl = (value: unknown): string | null => {
   if (typeof value !== "string" || !value.trim()) {
@@ -124,20 +150,39 @@ const normalizeManifestTrack = (value: unknown): YouTubeAudioLibraryManifestTrac
   const title = text(value.title, 191);
   const artist = text(value.artist, 191);
   const licenseName = text(value.licenseName, 191);
-
-  if (!externalId || !title || !artist || !licenseName || typeof value.attributionRequired !== "boolean") {
-    return null;
-  }
-
   const durationSeconds = typeof value.durationSeconds === "number" && Number.isInteger(value.durationSeconds) && value.durationSeconds > 0
     ? value.durationSeconds
     : null;
+  const downloadedAt = typeof value.downloadedAt === "string" && Number.isFinite(Date.parse(value.downloadedAt))
+    ? new Date(value.downloadedAt).toISOString()
+    : null;
+  const genre = normalizeGenre(value.genre);
+  const vocalsClass = isVocalsClass(value.vocalsClass) ? value.vocalsClass : null;
+
+  if (!externalId
+    || !title
+    || !artist
+    || !licenseName
+    || !durationSeconds
+    || !downloadedAt
+    || !genre
+    || !vocalsClass
+    || typeof value.attributionRequired !== "boolean"
+    || typeof value.liveSafe !== "boolean"
+    || typeof value.vodSafe !== "boolean") {
+    return null;
+  }
 
   return {
     externalId,
     title,
     artist,
     durationSeconds,
+    downloadedAt,
+    genre,
+    vocalsClass,
+    liveSafe: value.liveSafe,
+    vodSafe: value.vodSafe,
     licenseName,
     licenseUrl: text(value.licenseUrl, 1024),
     attributionRequired: value.attributionRequired,
@@ -196,6 +241,7 @@ const buildSafetyTags = (track: YouTubeAudioLibraryManifestTrack): readonly stri
   const values = [
     "youtube-audio-library",
     "cc-by-4.0",
+    track.genre,
     ...textArray(track.genres),
     ...textArray(track.moods),
     ...textArray(track.tags)
@@ -220,6 +266,10 @@ const validateTrack = (
 
   if (!track.attributionRequired || !looksLikeCcBy4(track.licenseName, licenseUrl)) {
     return rejectTrack(index, track, "not_cc_by_4");
+  }
+
+  if (!track.liveSafe || !track.vodSafe || !isSafeUniversalVocalsClass(track.vocalsClass)) {
+    return rejectTrack(index, track, "invalid_required_field");
   }
 
   if (!track.attributionText?.trim()) {
@@ -267,7 +317,12 @@ const validateTrack = (
     externalId: track.externalId,
     title: track.title,
     artist: track.artist,
-    durationSeconds: track.durationSeconds ?? null,
+    durationSeconds: track.durationSeconds,
+    downloadedAt: track.downloadedAt,
+    genre: track.genre,
+    vocalsClass: track.vocalsClass,
+    liveSafe: true,
+    vodSafe: true,
     licenseName: "Creative Commons Attribution 4.0",
     licenseUrl,
     attributionText: track.attributionText.trim(),
@@ -281,6 +336,11 @@ const validateTrack = (
       manifestVersion: youtubeAudioLibraryManifestVersion,
       source: "youtube-studio",
       externalId: track.externalId,
+      downloadedAt: track.downloadedAt,
+      genre: track.genre,
+      vocalsClass: track.vocalsClass,
+      liveSafe: true,
+      vodSafe: true,
       licenseName: track.licenseName,
       licenseUrl,
       attributionRequired: track.attributionRequired,

@@ -6,13 +6,18 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { DatabasePool } from "@maiks-yt/database";
 import {
+  incompetechManifestVersion,
+  incompetechProviderKey,
+  validateIncompetechManifest,
+  validateYouTubeAudioLibraryManifest,
   youtubeAudioLibraryManifestVersion,
+  type IncompetechValidatedTrack,
   type YouTubeAudioLibraryValidatedTrack
 } from "@maiks-yt/domain/music";
 
 import { registerMusicRoutes } from "../../src/music/music.route.js";
-import { createMusicYouTubeAudioLibraryImportRepository } from "../../src/music/music-youtube-audio-library-import-store.service.js";
-import { MusicYouTubeAudioLibraryImportService } from "../../src/music/music-youtube-audio-library-import.service.js";
+import { createMusicYouTubeAudioLibraryImportRepository, incompetechImportProvider } from "../../src/music/music-youtube-audio-library-import-store.service.js";
+import { MusicIncompetechImportService, MusicYouTubeAudioLibraryImportService } from "../../src/music/music-youtube-audio-library-import.service.js";
 import type {
   MusicYouTubeAudioLibraryImportApplyInput,
   MusicYouTubeAudioLibraryImportRepository,
@@ -25,6 +30,11 @@ const validManifestTrack = (overrides: Record<string, unknown> = {}) => ({
   title: "Clean Arc",
   artist: "Studio Artist",
   durationSeconds: 120,
+  downloadedAt: "2026-08-18T09:58:00.000Z",
+  genre: "Cinematic",
+  vocalsClass: "none",
+  liveSafe: true,
+  vodSafe: true,
   licenseName: "Creative Commons Attribution 4.0",
   licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
   attributionRequired: true,
@@ -70,6 +80,99 @@ const validManifest = (tracks: readonly Record<string, unknown>[], overrides: Re
   exportedAt: "2026-08-18T10:00:00.000Z",
   exportCompleteness: fullExportCompleteness(tracks.length),
   tracks,
+  ...overrides
+});
+
+const incompetechSha = (index: number): string => (index + 1).toString(16).padStart(64, "0");
+const testIncompetechGenres = ["contemporary", "electronica", "jazz", "soundtrack", "world"] as const;
+
+const validIncompetechTrack = (index: number, overrides: Record<string, unknown> = {}) => {
+  const genre = testIncompetechGenres[Math.floor(index / 4)] ?? "world";
+  const sha256 = incompetechSha(index);
+  const isrc = `USUAN2300${index.toString().padStart(3, "0")}`;
+
+  return {
+    artist: "Kevin MacLeod",
+    attributionRequired: true,
+    attributionText: `"Track ${index}" Kevin MacLeod (incompetech.com)\nLicensed under Creative Commons: By Attribution 4.0 License\nhttp://creativecommons.org/licenses/by/4.0/`,
+    audio: {
+      bitrate: 256000,
+      codec: "mp3",
+      format: "mp3",
+      getContentType: "application/octet-stream",
+      headContentType: "application/octet-stream",
+      headStatus: 200,
+      mimeType: "audio/mpeg",
+      path: `/home/michael/Documents/Codex/2026-09-01/maiks-music-acquisition/outputs/incompetech/library/${genre}/${sha256}.mp3`,
+      sha256,
+      storageRef: `music-audio:${sha256}:incompetech/${genre}/${sha256}.mp3`
+    },
+    catalogDurationSeconds: 151,
+    catalogUrl: "https://incompetech.com/music/royalty-free/music.html",
+    classificationEvidence: "Official catalog instruments include only instrumental metadata. No vocals signal under the staging gate.",
+    commercialAllowed: true,
+    description: "Catalog description.",
+    directFileUrl: `https://incompetech.com/music/royalty-free/mp3-royaltyfree/Track%20${index}.mp3`,
+    downloadedAt: "2026-09-01T02:46:00.108Z",
+    durationSeconds: 151.458,
+    externalId: isrc,
+    instruments: "Piano",
+    isrc,
+    licenseName: "Creative Commons Attribution 4.0",
+    licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
+    liveSafe: true,
+    moods: ["Calm"],
+    normalizedGenre: genre,
+    officialCatalogJsonUrl: "https://incompetech.com/music/royalty-free/pieces.json",
+    proof: {
+      accessedAt: "2026-09-01T02:46:03.288Z",
+      catalogRowPath: `/home/michael/Documents/Codex/2026-09-01/maiks-music-acquisition/outputs/incompetech/evidence/items/${isrc}/catalog-row.json`,
+      catalogRowSha256: "a".repeat(64),
+      contentIdCaveat: "Incompetech Content ID evidence is preserved for disputes.",
+      itemPagePath: `/home/michael/Documents/Codex/2026-09-01/maiks-music-acquisition/outputs/incompetech/evidence/items/${isrc}/item-page.html`,
+      itemPageSha256: "b".repeat(64),
+      provider: "Incompetech",
+      providerEvidenceManifest: "/home/michael/Documents/Codex/2026-09-01/maiks-music-acquisition/outputs/incompetech/evidence/provider/snapshots-manifest.json",
+      providerSnapshotSha256: "c".repeat(64),
+      url: `https://incompetech.com/music/royalty-free/index.html?isrc=${isrc}`
+    },
+    qualityUseCaseNote: "Fits transitions.",
+    rightsStatus: "universal-safe",
+    sourceGenre: genre,
+    sourceUrl: `https://incompetech.com/music/royalty-free/index.html?isrc=${isrc}`,
+    studioEvidence: null,
+    title: `Track ${index}`,
+    vocalsClass: "none",
+    vodSafe: true,
+    ...overrides
+  };
+};
+
+const validIncompetechManifest = (
+  overrides: Record<string, unknown> = {},
+  trackOverrides: (index: number) => Record<string, unknown> = () => ({})
+) => ({
+  manifestVersion: incompetechManifestVersion,
+  source: incompetechProviderKey,
+  sourceClass: "official-provider-manifest",
+  generatedAt: "2026-09-01T03:00:00.000Z",
+  providerEvidence: [{
+    label: "Catalog JSON",
+    path: "/home/michael/Documents/Codex/2026-09-01/maiks-music-acquisition/outputs/incompetech/evidence/provider/pieces_json.json",
+    sha256: "c".repeat(64),
+    url: "https://incompetech.com/music/royalty-free/pieces.json"
+  }, {
+    label: "License",
+    path: "/home/michael/Documents/Codex/2026-09-01/maiks-music-acquisition/outputs/incompetech/evidence/provider/license.html",
+    sha256: "d".repeat(64),
+    url: "https://incompetech.com/music/royalty-free/licenses/"
+  }, {
+    label: "Content ID",
+    path: "/home/michael/Documents/Codex/2026-09-01/maiks-music-acquisition/outputs/incompetech/evidence/provider/content_id.html",
+    sha256: "e".repeat(64),
+    url: "https://incompetech.com/music/royalty-free/youtube-contentid.html"
+  }],
+  tracks: Array.from({ length: 20 }, (_, index) => validIncompetechTrack(index, trackOverrides(index))),
   ...overrides
 });
 
@@ -125,18 +228,73 @@ const createService = (
     })
   }, repository, audioVerifier, now);
 
-const comparableLicensePayload = (track: Record<string, unknown>) => ({
-  manifestVersion: youtubeAudioLibraryManifestVersion,
-  source: "youtube-studio",
-  externalId: track.externalId,
-  licenseName: track.licenseName,
-  licenseUrl: track.licenseUrl,
-  attributionRequired: track.attributionRequired,
-  attributionText: track.attributionText,
-  proofUrl: (track.proof as { url?: string }).url,
-  proofStorageRef: null,
-  studioEvidence: track.studioEvidence
-});
+const createIncompetechService = (
+  repository: FakeImportRepository,
+  audioVerifier = {
+    verify: async () => ({
+      ok: true as const,
+      contentType: "audio/mpeg"
+    })
+  }
+) =>
+  new MusicIncompetechImportService({
+    resolveActor: async () => ({
+      domainUserId: "domain-user",
+      rolePermissionValues: [JSON.stringify(["music:manage"])]
+    })
+  }, repository, audioVerifier);
+
+const validatedTrack = (track: Record<string, unknown>): YouTubeAudioLibraryValidatedTrack => {
+  const validation = validateYouTubeAudioLibraryManifest(validManifest([track]));
+
+  if (!validation.ok || !validation.tracks[0]) {
+    throw new Error("Expected a valid YouTube Audio Library test track.");
+  }
+
+  return validation.tracks[0];
+};
+
+const comparableValidatedTrack = (track: YouTubeAudioLibraryValidatedTrack): string =>
+  JSON.stringify({
+    title: track.title,
+    artist: track.artist,
+    durationSeconds: track.durationSeconds,
+    sourceType: track.audio.sourceType,
+    sourceUrl: null,
+    storageRef: track.audio.storageRef,
+    sha256: track.audio.sha256,
+    mimeType: track.audio.mimeType,
+    attributionText: track.attributionText,
+    safetyTags: track.safetyTags,
+    explicitContent: track.explicitContent,
+    instrumental: track.instrumental,
+    licenseName: track.licenseName,
+    licenseUrl: track.licenseUrl,
+    proofUrl: track.proofUrl,
+    proofStorageRef: track.proofStorageRef,
+    licensePayload: track.licensePayload
+  });
+
+const comparableValidatedIncompetechTrack = (track: IncompetechValidatedTrack): string =>
+  JSON.stringify({
+    title: track.title,
+    artist: track.artist,
+    durationSeconds: track.durationSeconds,
+    sourceType: track.audio.sourceType,
+    sourceUrl: null,
+    storageRef: track.audio.storageRef,
+    sha256: track.audio.sha256,
+    mimeType: track.audio.mimeType,
+    attributionText: track.attributionText,
+    safetyTags: track.safetyTags,
+    explicitContent: track.explicitContent,
+    instrumental: track.instrumental,
+    licenseName: track.licenseName,
+    licenseUrl: track.licenseUrl,
+    proofUrl: track.proofUrl,
+    proofStorageRef: track.proofStorageRef,
+    licensePayload: track.licensePayload
+  });
 
 const buildTinyWav = (): Buffer => {
   const sampleRate = 8_000;
@@ -349,6 +507,7 @@ describe("YouTube Audio Library import service", () => {
   it("dry-runs idempotency, metadata updates, and disappeared full-refresh sources", async () => {
     const repository = new FakeImportRepository();
     const unchanged = validManifestTrack();
+    const comparableUnchanged = validatedTrack(unchanged);
     repository.state = {
       providerPolicyId: "policy",
       sources: [
@@ -365,7 +524,7 @@ describe("YouTube Audio Library import service", () => {
           vodSafe: true,
           explicitContent: false,
           instrumental: false,
-          safetyTags: ["youtube-audio-library", "cc-by-4.0"],
+          safetyTags: ["youtube-audio-library", "cc-by-4.0", "cinematic"],
           sourceType: "local_audio",
           sourceUrl: null,
           storageRef: "music-audio:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:clean-arc.mp3",
@@ -373,25 +532,7 @@ describe("YouTube Audio Library import service", () => {
           mimeType: "audio/mpeg",
           availabilityStatus: "available",
           attributionText: "Clean Arc by Studio Artist is licensed under CC BY 4.0.",
-          latestLicenseComparable: JSON.stringify({
-            title: "Clean Arc",
-            artist: "Studio Artist",
-            durationSeconds: 120,
-            sourceType: "local_audio",
-            sourceUrl: null,
-            storageRef: "music-audio:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:clean-arc.mp3",
-            sha256: "a".repeat(64),
-            mimeType: "audio/mpeg",
-            attributionText: "Clean Arc by Studio Artist is licensed under CC BY 4.0.",
-            safetyTags: ["youtube-audio-library", "cc-by-4.0"],
-            explicitContent: false,
-            instrumental: false,
-            licenseName: "Creative Commons Attribution 4.0",
-            licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
-            proofUrl: "https://artist.example.com/source/clean-arc",
-            proofStorageRef: null,
-            licensePayload: comparableLicensePayload(unchanged)
-          })
+          latestLicenseComparable: comparableValidatedTrack(comparableUnchanged)
         },
         {
           sourceId: "source-old",
@@ -449,6 +590,132 @@ describe("YouTube Audio Library import service", () => {
       expect.objectContaining({ externalId: "ytal-2", action: "create" }),
       expect.objectContaining({ externalId: "old-missing", action: "mark_unavailable" })
     ]));
+  });
+});
+
+describe("Incompetech import service", () => {
+  it("dry-runs exact manifest imports and keeps provenance in private license payloads", async () => {
+    const repository = new FakeImportRepository();
+    const manifest = validIncompetechManifest();
+    const result = await createIncompetechService(repository).dryRun("auth-user", manifest);
+
+    expect(result).toMatchObject({
+      ok: true,
+      mode: "dry-run",
+      summary: {
+        received: 20,
+        accepted: 20,
+        rejected: 0,
+        created: 20,
+        licenseSnapshotsAppended: 20
+      }
+    });
+
+    const validation = validateIncompetechManifest(manifest);
+    expect(validation.ok && validation.tracks[0]).toMatchObject({
+      externalId: "USUAN2300000",
+      isrc: "USUAN2300000",
+      attributionText: expect.stringContaining("Kevin MacLeod"),
+      proofUrl: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN2300000",
+      licensePayload: expect.objectContaining({
+        source: "incompetech",
+        sourceUrl: "https://incompetech.com/music/royalty-free/index.html?isrc=USUAN2300000",
+        directFileUrl: "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Track%200.mp3",
+        downloadedAt: "2026-09-01T02:46:00.108Z",
+        providerEvidence: expect.any(Array),
+        contentIdCaveat: "Incompetech Content ID evidence is preserved for disputes."
+      })
+    });
+  });
+
+  it("is idempotent by external id and hash-comparable license payload", async () => {
+    const repository = new FakeImportRepository();
+    const manifest = validIncompetechManifest();
+    const validation = validateIncompetechManifest(manifest);
+
+    if (!validation.ok) {
+      throw new Error("Expected a valid Incompetech manifest.");
+    }
+
+    repository.state = {
+      providerPolicyId: "policy",
+      sources: validation.tracks.map((track, index) => ({
+        sourceId: `source-${index}`,
+        trackId: `track-${index}`,
+        externalId: track.externalId,
+        title: track.title,
+        artist: track.artist,
+        durationSeconds: track.durationSeconds,
+        reviewState: "unreviewed",
+        rightsState: "eligible",
+        liveSafe: true,
+        vodSafe: true,
+        explicitContent: false,
+        instrumental: true,
+        safetyTags: track.safetyTags,
+        sourceType: "local_audio",
+        sourceUrl: null,
+        storageRef: track.audio.storageRef,
+        sha256: track.audio.sha256,
+        mimeType: "audio/mpeg",
+        availabilityStatus: "available",
+        attributionText: track.attributionText,
+        latestLicenseComparable: comparableValidatedIncompetechTrack(track)
+      }))
+    };
+
+    const result = await createIncompetechService(repository).dryRun("auth-user", manifest);
+
+    expect(result).toMatchObject({
+      ok: true,
+      summary: {
+        received: 20,
+        accepted: 20,
+        rejected: 0,
+        created: 0,
+        updated: 0,
+        unchanged: 20,
+        licenseSnapshotsAppended: 0
+      }
+    });
+  });
+
+  it("fails closed on incomplete manifests and unverified audio before apply", async () => {
+    const repository = new FakeImportRepository();
+    await expect(createIncompetechService(repository).apply("auth-user", validIncompetechManifest({}, (index) => index === 0
+      ? { vocalsClass: "prominent" }
+      : {}))).resolves.toEqual({
+      ok: false,
+      reason: "music_import_invalid_manifest"
+    });
+
+    const verifier = {
+      verify: async () => ({ ok: false as const })
+    };
+    await expect(createIncompetechService(repository, verifier).apply("auth-user", validIncompetechManifest())).resolves.toEqual({
+      ok: false,
+      reason: "music_import_audio_unverified"
+    });
+    expect(repository.applied).toBeNull();
+  });
+
+  it("dry-run fails through the validator for wrong artist and unusable attribution", async () => {
+    const repository = new FakeImportRepository();
+
+    await expect(createIncompetechService(repository).dryRun("auth-user", validIncompetechManifest({}, (index) => index === 0
+      ? { artist: "Not Kevin MacLeod" }
+      : {}))).resolves.toEqual({
+      ok: false,
+      reason: "music_import_invalid_manifest"
+    });
+
+    await expect(createIncompetechService(repository).dryRun("auth-user", validIncompetechManifest({}, (index) => index === 0
+      ? { attributionText: "placeholder attribution" }
+      : {}))).resolves.toEqual({
+      ok: false,
+      reason: "music_import_invalid_manifest"
+    });
+    expect(repository.applied).toBeNull();
   });
 });
 
@@ -514,6 +781,57 @@ describe("YouTube Audio Library import routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.body).toContain("music-audio:hash:track.mp3");
     expect(response.body).not.toContain("/tmp/private");
+  });
+
+  it("routes Incompetech dry-runs through the provider-specific import service", async () => {
+    const server = Fastify({ logger: false });
+    registerMusicRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("database should not be used");
+      },
+      createIncompetechImportService: () => ({
+        dryRun: async (authUserId: string, manifest: unknown) => ({
+          ok: true,
+          mode: "dry-run",
+          summary: {
+            received: Array.isArray((manifest as { tracks?: unknown[] }).tracks) ? (manifest as { tracks: unknown[] }).tracks.length : 0,
+            accepted: 20,
+            rejected: 0,
+            created: 20,
+            updated: 0,
+            unchanged: 0,
+            markedUnavailable: 0,
+            licenseSnapshotsAppended: 20
+          },
+          items: [{
+            externalId: authUserId,
+            title: "routed",
+            action: "create",
+            reason: null
+          }],
+          rejectedTracks: []
+        }),
+        apply: async () => ({ ok: false, reason: "music_import_invalid_manifest" })
+      })
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/music/imports/incompetech/dry-run",
+      payload: {
+        manifest: validIncompetechManifest()
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      summary: {
+        received: 20,
+        accepted: 20
+      }
+    });
   });
 });
 
@@ -699,5 +1017,58 @@ describe("YouTube Audio Library transactional repository", () => {
     expect(providerPolicyUpdateSql).not.toContain("local_cache_allowed");
     expect(began).toBe(true);
     expect(committed).toBe(true);
+  });
+
+  it("stores Incompetech imports through provider rows and private license payloads", async () => {
+    const executed: Array<{ sql: string; params: unknown[] }> = [];
+    const connection = {
+      beginTransaction: async () => undefined,
+      commit: async () => undefined,
+      rollback: async () => undefined,
+      release: () => undefined,
+      execute: async (sql: string, params: unknown[] = []) => {
+        executed.push({ sql, params });
+
+        if (sql.includes("FROM music_provider_policies") && sql.includes("SELECT id")) {
+          return [[]];
+        }
+
+        if (sql.includes("FROM music_track_sources sources")) {
+          return [[]];
+        }
+
+        return [[]];
+      }
+    };
+    const repository = createMusicYouTubeAudioLibraryImportRepository({
+      getConnection: async () => connection
+    } as unknown as DatabasePool);
+    const manifest = validIncompetechManifest();
+    const validation = validateIncompetechManifest(manifest);
+
+    if (!validation.ok) {
+      throw new Error("Expected a valid Incompetech manifest.");
+    }
+
+    await repository.applyImport({
+      actorUserId: "domain-user",
+      provider: incompetechImportProvider,
+      manifest: validation.manifest,
+      tracks: [validation.tracks[0] as IncompetechValidatedTrack]
+    });
+
+    const policyInsert = executed.find((entry) => entry.sql.includes("INSERT INTO music_provider_policies"));
+    const trackInsert = executed.find((entry) => entry.sql.includes("INSERT INTO music_tracks"));
+    const sourceInsert = executed.find((entry) => entry.sql.includes("INSERT INTO music_track_sources"));
+    const licenseInsert = executed.find((entry) => entry.sql.includes("INSERT INTO music_license_snapshots"));
+
+    expect(policyInsert?.params).toEqual(expect.arrayContaining(["incompetech", "Incompetech CC BY"]));
+    expect(trackInsert?.params).toEqual(expect.arrayContaining(["USUAN2300000", "Managed by Incompetech CC BY 4.0 bulk import."]));
+    expect(sourceInsert?.params).toEqual(expect.arrayContaining(["incompetech", "Incompetech", "USUAN2300000", null]));
+    expect(licenseInsert?.params.some((param) =>
+      typeof param === "string"
+      && param.includes("\"directFileUrl\":\"https://incompetech.com/music/royalty-free/mp3-royaltyfree/Track%200.mp3\"")
+      && param.includes("\"contentIdCaveat\":\"Incompetech Content ID evidence is preserved for disputes.\"")
+    )).toBe(true);
   });
 });

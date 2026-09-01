@@ -7,12 +7,18 @@ import type { MusicRouteDependencies } from "./music-route.types.js";
 import type { MusicLicenseSnapshotInput, MusicPlaybackOutcomeInput, MusicTrackSourceInput } from "./music.types.js";
 import { MusicAudioStorageVerificationService, MusicAudioUploadService, musicAudioUploadMaxBytes } from "./music-audio-upload.service.js";
 import { createMusicYouTubeAudioLibraryImportRepository } from "./music-youtube-audio-library-import-store.service.js";
-import { MusicYouTubeAudioLibraryImportService } from "./music-youtube-audio-library-import.service.js";
+import { MusicIncompetechImportService, MusicYouTubeAudioLibraryImportService } from "./music-youtube-audio-library-import.service.js";
 
 export const registerMusicAdminRoutes = (server: FastifyInstance, dependencies: MusicRouteDependencies): void => {
   const getService = () => createMusicService(dependencies);
   const getImportService = () => dependencies.createImportService?.()
     ?? new MusicYouTubeAudioLibraryImportService(
+      createMusicRepository(dependencies.getDatabasePool()),
+      createMusicYouTubeAudioLibraryImportRepository(dependencies.getDatabasePool()),
+      new MusicAudioStorageVerificationService()
+    );
+  const getIncompetechImportService = () => dependencies.createIncompetechImportService?.()
+    ?? new MusicIncompetechImportService(
       createMusicRepository(dependencies.getDatabasePool()),
       createMusicYouTubeAudioLibraryImportRepository(dependencies.getDatabasePool()),
       new MusicAudioStorageVerificationService()
@@ -259,6 +265,72 @@ export const registerMusicAdminRoutes = (server: FastifyInstance, dependencies: 
       return result;
     } catch (error) {
       server.log.warn({ err: error }, "Music YouTube Audio Library import failed.");
+      reply.code(503);
+      return { ok: false, reason: "music_admin_unavailable" };
+    }
+  });
+
+  server.post("/admin/music/imports/incompetech/dry-run", async (request, reply) => {
+    const session = await getSession(request, reply);
+    const body = youtubeAudioLibraryImportPayloadSchema.safeParse(request.body);
+
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "music_admin_unavailable" : "not_authenticated" };
+    }
+    if (!body.success) {
+      reply.code(400);
+      return { ok: false, reason: "music_invalid_input" };
+    }
+
+    try {
+      const result = await getIncompetechImportService().dryRun(session.user.id, body.data.manifest);
+
+      if (!result.ok) {
+        reply.code(
+          result.reason === "music_import_invalid_manifest"
+            || result.reason === "music_import_incomplete_manifest"
+            || result.reason === "music_import_audio_unverified"
+            ? 400
+            : 403
+        );
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Music Incompetech dry-run failed.");
+      reply.code(503);
+      return { ok: false, reason: "music_admin_unavailable" };
+    }
+  });
+
+  server.post("/admin/music/imports/incompetech/apply", async (request, reply) => {
+    const session = await getSession(request, reply);
+    const body = youtubeAudioLibraryImportPayloadSchema.safeParse(request.body);
+
+    if (!session) {
+      return { ok: false, reason: reply.statusCode === 503 ? "music_admin_unavailable" : "not_authenticated" };
+    }
+    if (!body.success) {
+      reply.code(400);
+      return { ok: false, reason: "music_invalid_input" };
+    }
+
+    try {
+      const result = await getIncompetechImportService().apply(session.user.id, body.data.manifest);
+
+      if (!result.ok) {
+        reply.code(
+          result.reason === "music_import_invalid_manifest"
+            || result.reason === "music_import_incomplete_manifest"
+            || result.reason === "music_import_audio_unverified"
+            ? 400
+            : 403
+        );
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Music Incompetech import failed.");
       reply.code(503);
       return { ok: false, reason: "music_admin_unavailable" };
     }

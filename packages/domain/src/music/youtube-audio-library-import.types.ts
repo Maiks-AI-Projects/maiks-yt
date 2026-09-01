@@ -1,6 +1,9 @@
 export const youtubeAudioLibraryProviderKey = "youtube-audio-library" as const;
 export const youtubeAudioLibraryManifestVersion = "youtube-audio-library.v1" as const;
 export const youtubeAudioLibraryMaxManifestTracks = 5_000;
+export const youtubeAudioLibraryVocalsClasses = ["none", "minimal", "prominent", "unknown"] as const;
+
+export type YouTubeAudioLibraryVocalsClass = typeof youtubeAudioLibraryVocalsClasses[number];
 
 export type YouTubeAudioLibraryManifestAudio = {
   storageRef?: string | null;
@@ -27,7 +30,12 @@ export type YouTubeAudioLibraryManifestTrack = {
   externalId: string;
   title: string;
   artist: string;
-  durationSeconds?: number | null;
+  durationSeconds: number;
+  downloadedAt: string;
+  genre: string;
+  vocalsClass: YouTubeAudioLibraryVocalsClass;
+  liveSafe: boolean;
+  vodSafe: boolean;
   licenseName: string;
   licenseUrl?: string | null;
   attributionRequired: boolean;
@@ -85,7 +93,12 @@ export type YouTubeAudioLibraryValidatedTrack = {
   externalId: string;
   title: string;
   artist: string;
-  durationSeconds: number | null;
+  durationSeconds: number;
+  downloadedAt: string;
+  genre: string;
+  vocalsClass: Extract<YouTubeAudioLibraryVocalsClass, "none" | "minimal">;
+  liveSafe: true;
+  vodSafe: true;
   licenseName: "Creative Commons Attribution 4.0";
   licenseUrl: string;
   attributionText: string;

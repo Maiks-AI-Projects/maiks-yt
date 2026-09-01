@@ -6,7 +6,7 @@ import type { MusicPlaybackService } from "./music-playback.service.js";
 import type { MusicService } from "./music.service.js";
 import type { MusicAuthSession } from "./music.types.js";
 import type { MusicAudioUploadService } from "./music-audio-upload.service.js";
-import type { MusicYouTubeAudioLibraryImportService } from "./music-youtube-audio-library-import.service.js";
+import type { MusicIncompetechImportService, MusicYouTubeAudioLibraryImportService } from "./music-youtube-audio-library-import.service.js";
 import type { MusicLocalAgentRuntime } from "./music-local-agent-playback.service.js";
 
 export type MusicRouteDependencies = {
@@ -45,5 +45,6 @@ export type MusicRouteDependencies = {
   >;
   createPlaybackService?: () => MusicPlaybackService;
   createImportService?: () => Pick<MusicYouTubeAudioLibraryImportService, "dryRun" | "apply">;
+  createIncompetechImportService?: () => Pick<MusicIncompetechImportService, "dryRun" | "apply">;
   createAudioUploadService?: () => Pick<MusicAudioUploadService, "upload">;
 };

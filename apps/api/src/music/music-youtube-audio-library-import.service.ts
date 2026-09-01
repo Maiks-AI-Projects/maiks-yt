@@ -1,13 +1,16 @@
 import {
+  validateIncompetechManifest,
   validateYouTubeAudioLibraryManifest,
-  youtubeAudioLibraryProviderKey,
-  type YouTubeAudioLibraryBulkManifest,
-  type YouTubeAudioLibraryValidatedTrack
+  type YouTubeAudioLibraryBulkManifest
 } from "@maiks-yt/domain/music";
 
 import { requireMusicManageActor } from "./music-service-authorization.service.js";
 import type { MusicRepository } from "./music.types.js";
+import { incompetechImportProvider, youtubeAudioLibraryImportProvider } from "./music-youtube-audio-library-import-store.service.js";
 import type {
+  MusicLibraryImportManifest,
+  MusicLibraryImportProvider,
+  MusicLibraryImportValidatedTrack,
   MusicYouTubeAudioLibraryImportItem,
   MusicYouTubeAudioLibraryImportRepository,
   MusicYouTubeAudioLibraryImportResult,
@@ -33,7 +36,7 @@ const emptySummary = (
 const manifestMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
 const manifestFutureSkewMs = 10 * 60 * 1000;
 
-const comparableForTrack = (track: YouTubeAudioLibraryValidatedTrack): string =>
+const comparableForTrack = (track: MusicLibraryImportValidatedTrack): string =>
   JSON.stringify({
     title: track.title,
     artist: track.artist,
@@ -112,6 +115,7 @@ export class MusicYouTubeAudioLibraryImportService {
       return actor;
     }
 
+    const provider = youtubeAudioLibraryImportProvider;
     const validation = validateYouTubeAudioLibraryManifest(manifestInput);
 
     if (!validation.ok) {
@@ -154,6 +158,7 @@ export class MusicYouTubeAudioLibraryImportService {
     if (mode === "apply") {
       const summary = await this.importRepository.applyImport({
         actorUserId: actor.domainUserId,
+        provider,
         manifest: validation.manifest,
         tracks: verifiedTracks
       });
@@ -167,12 +172,12 @@ export class MusicYouTubeAudioLibraryImportService {
           accepted: verifiedTracks.length,
           rejected: validation.rejectedTracks.length
         },
-        items: this.buildItemsFromSummary(validation.manifest, verifiedTracks, summary),
+        items: this.buildItemsFromSummary(provider, validation.manifest, verifiedTracks, summary),
         rejectedTracks: validation.rejectedTracks
       };
     }
 
-    const state = await this.importRepository.getImportState();
+    const state = await this.importRepository.getImportState({ providerKey: provider.providerKey });
     const acceptedExternalIds = new Set(verifiedTracks.map((track) => track.externalId.toLowerCase()));
     const existingByExternalId = new Map(state.sources.map((source) => [source.externalId.toLowerCase(), source]));
     const items: MusicYouTubeAudioLibraryImportItem[] = [];
@@ -281,9 +286,9 @@ export class MusicYouTubeAudioLibraryImportService {
   }
 
   private async verifyAudio(
-    tracks: readonly YouTubeAudioLibraryValidatedTrack[]
-  ): Promise<readonly YouTubeAudioLibraryValidatedTrack[] | null> {
-    const verifiedTracks: YouTubeAudioLibraryValidatedTrack[] = [];
+    tracks: readonly MusicLibraryImportValidatedTrack[]
+  ): Promise<readonly MusicLibraryImportValidatedTrack[] | null> {
+    const verifiedTracks: MusicLibraryImportValidatedTrack[] = [];
 
     for (const track of tracks) {
       const verified = await this.audioVerifier.verify({
@@ -308,15 +313,199 @@ export class MusicYouTubeAudioLibraryImportService {
   }
 
   private buildItemsFromSummary(
-    manifest: YouTubeAudioLibraryBulkManifest,
-    tracks: readonly YouTubeAudioLibraryValidatedTrack[],
+    provider: MusicLibraryImportProvider,
+    manifest: MusicLibraryImportManifest,
+    tracks: readonly MusicLibraryImportValidatedTrack[],
     summary: MusicYouTubeAudioLibraryImportSummary
   ): readonly MusicYouTubeAudioLibraryImportItem[] {
     const items = tracks.map((track): MusicYouTubeAudioLibraryImportItem => ({
       externalId: track.externalId,
       title: track.title,
       action: "unchanged",
-      reason: `applied_to_${youtubeAudioLibraryProviderKey}`
+      reason: `applied_to_${provider.providerKey}`
+    }));
+
+    if (manifest.refreshMode === "full" && summary.markedUnavailable > 0) {
+      items.push({
+        externalId: null,
+        title: null,
+        action: "mark_unavailable",
+        reason: `${summary.markedUnavailable}_sources`
+      });
+    }
+
+    return items;
+  }
+}
+
+export class MusicIncompetechImportService {
+  public constructor(
+    private readonly authRepository: Pick<MusicRepository, "resolveActor">,
+    private readonly importRepository: MusicYouTubeAudioLibraryImportRepository,
+    private readonly audioVerifier: MusicAudioStorageVerifier
+  ) {}
+
+  public async dryRun(authUserId: string, manifestInput: unknown) {
+    return await this.import(authUserId, manifestInput, "dry-run");
+  }
+
+  public async apply(authUserId: string, manifestInput: unknown) {
+    return await this.import(authUserId, manifestInput, "apply");
+  }
+
+  private async import(
+    authUserId: string,
+    manifestInput: unknown,
+    mode: "dry-run" | "apply"
+  ): Promise<MusicYouTubeAudioLibraryImportResult | {
+    ok: false;
+    reason:
+      | "music_admin_forbidden"
+      | "music_admin_user_unlinked"
+      | "music_import_invalid_manifest"
+      | "music_import_incomplete_manifest"
+      | "music_import_audio_unverified";
+  }> {
+    const actor = await requireMusicManageActor(this.authRepository, authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    const provider = incompetechImportProvider;
+    const validation = validateIncompetechManifest(manifestInput);
+
+    if (!validation.ok) {
+      return {
+        ok: false,
+        reason: "music_import_invalid_manifest"
+      };
+    }
+
+    const verifiedTracks = await this.verifyAudio(validation.tracks);
+    if (!verifiedTracks) {
+      return {
+        ok: false,
+        reason: "music_import_audio_unverified"
+      };
+    }
+
+    if (mode === "apply") {
+      const summary = await this.importRepository.applyImport({
+        actorUserId: actor.domainUserId,
+        provider,
+        manifest: validation.manifest,
+        tracks: verifiedTracks
+      });
+
+      return {
+        ok: true,
+        mode,
+        summary: {
+          ...summary,
+          received: validation.manifest.tracks.length,
+          accepted: verifiedTracks.length,
+          rejected: validation.rejectedTracks.length
+        },
+        items: this.buildItemsFromSummary(provider, validation.manifest, verifiedTracks, summary),
+        rejectedTracks: validation.rejectedTracks
+      };
+    }
+
+    const state = await this.importRepository.getImportState({ providerKey: provider.providerKey });
+    const existingByExternalId = new Map(state.sources.map((source) => [source.externalId.toLowerCase(), source]));
+    const items: MusicYouTubeAudioLibraryImportItem[] = [];
+    const summary = emptySummary(
+      validation.manifest.tracks.length,
+      verifiedTracks.length,
+      validation.rejectedTracks.length
+    );
+
+    for (const track of verifiedTracks) {
+      const existing = existingByExternalId.get(track.externalId.toLowerCase());
+
+      if (!existing) {
+        summary.created += 1;
+        summary.licenseSnapshotsAppended += 1;
+        items.push({
+          externalId: track.externalId,
+          title: track.title,
+          action: "create",
+          reason: null
+        });
+        continue;
+      }
+
+      if (existing.latestLicenseComparable === comparableForTrack(track)
+        && existing.availabilityStatus === "available"
+        && existing.rightsState === "eligible") {
+        summary.unchanged += 1;
+        items.push({
+          externalId: track.externalId,
+          title: track.title,
+          action: "unchanged",
+          reason: null
+        });
+        continue;
+      }
+
+      summary.updated += 1;
+      summary.licenseSnapshotsAppended += existing.latestLicenseComparable === comparableForTrack(track) ? 0 : 1;
+      items.push({
+        externalId: track.externalId,
+        title: track.title,
+        action: "update",
+        reason: null
+      });
+    }
+
+    return {
+      ok: true,
+      mode,
+      summary,
+      items,
+      rejectedTracks: validation.rejectedTracks
+    };
+  }
+
+  private async verifyAudio(
+    tracks: readonly MusicLibraryImportValidatedTrack[]
+  ): Promise<readonly MusicLibraryImportValidatedTrack[] | null> {
+    const verifiedTracks: MusicLibraryImportValidatedTrack[] = [];
+
+    for (const track of tracks) {
+      const verified = await this.audioVerifier.verify({
+        storageRef: track.audio.storageRef,
+        sha256: track.audio.sha256
+      });
+
+      if (!verified.ok || verified.contentType !== "audio/mpeg") {
+        return null;
+      }
+
+      verifiedTracks.push({
+        ...track,
+        audio: {
+          ...track.audio,
+          mimeType: verified.contentType
+        }
+      });
+    }
+
+    return verifiedTracks;
+  }
+
+  private buildItemsFromSummary(
+    provider: MusicLibraryImportProvider,
+    manifest: MusicLibraryImportManifest,
+    tracks: readonly MusicLibraryImportValidatedTrack[],
+    summary: MusicYouTubeAudioLibraryImportSummary
+  ): readonly MusicYouTubeAudioLibraryImportItem[] {
+    const items = tracks.map((track): MusicYouTubeAudioLibraryImportItem => ({
+      externalId: track.externalId,
+      title: track.title,
+      action: "unchanged",
+      reason: `applied_to_${provider.providerKey}`
     }));
 
     if (manifest.refreshMode === "full" && summary.markedUnavailable > 0) {
