@@ -353,7 +353,7 @@ export const StreamerChatViewer = ({
     void loadMessages();
 
     const disconnectLiveFeed = token ? connectStreamerChatLiveFeed({
-      onAccessDenied: () => setStatus("Streamer chat access denied. Reopen after signing in again."),
+      onAccessDenied: () => setStatus("Streamer chat access is being rechecked."),
       onConnected: () => setStatus("Streamer chat live."),
       onConnecting: (isReconnect) => setStatus(isReconnect ? "Reconnecting streamer chat." : "Connecting streamer chat."),
       onDisconnected: (retryDelayMs) => setStatus(

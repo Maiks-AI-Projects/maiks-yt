@@ -22,7 +22,7 @@ export const getStreamerChatReconnectDelayMs = (attempt: number): number => {
   ] ?? streamerChatReconnectDelaysMs[0];
 };
 
-export const shouldReconnectStreamerChat = (closeCode: number): boolean => closeCode !== 1008;
+export const shouldReconnectStreamerChat = (_closeCode: number): boolean => true;
 
 export const getStreamerChatAvatarUrl = (value: string | undefined): string | null => {
   if (!value || value.length > 2_048) {

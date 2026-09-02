@@ -50,7 +50,7 @@ describe("streamer chat viewer access", () => {
     expect(canOpenStreamerChatOptions(noStreamerChatActionAccess, "fake-local")).toBe(false);
   });
 
-  it("caps reconnect backoff without retrying access-policy closes", () => {
+  it("caps reconnect backoff while allowing access-policy recovery", () => {
     expect([0, 1, 2, 3, 4, 9].map(getStreamerChatReconnectDelayMs)).toEqual([
       1_000,
       2_000,
@@ -61,7 +61,7 @@ describe("streamer chat viewer access", () => {
     ]);
     expect(shouldReconnectStreamerChat(1006)).toBe(true);
     expect(shouldReconnectStreamerChat(1012)).toBe(true);
-    expect(shouldReconnectStreamerChat(1008)).toBe(false);
+    expect(shouldReconnectStreamerChat(1008)).toBe(true);
   });
 
   it("merges newer live messages ahead of history and deduplicates ids", () => {

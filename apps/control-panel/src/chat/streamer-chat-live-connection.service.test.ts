@@ -94,13 +94,42 @@ describe("streamer chat live connection", () => {
     expect(harness.callbacks.onConnected).toHaveBeenCalledOnce();
   });
 
-  it("stops permanently on an access-policy close", () => {
+  it("rechecks access with capped backoff after an access-policy close", () => {
     const harness = createHarness();
 
     closeSocket(harness.sockets[0], 1008);
+    harness.reconnects[0]?.callback();
+    closeSocket(harness.sockets[1], 1008);
+    harness.reconnects[1]?.callback();
+    closeSocket(harness.sockets[2], 1008);
+    harness.reconnects[2]?.callback();
+    closeSocket(harness.sockets[3], 1008);
+    harness.reconnects[3]?.callback();
+    closeSocket(harness.sockets[4], 1008);
+    harness.reconnects[4]?.callback();
+    closeSocket(harness.sockets[5], 1008);
 
-    expect(harness.callbacks.onAccessDenied).toHaveBeenCalledOnce();
-    expect(harness.reconnects).toHaveLength(0);
+    expect(harness.callbacks.onAccessDenied).toHaveBeenCalledTimes(6);
+    expect(harness.callbacks.onDisconnected).not.toHaveBeenCalled();
+    expect(harness.reconnects.map(({ delayMs }) => delayMs)).toEqual([
+      1_000,
+      2_000,
+      4_000,
+      8_000,
+      15_000,
+      15_000
+    ]);
+  });
+
+  it("resets access-policy backoff after a successful reconnect", () => {
+    const harness = createHarness();
+
+    closeSocket(harness.sockets[0], 1008);
+    harness.reconnects[0]?.callback();
+    openSocket(harness.sockets[1]);
+    closeSocket(harness.sockets[1], 1008);
+
+    expect(harness.reconnects.map(({ delayMs }) => delayMs)).toEqual([1_000, 1_000]);
   });
 
   it("cancels pending work and ignores stale socket events after disposal", () => {

@@ -68,14 +68,19 @@ export const connectStreamerChatLiveFeed = ({
       }
 
       activeSocket = null;
-      if (!shouldReconnectStreamerChat(event.code)) {
+      const accessDenied = event.code === 1008;
+      if (accessDenied) {
         onAccessDenied();
-        return;
       }
 
+      if (!shouldReconnectStreamerChat(event.code)) {
+        return;
+      }
       const retryDelayMs = getStreamerChatReconnectDelayMs(reconnectAttempt);
       reconnectAttempt += 1;
-      onDisconnected(retryDelayMs);
+      if (!accessDenied) {
+        onDisconnected(retryDelayMs);
+      }
       reconnectTimer = scheduleReconnect(connect, retryDelayMs);
     };
   };
