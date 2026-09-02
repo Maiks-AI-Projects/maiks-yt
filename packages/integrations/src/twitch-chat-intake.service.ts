@@ -1,3 +1,4 @@
+import { StaticAuthProvider } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
 
 import {
@@ -45,6 +46,21 @@ const sanitizeError = (error: unknown): string => {
   return "Twitch chat intake unavailable.";
 };
 
+const normalizeEnv = (value: string | undefined): string => value?.trim() ?? "";
+
+export const resolveTwitchChatAuthentication = (
+  env: Record<string, string | undefined>
+): { accessToken: string; clientId: string } | null => {
+  const clientId = normalizeEnv(env.TWITCH_CLIENT_ID);
+  const accessToken = normalizeEnv(
+    env.TWITCH_CHAT_BOT_ACCESS_TOKEN
+    ?? env.TWITCH_BOT_ACCESS_TOKEN
+    ?? env.TWITCH_ACCESS_TOKEN
+  );
+
+  return clientId && accessToken ? { accessToken, clientId } : null;
+};
+
 export class TwitchChatReadOnlyIntakeService {
   private readonly channelNames: readonly string[];
   private readonly clearTimeoutFn: (handle: unknown) => void;
@@ -73,14 +89,24 @@ export class TwitchChatReadOnlyIntakeService {
   private joinTimer: unknown | null = null;
 
   public constructor(options: TwitchChatReadOnlyIntakeOptions = {}) {
-    this.channelNames = resolveTwitchChatChannelNames(options.env ?? process.env);
+    const env = options.env ?? process.env;
+    this.channelNames = resolveTwitchChatChannelNames(env);
     this.clearTimeoutFn = options.clearTimeoutFn ?? ((handle) => {
       clearTimeout(handle as ReturnType<typeof setTimeout>);
     });
-    this.createClient = options.createClient ?? ((channelNames) => new ChatClient({
-      channels: [...channelNames],
-      readOnly: true
-    }));
+    this.createClient = options.createClient ?? ((channelNames) => {
+      const authentication = resolveTwitchChatAuthentication(env);
+
+      if (!authentication) {
+        throw new Error("Authenticated Twitch chat intake is not configured.");
+      }
+
+      return new ChatClient({
+        authProvider: new StaticAuthProvider(authentication.clientId, authentication.accessToken),
+        channels: [...channelNames],
+        readOnly: true
+      });
+    });
     this.maxUnexpectedDisconnectsInWindow = options.maxUnexpectedDisconnectsInWindow ?? 10;
     this.maxRecentMessages = options.maxRecentMessages ?? 25;
     this.joinTimeoutMs = options.joinTimeoutMs ?? 15_000;

@@ -11,7 +11,7 @@ export type YouTubeLiveChatProjectedMessage = {
   message: string;
   providerMessageId: string;
   source: "youtube";
-  visibleOnOverlayByDefault: false;
+  visibleOnOverlayByDefault: true;
 };
 
 export type YouTubeLiveChatProjectionInput = {

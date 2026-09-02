@@ -10,7 +10,7 @@ export type TwitchChatProjectedMessage = {
   userId: string | null;
   userName: string;
   source: "twitch";
-  visibleOnOverlayByDefault: false;
+  visibleOnOverlayByDefault: true;
 };
 
 export type TwitchChatMessagePart =

@@ -125,7 +125,7 @@ export const projectTwitchChatMessage = (
       userId,
       userName,
       source: "twitch",
-      visibleOnOverlayByDefault: false
+      visibleOnOverlayByDefault: true
     }
   };
 };

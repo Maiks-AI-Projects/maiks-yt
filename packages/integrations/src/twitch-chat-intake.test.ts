@@ -1,7 +1,10 @@
 import { describe, expect, it, vi, type Mock } from "vitest";
 
 import { projectTwitchChatMessage, resolveTwitchChatChannelName, resolveTwitchChatChannelNames } from "./twitch-chat-intake.rules.js";
-import { TwitchChatReadOnlyIntakeService } from "./twitch-chat-intake.service.js";
+import {
+  resolveTwitchChatAuthentication,
+  TwitchChatReadOnlyIntakeService
+} from "./twitch-chat-intake.service.js";
 
 type Listener = unknown;
 type MessageHandler = (channel: string, user: string, text: string, msg: {
@@ -120,7 +123,7 @@ describe("projectTwitchChatMessage", () => {
         providerMessageId: "provider-message-1",
         source: "twitch",
         userName: "viewer_login",
-        visibleOnOverlayByDefault: false
+        visibleOnOverlayByDefault: true
       })
     });
   });
@@ -170,6 +173,18 @@ describe("projectTwitchChatMessage", () => {
     expect(resolveTwitchChatChannelNames({
       TWITCH_CHAT_CHANNELS: "#MaiksMC, MaiksPlays, maiksmc"
     })).toEqual(["maiksmc", "maiksplays"]);
+  });
+
+  it("requires a complete authenticated chat credential pair", () => {
+    expect(resolveTwitchChatAuthentication({
+      TWITCH_CLIENT_ID: " twitch-client ",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: " twitch-user-token "
+    })).toEqual({
+      accessToken: "twitch-user-token",
+      clientId: "twitch-client"
+    });
+    expect(resolveTwitchChatAuthentication({ TWITCH_CLIENT_ID: "twitch-client" })).toBeNull();
+    expect(resolveTwitchChatAuthentication({ TWITCH_CHAT_BOT_ACCESS_TOKEN: "token" })).toBeNull();
   });
 });
 
@@ -277,7 +292,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
       message: "Hello Twitch chat!",
       source: "twitch",
       userName: "viewer_login",
-      visibleOnOverlayByDefault: false
+      visibleOnOverlayByDefault: true
     }));
     expect(service.getStatus().recentMessages).toEqual([
       expect.objectContaining({

@@ -49,7 +49,7 @@ describe("projectYouTubeLiveChatMessage", () => {
         message: "Hello stream",
         providerMessageId: "provider-message-1",
         source: "youtube",
-        visibleOnOverlayByDefault: false
+        visibleOnOverlayByDefault: true
       })
     });
   });

@@ -61,7 +61,7 @@ export const projectYouTubeLiveChatMessage = (
       message,
       providerMessageId: normalizeText(input.messageId, 120) || randomUUID(),
       source: "youtube",
-      visibleOnOverlayByDefault: false
+      visibleOnOverlayByDefault: true
     }
   };
 };
