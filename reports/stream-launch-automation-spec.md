@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted direction, implementation pending. This contract extends Maiks.yt's durable stream schedule; it does not make provider changes merely because an admin form was saved.
+Accepted direction. The durable binding/outbox and retry-safe local-create foundation are implemented in source; provider adapters, processing, deployment, and real-provider verification remain pending. This contract extends Maiks.yt's durable stream schedule; it does not claim a provider change merely because an admin form was saved.
 
 ## Owner intent
 
@@ -118,4 +118,3 @@ Automated social posts subscribe to these events only after an explicit per-chan
 5. Control PWA Start Stream page.
 6. Authoritative Maiks.yt countdown runtime and OpenDeck/OBS clients.
 7. Social-post subscribers behind explicit policies.
-

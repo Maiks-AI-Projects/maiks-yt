@@ -37,6 +37,7 @@ export type StreamScheduleMutationResult =
   | {
     ok: true;
     stream: StreamScheduleEntry;
+    replayed?: boolean;
   }
   | {
     ok: false;
@@ -55,7 +56,10 @@ export interface StreamScheduleRepository {
   listProjectOptions(): Promise<readonly StreamScheduleProjectOption[]>;
   listGameOptions(): Promise<readonly StreamScheduleGameOption[]>;
   listChannelOptions(ownerUserId: string): Promise<readonly StreamScheduleChannelOption[]>;
-  createStream(input: StreamScheduleInput & { actorUserId: string }): Promise<StreamScheduleEntry | "invalid-channel">;
+  createStream(input: StreamScheduleInput & {
+    actorUserId: string;
+    creationRequestId: string;
+  }): Promise<{ stream: StreamScheduleEntry; created: boolean } | "invalid-channel">;
   updateStream(id: string, input: StreamScheduleUpdateInput, actorUserId: string): Promise<StreamScheduleEntry | "not-found" | "invalid-channel">;
   cancelStream(id: string, input: StreamScheduleCancellationInput): Promise<StreamScheduleEntry | "not-found">;
   replaceGameLinks(input: {

@@ -267,13 +267,28 @@ export const registerStreamScheduleRoutes = (
     }
 
     try {
+      const suppliedCreationRequestId = request.headers["idempotency-key"];
+      const parsedCreationRequestId = suppliedCreationRequestId === undefined
+        ? { success: true as const, data: randomUUID() }
+        : z.string().uuid().safeParse(suppliedCreationRequestId);
+      if (!parsedCreationRequestId.success) {
+        reply.code(400);
+        return {
+          ok: false,
+          reason: "stream_schedule_invalid_input",
+          issues: ["The creation request identifier is invalid. Refresh the form and try again."]
+        };
+      }
       const result = await getService().createStream({
         authUserId: session.user.id,
+        creationRequestId: parsedCreationRequestId.data,
         ...parsedBody.data
       });
-      await routePublicMutation(result, result.ok && result.stream.status === "cancelled"
-        ? "website.schedule-cancelled"
-        : "website.schedule-changed");
+      if (result.ok && !result.replayed) {
+        await routePublicMutation(result, result.stream.status === "cancelled"
+          ? "website.schedule-cancelled"
+          : "website.schedule-changed");
+      }
       return sendMutationResult(result, reply);
     } catch (error) {
       server.log.warn({ err: error }, "Stream schedule create failed.");

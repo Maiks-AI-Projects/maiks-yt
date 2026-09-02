@@ -2,6 +2,7 @@ import type {
   StreamProviderCapabilityInput,
   StreamProviderDeliveryIntent,
   StreamProviderDeliveryOperation,
+  StreamProviderDeliveryPhase,
   StreamProviderPreflightIssue,
   StreamProviderPreflightResult
 } from "./stream-provider-delivery.types.js";
@@ -38,12 +39,20 @@ export const buildStreamProviderDeliveryIntents = (input: {
   channelRef: string;
   provider: "twitch" | "youtube";
   desiredRevision: number;
+  phase: StreamProviderDeliveryPhase;
+  visibility: "draft" | "public" | "private";
+  status: "planned" | "live" | "completed" | "cancelled";
 }): readonly StreamProviderDeliveryIntent[] => {
   const scheduleEntryId = input.scheduleEntryId.trim();
   const channelRef = input.channelRef.trim();
-  const operations: readonly StreamProviderDeliveryOperation[] = input.provider === "twitch"
-    ? ["twitch.schedule-segment", "twitch.channel-metadata"]
-    : ["youtube.broadcast", "youtube.stream-binding"];
+  const isAcceptedPlan = input.status === "planned" && input.visibility !== "draft";
+  const operations: readonly StreamProviderDeliveryOperation[] = !isAcceptedPlan
+    ? []
+    : input.phase === "prepare"
+      ? [input.provider === "twitch" ? "twitch.channel-metadata" : "youtube.stream-binding"]
+      : input.provider === "twitch"
+        ? input.visibility === "public" ? ["twitch.schedule-segment"] : []
+        : ["youtube.broadcast"];
 
   return operations.map((operation) => ({
     scheduleEntryId,

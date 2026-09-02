@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   buildPublicStreamScheduleList,
   canManageStreamSchedule,
@@ -84,6 +86,7 @@ export class StreamScheduleService {
 
   public async createStream(input: StreamScheduleInput & {
     authUserId: string;
+    creationRequestId?: string;
   }): Promise<StreamScheduleMutationResult> {
     const actor = await this.requireActor(input.authUserId);
 
@@ -91,8 +94,9 @@ export class StreamScheduleService {
       return actor;
     }
 
+    const { authUserId: _authUserId, creationRequestId, ...scheduleInput } = input;
     const stream = normalizeStreamScheduleInput({
-      ...input,
+      ...scheduleInput,
       status: input.status ?? "planned"
     });
 
@@ -105,12 +109,13 @@ export class StreamScheduleService {
 
     const created = await this.repository.createStream({
       ...stream,
-      actorUserId: actor.domainUserId
+      actorUserId: actor.domainUserId,
+      creationRequestId: creationRequestId ?? randomUUID()
     });
 
     return created === "invalid-channel"
       ? { ok: false, reason: "stream_schedule_invalid_input" }
-      : { ok: true, stream: created };
+      : { ok: true, stream: created.stream, replayed: !created.created };
   }
 
   public async updateStream(input: {

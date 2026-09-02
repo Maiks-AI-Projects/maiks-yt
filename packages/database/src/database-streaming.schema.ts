@@ -79,6 +79,7 @@ export const streamScheduleEntries = mysqlTable(
     ]),
     cancellationReason: varchar("cancellation_reason", { length: 500 }),
     createdByUserId: varchar("created_by_user_id", { length: 36 }),
+    creationRequestId: varchar("creation_request_id", { length: 36 }),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
   },
@@ -87,6 +88,7 @@ export const streamScheduleEntries = mysqlTable(
     index("stream_schedule_status_idx").on(table.status),
     index("stream_schedule_channel_idx").on(table.channelKey),
     index("stream_schedule_project_id_idx").on(table.projectId),
+    uniqueIndex("stream_schedule_creation_request_uidx").on(table.createdByUserId, table.creationRequestId),
     check(
       "stream_schedule_time_window_check",
       sql`${table.endsAt} is null or ${table.endsAt} > ${table.startsAt}`
@@ -129,6 +131,77 @@ export const streamScheduleChannelTargets = mysqlTable(
     uniqueIndex("stream_schedule_channel_target_uidx").on(table.scheduleEntryId, table.channelRef),
     index("stream_schedule_channel_schedule_idx").on(table.scheduleEntryId, table.sortOrder),
     index("stream_schedule_channel_ref_idx").on(table.channelRef)
+  ]
+);
+
+export const streamProviderDeliveryBindings = mysqlTable(
+  "stream_provider_delivery_bindings",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    scheduleEntryId: varchar("schedule_entry_id", { length: 36 }).notNull(),
+    channelRef: varchar("channel_ref", { length: 36 }).notNull(),
+    provider: mysqlEnum("provider", ["youtube", "twitch"]).notNull(),
+    providerChannelIdSnapshot: varchar("provider_channel_id_snapshot", { length: 191 }).notNull(),
+    displayNameSnapshot: varchar("display_name_snapshot", { length: 191 }).notNull(),
+    handleSnapshot: varchar("handle_snapshot", { length: 191 }),
+    desiredRevision: int("desired_revision").notNull().default(1),
+    status: mysqlEnum("status", ["pending", "syncing", "ready", "degraded", "failed", "removed"])
+      .notNull()
+      .default("pending"),
+    providerResourceId: varchar("provider_resource_id", { length: 191 }),
+    providerStreamId: varchar("provider_stream_id", { length: 191 }),
+    providerCategoryId: varchar("provider_category_id", { length: 191 }),
+    lastAttemptAt: timestamp("last_attempt_at"),
+    lastSuccessAt: timestamp("last_success_at"),
+    lastErrorCode: varchar("last_error_code", { length: 120 }),
+    lastErrorMessage: varchar("last_error_message", { length: 500 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("stream_provider_delivery_schedule_channel_uidx").on(table.scheduleEntryId, table.channelRef),
+    uniqueIndex("stream_provider_delivery_provider_resource_uidx").on(table.provider, table.providerResourceId),
+    index("stream_provider_delivery_schedule_idx").on(table.scheduleEntryId, table.status),
+    index("stream_provider_delivery_status_idx").on(table.status, table.updatedAt),
+    check("stream_provider_delivery_revision_check", sql`${table.desiredRevision} > 0`)
+  ]
+);
+
+export const streamProviderDeliveryIntents = mysqlTable(
+  "stream_provider_delivery_intents",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    deliveryBindingId: varchar("delivery_binding_id", { length: 36 }).notNull(),
+    scheduleEntryId: varchar("schedule_entry_id", { length: 36 }).notNull(),
+    channelRef: varchar("channel_ref", { length: 36 }).notNull(),
+    operation: mysqlEnum("operation", [
+      "twitch.schedule-segment",
+      "twitch.channel-metadata",
+      "youtube.broadcast",
+      "youtube.stream-binding"
+    ]).notNull(),
+    desiredRevision: int("desired_revision").notNull(),
+    idempotencyKey: varchar("idempotency_key", { length: 191 }).notNull(),
+    status: mysqlEnum("status", ["pending", "processing", "succeeded", "failed", "retry-wait", "superseded"])
+      .notNull()
+      .default("pending"),
+    attemptCount: int("attempt_count").notNull().default(0),
+    availableAt: timestamp("available_at").notNull().defaultNow(),
+    claimedAt: timestamp("claimed_at"),
+    claimedBy: varchar("claimed_by", { length: 191 }),
+    completedAt: timestamp("completed_at"),
+    lastErrorCode: varchar("last_error_code", { length: 120 }),
+    lastErrorMessage: varchar("last_error_message", { length: 500 }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("stream_provider_intent_idempotency_uidx").on(table.idempotencyKey),
+    index("stream_provider_intent_claim_idx").on(table.status, table.availableAt, table.createdAt),
+    index("stream_provider_intent_binding_idx").on(table.deliveryBindingId, table.desiredRevision),
+    index("stream_provider_intent_schedule_idx").on(table.scheduleEntryId, table.channelRef),
+    check("stream_provider_intent_revision_check", sql`${table.desiredRevision} > 0`),
+    check("stream_provider_intent_attempt_count_check", sql`${table.attemptCount} >= 0`)
   ]
 );
 

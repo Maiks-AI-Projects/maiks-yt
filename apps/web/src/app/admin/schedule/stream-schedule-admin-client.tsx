@@ -63,11 +63,14 @@ const defaultCancellationForm: CancellationFormState = { cancellationReasonCode:
 const defaultGameLinkForm: GameLinkFormState = { gameId: "", publicNote: "" };
 
 type PersistedScheduleDraft = {
+  creationRequestId: string;
   selectedStreamId: string;
   scheduleForm: ScheduleFormState;
   gameLinkForm: GameLinkFormState;
   selectedChannelRefs: readonly string[];
 };
+
+const createScheduleRequestId = (): string => globalThis.crypto.randomUUID();
 
 const readPersistedScheduleDraft = (): PersistedScheduleDraft | null => {
   if (typeof window === "undefined") return null;
@@ -75,7 +78,12 @@ const readPersistedScheduleDraft = (): PersistedScheduleDraft | null => {
     const value = JSON.parse(window.localStorage.getItem(scheduleDraftStorageKey) ?? "null") as Partial<PersistedScheduleDraft> | null;
     if (!value || typeof value.selectedStreamId !== "string" || !value.scheduleForm || !value.gameLinkForm || !Array.isArray(value.selectedChannelRefs)) return null;
     if (typeof value.scheduleForm.title !== "string" || typeof value.scheduleForm.startsAt !== "string") return null;
-    return value as PersistedScheduleDraft;
+    return {
+      ...(value as Omit<PersistedScheduleDraft, "creationRequestId">),
+      creationRequestId: typeof value.creationRequestId === "string" && value.creationRequestId.length > 0
+        ? value.creationRequestId
+        : createScheduleRequestId()
+    };
   } catch {
     return null;
   }
@@ -162,6 +170,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
   const [cancellationForm, setCancellationForm] = useState<CancellationFormState>(defaultCancellationForm);
   const [gameLinkForm, setGameLinkForm] = useState<GameLinkFormState>(defaultGameLinkForm);
   const [selectedChannelRefs, setSelectedChannelRefs] = useState<readonly string[]>([]);
+  const [creationRequestId, setCreationRequestId] = useState("");
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading stream schedule admin...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -243,6 +252,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
         const canRestoreDraft = Boolean(persistedDraft && (!persistedDraft.selectedStreamId || persistedStream));
         const initialStream = canRestoreDraft ? persistedStream : firstStream;
         setSelectedStreamId(canRestoreDraft ? persistedDraft?.selectedStreamId ?? "" : firstStream?.id ?? "");
+        setCreationRequestId(canRestoreDraft ? persistedDraft?.creationRequestId ?? createScheduleRequestId() : createScheduleRequestId());
         setScheduleForm(canRestoreDraft ? persistedDraft?.scheduleForm ?? createNewScheduleForm() : firstStream ? toScheduleForm(firstStream) : createNewScheduleForm());
         setGameLinkForm(canRestoreDraft ? persistedDraft?.gameLinkForm ?? defaultGameLinkForm : firstStream ? toGameLinkForm(firstStream) : defaultGameLinkForm);
         setSelectedChannelRefs(canRestoreDraft ? persistedDraft?.selectedChannelRefs ?? [] : firstStream?.channelTargets?.map((target) => target.channelRef) ?? []);
@@ -269,8 +279,9 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       removePersistedScheduleDraft();
       return;
     }
-    writePersistedScheduleDraft({ selectedStreamId, scheduleForm, gameLinkForm, selectedChannelRefs });
-  }, [gameLinkForm, hasUnsavedChanges, loadState, scheduleForm, selectedChannelRefs, selectedStream, selectedStreamId]);
+    if (!creationRequestId) return;
+    writePersistedScheduleDraft({ creationRequestId, selectedStreamId, scheduleForm, gameLinkForm, selectedChannelRefs });
+  }, [creationRequestId, gameLinkForm, hasUnsavedChanges, loadState, scheduleForm, selectedChannelRefs, selectedStream, selectedStreamId]);
   useEffect(() => {
     if (!cancelDialogOpen) return;
     const closeOnEscape = (event: KeyboardEvent): void => { if (event.key === "Escape" && busyAction === null) setCancelDialogOpen(false); };
@@ -278,13 +289,20 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [busyAction, cancelDialogOpen]);
 
-  const runMutation = async (label: string, path: string, options: { method: "POST" | "PATCH" | "PUT"; body: Record<string, unknown> }): Promise<StreamScheduleEntry | null> => {
+  const runMutation = async (label: string, path: string, options: {
+    method: "POST" | "PATCH" | "PUT";
+    body: Record<string, unknown>;
+    idempotencyKey?: string;
+  }): Promise<StreamScheduleEntry | null> => {
     setBusyAction(label);
     setMessage(`${label}...`);
     try {
       const response = await fetch(`${apiBaseUrl}${path}`, {
         method: options.method,
-        headers: createApiHeaders({ "Content-Type": "application/json" }),
+        headers: createApiHeaders({
+          "Content-Type": "application/json",
+          ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {})
+        }),
         credentials: "include",
         body: JSON.stringify(options.body)
       });
@@ -324,6 +342,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
   };
   const startNewStream = (): void => {
     setSelectedStreamId("");
+    setCreationRequestId(createScheduleRequestId());
     setScheduleForm(createNewScheduleForm());
     setCancellationForm(defaultCancellationForm);
     setGameLinkForm(defaultGameLinkForm);
@@ -338,6 +357,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       setSelectedChannelRefs(selectedStream.channelTargets?.map((target) => target.channelRef) ?? []);
       setMessage("Unsaved changes discarded.");
     } else {
+      setCreationRequestId(createScheduleRequestId());
       setScheduleForm(createNewScheduleForm());
       setGameLinkForm(defaultGameLinkForm);
       setSelectedChannelRefs([]);
@@ -378,7 +398,11 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     const gameLinkChanged = JSON.stringify(gameLinkForm) !== JSON.stringify(selectedStream ? toGameLinkForm(selectedStream) : defaultGameLinkForm);
     const savedStream = selectedStream
       ? await runMutation("Saving stream", `/admin/schedule/${encodeURIComponent(selectedStream.id)}`, { method: "PATCH", body: buildSchedulePayload() })
-      : await runMutation("Creating stream", "/admin/schedule", { method: "POST", body: buildSchedulePayload() });
+      : await runMutation("Creating stream", "/admin/schedule", {
+        method: "POST",
+        body: buildSchedulePayload(),
+        idempotencyKey: creationRequestId
+      });
     if (savedStream && (gameLinkChanged || (!selectedStream && gameLinkForm.gameId))) await saveGameLink(savedStream.id);
   };
   const openCancelDialog = (): void => {

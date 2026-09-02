@@ -22,6 +22,7 @@ import type {
   StreamScheduleAdminActor,
   StreamScheduleRepository
 } from "./stream-schedule.types.js";
+import { enqueueStreamProviderDeliveries } from "./stream-provider-delivery-store.service.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
 type SqlValue = string | number | boolean | Date | null;
@@ -185,6 +186,30 @@ const readStream = async (
   const targetsByStreamId = await readChannelTargetsForStreams(executor, [id]);
   return mapStream(rows[0] as StreamScheduleRow, linksByStreamId.get(id) ?? [], targetsByStreamId.get(id) ?? []);
 };
+
+const readStreamByCreationRequest = async (
+  executor: QueryExecutor,
+  actorUserId: string,
+  creationRequestId: string
+): Promise<StreamScheduleEntry | null> => {
+  const [rows] = await executor.execute(
+    `
+      SELECT id
+      FROM stream_schedule_entries
+      WHERE created_by_user_id = ? AND creation_request_id = ?
+      LIMIT 1
+    `,
+    [actorUserId, creationRequestId]
+  );
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  return await readStream(executor, String((rows[0] as { id: string }).id));
+};
+
+const isDuplicateEntryError = (error: unknown): boolean =>
+  typeof error === "object"
+  && error !== null
+  && "code" in error
+  && (error as { code?: unknown }).code === "ER_DUP_ENTRY";
 
 const readChannelTargetsForStreams = async (
   executor: QueryExecutor,
@@ -551,6 +576,12 @@ export const createStreamScheduleRepository = (
   },
 
   async createStream(input) {
+    const priorAcceptedStream = await readStreamByCreationRequest(
+      pool,
+      input.actorUserId,
+      input.creationRequestId
+    );
+    if (priorAcceptedStream) return { stream: priorAcceptedStream, created: false };
     const channelOptions = input.channelRefs === undefined
       ? null
       : await readOwnedChannelOptions(pool, input.actorUserId, input.channelRefs);
@@ -562,19 +593,33 @@ export const createStreamScheduleRepository = (
       await connection.execute(
         `
           INSERT INTO stream_schedule_entries
-            (id, title, description, starts_at, ends_at, channel_key, topic_key, theme_key, project_id, focus_label, focus_note, visibility, status, cancellation_reason_code, cancellation_reason, created_by_user_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, title, description, starts_at, ends_at, channel_key, topic_key, theme_key, project_id, focus_label, focus_note, visibility, status, cancellation_reason_code, cancellation_reason, created_by_user_id, creation_request_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
-        [id, ...writeValues(input), input.actorUserId]
+        [id, ...writeValues(input), input.actorUserId, input.creationRequestId]
       );
       if (channelOptions) await replaceChannelTargets(connection, id, channelOptions);
-
       const stream = await readStream(connection, id);
       if (!stream) throw new Error("stream_schedule_mutation_reread_failed");
+      await enqueueStreamProviderDeliveries({
+        executor: connection,
+        scheduleEntryId: id,
+        channelTargets: stream.channelTargets ?? [],
+        visibility: stream.visibility,
+        status: stream.status
+      });
       await connection.commit();
-      return stream;
+      return { stream, created: true };
     } catch (error) {
       await connection.rollback();
+      if (isDuplicateEntryError(error)) {
+        const acceptedStream = await readStreamByCreationRequest(
+          connection,
+          input.actorUserId,
+          input.creationRequestId
+        );
+        if (acceptedStream) return { stream: acceptedStream, created: false };
+      }
       throw error;
     } finally {
       connection.release();
@@ -611,8 +656,18 @@ export const createStreamScheduleRepository = (
 
       if (channelOptions) await replaceChannelTargets(connection, id, channelOptions);
 
+      const currentChannelTargets = channelOptions ?? [
+        ...(await readChannelTargetsForStreams(connection, [id])).get(id) ?? []
+      ];
       const stream = await readStream(connection, id);
       if (!stream) throw new Error("stream_schedule_mutation_reread_failed");
+      await enqueueStreamProviderDeliveries({
+        executor: connection,
+        scheduleEntryId: id,
+        channelTargets: currentChannelTargets,
+        visibility: stream.visibility,
+        status: stream.status
+      });
       await connection.commit();
       return stream;
     } catch (error) {

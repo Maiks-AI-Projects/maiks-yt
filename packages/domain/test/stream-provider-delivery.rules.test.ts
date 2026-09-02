@@ -11,7 +11,10 @@ describe("stream provider delivery rules", () => {
       scheduleEntryId: " Schedule-1 ",
       channelRef: " Channel-1 ",
       provider: "youtube",
-      desiredRevision: 3
+      desiredRevision: 3,
+      phase: "schedule",
+      visibility: "public",
+      status: "planned"
     })).toEqual([
       {
         scheduleEntryId: "Schedule-1",
@@ -20,16 +23,61 @@ describe("stream provider delivery rules", () => {
         operation: "youtube.broadcast",
         desiredRevision: 3,
         idempotencyKey: "stream-provider-delivery:schedule-1:channel-1:youtube.broadcast:3"
-      },
-      {
-        scheduleEntryId: "Schedule-1",
-        channelRef: "Channel-1",
-        provider: "youtube",
-        operation: "youtube.stream-binding",
-        desiredRevision: 3,
-        idempotencyKey: "stream-provider-delivery:schedule-1:channel-1:youtube.stream-binding:3"
       }
     ]);
+  });
+
+  it("separates accepted schedule publication from launch preparation", () => {
+    expect(buildStreamProviderDeliveryIntents({
+      scheduleEntryId: "schedule-1",
+      channelRef: "channel-1",
+      provider: "twitch",
+      desiredRevision: 2,
+      phase: "schedule",
+      visibility: "public",
+      status: "planned"
+    }).map((intent) => intent.operation)).toEqual(["twitch.schedule-segment"]);
+
+    expect(buildStreamProviderDeliveryIntents({
+      scheduleEntryId: "schedule-1",
+      channelRef: "channel-1",
+      provider: "twitch",
+      desiredRevision: 2,
+      phase: "prepare",
+      visibility: "public",
+      status: "planned"
+    }).map((intent) => intent.operation)).toEqual(["twitch.channel-metadata"]);
+
+    expect(buildStreamProviderDeliveryIntents({
+      scheduleEntryId: "schedule-1",
+      channelRef: "channel-1",
+      provider: "youtube",
+      desiredRevision: 2,
+      phase: "prepare",
+      visibility: "private",
+      status: "planned"
+    }).map((intent) => intent.operation)).toEqual(["youtube.stream-binding"]);
+  });
+
+  it("does not enqueue provider calls for drafts or terminal schedule states", () => {
+    expect(buildStreamProviderDeliveryIntents({
+      scheduleEntryId: "schedule-1",
+      channelRef: "channel-1",
+      provider: "youtube",
+      desiredRevision: 1,
+      phase: "schedule",
+      visibility: "draft",
+      status: "planned"
+    })).toEqual([]);
+    expect(buildStreamProviderDeliveryIntents({
+      scheduleEntryId: "schedule-1",
+      channelRef: "channel-1",
+      provider: "twitch",
+      desiredRevision: 2,
+      phase: "prepare",
+      visibility: "public",
+      status: "cancelled"
+    })).toEqual([]);
   });
 
   it("rejects empty identities and invalid revisions", () => {

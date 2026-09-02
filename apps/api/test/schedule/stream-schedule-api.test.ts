@@ -39,6 +39,8 @@ const createStream = (overrides: Partial<StreamScheduleEntry> = {}): StreamSched
   ...overrides
 });
 
+const creationRequestId = "22222222-2222-4222-8222-222222222222";
+
 const createPayload = (overrides: Partial<StreamScheduleInput> = {}): StreamScheduleInput => ({
   title: "New stream",
   description: "A manual stream schedule entry.",
@@ -63,10 +65,11 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
     rolePermissionValues: [["*"]]
   };
   public readonly streams = new Map<string, StreamScheduleEntry>();
-  public lastCreated: (StreamScheduleInput & { actorUserId: string }) | null = null;
+  public lastCreated: (StreamScheduleInput & { actorUserId: string; creationRequestId: string }) | null = null;
   public lastUpdated: StreamScheduleUpdateInput | null = null;
   public lastCancellation: StreamScheduleCancellationInput | null = null;
   public lastGameLinks: readonly StreamScheduleGameLinkInput[] | null = null;
+  public createResultCreated = true;
 
   public constructor() {
     this.streams.set("stream-1", createStream());
@@ -137,14 +140,15 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
     }];
   }
 
-  public async createStream(input: StreamScheduleInput & { actorUserId: string }): Promise<StreamScheduleEntry> {
+  public async createStream(input: StreamScheduleInput & { actorUserId: string; creationRequestId: string }) {
     this.lastCreated = structuredClone(input);
+    const { actorUserId: _actorUserId, creationRequestId: _creationRequestId, ...scheduleInput } = input;
     const stream = createStream({
-      ...input,
+      ...scheduleInput,
       id: "created-stream"
     });
     this.streams.set(stream.id, stream);
-    return structuredClone(stream);
+    return { stream: structuredClone(stream), created: this.createResultCreated };
   }
 
   public async updateStream(id: string, input: StreamScheduleUpdateInput) {
@@ -243,7 +247,8 @@ describe("StreamScheduleService", () => {
       }
     });
     expect(repository.lastCreated).toMatchObject({
-      actorUserId: "domain-user"
+      actorUserId: "domain-user",
+      creationRequestId: expect.stringMatching(/^[a-f0-9-]{36}$/)
     });
 
     repository.actor = {
@@ -418,6 +423,49 @@ describe("StreamScheduleService", () => {
 });
 
 describe("stream schedule store boundaries", () => {
+  it("returns the previously accepted schedule for the same creation request without writing again", async () => {
+    const execute = vi.fn()
+      .mockResolvedValueOnce([[{ id: "accepted-stream" }], []])
+      .mockResolvedValueOnce([[
+        {
+          id: "accepted-stream",
+          title: "Accepted stream",
+          description: null,
+          startsAt: new Date("2026-09-02T19:00:00.000Z"),
+          endsAt: new Date("2026-09-02T22:00:00.000Z"),
+          channelKey: "maiksplays",
+          topicKey: "the-last-caretaker",
+          themeKey: "default",
+          projectId: null,
+          focusLabel: null,
+          focusNote: null,
+          visibility: "public",
+          status: "planned",
+          cancellationReasonCode: null,
+          cancellationReason: null,
+          createdAt: new Date("2026-09-02T10:00:00.000Z"),
+          updatedAt: new Date("2026-09-02T10:00:00.000Z")
+        }
+      ], []])
+      .mockResolvedValueOnce([[], []])
+      .mockResolvedValueOnce([[], []]);
+    const getConnection = vi.fn(() => {
+      throw new Error("an accepted retry must not open a write transaction");
+    });
+    const repository = createStreamScheduleRepository({ execute, getConnection } as never);
+
+    await expect(repository.createStream({
+      ...createPayload(),
+      actorUserId: "domain-user",
+      creationRequestId
+    })).resolves.toMatchObject({
+      created: false,
+      stream: { id: "accepted-stream", title: "Accepted stream" }
+    });
+    expect(execute.mock.calls[0]?.[1]).toEqual(["domain-user", creationRequestId]);
+    expect(getConnection).not.toHaveBeenCalled();
+  });
+
   it("lists only the owner connected Twitch and YouTube channel identities", async () => {
     const execute = vi.fn().mockResolvedValueOnce([[
       {
@@ -442,15 +490,17 @@ describe("stream schedule store boundaries", () => {
   });
 
   it("rejects a schedule target that is not owned by the schedule owner before writing", async () => {
-    const execute = vi.fn().mockResolvedValueOnce([[], []]);
+    const execute = vi.fn().mockResolvedValue([[], []]);
     const repository = createStreamScheduleRepository({ execute } as never);
 
     await expect(repository.createStream({
       ...createPayload({ channelRefs: ["11111111-1111-4111-8111-111111111111"] }),
-      actorUserId: "domain-user"
+      actorUserId: "domain-user",
+      creationRequestId
     })).resolves.toBe("invalid-channel");
-    expect(execute).toHaveBeenCalledTimes(1);
-    expect(String(execute.mock.calls[0]?.[0])).toContain("provider_channel_identities");
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(String(execute.mock.calls[0]?.[0])).toContain("creation_request_id");
+    expect(String(execute.mock.calls[1]?.[0])).toContain("provider_channel_identities");
   });
 
   it("loads only active delegated grants while preserving schedule access", async () => {
@@ -820,6 +870,34 @@ describe("stream schedule route boundary", () => {
       streamScheduleEntryId: "created-stream",
       actorExternalId: "maiks-yt:schedule"
     }));
+    await server.close();
+  });
+
+  it("does not emit a second website event when a creation request is replayed", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    repository.createResultCreated = false;
+    const routeWebsiteEvent = vi.fn(async () => ({
+      playbackEmitted: false,
+      status: "ignored" as const
+    }));
+    const server = Fastify();
+    registerStreamScheduleRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => { throw new Error("pool should not be used"); },
+      createService: () => new StreamScheduleService(repository),
+      routeWebsiteEvent
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/admin/schedule",
+      headers: { "idempotency-key": creationRequestId },
+      payload: createPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ ok: true, replayed: true });
+    expect(routeWebsiteEvent).not.toHaveBeenCalled();
     await server.close();
   });
 

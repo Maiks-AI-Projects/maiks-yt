@@ -18,6 +18,7 @@ export const streamProviderDeliveryOperations = [
 
 export type StreamProviderDeliveryStatus = typeof streamProviderDeliveryStatuses[number];
 export type StreamProviderDeliveryOperation = typeof streamProviderDeliveryOperations[number];
+export type StreamProviderDeliveryPhase = "schedule" | "prepare";
 
 export type StreamProviderDeliveryBinding = {
   id: string;
@@ -68,4 +69,3 @@ export type StreamProviderPreflightResult = {
   canPrepare: boolean;
   issues: readonly StreamProviderPreflightIssue[];
 };
-

@@ -310,4 +310,61 @@ describe("stream schedule admin client game focus saving", () => {
 
     await act(async () => { renderer.unmount(); });
   });
+
+  it("reuses one creation request id after a lost response", async () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        removeItem: (key: string) => { storage.delete(key); },
+        setItem: (key: string, value: string) => { storage.set(key, value); }
+      }
+    });
+    const postRequests: Array<{ body: Record<string, unknown>; idempotencyKey: string | null }> = [];
+    let postAttempt = 0;
+    const baseFetchMock = createScheduleFetchMock();
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/admin/schedule") && init?.method === "POST") {
+        postRequests.push({
+          body: JSON.parse(String(init.body)) as Record<string, unknown>,
+          idempotencyKey: new Headers(init.headers).get("Idempotency-Key")
+        });
+        postAttempt += 1;
+        if (postAttempt === 1) return Promise.reject(new Error("response connection lost"));
+        return Promise.resolve(createJsonResponse({
+          ok: true,
+          stream: { ...twoLinkStream, id: "created-stream", title: "Retry-safe stream" }
+        }));
+      }
+      return baseFetchMock(input, init);
+    });
+    let renderer = await renderScheduleEditor(fetchMock);
+    const newStreamButton = renderer.root.findAllByType("button").find((button) =>
+      button.children.some((child) => child === "New stream")
+    );
+    await act(async () => { newStreamButton?.props.onClick(); });
+    const titleInput = renderer.root.findAllByType("input").find((input) => input.props.id === "schedule-title");
+    const channelCheckbox = renderer.root.findAllByType("input").find((input) => input.props.type === "checkbox");
+    await act(async () => {
+      titleInput?.props.onChange({ target: { value: "Retry-safe stream" } });
+      channelCheckbox?.props.onChange({ target: { checked: true } });
+    });
+
+    await act(async () => {
+      await renderer.root.findByType("form").props.onSubmit({ preventDefault: vi.fn() });
+    });
+    await act(async () => { renderer.unmount(); });
+    renderer = await renderScheduleEditor(fetchMock);
+    await act(async () => {
+      await renderer.root.findByType("form").props.onSubmit({ preventDefault: vi.fn() });
+    });
+
+    expect(postRequests).toHaveLength(2);
+    expect(postRequests[0]?.idempotencyKey).toMatch(/^[a-f0-9-]{36}$/);
+    expect(postRequests[1]?.idempotencyKey).toBe(postRequests[0]?.idempotencyKey);
+    expect(postRequests[1]?.body.title).toBe("Retry-safe stream");
+    expect(postRequests[1]?.body).not.toHaveProperty("creationRequestId");
+    expect(storage.size).toBe(0);
+    await act(async () => { renderer.unmount(); });
+  });
 });
