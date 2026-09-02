@@ -2,7 +2,8 @@ import type { DatabasePool } from "@maiks-yt/database";
 import {
   resolveYouTubeOwnerOAuthConfig,
   youtubeLiveChatReadOnlyScope,
-  type YouTubeLiveChatContext
+  type YouTubeLiveChatContext,
+  type YouTubeLiveChatQuotaGuard
 } from "@maiks-yt/integrations";
 
 import type {
@@ -17,6 +18,8 @@ import {
 } from "./provider-runtime-credential-token-crypto.service.js";
 
 type QueryExecutor = Pick<DatabasePool, "execute">;
+
+export const youtubeLiveChatQuotaExhaustedSentinel = "youtube_live_chat_quota_exhausted";
 
 const parseScopes = (value: unknown): string[] => {
   if (Array.isArray(value)) {
@@ -183,4 +186,51 @@ export const createYouTubeLiveChatContextRepository = (
       ? createProviderRuntimeCredentialCipherFromEnvironment()
       : options.cipher
   )
+});
+
+export const createYouTubeLiveChatQuotaGuard = (
+  pool: DatabasePool
+): YouTubeLiveChatQuotaGuard => ({
+  async isBlocked() {
+    const [rows] = await pool.execute(
+      `
+        SELECT 1 AS blocked
+        FROM provider_runtime_credentials
+        WHERE provider = 'youtube'
+          AND purpose = 'youtube_live_chat'
+          AND status = 'active'
+          AND revoked_at IS NULL
+          AND last_error = ?
+        LIMIT 1
+      `,
+      [youtubeLiveChatQuotaExhaustedSentinel]
+    );
+
+    return Array.isArray(rows) && rows.length > 0;
+  },
+  async block() {
+    await pool.execute(
+      `
+        UPDATE provider_runtime_credentials
+        SET last_error = ?, updated_at = NOW()
+        WHERE provider = 'youtube'
+          AND purpose = 'youtube_live_chat'
+          AND status = 'active'
+          AND revoked_at IS NULL
+      `,
+      [youtubeLiveChatQuotaExhaustedSentinel]
+    );
+  },
+  async clear() {
+    await pool.execute(
+      `
+        UPDATE provider_runtime_credentials
+        SET last_error = NULL, updated_at = NOW()
+        WHERE provider = 'youtube'
+          AND purpose = 'youtube_live_chat'
+          AND last_error = ?
+      `,
+      [youtubeLiveChatQuotaExhaustedSentinel]
+    );
+  }
 });

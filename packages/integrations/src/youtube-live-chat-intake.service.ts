@@ -1,3 +1,7 @@
+import { credentials, loadPackageDefinition, Metadata, type Client, type ClientReadableStream } from "@grpc/grpc-js";
+import { loadSync } from "@grpc/proto-loader";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { google } from "googleapis";
 
 import { projectYouTubeLiveChatMessage } from "./youtube-live-chat-intake.rules.js";
@@ -7,6 +11,8 @@ import type {
   YouTubeLiveChatContext,
   YouTubeLiveChatIntakeStatus,
   YouTubeLiveChatMessageBatch,
+  YouTubeLiveChatMessageStream,
+  YouTubeLiveChatQuotaGuard,
   YouTubeLiveChatProjectedMessage
 } from "./youtube-live-chat-intake.types.js";
 
@@ -18,8 +24,50 @@ type YouTubeLiveChatReadOnlyIntakeOptions = {
   onMessage?: (message: YouTubeLiveChatProjectedMessage) => void;
   now?: () => Date;
   pollWhenNoActiveChatMs?: number;
+  quotaGuard?: YouTubeLiveChatQuotaGuard;
   setTimeoutFn?: (callback: () => void, ms: number) => unknown;
+  streamReconnectBaseMs?: number;
+  streamReconnectMaxMs?: number;
 };
+
+type YouTubeLiveChatStartOptions = {
+  resetQuotaBlock?: boolean;
+};
+
+const unblockedQuotaGuard: YouTubeLiveChatQuotaGuard = {
+  isBlocked: async () => false,
+  block: async () => undefined,
+  clear: async () => undefined
+};
+
+const collectErrorReasons = (error: unknown): string[] => {
+  if (typeof error !== "object" || error === null) {
+    return typeof error === "string" ? [error] : [];
+  }
+
+  const candidate = error as {
+    message?: unknown;
+    response?: {
+      data?: {
+        error?: {
+          errors?: Array<{ reason?: unknown }>;
+          status?: unknown;
+        };
+      };
+    };
+  };
+
+  return [
+    candidate.message,
+    candidate.response?.data?.error?.status,
+    ...(candidate.response?.data?.error?.errors?.map((item) => item.reason) ?? [])
+  ].filter((value): value is string => typeof value === "string");
+};
+
+export const isYouTubeQuotaExceededError = (error: unknown): boolean =>
+  collectErrorReasons(error).some((value) =>
+    /(?:quota[\s_-]*exceeded|daily[\s_-]*limit[\s_-]*exceeded)/i.test(value)
+  );
 
 const sanitizeError = (error: unknown): string => {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -33,7 +81,7 @@ const sanitizeError = (error: unknown): string => {
   return "YouTube live chat intake unavailable.";
 };
 
-const createYouTubeClient = (context: YouTubeLiveChatContext) => {
+const createYouTubeOAuthClient = (context: YouTubeLiveChatContext) => {
   const client = new google.auth.OAuth2(
     context.config.clientId,
     context.config.clientSecret,
@@ -46,11 +94,88 @@ const createYouTubeClient = (context: YouTubeLiveChatContext) => {
     ...(context.credential.accessTokenExpiresAt ? { expiry_date: context.credential.accessTokenExpiresAt.getTime() } : {})
   });
 
+  return client;
+};
+
+const createYouTubeClient = (context: YouTubeLiveChatContext) => {
+  const client = createYouTubeOAuthClient(context);
   return google.youtube({
     version: "v3",
     auth: client
   });
 };
+
+type StreamListGrpcResponse = {
+  items?: Array<{
+    author_details?: {
+      channel_id?: string;
+      display_name?: string;
+      profile_image_url?: string;
+    };
+    id?: string;
+    snippet?: {
+      display_message?: string;
+      published_at?: string;
+    };
+  }>;
+  next_page_token?: string;
+};
+
+type StreamListGrpcClient = Client & {
+  streamList(
+    input: {
+      live_chat_id: string;
+      page_token?: string;
+      part: string[];
+      profile_image_size: number;
+    },
+    metadata: Metadata
+  ): ClientReadableStream<StreamListGrpcResponse>;
+};
+
+type StreamListGrpcClientConstructor = new (
+  address: string,
+  channelCredentials: ReturnType<typeof credentials.createSsl>
+) => StreamListGrpcClient;
+
+const adjacentStreamListProtoPath = fileURLToPath(
+  new URL("./youtube-live-chat-stream.proto", import.meta.url)
+);
+const sourceStreamListProtoPath = fileURLToPath(
+  new URL("../src/youtube-live-chat-stream.proto", import.meta.url)
+);
+const streamListDefinition = loadSync(
+  existsSync(adjacentStreamListProtoPath) ? adjacentStreamListProtoPath : sourceStreamListProtoPath,
+  {
+    defaults: false,
+    keepCase: true,
+    longs: String,
+    oneofs: true
+  }
+);
+const streamListPackage = loadPackageDefinition(streamListDefinition) as unknown as {
+  youtube: {
+    api: {
+      v3: {
+        V3DataLiveChatMessageService: StreamListGrpcClientConstructor;
+      };
+    };
+  };
+};
+
+export const projectYouTubeLiveChatStreamResponse = (
+  response: StreamListGrpcResponse
+): YouTubeLiveChatMessageBatch => ({
+  messages: (response.items ?? []).map((item) => ({
+    authorChannelId: item.author_details?.channel_id ?? null,
+    authorName: item.author_details?.display_name ?? null,
+    avatarUrl: item.author_details?.profile_image_url ?? null,
+    createdAt: item.snippet?.published_at ?? null,
+    id: item.id ?? null,
+    text: item.snippet?.display_message ?? ""
+  })),
+  nextPageToken: response.next_page_token ?? null
+});
 
 export const createYouTubeActiveBroadcastListRequest = () => ({
   part: ["snippet"],
@@ -76,25 +201,54 @@ export const createGoogleYouTubeLiveChatApi = (): YouTubeLiveChatApi => ({
       title: broadcast.snippet.title ?? null
     };
   },
-  async listMessages({ context, liveChatId, pageToken }) {
-    const youtube = createYouTubeClient(context);
-    const response = await youtube.liveChatMessages.list({
-      liveChatId,
+  async openMessageStream({ context, liveChatId, onBatch, pageToken }) {
+    const accessToken = await createYouTubeOAuthClient(context).getAccessToken();
+    if (!accessToken.token) {
+      throw new Error("YouTube live-chat access token is unavailable.");
+    }
+
+    const metadata = new Metadata();
+    metadata.set("authorization", `Bearer ${accessToken.token}`);
+    const StreamListClient = streamListPackage.youtube.api.v3.V3DataLiveChatMessageService;
+    const client = new StreamListClient("youtube.googleapis.com:443", credentials.createSsl());
+    const call = client.streamList({
+      live_chat_id: liveChatId,
+      ...(pageToken ? { page_token: pageToken } : {}),
       part: ["snippet", "authorDetails"],
-      ...(pageToken ? { pageToken } : {})
+      profile_image_size: 88
+    }, metadata);
+    let settled = false;
+    let resolveCompletion: (() => void) | undefined;
+    let rejectCompletion: ((error: unknown) => void) | undefined;
+    const completion = new Promise<void>((resolve, reject) => {
+      resolveCompletion = resolve;
+      rejectCompletion = reject;
     });
+    const finish = (error?: unknown): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      client.close();
+      if (error) {
+        rejectCompletion?.(error);
+      } else {
+        resolveCompletion?.();
+      }
+    };
+
+    call.on("data", (response) => {
+      onBatch(projectYouTubeLiveChatStreamResponse(response));
+    });
+    call.on("error", (error) => finish(error));
+    call.on("end", () => finish());
 
     return {
-      messages: (response.data.items ?? []).map((item) => ({
-        authorChannelId: item.authorDetails?.channelId ?? null,
-        authorName: item.authorDetails?.displayName ?? null,
-        avatarUrl: item.authorDetails?.profileImageUrl ?? null,
-        createdAt: item.snippet?.publishedAt ?? null,
-        id: item.id ?? null,
-        text: item.snippet?.displayMessage ?? ""
-      })),
-      nextPageToken: response.data.nextPageToken ?? null,
-      pollingIntervalMs: response.data.pollingIntervalMillis ?? null
+      cancel() {
+        call.cancel();
+        finish();
+      },
+      completion
     };
   }
 });
@@ -107,7 +261,10 @@ export class YouTubeLiveChatReadOnlyIntakeService {
   private readonly now: () => Date;
   private readonly onProjectedMessage: ((message: YouTubeLiveChatProjectedMessage) => void) | undefined;
   private readonly pollWhenNoActiveChatMs: number;
+  private readonly quotaGuard: YouTubeLiveChatQuotaGuard;
   private readonly setTimeoutFn: (callback: () => void, ms: number) => unknown;
+  private readonly streamReconnectBaseMs: number;
+  private readonly streamReconnectMaxMs: number;
   private activeLiveChatId: string | null = null;
   private channelId: string | null = null;
   private channelName: string | null = null;
@@ -119,7 +276,10 @@ export class YouTubeLiveChatReadOnlyIntakeService {
   private nextPollAt: string | null = null;
   private readonly processedProviderMessageIds = new Set<string>();
   private readonly recentMessages: YouTubeLiveChatProjectedMessage[] = [];
+  private operationGeneration = 0;
   private state: YouTubeLiveChatIntakeStatus["state"] = "stopped";
+  private activeStream: YouTubeLiveChatMessageStream | null = null;
+  private streamReconnectAttempt = 0;
   private timer: unknown | null = null;
 
   public constructor(options: YouTubeLiveChatReadOnlyIntakeOptions) {
@@ -132,7 +292,10 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     this.now = options.now ?? (() => new Date());
     this.onProjectedMessage = options.onMessage;
     this.pollWhenNoActiveChatMs = options.pollWhenNoActiveChatMs ?? 60_000;
+    this.quotaGuard = options.quotaGuard ?? unblockedQuotaGuard;
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms));
+    this.streamReconnectBaseMs = options.streamReconnectBaseMs ?? 2_000;
+    this.streamReconnectMaxMs = options.streamReconnectMaxMs ?? 60_000;
   }
 
   public getStatus(): YouTubeLiveChatIntakeStatus {
@@ -163,8 +326,12 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     };
   }
 
-  public start(): YouTubeLiveChatIntakeStatus {
+  public start(options: YouTubeLiveChatStartOptions = {}): YouTubeLiveChatIntakeStatus {
     if (this.state === "connected" || this.state === "connecting" || this.state === "waiting") {
+      return this.getStatus();
+    }
+
+    if (this.state === "quota_exhausted" && !options.resetQuotaBlock) {
       return this.getStatus();
     }
 
@@ -172,14 +339,18 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     this.state = "connecting";
     this.lastError = null;
     this.clearTimer();
-    void this.pollOnce();
+    this.clearActiveStream();
+    const generation = ++this.operationGeneration;
+    void this.startOnce(generation, options.resetQuotaBlock === true);
 
     return this.getStatus();
   }
 
   public stop(): YouTubeLiveChatIntakeStatus {
     this.manualStopRequested = true;
+    this.operationGeneration += 1;
     this.clearTimer();
+    this.clearActiveStream();
     this.activeLiveChatId = null;
     this.connectedAt = null;
     this.nextPageToken = null;
@@ -189,13 +360,43 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     return this.getStatus();
   }
 
-  private async pollOnce(): Promise<void> {
-    if (this.manualStopRequested) {
+  private async startOnce(generation: number, resetQuotaBlock: boolean): Promise<void> {
+    try {
+      if (resetQuotaBlock) {
+        await this.quotaGuard.clear();
+      } else if (await this.quotaGuard.isBlocked()) {
+        if (!this.isCurrentOperation(generation)) {
+          return;
+        }
+        this.setQuotaExhausted();
+        return;
+      }
+    } catch (error) {
+      if (!this.isCurrentOperation(generation)) {
+        return;
+      }
+      this.lastError = sanitizeError(error);
+      this.state = "waiting";
+      this.scheduleNext(this.pollWhenNoActiveChatMs, generation, () => {
+        void this.startOnce(generation, false);
+      });
+      return;
+    }
+
+    await this.pollOnce(generation);
+  }
+
+  private async pollOnce(generation: number): Promise<void> {
+    if (!this.isCurrentOperation(generation)) {
       return;
     }
 
     try {
       const context = await this.contextResolver();
+
+      if (!this.isCurrentOperation(generation)) {
+        return;
+      }
 
       if (!context) {
         this.state = "unconfigured";
@@ -212,31 +413,83 @@ export class YouTubeLiveChatReadOnlyIntakeService {
 
       if (!this.activeLiveChatId) {
         const active = await this.liveChatApi.findActiveLiveChat({ context });
+        if (!this.isCurrentOperation(generation)) {
+          return;
+        }
         this.setActiveLiveChat(active);
       }
 
       if (!this.activeLiveChatId) {
         this.state = "waiting";
         this.lastError = null;
-        this.scheduleNext(this.pollWhenNoActiveChatMs);
+        this.scheduleNext(this.pollWhenNoActiveChatMs, generation);
         return;
       }
 
-      const batch = await this.liveChatApi.listMessages({
+      const stream = await this.liveChatApi.openMessageStream({
         context,
         liveChatId: this.activeLiveChatId,
+        onBatch: (batch) => {
+          if (!this.isCurrentOperation(generation)) {
+            return;
+          }
+          this.recordBatch(batch, context);
+          this.streamReconnectAttempt = 0;
+          this.state = "connected";
+          this.connectedAt ??= this.now().toISOString();
+          this.lastError = null;
+          this.nextPollAt = null;
+        },
         pageToken: this.nextPageToken
       });
 
-      this.recordBatch(batch, context);
+      if (!this.isCurrentOperation(generation)) {
+        stream.cancel();
+        return;
+      }
+
+      this.activeStream = stream;
       this.state = "connected";
       this.connectedAt ??= this.now().toISOString();
       this.lastError = null;
-      this.scheduleNext(batch.pollingIntervalMs ?? 5_000);
+      this.nextPollAt = null;
+      try {
+        await stream.completion;
+      } finally {
+        if (this.activeStream === stream) {
+          this.activeStream = null;
+        }
+      }
+      if (!this.isCurrentOperation(generation)) {
+        return;
+      }
+      this.state = "connecting";
+      this.scheduleStreamReconnect(generation);
     } catch (error) {
+      if (!this.isCurrentOperation(generation)) {
+        return;
+      }
+
+      if (isYouTubeQuotaExceededError(error)) {
+        try {
+          await this.quotaGuard.block();
+        } catch {
+          // The in-process circuit still stops provider calls for this runtime.
+        }
+        if (this.isCurrentOperation(generation)) {
+          this.setQuotaExhausted();
+        }
+        return;
+      }
+
       this.lastError = sanitizeError(error);
-      this.state = this.activeLiveChatId ? "connected" : "waiting";
-      this.scheduleNext(this.pollWhenNoActiveChatMs);
+      this.state = this.activeLiveChatId ? "connecting" : "waiting";
+      if (this.activeLiveChatId) {
+        this.clearActiveStream();
+        this.scheduleStreamReconnect(generation);
+      } else {
+        this.scheduleNext(this.pollWhenNoActiveChatMs, generation);
+      }
     }
   }
 
@@ -291,8 +544,24 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     }
   }
 
-  private scheduleNext(delayMs: number): void {
-    if (this.manualStopRequested) {
+  private scheduleStreamReconnect(generation: number): void {
+    const exponent = Math.min(this.streamReconnectAttempt, 10);
+    const delayMs = Math.min(
+      this.streamReconnectBaseMs * (2 ** exponent),
+      this.streamReconnectMaxMs
+    );
+    this.streamReconnectAttempt += 1;
+    this.scheduleNext(delayMs, generation);
+  }
+
+  private scheduleNext(
+    delayMs: number,
+    generation: number,
+    callback: () => void = () => {
+      void this.pollOnce(generation);
+    }
+  ): void {
+    if (!this.isCurrentOperation(generation)) {
       return;
     }
 
@@ -300,7 +569,8 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     this.nextPollAt = new Date(this.now().getTime() + safeDelayMs).toISOString();
     this.clearTimer();
     this.timer = this.setTimeoutFn(() => {
-      void this.pollOnce();
+      this.timer = null;
+      callback();
     }, safeDelayMs);
   }
 
@@ -309,5 +579,24 @@ export class YouTubeLiveChatReadOnlyIntakeService {
       this.clearTimeoutFn(this.timer);
       this.timer = null;
     }
+  }
+
+  private clearActiveStream(): void {
+    const stream = this.activeStream;
+    this.activeStream = null;
+    stream?.cancel();
+  }
+
+  private isCurrentOperation(generation: number): boolean {
+    return !this.manualStopRequested && generation === this.operationGeneration;
+  }
+
+  private setQuotaExhausted(): void {
+    this.clearTimer();
+    this.clearActiveStream();
+    this.connectedAt = null;
+    this.nextPollAt = null;
+    this.lastError = "YouTube API quota is exhausted. Retry manually after the quota resets.";
+    this.state = "quota_exhausted";
   }
 }

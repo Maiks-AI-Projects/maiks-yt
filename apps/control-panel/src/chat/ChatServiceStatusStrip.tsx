@@ -280,7 +280,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
     }
 
     setYouTubeActionPending(true);
-    setYouTubeMessage("Starting YouTube live-chat polling.");
+    setYouTubeMessage("Starting YouTube live-chat streaming.");
 
     try {
       const response = await apiFetch(`${apiBaseUrl}/streamer-chat/youtube-reconnect`, {

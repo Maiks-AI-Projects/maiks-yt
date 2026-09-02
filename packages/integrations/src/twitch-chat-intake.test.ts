@@ -13,6 +13,7 @@ type MessageHandler = (channel: string, user: string, text: string, msg: {
   id: string;
   userInfo: {
     displayName: string;
+    userId?: string;
   };
 }) => void;
 
@@ -73,7 +74,8 @@ class FakeChatClient {
       emoteOffsets: new Map(),
       id: "twitch-message-1",
       userInfo: {
-        displayName: "  Viewer Name  "
+        displayName: "  Viewer Name  ",
+        userId: "123456"
       }
     });
   }
@@ -136,6 +138,18 @@ describe("projectTwitchChatMessage", () => {
     })).toEqual({
       ok: false,
       reason: "empty_message"
+    });
+  });
+
+  it("keeps chat while dropping an unsafe Twitch avatar URL", () => {
+    expect(projectTwitchChatMessage({
+      avatarUrl: "javascript:alert(1)",
+      channelName: "maiksmc",
+      text: "Hello",
+      userName: "viewer_login"
+    })).toEqual({
+      ok: true,
+      message: expect.not.objectContaining({ avatarUrl: expect.anything() })
     });
   });
 
@@ -300,6 +314,28 @@ describe("TwitchChatReadOnlyIntakeService", () => {
         source: "twitch"
       })
     ]);
+  });
+
+  it("adds a resolved Twitch avatar without making avatar failure a chat failure", async () => {
+    const fakeClient = new FakeChatClient();
+    const onMessage = vi.fn();
+    const resolveAvatarUrl = vi.fn(async () => "https://static-cdn.jtvnw.net/avatar.png");
+    const service = new TwitchChatReadOnlyIntakeService({
+      createClient: () => fakeClient as never,
+      env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
+      onMessage,
+      resolveAvatarUrl
+    });
+
+    service.start();
+    fakeClient.emitMessage();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(resolveAvatarUrl).toHaveBeenCalledWith("123456");
+    expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({
+      avatarUrl: "https://static-cdn.jtvnw.net/avatar.png",
+      providerMessageId: "twitch-message-1"
+    }));
   });
 
   it("auto-reconnects after an unexpected disconnect", () => {

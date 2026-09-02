@@ -64,18 +64,29 @@ export type YouTubeLiveChatReadableMessage = {
 export type YouTubeLiveChatMessageBatch = {
   messages: readonly YouTubeLiveChatReadableMessage[];
   nextPageToken: string | null;
-  pollingIntervalMs: number | null;
+};
+
+export type YouTubeLiveChatMessageStream = {
+  cancel(): void;
+  completion: Promise<void>;
 };
 
 export type YouTubeLiveChatApi = {
   findActiveLiveChat(input: {
     context: YouTubeLiveChatContext;
   }): Promise<YouTubeActiveLiveChat | null>;
-  listMessages(input: {
+  openMessageStream(input: {
     context: YouTubeLiveChatContext;
     liveChatId: string;
+    onBatch: (batch: YouTubeLiveChatMessageBatch) => void;
     pageToken: string | null;
-  }): Promise<YouTubeLiveChatMessageBatch>;
+  }): Promise<YouTubeLiveChatMessageStream>;
+};
+
+export type YouTubeLiveChatQuotaGuard = {
+  isBlocked(): Promise<boolean>;
+  block(): Promise<void>;
+  clear(): Promise<void>;
 };
 
 export type YouTubeLiveChatIntakeStatus =
@@ -88,7 +99,7 @@ export type YouTubeLiveChatIntakeStatus =
     lastMessageAt: string | null;
     nextPollAt: string | null;
     recentMessages: readonly YouTubeLiveChatProjectedMessage[];
-    state: "stopped" | "connecting" | "waiting" | "connected";
+    state: "stopped" | "connecting" | "waiting" | "connected" | "quota_exhausted";
   }
   | {
     activeLiveChatId: null;

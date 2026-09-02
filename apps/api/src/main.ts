@@ -63,6 +63,7 @@ import { OverlayRuntime } from "./overlay/index.js";
 import {
   createProviderEventIntakeLogRepository,
   createYouTubeLiveChatContextRepository,
+  createYouTubeLiveChatQuotaGuard,
   ProviderEventIntakeLogService
 } from "./provider-integrations/index.js";
 import {
@@ -73,6 +74,12 @@ import {
   StreamerChatRuntime,
   type StreamerChatModerationAction
 } from "./streamer-chat/index.js";
+import {
+  dispatchOrDeliverProviderChatMessage,
+  isProviderChatMessageDispatcherEnabled,
+  ProviderChatMessageDispatcher,
+  type AcceptedProviderChatMessage
+} from "./streamer-chat/provider-chat-message-dispatcher.service.js";
 
 const config = createRuntimeConfig({
   environment: process.env.NODE_ENV === "production" ? "production" : "development",
@@ -362,19 +369,54 @@ const recordYouTubeStreamerChatMessage = (message: YouTubeLiveChatProjectedMessa
   });
 };
 
+const providerChatMessageDispatcherEnabled = isProviderChatMessageDispatcherEnabled(process.env);
+const providerChatMessageDispatcher = new ProviderChatMessageDispatcher({
+  onSubscriberError: ({ subscriberId, event }) => {
+    server.log.warn({
+      source: event.payload.source,
+      subscriberId
+    }, "Accepted provider chat subscriber failed.");
+  }
+});
+const recordAcceptedProviderChatMessage = (message: AcceptedProviderChatMessage): void => {
+  switch (message.source) {
+    case "twitch":
+      recordTwitchStreamerChatMessage(message);
+      return;
+    case "youtube":
+      recordYouTubeStreamerChatMessage(message);
+      return;
+    case "discord":
+      recordDiscordStreamerChatMessage(message);
+  }
+};
+providerChatMessageDispatcher.subscribe("existing-chat-delivery", (event) => {
+  recordAcceptedProviderChatMessage(event.payload);
+});
+
+const deliverAcceptedProviderChatMessage = (message: AcceptedProviderChatMessage): void => {
+  dispatchOrDeliverProviderChatMessage({
+    direct: recordAcceptedProviderChatMessage,
+    dispatcher: providerChatMessageDispatcher,
+    enabled: providerChatMessageDispatcherEnabled,
+    message
+  });
+};
+
 const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
-  onMessage: recordTwitchStreamerChatMessage,
+  onMessage: deliverAcceptedProviderChatMessage,
   onReconnectSuppressed: createProviderReconnectSuppressedNotifier("twitch", "Twitch")
 });
 const discordChatIntakeRuntime = new DiscordChatReadOnlyIntakeService({
   onGatewayEvent: writeProviderGatewayIntakeLog,
-  onMessage: recordDiscordStreamerChatMessage,
+  onMessage: deliverAcceptedProviderChatMessage,
   onReconnectSuppressed: createProviderReconnectSuppressedNotifier("discord", "Discord")
 });
 const youtubeLiveChatContextRepository = createYouTubeLiveChatContextRepository(getDatabasePool());
 const youtubeLiveChatIntakeRuntime = new YouTubeLiveChatReadOnlyIntakeService({
   contextResolver: youtubeLiveChatContextRepository.resolveSelectedLiveChatContext,
-  onMessage: recordYouTubeStreamerChatMessage
+  onMessage: deliverAcceptedProviderChatMessage,
+  quotaGuard: createYouTubeLiveChatQuotaGuard(getDatabasePool())
 });
 const providerChatBotDeliveryService = new ProviderChatBotDeliveryService({
   youtubeContextResolver: youtubeLiveChatContextRepository.resolveSelectedLiveChatContext

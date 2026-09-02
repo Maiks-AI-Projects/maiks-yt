@@ -26,7 +26,7 @@ export class YouTubeLiveChatIntakeControlService {
   }
 
   public async start(input: { authUserId: string }): Promise<YouTubeLiveChatIntakeControlResult> {
-    return await this.withActor(input.authUserId, () => this.runtime.start());
+    return await this.withActor(input.authUserId, () => this.runtime.start({ resetQuotaBlock: true }));
   }
 
   public async stop(input: { authUserId: string }): Promise<YouTubeLiveChatIntakeControlResult> {

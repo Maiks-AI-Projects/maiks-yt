@@ -27,6 +27,7 @@ export type ProviderRuntimeConnectionState =
   | "connecting"
   | "waiting"
   | "retrying"
+  | "quota_exhausted"
   | "stopped"
   | "unconfigured";
 
@@ -67,7 +68,7 @@ export type ProviderIntegrationRuntimeState = {
   twitchChatIntake?: TwitchChatIntakeStatus;
   twitchChatIntakeState?: "stopped" | "connecting" | "connected" | "unconfigured";
   youtubeLiveChatIntake?: YouTubeLiveChatIntakeStatus;
-  youtubeLiveChatIntakeState?: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+  youtubeLiveChatIntakeState?: "stopped" | "connecting" | "waiting" | "connected" | "quota_exhausted" | "unconfigured";
 };
 
 export type ProviderIntegrationCapabilityReadiness = {
@@ -212,7 +213,7 @@ const normalizeRuntimeState = (
     return "retrying";
   }
 
-  if (state === "connected" || state === "waiting" || state === "stopped" || state === "unconfigured") {
+  if (state === "connected" || state === "waiting" || state === "stopped" || state === "quota_exhausted" || state === "unconfigured") {
     return state;
   }
 
@@ -220,7 +221,7 @@ const normalizeRuntimeState = (
 };
 
 const runtimeCapabilityState = (runtime: ProviderRuntimeStatus): ProviderCapabilityState => {
-  if (runtime.state === "retrying") {
+  if (runtime.state === "retrying" || runtime.state === "quota_exhausted") {
     return "needs_attention";
   }
 
@@ -600,8 +601,8 @@ const buildYouTubeStatus = (
       config,
       runtime,
       setupGuidance: consentConfigured
-        ? "Connect owner consent and select a channel before starting live-chat polling."
-        : "Finish YouTube owner-consent setup before starting live-chat polling."
+        ? "Connect owner consent and select a channel before starting live-chat streaming."
+        : "Finish YouTube owner-consent setup before starting live-chat streaming."
     })
   };
 };

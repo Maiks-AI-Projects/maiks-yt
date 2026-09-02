@@ -18,7 +18,7 @@ export type YouTubeLiveChatIntakeControlResult =
 
 export interface YouTubeLiveChatIntakeRuntime {
   getStatus(): YouTubeLiveChatIntakeStatus;
-  start(): YouTubeLiveChatIntakeStatus;
+  start(options?: { resetQuotaBlock?: boolean }): YouTubeLiveChatIntakeStatus;
   stop(): YouTubeLiveChatIntakeStatus;
 }
 

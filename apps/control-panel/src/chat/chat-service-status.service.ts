@@ -16,6 +16,7 @@ export const discordIntakeStateLabels: Record<DiscordChatIntakeStatus["state"], 
 export const youtubeIntakeStateLabels: Record<YouTubeLiveChatIntakeStatus["state"], string> = {
   connected: "Connected",
   connecting: "Checking",
+  quota_exhausted: "Quota exhausted",
   stopped: "Stopped",
   unconfigured: "Not configured",
   waiting: "Waiting"
@@ -94,7 +95,9 @@ export const getYouTubeIntakeStatusCopy = (status: YouTubeLiveChatIntakeStatus |
     case "waiting":
       return "Waiting for an active YouTube live chat.";
     case "stopped":
-      return "YouTube live-chat polling is stopped.";
+      return "YouTube live-chat streaming is stopped.";
+    case "quota_exhausted":
+      return "YouTube API quota is exhausted. Retry after the quota resets.";
     case "unconfigured":
       return "YouTube credential or selected channel is missing.";
   }
@@ -141,7 +144,7 @@ export const getYouTubeServiceTone = (status: YouTubeLiveChatIntakeStatus | null
     return "connected";
   }
 
-  if (status.state === "connecting" || status.state === "waiting" || status.issue) {
+  if (status.state === "connecting" || status.state === "waiting" || status.state === "quota_exhausted" || status.issue) {
     return "problem";
   }
 

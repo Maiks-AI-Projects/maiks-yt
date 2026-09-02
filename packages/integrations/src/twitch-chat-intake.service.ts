@@ -2,6 +2,10 @@ import { StaticAuthProvider } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
 
 import {
+  createTwitchChatAvatarResolver,
+  type TwitchChatAvatarResolver
+} from "./twitch-chat-avatar.service.js";
+import {
   projectTwitchChatMessage,
   resolveTwitchChatChannelNames
 } from "./twitch-chat-intake.rules.js";
@@ -32,6 +36,7 @@ type TwitchChatReadOnlyIntakeOptions = {
   clearTimeoutFn?: (handle: unknown) => void;
   now?: () => Date;
   setTimeoutFn?: (callback: () => void, ms: number) => unknown;
+  resolveAvatarUrl?: TwitchChatAvatarResolver;
 };
 
 const sanitizeError = (error: unknown): string => {
@@ -73,6 +78,7 @@ export class TwitchChatReadOnlyIntakeService {
   private readonly onReconnectSuppressed: ((status: TwitchChatIntakeStatus) => void) | undefined;
   private readonly reconnectDelayMs: number;
   private readonly reconnectWindowMs: number;
+  private readonly resolveAvatarUrl: TwitchChatAvatarResolver | null;
   private readonly setTimeoutFn: (callback: () => void, ms: number) => unknown;
   private client: TwitchChatClientLike | null = null;
   private connectedAt: string | null = null;
@@ -115,6 +121,9 @@ export class TwitchChatReadOnlyIntakeService {
     this.onReconnectSuppressed = options.onReconnectSuppressed;
     this.reconnectDelayMs = options.reconnectDelayMs ?? 5_000;
     this.reconnectWindowMs = options.reconnectWindowMs ?? 10 * 60 * 1_000;
+    this.resolveAvatarUrl = options.resolveAvatarUrl ?? createTwitchChatAvatarResolver({
+      authentication: resolveTwitchChatAuthentication(env)
+    });
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms));
   }
 
@@ -231,25 +240,38 @@ export class TwitchChatReadOnlyIntakeService {
       }
     }));
     this.listenerIds.push(nextClient.onMessage((channel, user, text, msg) => {
-      const projection = projectTwitchChatMessage({
+      const userId = (msg.userInfo as { userId?: string | null }).userId ?? null;
+      const projectionInput = {
         channelName: channel,
         createdAt: msg.date,
         displayName: msg.userInfo.displayName,
         emoteOffsets: msg.emoteOffsets,
         messageId: msg.id,
         text,
-        userId: (msg.userInfo as { userId?: string | null }).userId ?? null,
+        userId,
         userName: user
-      });
+      };
+      const recordMessage = (avatarUrl?: string | null): void => {
+        const projection = projectTwitchChatMessage({
+          ...projectionInput,
+          ...(avatarUrl ? { avatarUrl } : {})
+        });
+        if (!projection.ok) {
+          return;
+        }
 
-      if (!projection.ok) {
+        this.lastMessageAt = projection.message.createdAt;
+        this.recentMessages.unshift(projection.message);
+        this.recentMessages.splice(this.maxRecentMessages);
+        this.onProjectedMessage?.({ ...projection.message });
+      };
+
+      if (!userId || !this.resolveAvatarUrl) {
+        recordMessage();
         return;
       }
 
-      this.lastMessageAt = projection.message.createdAt;
-      this.recentMessages.unshift(projection.message);
-      this.recentMessages.splice(this.maxRecentMessages);
-      this.onProjectedMessage?.({ ...projection.message });
+      void this.resolveAvatarUrl(userId).then(recordMessage, () => recordMessage());
     }));
 
     try {

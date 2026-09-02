@@ -240,7 +240,9 @@ export const registerStreamerChatControlRoutes = (
     return {
       ok: true,
       readOnly: true,
-      status: projectYouTubeStreamerChatStatus(dependencies.youtubeLiveChatIntakeRuntime.start()),
+      status: projectYouTubeStreamerChatStatus(
+        dependencies.youtubeLiveChatIntakeRuntime.start({ resetQuotaBlock: true })
+      ),
       checkedAt: new Date().toISOString()
     };
   });

@@ -164,7 +164,7 @@ describe("ProviderIntegrationStatusService", () => {
         {
           id: "youtube",
           readiness: "needs_setup",
-          guidance: "Finish YouTube owner-consent setup before starting live-chat polling."
+          guidance: "Finish YouTube owner-consent setup before starting live-chat streaming."
         },
         {
           id: "discord",

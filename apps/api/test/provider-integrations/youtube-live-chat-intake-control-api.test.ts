@@ -22,6 +22,7 @@ class FakeYouTubeLiveChatRepository implements YouTubeLiveChatIntakeControlRepos
 }
 
 class FakeYouTubeLiveChatRuntime implements YouTubeLiveChatIntakeRuntime {
+  public lastStartOptions: { resetQuotaBlock?: boolean } | undefined;
   public startCalls = 0;
   public stopCalls = 0;
   private status: YouTubeLiveChatIntakeStatus = {
@@ -40,8 +41,9 @@ class FakeYouTubeLiveChatRuntime implements YouTubeLiveChatIntakeRuntime {
     return structuredClone(this.status);
   }
 
-  public start(): YouTubeLiveChatIntakeStatus {
+  public start(options?: { resetQuotaBlock?: boolean }): YouTubeLiveChatIntakeStatus {
     this.startCalls += 1;
+    this.lastStartOptions = options;
     this.status = {
       ...this.status,
       activeLiveChatId: "live-chat-1",
@@ -208,6 +210,7 @@ describe("YouTube live chat intake control routes", () => {
       }
     });
     expect(runtime.startCalls).toBe(2);
+    expect(runtime.lastStartOptions).toEqual({ resetQuotaBlock: true });
     expect(runtime.stopCalls).toBe(1);
   });
 

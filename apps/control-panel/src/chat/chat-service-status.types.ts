@@ -7,6 +7,7 @@ export type ChatServiceStatusIssue = {
     | "twitch_reconnect_suppressed"
     | "twitch_runtime_problem"
     | "youtube_not_configured"
+    | "youtube_quota_exhausted"
     | "youtube_runtime_problem";
   copy: string;
 };
@@ -34,7 +35,7 @@ export type DiscordChatIntakeStatus = {
 
 export type YouTubeLiveChatIntakeStatus = {
   provider: "youtube";
-  state: "stopped" | "connecting" | "waiting" | "connected" | "unconfigured";
+  state: "stopped" | "connecting" | "waiting" | "connected" | "quota_exhausted" | "unconfigured";
   targetLabel: string | null;
   lastMessageAt: string | null;
   nextPollAt: string | null;

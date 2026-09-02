@@ -11,6 +11,7 @@ import type {
 const maxAuthorNameLength = 40;
 const maxMessageLength = 500;
 const maxChannelNameLength = 40;
+const maxAvatarUrlLength = 2_048;
 
 const stripControlCharacters = (value: string): string =>
   value.replace(/[\u0000-\u001F\u007F]/g, " ");
@@ -20,6 +21,22 @@ const normalizeText = (value: string, maxLength: number): string =>
 
 const normalizeChannelName = (value: string): string =>
   normalizeText(value.replace(/^#/, ""), maxChannelNameLength).toLowerCase();
+
+const normalizeAvatarUrl = (value: string | null | undefined): string | undefined => {
+  const normalized = value?.trim();
+  if (!normalized || normalized.length > maxAvatarUrlLength) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "https:" && !url.username && !url.password
+      ? url.toString()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
 
 const projectMessageParts = (
   text: string,
@@ -89,6 +106,7 @@ export const projectTwitchChatMessage = (
   const authorName = normalizeText(input.displayName || input.userName, maxAuthorNameLength);
   const message = normalizeText(input.text, maxMessageLength);
   const parts = projectMessageParts(input.text, input.emoteOffsets);
+  const avatarUrl = normalizeAvatarUrl(input.avatarUrl);
 
   if (!channelName) {
     return {
@@ -117,6 +135,7 @@ export const projectTwitchChatMessage = (
       id: randomUUID(),
       authorKind: "human",
       authorName,
+      ...(avatarUrl ? { avatarUrl } : {}),
       channelName,
       createdAt: (input.createdAt ?? new Date()).toISOString(),
       message,

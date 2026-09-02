@@ -351,7 +351,7 @@ describe("streamer chat control API", () => {
         reconnectSuppressed: false,
         issue: {
           code: "youtube_runtime_problem",
-          copy: "YouTube live-chat polling needs attention. Open provider admin for details."
+          copy: "YouTube live-chat streaming needs attention. Open provider admin for details."
         }
       }
     });

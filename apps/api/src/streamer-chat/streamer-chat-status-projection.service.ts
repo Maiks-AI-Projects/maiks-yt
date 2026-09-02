@@ -12,6 +12,7 @@ export type StreamerChatProviderStatusIssueCode =
   | "twitch_reconnect_suppressed"
   | "twitch_runtime_problem"
   | "youtube_not_configured"
+  | "youtube_quota_exhausted"
   | "youtube_runtime_problem";
 
 export type StreamerChatProviderStatusIssue = {
@@ -115,17 +116,24 @@ const issueForRealtimeProvider = (
 };
 
 const issueForYouTube = (status: YouTubeLiveChatIntakeStatus): StreamerChatProviderStatusIssue | null => {
+  if (status.state === "quota_exhausted") {
+    return {
+      code: "youtube_quota_exhausted",
+      copy: "YouTube API quota is exhausted. Retry manually after the quota resets."
+    };
+  }
+
   if (status.state === "unconfigured") {
     return {
       code: "youtube_not_configured",
-      copy: "YouTube live-chat polling is not configured."
+      copy: "YouTube live-chat streaming is not configured."
     };
   }
 
   if (status.lastError) {
     return {
       code: "youtube_runtime_problem",
-      copy: "YouTube live-chat polling needs attention. Open provider admin for details."
+      copy: "YouTube live-chat streaming needs attention. Open provider admin for details."
     };
   }
 

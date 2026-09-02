@@ -28,13 +28,15 @@ export type ProviderChatControlState =
   | "connecting"
   | "waiting"
   | "connected"
+  | "quota_exhausted"
   | "unconfigured";
 
 export type ProviderChatControlGuidance =
   | "configuration_needed"
   | "ready_to_start"
   | "running"
-  | "waiting_for_live_chat";
+  | "waiting_for_live_chat"
+  | "quota_exhausted";
 
 export type ProviderChatControlStatusDto = {
   state: ProviderChatControlState;
@@ -262,6 +264,7 @@ export const resolveYouTubeChannelSelectionRef = ({
 
 const getChatGuidance = (state: ProviderChatControlState): ProviderChatControlGuidance => {
   if (state === "unconfigured") return "configuration_needed";
+  if (state === "quota_exhausted") return "quota_exhausted";
   if (state === "connected" || state === "connecting") return "running";
   if (state === "waiting") return "waiting_for_live_chat";
   return "ready_to_start";

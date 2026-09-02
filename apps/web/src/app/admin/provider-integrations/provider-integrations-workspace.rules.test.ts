@@ -168,7 +168,7 @@ describe("provider integrations status parser", () => {
           lastActivityAt: null,
           nextRetryAt: null
         },
-        guidance: "Finish YouTube owner-consent setup before starting live-chat polling."
+        guidance: "Finish YouTube owner-consent setup before starting live-chat streaming."
       },
       {
         id: "discord",

@@ -17,6 +17,8 @@
   },
   "dependencies": {
     "@discordjs/rest": "^2.6.1",
+    "@grpc/grpc-js": "^1.14.4",
+    "@grpc/proto-loader": "^0.8.1",
     "@twurple/api": "^8.1.4",
     "@twurple/auth": "^8.1.4",
     "@twurple/chat": "^8.1.4",

@@ -2,6 +2,7 @@ export type TwitchChatProjectedMessage = {
   id: string;
   authorKind: "human";
   authorName: string;
+  avatarUrl?: string;
   channelName: string;
   createdAt: string;
   message: string;
@@ -26,6 +27,7 @@ export type TwitchChatMessagePart =
   };
 
 export type TwitchChatProjectionInput = {
+  avatarUrl?: string | null;
   channelName: string;
   createdAt?: Date;
   displayName?: string | null;
