@@ -28,6 +28,8 @@ export * from "./twitch-eventsub-subscriptions.service.js";
 export * from "./twitch-eventsub-subscriptions.types.js";
 export * from "./twitch-live-state.service.js";
 export * from "./twitch-live-state.types.js";
+export * from "./twitch-stream-schedule-delivery.service.js";
+export * from "./twitch-stream-schedule-delivery.types.js";
 export * from "./youtube-channel-discovery.rules.js";
 export * from "./youtube-channel-discovery.types.js";
 export * from "./youtube-chat-warning.rules.js";

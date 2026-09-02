@@ -268,6 +268,8 @@ describe("stream provider delivery store", () => {
     expect(calls[0]?.sql).toContain("UPDATE stream_provider_delivery_intents");
     expect(calls[0]?.sql).toContain("INNER JOIN stream_provider_delivery_bindings");
     expect(calls[0]?.sql).toContain("stream_provider_delivery_bindings.status = ?");
+    expect(calls[0]?.sql).toContain("stream_provider_delivery_bindings.last_success_at = COALESCE");
+    expect(calls[0]?.sql).toContain("stream_provider_delivery_bindings.provider_resource_id = COALESCE");
     expect(calls[0]?.sql).toContain("stream_provider_delivery_intents.status = ?");
     expect(calls[0]?.sql).toContain("stream_provider_delivery_intents.status = 'processing'");
     expect(calls[0]?.sql).toContain("stream_provider_delivery_intents.claimed_by = ?");
@@ -277,6 +279,61 @@ describe("stream provider delivery store", () => {
       now,
       null,
       null,
+      null,
+      null,
+      null,
+      null,
+      "succeeded",
+      now,
+      null,
+      null,
+      null,
+      "intent-1",
+      "binding-1",
+      7,
+      "worker-1",
+      "binding-1",
+      7
+    ]);
+  });
+
+  it("persists a provider receipt atomically when marking a delivery ready", async () => {
+    const now = new Date("2026-09-02T10:00:00.000Z");
+    const calls: Array<{ sql: string; values: unknown[] }> = [];
+    const executor = {
+      execute: vi.fn(async (sql: string, values: unknown[] = []) => {
+        calls.push({ sql, values });
+        return [{ affectedRows: 2 }, []];
+      })
+    };
+
+    await expect(createStreamProviderDeliveryProcessorRepository(executor).recordOutcome({
+      bindingId: "binding-1",
+      bindingDesiredRevision: 7,
+      bindingStatus: "ready",
+      claimedBy: "worker-1",
+      completedAt: now,
+      errorCode: null,
+      errorMessage: null,
+      intentId: "intent-1",
+      intentStatus: "succeeded",
+      lastAttemptAt: now,
+      providerCategoryId: "509658",
+      providerResourceId: "segment-1",
+      providerStreamId: null,
+      successAt: now
+    })).resolves.toBe("applied");
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.values).toEqual([
+      "ready",
+      now,
+      now,
+      null,
+      null,
+      "segment-1",
+      null,
+      "509658",
       "succeeded",
       now,
       null,

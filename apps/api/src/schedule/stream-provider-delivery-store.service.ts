@@ -61,7 +61,7 @@ export type StreamProviderDeliveryProcessorRepository = {
   recordOutcome(input: {
     bindingId: string;
     bindingDesiredRevision: number;
-    bindingStatus: Exclude<StreamProviderDeliveryBinding["status"], "pending" | "ready">;
+    bindingStatus: Exclude<StreamProviderDeliveryBinding["status"], "pending" | "removed">;
     claimedBy: string;
     completedAt?: Date | null;
     errorCode: string | null;
@@ -70,6 +70,10 @@ export type StreamProviderDeliveryProcessorRepository = {
     intentStatus: "succeeded" | "failed" | "retry-wait";
     lastAttemptAt: Date;
     nextAvailableAt?: Date | null;
+    providerCategoryId?: string | null;
+    providerResourceId?: string | null;
+    providerStreamId?: string | null;
+    successAt?: Date | null;
   }): Promise<"applied" | "superseded">;
 };
 
@@ -352,8 +356,12 @@ export const createStreamProviderDeliveryProcessorRepository = (
           ON stream_provider_delivery_bindings.id = stream_provider_delivery_intents.delivery_binding_id
         SET stream_provider_delivery_bindings.status = ?,
             stream_provider_delivery_bindings.last_attempt_at = ?,
+            stream_provider_delivery_bindings.last_success_at = COALESCE(?, stream_provider_delivery_bindings.last_success_at),
             stream_provider_delivery_bindings.last_error_code = ?,
             stream_provider_delivery_bindings.last_error_message = ?,
+            stream_provider_delivery_bindings.provider_resource_id = COALESCE(?, stream_provider_delivery_bindings.provider_resource_id),
+            stream_provider_delivery_bindings.provider_stream_id = COALESCE(?, stream_provider_delivery_bindings.provider_stream_id),
+            stream_provider_delivery_bindings.provider_category_id = COALESCE(?, stream_provider_delivery_bindings.provider_category_id),
             stream_provider_delivery_bindings.updated_at = NOW(),
             stream_provider_delivery_intents.status = ?,
             stream_provider_delivery_intents.completed_at = ?,
@@ -372,8 +380,12 @@ export const createStreamProviderDeliveryProcessorRepository = (
       [
         input.bindingStatus,
         input.lastAttemptAt,
+        input.successAt ?? null,
         input.errorCode,
         input.errorMessage,
+        input.providerResourceId ?? null,
+        input.providerStreamId ?? null,
+        input.providerCategoryId ?? null,
         input.intentStatus,
         input.completedAt ?? null,
         input.nextAvailableAt ?? null,

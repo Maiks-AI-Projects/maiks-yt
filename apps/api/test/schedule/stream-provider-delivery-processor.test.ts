@@ -274,6 +274,41 @@ describe("stream provider delivery processor", () => {
     expect(twitch.dispatch).toHaveBeenCalledTimes(1);
   });
 
+  it("marks ready only after the repository persists a provider-confirmed receipt", async () => {
+    const twitch: StreamProviderDeliveryAdapter = {
+      dispatch: vi.fn(async () => ({
+        ok: true,
+        outcome: "ready",
+        providerActionId: "twitch-schedule-segment:segment-1",
+        receipt: {
+          providerCategoryId: "509658",
+          providerResourceId: "segment-1",
+          providerStreamId: null
+        }
+      }))
+    };
+    const { repository, service } = createProcessor({ twitch });
+
+    await expect(service.processPending({ now })).resolves.toEqual({
+      claimed: 1,
+      degraded: 0,
+      dispatched: 0,
+      failed: 0,
+      ready: 1,
+      superseded: 0,
+      unsupported: 0
+    });
+
+    expect(repository.outcomes).toEqual([expect.objectContaining({
+      bindingStatus: "ready",
+      intentStatus: "succeeded",
+      providerCategoryId: "509658",
+      providerResourceId: "segment-1",
+      providerStreamId: null,
+      successAt: now
+    })]);
+  });
+
   it("classifies a stale adapter completion as superseded without arming an outcome", async () => {
     const twitch: StreamProviderDeliveryAdapter = {
       dispatch: vi.fn(async () => ({ ok: true, outcome: "syncing", providerActionId: "segment-request-1" }))
@@ -297,6 +332,47 @@ describe("stream provider delivery processor", () => {
       bindingStatus: "syncing",
       claimedBy: "provider-worker-test",
       intentStatus: "succeeded"
+    })]);
+    expect(repository.superseded).toEqual([expect.objectContaining({
+      claimedBy: "provider-worker-test",
+      intentId: "intent-1"
+    })]);
+  });
+
+  it("does not mark ready when a receipt outcome loses the revision guard", async () => {
+    const twitch: StreamProviderDeliveryAdapter = {
+      dispatch: vi.fn(async () => ({
+        ok: true,
+        outcome: "ready",
+        providerActionId: "twitch-schedule-segment:segment-1",
+        receipt: {
+          providerCategoryId: "509658",
+          providerResourceId: "segment-1",
+          providerStreamId: null
+        }
+      }))
+    };
+    const { repository, service } = createProcessor({ twitch });
+    repository.supersedeOutcomes = true;
+
+    await expect(service.processPending({ now })).resolves.toEqual({
+      claimed: 1,
+      degraded: 0,
+      dispatched: 0,
+      failed: 0,
+      ready: 0,
+      superseded: 1,
+      unsupported: 0
+    });
+
+    expect(repository.outcomes).toEqual([expect.objectContaining({
+      bindingStatus: "ready",
+      providerResourceId: "segment-1",
+      successAt: now
+    })]);
+    expect(repository.superseded).toEqual([expect.objectContaining({
+      claimedBy: "provider-worker-test",
+      intentId: "intent-1"
     })]);
   });
 

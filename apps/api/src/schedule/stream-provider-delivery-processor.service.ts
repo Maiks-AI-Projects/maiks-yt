@@ -37,11 +37,23 @@ export type StreamProviderDeliveryAdapterRequest = {
   };
 };
 
+export type StreamProviderDeliveryReceipt = {
+  providerCategoryId?: string | null;
+  providerResourceId?: string | null;
+  providerStreamId?: string | null;
+};
+
 export type StreamProviderDeliveryAdapterResult =
   | {
     ok: true;
     outcome: "syncing";
     providerActionId: string | null;
+  }
+  | {
+    ok: true;
+    outcome: "ready";
+    providerActionId: string | null;
+    receipt: StreamProviderDeliveryReceipt;
   }
   | {
     ok: false;
@@ -60,7 +72,7 @@ export type StreamProviderDeliveryProcessorResult = {
   degraded: number;
   dispatched: number;
   failed: number;
-  ready: 0;
+  ready: number;
   superseded: number;
   unsupported: number;
 };
@@ -182,7 +194,12 @@ export class StreamProviderDeliveryProcessorService {
         intentStatus: "failed",
         now
       });
-      outcome === "superseded" ? result.superseded += 1 : result.failed += 1;
+      if (outcome === "superseded") {
+        await this.markOutcomeSuperseded(claim, now);
+        result.superseded += 1;
+        return;
+      }
+      result.failed += 1;
       return;
     }
 
@@ -196,7 +213,12 @@ export class StreamProviderDeliveryProcessorService {
         intentStatus: "failed",
         now
       });
-      outcome === "superseded" ? result.superseded += 1 : result.unsupported += 1;
+      if (outcome === "superseded") {
+        await this.markOutcomeSuperseded(claim, now);
+        result.superseded += 1;
+        return;
+      }
+      result.unsupported += 1;
       return;
     }
 
@@ -213,6 +235,32 @@ export class StreamProviderDeliveryProcessorService {
       };
     }
 
+    if (adapterResult.ok && adapterResult.outcome === "ready") {
+      const outcome = await this.input.repository.recordOutcome({
+        bindingId: claim.deliveryBindingId,
+        bindingDesiredRevision: claim.desiredRevision,
+        bindingStatus: "ready",
+        claimedBy: this.input.workerId,
+        completedAt: now,
+        errorCode: null,
+        errorMessage: null,
+        intentId: claim.id,
+        intentStatus: "succeeded",
+        lastAttemptAt: now,
+        providerCategoryId: adapterResult.receipt.providerCategoryId ?? null,
+        providerResourceId: adapterResult.receipt.providerResourceId ?? null,
+        providerStreamId: adapterResult.receipt.providerStreamId ?? null,
+        successAt: now
+      });
+      if (outcome === "superseded") {
+        await this.markOutcomeSuperseded(claim, now);
+        result.superseded += 1;
+        return;
+      }
+      result.ready += 1;
+      return;
+    }
+
     if (adapterResult.ok) {
       const outcome = await this.input.repository.recordOutcome({
         bindingId: claim.deliveryBindingId,
@@ -227,6 +275,7 @@ export class StreamProviderDeliveryProcessorService {
         lastAttemptAt: now
       });
       if (outcome === "superseded") {
+        await this.markOutcomeSuperseded(claim, now);
         result.superseded += 1;
         return;
       }
@@ -243,7 +292,12 @@ export class StreamProviderDeliveryProcessorService {
         intentStatus: "failed",
         now
       });
-      outcome === "superseded" ? result.superseded += 1 : result.unsupported += 1;
+      if (outcome === "superseded") {
+        await this.markOutcomeSuperseded(claim, now);
+        result.superseded += 1;
+        return;
+      }
+      result.unsupported += 1;
       return;
     }
 
@@ -262,6 +316,7 @@ export class StreamProviderDeliveryProcessorService {
         nextAvailableAt: addSeconds(now, clampRetryAfterSeconds(adapterResult.retryAfterSeconds))
       });
       if (outcome === "superseded") {
+        await this.markOutcomeSuperseded(claim, now);
         result.superseded += 1;
         return;
       }
@@ -277,7 +332,24 @@ export class StreamProviderDeliveryProcessorService {
       intentStatus: "failed",
       now
     });
-    outcome === "superseded" ? result.superseded += 1 : result.failed += 1;
+    if (outcome === "superseded") {
+      await this.markOutcomeSuperseded(claim, now);
+      result.superseded += 1;
+      return;
+    }
+    result.failed += 1;
+  }
+
+  private async markOutcomeSuperseded(
+    claim: StreamProviderDeliveryProcessorClaim,
+    now: Date
+  ): Promise<void> {
+    await this.input.repository.markSuperseded({
+      claimedBy: this.input.workerId,
+      completedAt: now,
+      intentId: claim.id,
+      reason: "The provider delivery outcome lost the revision or processing ownership race before it could be recorded."
+    });
   }
 
   private async recordFailure(input: {
