@@ -4,7 +4,8 @@ import type {
   StreamScheduleChannelTarget,
   StreamScheduleStatus,
   StreamScheduleVisibility,
-  StreamProviderDeliveryBinding
+  StreamProviderDeliveryBinding,
+  StreamProviderDeliveryOperation
 } from "@maiks-yt/domain/schedule";
 import { buildStreamProviderDeliveryIntents } from "@maiks-yt/domain/schedule";
 
@@ -12,6 +13,64 @@ type SqlValue = string | number | boolean | Date | null;
 
 export type StreamProviderDeliveryExecutor = {
   execute: (sql: string, values?: SqlValue[]) => Promise<[unknown, unknown]>;
+};
+
+type QueryResult = {
+  affectedRows?: number;
+};
+
+export type StreamProviderDeliveryProcessorClaim = {
+  id: string;
+  deliveryBindingId: string;
+  scheduleEntryId: string;
+  channelRef: string;
+  provider: "twitch" | "youtube";
+  operation: StreamProviderDeliveryOperation;
+  desiredRevision: number;
+  idempotencyKey: string;
+  attemptCount: number;
+  bindingDesiredRevision: number;
+  bindingStatus: StreamProviderDeliveryBinding["status"];
+  providerChannelIdSnapshot: string;
+  displayNameSnapshot: string;
+  handleSnapshot: string | null;
+  providerResourceId: string | null;
+  providerStreamId: string | null;
+  providerCategoryId: string | null;
+  scheduleTitle: string;
+  scheduleDescription: string | null;
+  scheduleStartsAt: Date;
+  scheduleEndsAt: Date | null;
+  scheduleVisibility: StreamScheduleVisibility;
+  scheduleStatus: StreamScheduleStatus;
+  scheduleChannelKey: string;
+};
+
+export type StreamProviderDeliveryProcessorRepository = {
+  claimPending(input: {
+    limit: number;
+    now: Date;
+    workerId: string;
+  }): Promise<readonly StreamProviderDeliveryProcessorClaim[]>;
+  markSuperseded(input: {
+    claimedBy: string;
+    completedAt: Date;
+    intentId: string;
+    reason: string;
+  }): Promise<boolean>;
+  recordOutcome(input: {
+    bindingId: string;
+    bindingDesiredRevision: number;
+    bindingStatus: Exclude<StreamProviderDeliveryBinding["status"], "pending" | "ready">;
+    claimedBy: string;
+    completedAt?: Date | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+    intentId: string;
+    intentStatus: "succeeded" | "failed" | "retry-wait";
+    lastAttemptAt: Date;
+    nextAvailableAt?: Date | null;
+  }): Promise<"applied" | "superseded">;
 };
 
 type DeliveryBindingRow = Pick<
@@ -174,3 +233,161 @@ export const enqueueStreamProviderDeliveries = async (input: {
 
   return { bindingCount: input.channelTargets.length, intentCount };
 };
+
+const affectedRows = (result: unknown): number => {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return 0;
+  }
+
+  const value = (result as QueryResult).affectedRows;
+
+  return typeof value === "number" ? value : 0;
+};
+
+export const createStreamProviderDeliveryProcessorRepository = (
+  executor: StreamProviderDeliveryExecutor
+): StreamProviderDeliveryProcessorRepository => ({
+  async claimPending(input) {
+    const boundedLimit = Number.isSafeInteger(input.limit) && input.limit > 0
+      ? Math.min(input.limit, 25)
+      : 10;
+    const [rows] = await executor.execute(
+      `
+        SELECT
+          stream_provider_delivery_intents.id,
+          stream_provider_delivery_intents.delivery_binding_id AS deliveryBindingId,
+          stream_provider_delivery_intents.schedule_entry_id AS scheduleEntryId,
+          stream_provider_delivery_intents.channel_ref AS channelRef,
+          stream_provider_delivery_intents.operation,
+          stream_provider_delivery_intents.desired_revision AS desiredRevision,
+          stream_provider_delivery_intents.idempotency_key AS idempotencyKey,
+          stream_provider_delivery_intents.attempt_count AS attemptCount,
+          stream_provider_delivery_bindings.provider,
+          stream_provider_delivery_bindings.desired_revision AS bindingDesiredRevision,
+          stream_provider_delivery_bindings.status AS bindingStatus,
+          stream_provider_delivery_bindings.provider_channel_id_snapshot AS providerChannelIdSnapshot,
+          stream_provider_delivery_bindings.display_name_snapshot AS displayNameSnapshot,
+          stream_provider_delivery_bindings.handle_snapshot AS handleSnapshot,
+          stream_provider_delivery_bindings.provider_resource_id AS providerResourceId,
+          stream_provider_delivery_bindings.provider_stream_id AS providerStreamId,
+          stream_provider_delivery_bindings.provider_category_id AS providerCategoryId,
+          stream_schedule_entries.title AS scheduleTitle,
+          stream_schedule_entries.description AS scheduleDescription,
+          stream_schedule_entries.starts_at AS scheduleStartsAt,
+          stream_schedule_entries.ends_at AS scheduleEndsAt,
+          stream_schedule_entries.visibility AS scheduleVisibility,
+          stream_schedule_entries.status AS scheduleStatus,
+          stream_schedule_entries.channel_key AS scheduleChannelKey
+        FROM stream_provider_delivery_intents
+        INNER JOIN stream_provider_delivery_bindings
+          ON stream_provider_delivery_bindings.id = stream_provider_delivery_intents.delivery_binding_id
+        INNER JOIN stream_schedule_entries
+          ON stream_schedule_entries.id = stream_provider_delivery_intents.schedule_entry_id
+        WHERE stream_provider_delivery_intents.status IN ('pending', 'retry-wait')
+          AND stream_provider_delivery_intents.available_at <= ?
+        ORDER BY stream_provider_delivery_intents.created_at, stream_provider_delivery_intents.id
+        LIMIT ${boundedLimit}
+      `,
+      [input.now]
+    );
+    const pendingRows = Array.isArray(rows)
+      ? rows as StreamProviderDeliveryProcessorClaim[]
+      : [];
+    const claimed: StreamProviderDeliveryProcessorClaim[] = [];
+
+    for (const row of pendingRows) {
+      const [result] = await executor.execute(
+        `
+          UPDATE stream_provider_delivery_intents
+          SET status = 'processing',
+              attempt_count = attempt_count + 1,
+              claimed_at = ?,
+              claimed_by = ?,
+              updated_at = NOW()
+          WHERE id = ?
+            AND status IN ('pending', 'retry-wait')
+            AND available_at <= ?
+        `,
+        [input.now, input.workerId, row.id, input.now]
+      );
+
+      if (affectedRows(result) > 0) {
+        claimed.push(row);
+      }
+    }
+
+    return claimed;
+  },
+
+  async markSuperseded(input) {
+    const [result] = await executor.execute(
+      `
+        UPDATE stream_provider_delivery_intents
+        SET status = 'superseded',
+            completed_at = ?,
+            last_error_code = ?,
+            last_error_message = ?,
+            updated_at = NOW()
+        WHERE id = ?
+          AND status = 'processing'
+          AND claimed_by = ?
+      `,
+      [
+        input.completedAt,
+        "provider-intent-superseded",
+        input.reason,
+        input.intentId,
+        input.claimedBy
+      ]
+    );
+
+    return affectedRows(result) > 0;
+  },
+
+  async recordOutcome(input) {
+    const [result] = await executor.execute(
+      `
+        UPDATE stream_provider_delivery_intents
+        INNER JOIN stream_provider_delivery_bindings
+          ON stream_provider_delivery_bindings.id = stream_provider_delivery_intents.delivery_binding_id
+        SET stream_provider_delivery_bindings.status = ?,
+            stream_provider_delivery_bindings.last_attempt_at = ?,
+            stream_provider_delivery_bindings.last_error_code = ?,
+            stream_provider_delivery_bindings.last_error_message = ?,
+            stream_provider_delivery_bindings.updated_at = NOW(),
+            stream_provider_delivery_intents.status = ?,
+            stream_provider_delivery_intents.completed_at = ?,
+            stream_provider_delivery_intents.available_at = COALESCE(?, stream_provider_delivery_intents.available_at),
+            stream_provider_delivery_intents.last_error_code = ?,
+            stream_provider_delivery_intents.last_error_message = ?,
+            stream_provider_delivery_intents.updated_at = NOW()
+        WHERE stream_provider_delivery_intents.id = ?
+          AND stream_provider_delivery_intents.delivery_binding_id = ?
+          AND stream_provider_delivery_intents.desired_revision = ?
+          AND stream_provider_delivery_intents.status = 'processing'
+          AND stream_provider_delivery_intents.claimed_by = ?
+          AND stream_provider_delivery_bindings.id = ?
+          AND stream_provider_delivery_bindings.desired_revision = ?
+      `,
+      [
+        input.bindingStatus,
+        input.lastAttemptAt,
+        input.errorCode,
+        input.errorMessage,
+        input.intentStatus,
+        input.completedAt ?? null,
+        input.nextAvailableAt ?? null,
+        input.errorCode,
+        input.errorMessage,
+        input.intentId,
+        input.bindingId,
+        input.bindingDesiredRevision,
+        input.claimedBy,
+        input.bindingId,
+        input.bindingDesiredRevision
+      ]
+    );
+
+    return affectedRows(result) > 0 ? "applied" : "superseded";
+  }
+});
