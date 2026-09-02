@@ -87,8 +87,32 @@ export type ObsBridgeEffectAckMessage = {
   };
 };
 
+export type StreamCountdownStartedPayload = {
+  occurrenceId: string;
+  countdownRuntimeId: "last-caretaker-runtime-v2";
+  durationSeconds: 600;
+  startedAt: string;
+  endsAt: string;
+  triggerSource: "stream_deck" | "control";
+  plannedStreamId?: string | undefined;
+};
+
+export type ObsBridgeCountdownStartedMessage = {
+  type: "stream.countdown.started";
+  payload: StreamCountdownStartedPayload;
+};
+
+export type ObsBridgeCountdownStartedAckMessage = {
+  type: "stream.countdown.started.ack";
+  payload: {
+    occurrenceId: string;
+    status: "accepted" | "duplicate";
+  };
+};
+
 export type ObsBridgeClientMessage =
   | ObsBridgeCapabilitiesUpdateMessage
+  | ObsBridgeCountdownStartedMessage
   | ObsBridgeClientHelloMessage
   | ObsBridgeEffectAckMessage;
 
@@ -136,6 +160,7 @@ export type ObsBridgeErrorMessage = {
 };
 
 export type ObsBridgeServerMessage =
+  | ObsBridgeCountdownStartedAckMessage
   | ObsBridgeEffectDeliveryMessage
   | ObsBridgeErrorMessage
   | ObsBridgeHeartbeatMessage

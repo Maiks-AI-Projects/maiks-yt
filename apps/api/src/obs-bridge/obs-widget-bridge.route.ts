@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 
-import { obsWidgetBridgeProtocolVersion } from "@maiks-yt/events";
+import {
+  obsWidgetBridgeProtocolVersion,
+  type StreamCountdownStartedPayload
+} from "@maiks-yt/events";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
@@ -39,6 +42,20 @@ const clientMessageSchema = z.discriminatedUnion("type", [
       status: z.enum(["started", "completed", "failed"]),
       acknowledgedAt: z.iso.datetime()
     })
+  }),
+  z.object({
+    type: z.literal("stream.countdown.started"),
+    payload: z.object({
+      occurrenceId: z.string().uuid(),
+      countdownRuntimeId: z.literal("last-caretaker-runtime-v2"),
+      durationSeconds: z.literal(600),
+      startedAt: z.iso.datetime(),
+      endsAt: z.iso.datetime(),
+      triggerSource: z.enum(["stream_deck", "control"]),
+      plannedStreamId: z.string().uuid().optional()
+    }).refine((payload) =>
+      Date.parse(payload.endsAt) - Date.parse(payload.startedAt) === 600_000,
+    { message: "Countdown timestamps must span exactly 600 seconds." })
   })
 ]);
 
@@ -61,6 +78,9 @@ const readBearerToken = (authorizationHeader: string | undefined): string | null
 export const registerObsWidgetBridgeRoute = (
   server: FastifyInstance,
   dependencies: {
+    recordCountdownStarted: (
+      payload: StreamCountdownStartedPayload
+    ) => Promise<"accepted" | "duplicate">;
     requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest;
     runtime: ObsWidgetBridgeRuntime;
     validateUrlAccessToken: ValidateUrlAccessToken;
@@ -237,7 +257,26 @@ export const registerObsWidgetBridgeRoute = (
         return;
       }
 
-      dependencies.runtime.acknowledgeEffect(activeConnectionId, parsedMessage.data.payload);
+      if (parsedMessage.data.type === "obs.effect.ack") {
+        dependencies.runtime.acknowledgeEffect(activeConnectionId, parsedMessage.data.payload);
+        return;
+      }
+
+      const countdownPayload = parsedMessage.data.payload;
+      void dependencies.recordCountdownStarted(countdownPayload).then((status) => {
+        if (closed || connectionId !== activeConnectionId) {
+          return;
+        }
+        socket.send(JSON.stringify({
+          type: "stream.countdown.started.ack",
+          payload: {
+            occurrenceId: countdownPayload.occurrenceId,
+            status
+          }
+        }));
+      }).catch(() => {
+        // No acknowledgement keeps the bridge retrying until durable storage recovers.
+      });
     };
 
     for (const pendingMessage of pendingMessages.splice(0)) {
