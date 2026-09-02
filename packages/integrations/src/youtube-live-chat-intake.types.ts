@@ -5,6 +5,7 @@ export type YouTubeLiveChatProjectedMessage = {
   id: string;
   authorKind: "human";
   authorName: string;
+  avatarUrl?: string;
   authorChannelId: string | null;
   channelName: string;
   createdAt: string;
@@ -17,6 +18,7 @@ export type YouTubeLiveChatProjectedMessage = {
 export type YouTubeLiveChatProjectionInput = {
   authorChannelId?: string | null;
   authorName?: string | null;
+  avatarUrl?: string | null;
   channelName: string;
   createdAt?: string | null;
   messageId?: string | null;
@@ -53,6 +55,7 @@ export type YouTubeActiveLiveChat = {
 export type YouTubeLiveChatReadableMessage = {
   authorChannelId: string | null;
   authorName: string | null;
+  avatarUrl: string | null;
   createdAt: string | null;
   id: string | null;
   text: string;

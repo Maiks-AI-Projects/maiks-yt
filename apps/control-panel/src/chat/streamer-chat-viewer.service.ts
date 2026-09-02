@@ -24,6 +24,19 @@ export const getStreamerChatReconnectDelayMs = (attempt: number): number => {
 
 export const shouldReconnectStreamerChat = (closeCode: number): boolean => closeCode !== 1008;
 
+export const getStreamerChatAvatarUrl = (value: string | undefined): string | null => {
+  if (!value || value.length > 2_048) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
 export const mergeStreamerChatMessages = (
   primaryMessages: readonly StreamerChatMessage[],
   secondaryMessages: readonly StreamerChatMessage[],

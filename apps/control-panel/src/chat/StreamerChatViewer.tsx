@@ -15,6 +15,7 @@ import {
   canOpenStreamerChatOptions,
   createAuthenticatedWebSocketUrl,
   defaultProviderTimeoutDurationSeconds,
+  getStreamerChatAvatarUrl,
   noStreamerChatActionAccess
 } from "./streamer-chat-viewer.service.js";
 import { useChatAttention } from "./useChatAttention.js";
@@ -487,6 +488,7 @@ export const StreamerChatViewer = ({
             const selected = selectedMessageId === message.id;
             const primaryUnavailableReasons = getPrimaryUnavailableReasons(actionAccess, showUnavailableActions);
             const optionUnavailableReasons = getOptionUnavailableReasons(message, actionAccess, showUnavailableActions);
+            const avatarUrl = getStreamerChatAvatarUrl(message.avatarUrl);
 
             return (
               <li
@@ -504,7 +506,17 @@ export const StreamerChatViewer = ({
                 }}
                 tabIndex={0}
               >
-                <span className="streamer-chat-avatar" aria-hidden="true">{getChatAvatarInitials(message.authorName)}</span>
+                <span className="streamer-chat-avatar" aria-hidden="true">
+                  {getChatAvatarInitials(message.authorName)}
+                  {avatarUrl ? (
+                    <img
+                      alt=""
+                      className="streamer-chat-avatar-image"
+                      onError={(event) => event.currentTarget.remove()}
+                      src={avatarUrl}
+                    />
+                  ) : null}
+                </span>
                 <strong className="streamer-chat-author" title={message.authorName}>{message.authorName}</strong>
                 <time className="streamer-chat-time" dateTime={message.createdAt}>{formatChatTime(message.createdAt)}</time>
                 <span className="streamer-chat-provider">

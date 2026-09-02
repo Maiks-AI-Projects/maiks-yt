@@ -1942,7 +1942,18 @@ a {
   height: 2.05rem;
   justify-content: center;
   letter-spacing: 0.02em;
+  overflow: hidden;
+  position: relative;
   width: 2.05rem;
+}
+
+.streamer-chat-avatar-image {
+  border-radius: inherit;
+  height: 100%;
+  inset: 0;
+  object-fit: cover;
+  position: absolute;
+  width: 100%;
 }
 
 .streamer-chat-author {

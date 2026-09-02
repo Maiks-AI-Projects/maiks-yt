@@ -8,6 +8,7 @@ import type {
 const maxAuthorNameLength = 60;
 const maxChannelNameLength = 80;
 const maxMessageLength = 500;
+const maxAvatarUrlLength = 2_048;
 
 const stripControlCharacters = (value: string): string =>
   value.replace(/[\u0000-\u001F\u007F]/g, " ");
@@ -21,12 +22,29 @@ const normalizeIso = (value: string | null | undefined): string => {
   return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 };
 
+const normalizeAvatarUrl = (value: string | null | undefined): string | undefined => {
+  const normalized = value?.trim();
+  if (!normalized || normalized.length > maxAvatarUrlLength) {
+    return undefined;
+  }
+
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "https:" && !url.username && !url.password
+      ? url.toString()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export const projectYouTubeLiveChatMessage = (
   input: YouTubeLiveChatProjectionInput
 ): YouTubeLiveChatProjectionResult => {
   const channelName = normalizeText(input.channelName, maxChannelNameLength);
   const authorName = normalizeText(input.authorName, maxAuthorNameLength);
   const message = normalizeText(input.text, maxMessageLength);
+  const avatarUrl = normalizeAvatarUrl(input.avatarUrl);
 
   if (!channelName) {
     return {
@@ -55,6 +73,7 @@ export const projectYouTubeLiveChatMessage = (
       id: randomUUID(),
       authorKind: "human",
       authorName,
+      ...(avatarUrl ? { avatarUrl } : {}),
       authorChannelId: normalizeText(input.authorChannelId, 120) || null,
       channelName,
       createdAt: normalizeIso(input.createdAt),

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canOpenStreamerChatOptions,
   createStreamerChatModerationAccessUrl,
+  getStreamerChatAvatarUrl,
   getStreamerChatReconnectDelayMs,
   mergeStreamerChatMessages,
   shouldReconnectStreamerChat,
@@ -79,5 +80,14 @@ describe("streamer chat viewer access", () => {
 
     expect(mergeStreamerChatMessages(messages, [], 75)).toHaveLength(75);
     expect(mergeStreamerChatMessages(messages, [], 75).at(-1)?.id).toBe("74");
+  });
+
+  it("allows only credential-free HTTPS avatar URLs", () => {
+    expect(getStreamerChatAvatarUrl("https://yt3.ggpht.com/avatar=s88-c-k-c0x00ffffff-no-rj")).toBe(
+      "https://yt3.ggpht.com/avatar=s88-c-k-c0x00ffffff-no-rj"
+    );
+    expect(getStreamerChatAvatarUrl("http://example.test/avatar.png")).toBeNull();
+    expect(getStreamerChatAvatarUrl("https://user:pass@example.test/avatar.png")).toBeNull();
+    expect(getStreamerChatAvatarUrl("javascript:alert(1)")).toBeNull();
   });
 });

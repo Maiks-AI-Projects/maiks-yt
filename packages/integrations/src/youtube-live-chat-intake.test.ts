@@ -30,6 +30,7 @@ const context: YouTubeLiveChatContext = {
 describe("projectYouTubeLiveChatMessage", () => {
   it("sanitizes YouTube live chat messages for private streamer chat", () => {
     const result = projectYouTubeLiveChatMessage({
+      avatarUrl: "https://yt3.ggpht.com/avatar=s88-c-k-c0x00ffffff-no-rj",
       authorName: " Michael \n ",
       authorChannelId: " author-channel-1 ",
       channelName: " MaiksMC ",
@@ -44,6 +45,7 @@ describe("projectYouTubeLiveChatMessage", () => {
         authorKind: "human",
         authorChannelId: "author-channel-1",
         authorName: "Michael",
+        avatarUrl: "https://yt3.ggpht.com/avatar=s88-c-k-c0x00ffffff-no-rj",
         channelName: "MaiksMC",
         createdAt: "2026-07-04T12:00:00.000Z",
         message: "Hello stream",
@@ -51,6 +53,18 @@ describe("projectYouTubeLiveChatMessage", () => {
         source: "youtube",
         visibleOnOverlayByDefault: true
       })
+    });
+  });
+
+  it("drops unsafe avatar URLs without dropping the chat message", () => {
+    expect(projectYouTubeLiveChatMessage({
+      authorName: "Michael",
+      avatarUrl: "javascript:alert(1)",
+      channelName: "MaiksMC",
+      text: "Hello"
+    })).toEqual({
+      ok: true,
+      message: expect.not.objectContaining({ avatarUrl: expect.anything() })
     });
   });
 
@@ -90,6 +104,7 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
           messages: [{
             authorChannelId: "author-channel-1",
             authorName: "Viewer",
+            avatarUrl: "https://yt3.ggpht.com/viewer=s88-c-k-c0x00ffffff-no-rj",
             createdAt: "2026-07-04T12:00:00Z",
             id: "message-1",
             text: "First"
@@ -117,6 +132,9 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
       state: "connected"
     });
     expect(emitted).toHaveLength(1);
+    expect(emitted[0]).toMatchObject({
+      avatarUrl: "https://yt3.ggpht.com/viewer=s88-c-k-c0x00ffffff-no-rj"
+    });
     expect(scheduled).toHaveLength(1);
   });
 
