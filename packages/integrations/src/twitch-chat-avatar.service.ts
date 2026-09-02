@@ -1,6 +1,7 @@
 export type TwitchChatAvatarResolver = (userId: string) => Promise<string | null>;
 
 type TwitchChatAvatarResolverOptions = {
+  appAuthentication?: { clientId: string; clientSecret: string } | null;
   authentication: { accessToken: string; clientId: string } | null;
   cacheTtlMs?: number;
   failureCacheTtlMs?: number;
@@ -8,6 +9,11 @@ type TwitchChatAvatarResolverOptions = {
   maxCacheEntries?: number;
   now?: () => number;
   requestTimeoutMs?: number;
+};
+
+type TwitchAccessTokenResponse = {
+  access_token?: unknown;
+  expires_in?: unknown;
 };
 
 type TwitchUserResponse = {
@@ -38,8 +44,9 @@ const normalizeAvatarUrl = (value: unknown): string | null => {
 export const createTwitchChatAvatarResolver = (
   options: TwitchChatAvatarResolverOptions
 ): TwitchChatAvatarResolver | null => {
+  const appAuthentication = options.appAuthentication ?? null;
   const authentication = options.authentication;
-  if (!authentication) {
+  if (!appAuthentication && !authentication) {
     return null;
   }
 
@@ -51,6 +58,79 @@ export const createTwitchChatAvatarResolver = (
   const requestTimeoutMs = Math.max(100, options.requestTimeoutMs ?? 1_500);
   const cache = new Map<string, { avatarUrl: string | null; expiresAt: number }>();
   const inFlight = new Map<string, Promise<string | null>>();
+  let appAccessToken: { accessToken: string; expiresAt: number } | null = null;
+  let appAccessTokenFlight: Promise<string | null> | null = null;
+
+  const request = async (url: string, init?: RequestInit): Promise<Response> => {
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => abortController.abort(), requestTimeoutMs);
+    try {
+      return await fetchFn(url, {
+        ...init,
+        signal: abortController.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  const getAppAccessToken = async (): Promise<string | null> => {
+    if (!appAuthentication) {
+      return null;
+    }
+
+    if (appAccessToken && appAccessToken.expiresAt > now()) {
+      return appAccessToken.accessToken;
+    }
+    appAccessToken = null;
+
+    if (appAccessTokenFlight) {
+      return await appAccessTokenFlight;
+    }
+
+    const flight = (async (): Promise<string | null> => {
+      try {
+        const response = await request("https://id.twitch.tv/oauth2/token", {
+          body: new URLSearchParams({
+            client_id: appAuthentication.clientId,
+            client_secret: appAuthentication.clientSecret,
+            grant_type: "client_credentials"
+          }),
+          headers: {
+            "content-type": "application/x-www-form-urlencoded"
+          },
+          method: "POST"
+        });
+        if (!response.ok) {
+          return null;
+        }
+
+        const payload = await response.json() as TwitchAccessTokenResponse;
+        const accessToken = typeof payload.access_token === "string"
+          ? payload.access_token.trim()
+          : "";
+        const expiresInSeconds = payload.expires_in;
+        if (!accessToken
+          || typeof expiresInSeconds !== "number"
+          || !Number.isSafeInteger(expiresInSeconds)
+          || expiresInSeconds <= 0) {
+          return null;
+        }
+
+        appAccessToken = {
+          accessToken,
+          expiresAt: now() + Math.max(0, (expiresInSeconds * 1_000) - 60_000)
+        };
+        return accessToken;
+      } catch {
+        return null;
+      }
+    })().finally(() => {
+      appAccessTokenFlight = null;
+    });
+    appAccessTokenFlight = flight;
+    return await flight;
+  };
 
   const remember = (userId: string, avatarUrl: string | null): string | null => {
     cache.delete(userId);
@@ -86,15 +166,20 @@ export const createTwitchChatAvatarResolver = (
     }
 
     const lookup = (async (): Promise<string | null> => {
-      const abortController = new AbortController();
-      const timeout = setTimeout(() => abortController.abort(), requestTimeoutMs);
       try {
-        const response = await fetchFn(`https://api.twitch.tv/helix/users?id=${encodeURIComponent(userId)}`, {
+        const appToken = await getAppAccessToken();
+        const helixAuthentication = appToken && appAuthentication
+          ? { accessToken: appToken, clientId: appAuthentication.clientId }
+          : authentication;
+        if (!helixAuthentication) {
+          return remember(userId, null);
+        }
+
+        const response = await request(`https://api.twitch.tv/helix/users?id=${encodeURIComponent(userId)}`, {
           headers: {
-            Authorization: `Bearer ${authentication.accessToken}`,
-            "Client-Id": authentication.clientId
-          },
-          signal: abortController.signal
+            Authorization: `Bearer ${helixAuthentication.accessToken}`,
+            "Client-Id": helixAuthentication.clientId
+          }
         });
         if (!response.ok) {
           return remember(userId, null);
@@ -107,8 +192,6 @@ export const createTwitchChatAvatarResolver = (
         return remember(userId, normalizeAvatarUrl(user?.profile_image_url));
       } catch {
         return remember(userId, null);
-      } finally {
-        clearTimeout(timeout);
       }
     })().finally(() => {
       inFlight.delete(userId);

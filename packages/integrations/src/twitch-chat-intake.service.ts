@@ -121,7 +121,12 @@ export class TwitchChatReadOnlyIntakeService {
     this.onReconnectSuppressed = options.onReconnectSuppressed;
     this.reconnectDelayMs = options.reconnectDelayMs ?? 5_000;
     this.reconnectWindowMs = options.reconnectWindowMs ?? 10 * 60 * 1_000;
+    const avatarClientId = normalizeEnv(env.TWITCH_CLIENT_ID);
+    const avatarClientSecret = normalizeEnv(env.TWITCH_CLIENT_SECRET);
     this.resolveAvatarUrl = options.resolveAvatarUrl ?? createTwitchChatAvatarResolver({
+      appAuthentication: avatarClientId && avatarClientSecret
+        ? { clientId: avatarClientId, clientSecret: avatarClientSecret }
+        : null,
       authentication: resolveTwitchChatAuthentication(env)
     });
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms));
