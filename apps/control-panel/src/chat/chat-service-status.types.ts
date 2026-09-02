@@ -15,6 +15,7 @@ export type TwitchChatIntakeStatus = {
   provider: "twitch";
   state: "stopped" | "connecting" | "connected" | "unconfigured";
   targetLabel: string | null;
+  joinedTargetLabel?: string | null;
   lastMessageAt: string | null;
   nextRetryAt: string | null;
   reconnectSuppressed: boolean;

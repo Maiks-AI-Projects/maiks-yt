@@ -23,6 +23,7 @@ export type TwitchStreamerChatStatusProjection = {
   provider: "twitch";
   state: TwitchChatIntakeStatus["state"];
   targetLabel: string | null;
+  joinedTargetLabel?: string | null;
   lastMessageAt: string | null;
   nextRetryAt: string | null;
   reconnectSuppressed: boolean;
@@ -67,6 +68,14 @@ const formatTwitchTargetLabel = (status: TwitchChatIntakeStatus): string | null 
   }
 
   return labelNames.map((name) => `#${name}`).join(" + ");
+};
+
+const formatTwitchJoinedTargetLabel = (status: TwitchChatIntakeStatus): string | null => {
+  const names = (status.joinedChannelNames ?? [])
+    .map((name) => safeLabelPart(name))
+    .filter((name): name is string => name !== null);
+
+  return names.length > 0 ? names.map((name) => `#${name}`).join(" + ") : null;
 };
 
 const formatDiscordTargetLabel = (status: DiscordChatIntakeStatus): string | null => {
@@ -123,15 +132,20 @@ const issueForYouTube = (status: YouTubeLiveChatIntakeStatus): StreamerChatProvi
   return null;
 };
 
-export const projectTwitchStreamerChatStatus = (status: TwitchChatIntakeStatus): TwitchStreamerChatStatusProjection => ({
-  provider: "twitch",
-  state: status.state,
-  targetLabel: formatTwitchTargetLabel(status),
-  lastMessageAt: status.lastMessageAt,
-  nextRetryAt: status.nextReconnectAt,
-  reconnectSuppressed: status.reconnectSuppressed,
-  issue: issueForRealtimeProvider("twitch", status)
-});
+export const projectTwitchStreamerChatStatus = (status: TwitchChatIntakeStatus): TwitchStreamerChatStatusProjection => {
+  const joinedTargetLabel = formatTwitchJoinedTargetLabel(status);
+
+  return {
+    provider: "twitch",
+    state: status.state,
+    targetLabel: formatTwitchTargetLabel(status),
+    ...(joinedTargetLabel ? { joinedTargetLabel } : {}),
+    lastMessageAt: status.lastMessageAt,
+    nextRetryAt: status.nextReconnectAt,
+    reconnectSuppressed: status.reconnectSuppressed,
+    issue: issueForRealtimeProvider("twitch", status)
+  };
+};
 
 export const projectDiscordStreamerChatStatus = (status: DiscordChatIntakeStatus): DiscordStreamerChatStatusProjection => ({
   provider: "discord",

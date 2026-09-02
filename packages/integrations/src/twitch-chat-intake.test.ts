@@ -16,19 +16,27 @@ type MessageHandler = (channel: string, user: string, text: string, msg: {
 class FakeChatClient {
   public isConnected = false;
   public isConnecting = false;
+  public currentChannels: string[] = [];
   public readonly connect: Mock<() => void | Promise<void>> = vi.fn(() => {
     this.isConnecting = true;
-    this.connectHandler?.();
     this.isConnecting = false;
     this.isConnected = true;
+    this.connectHandler?.();
+    if (this.autoJoin) {
+      this.currentChannels = ["#maiksmc"];
+      this.joinHandler?.("maiksmc", "justinfan12345");
+    }
   });
   public readonly quit = vi.fn(() => {
     this.isConnected = false;
-    this.disconnectHandler?.(true);
+    this.currentChannels = [];
   });
+  public autoJoin = true;
   public readonly removeListener = vi.fn();
   private connectHandler: (() => void) | null = null;
   private disconnectHandler: ((manually: boolean, reason?: Error) => void) | null = null;
+  private joinFailureHandler: ((channel: string, reason: string) => void) | null = null;
+  private joinHandler: ((channel: string, user: string) => void) | null = null;
   private messageHandler: MessageHandler | null = null;
 
   public onConnect(handler: () => void): Listener {
@@ -39,6 +47,16 @@ class FakeChatClient {
   public onDisconnect(handler: (manually: boolean, reason?: Error) => void): Listener {
     this.disconnectHandler = handler;
     return Symbol("disconnect");
+  }
+
+  public onJoin(handler: (channel: string, user: string) => void): Listener {
+    this.joinHandler = handler;
+    return Symbol("join");
+  }
+
+  public onJoinFailure(handler: (channel: string, reason: string) => void): Listener {
+    this.joinFailureHandler = handler;
+    return Symbol("join-failure");
   }
 
   public onMessage(handler: MessageHandler): Listener {
@@ -61,6 +79,18 @@ class FakeChatClient {
     this.isConnected = false;
     this.isConnecting = false;
     this.disconnectHandler?.(false, reason);
+  }
+
+  public emitJoinFailure(channel = "maiksmc", reason = "join denied"): void {
+    this.joinFailureHandler?.(channel, reason);
+  }
+
+  public emitJoin(channel: string): void {
+    const normalized = channel.replace(/^#/, "").toLowerCase();
+    if (!this.currentChannels.includes(`#${normalized}`)) {
+      this.currentChannels.push(`#${normalized}`);
+    }
+    this.joinHandler?.(normalized, "justinfan12345");
   }
 }
 
@@ -169,6 +199,67 @@ describe("TwitchChatReadOnlyIntakeService", () => {
     expect(fakeClient.quit).toHaveBeenCalledTimes(1);
   });
 
+  it("does not report connected until every configured channel is joined", () => {
+    const fakeClient = new FakeChatClient();
+    fakeClient.autoJoin = false;
+    const scheduled: Array<() => void> = [];
+    const service = new TwitchChatReadOnlyIntakeService({
+      createClient: () => fakeClient as never,
+      env: { TWITCH_CHAT_CHANNELS: "maiksmc,maiksplays" },
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      }
+    });
+
+    expect(service.start()).toMatchObject({
+      joinedChannelNames: [],
+      state: "connecting"
+    });
+
+    fakeClient.emitJoin("maiksmc");
+    expect(service.getStatus()).toMatchObject({
+      joinedChannelNames: ["maiksmc"],
+      state: "connecting"
+    });
+
+    fakeClient.emitJoin("maiksplays");
+    expect(service.getStatus()).toMatchObject({
+      joinedChannelNames: ["maiksmc", "maiksplays"],
+      state: "connected"
+    });
+  });
+
+  it("reconnects instead of staying falsely connected when channel joins time out", () => {
+    const fakeClient = new FakeChatClient();
+    fakeClient.autoJoin = false;
+    const scheduled: Array<() => void> = [];
+    const service = new TwitchChatReadOnlyIntakeService({
+      createClient: () => fakeClient as never,
+      env: { TWITCH_CHAT_CHANNELS: "maiksmc,maiksplays" },
+      joinTimeoutMs: 1_000,
+      now: () => new Date("2026-09-02T18:00:00.000Z"),
+      reconnectDelayMs: 5_000,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      }
+    });
+
+    expect(service.start().state).toBe("connecting");
+    expect(scheduled).toHaveLength(1);
+    scheduled[0]?.();
+
+    expect(fakeClient.quit).toHaveBeenCalledTimes(1);
+    expect(service.getStatus()).toMatchObject({
+      joinedChannelNames: [],
+      lastError: "Twitch chat did not join #maiksmc, #maiksplays within 1 seconds.",
+      nextReconnectAt: "2026-09-02T18:00:05.000Z",
+      state: "stopped"
+    });
+    expect(scheduled).toHaveLength(2);
+  });
+
   it("records recent projected messages and calls the message callback", () => {
     const fakeClient = new FakeChatClient();
     const onMessage = vi.fn();
@@ -227,7 +318,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
     });
     expect(service.getStatus().nextReconnectAt).toBe("2026-06-29T14:00:01.000Z");
 
-    const scheduledReconnect = scheduled[0];
+    const scheduledReconnect = scheduled.at(-1);
     expect(scheduledReconnect).toBeDefined();
     scheduledReconnect?.();
 
@@ -301,7 +392,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
     expect(firstClient).toBeDefined();
     firstClient?.emitUnexpectedDisconnect(new Error("first"));
     now = new Date("2026-06-29T14:00:01.000Z");
-    const scheduledReconnect = scheduled[0];
+    const scheduledReconnect = scheduled.at(-1);
     expect(scheduledReconnect).toBeDefined();
     scheduledReconnect?.();
     const secondClient = clients[1];
@@ -315,7 +406,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
       reconnectSuppressed: true,
       state: "stopped"
     });
-    expect(scheduled).toHaveLength(1);
+    expect(scheduled).toHaveLength(3);
     expect(onReconnectSuppressed).toHaveBeenCalledWith(expect.objectContaining({
       reconnectSuppressed: true,
       state: "stopped"
@@ -343,7 +434,7 @@ describe("TwitchChatReadOnlyIntakeService", () => {
       state: "stopped"
     });
 
-    expect(scheduled).toHaveLength(0);
-    expect(clearTimeoutFn).not.toHaveBeenCalled();
+    expect(scheduled).toHaveLength(1);
+    expect(clearTimeoutFn).toHaveBeenCalledTimes(1);
   });
 });
