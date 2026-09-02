@@ -18,10 +18,14 @@ import type {
 } from "@maiks-yt/domain/schedule";
 
 import type {
+  StreamScheduleProviderDeliveryProcessResult,
   StreamScheduleAdminListResult,
   StreamScheduleMutationResult,
   StreamScheduleRepository
 } from "./stream-schedule.types.js";
+import type {
+  StreamProviderDeliveryProcessorService
+} from "./stream-provider-delivery-processor.service.js";
 
 const parsePermissionArray = (value: unknown): unknown[] => {
   if (Array.isArray(value)) {
@@ -78,9 +82,31 @@ export class StreamScheduleService {
     return {
       ok: true,
       streams: await this.repository.listAdminStreams(),
+      providerDeliveries: await this.repository.listProviderDeliveryStatuses(),
       projectOptions: await this.repository.listProjectOptions(),
       gameOptions: await this.repository.listGameOptions(),
       channelOptions: await this.repository.listChannelOptions(actor.domainUserId)
+    };
+  }
+
+  public async processPendingProviderDeliveries(input: {
+    authUserId: string;
+    limit?: number;
+    now?: Date;
+    processor: Pick<StreamProviderDeliveryProcessorService, "processPending">;
+  }): Promise<StreamScheduleProviderDeliveryProcessResult> {
+    const actor = await this.requireActor(input.authUserId);
+
+    if (!actor.ok) {
+      return actor;
+    }
+
+    return {
+      ok: true,
+      result: await input.processor.processPending({
+        ...(input.limit === undefined ? {} : { limit: input.limit }),
+        ...(input.now === undefined ? {} : { now: input.now })
+      })
     };
   }
 

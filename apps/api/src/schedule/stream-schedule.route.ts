@@ -9,6 +9,17 @@ import type {
   WebsiteEventRoutingProductionInput,
   WebsiteEventRoutingProductionPublisher
 } from "../event-routing/index.js";
+import {
+  StreamProviderDeliveryProcessorService
+} from "./stream-provider-delivery-processor.service.js";
+import {
+  createStreamProviderDeliveryProcessorRepository
+} from "./stream-provider-delivery-store.service.js";
+import {
+  createTwitchDeliveryContextRepository,
+  createUnavailableYouTubeDeliveryAdapter,
+  StreamProviderTwitchDeliveryAdapter
+} from "./stream-provider-twitch-delivery-adapter.service.js";
 import { StreamScheduleService } from "./stream-schedule.service.js";
 import { createStreamScheduleRepository } from "./stream-schedule-store.service.js";
 import type { StreamScheduleMutationResult } from "./stream-schedule.types.js";
@@ -29,7 +40,9 @@ type StreamScheduleRouteDependencies = {
     | "updateStream"
     | "cancelStream"
     | "replaceStreamGameLinks"
+    | "processPendingProviderDeliveries"
   >;
+  createDeliveryProcessor?: () => Pick<StreamProviderDeliveryProcessorService, "processPending">;
   routeWebsiteEvent?: WebsiteEventRoutingProductionPublisher;
 };
 
@@ -108,6 +121,10 @@ const gameLinksPayloadSchema = z.object({
   }).strict()).max(12)
 }).strict();
 
+const processProviderDeliveryPayloadSchema = z.object({
+  limit: z.number().int().min(1).max(25).optional()
+}).strict().optional();
+
 const streamPayloadIssueMessages: Record<string, string> = {
   title: "Enter a stream title.",
   description: "The description is too long.",
@@ -161,9 +178,23 @@ export const registerStreamScheduleRoutes = (
     | "updateStream"
     | "cancelStream"
     | "replaceStreamGameLinks"
+    | "processPendingProviderDeliveries"
   > =>
     dependencies.createService?.()
     ?? new StreamScheduleService(createStreamScheduleRepository(dependencies.getDatabasePool()));
+
+  const getDeliveryProcessor = (): Pick<StreamProviderDeliveryProcessorService, "processPending"> =>
+    dependencies.createDeliveryProcessor?.()
+    ?? new StreamProviderDeliveryProcessorService({
+      adapters: {
+        twitch: new StreamProviderTwitchDeliveryAdapter({
+          contextRepository: createTwitchDeliveryContextRepository(dependencies.getDatabasePool())
+        }),
+        youtube: createUnavailableYouTubeDeliveryAdapter()
+      },
+      repository: createStreamProviderDeliveryProcessorRepository(dependencies.getDatabasePool()),
+      workerId: "api-schedule-operator"
+    });
 
   const getSession = async (request: FastifyRequest, reply: FastifyReply): Promise<StreamScheduleAuthSession> => {
     try {
@@ -413,6 +444,51 @@ export const registerStreamScheduleRoutes = (
       return sendMutationResult(result, reply);
     } catch (error) {
       server.log.warn({ err: error }, "Stream schedule game link update failed.");
+      reply.code(503);
+      return {
+        ok: false,
+        reason: "stream_schedule_unavailable"
+      };
+    }
+  });
+
+  server.post("/admin/schedule/provider-deliveries/process-pending", async (request, reply) => {
+    const session = await getSession(request, reply);
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: reply.statusCode === 503 ? "stream_schedule_unavailable" : "not_authenticated"
+      };
+    }
+
+    const parsedBody = processProviderDeliveryPayloadSchema.safeParse(request.body ?? undefined);
+
+    if (!parsedBody.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "stream_schedule_invalid_input"
+      };
+    }
+
+    try {
+      const limitInput = parsedBody.data?.limit === undefined
+        ? {}
+        : { limit: parsedBody.data.limit };
+      const result = await getService().processPendingProviderDeliveries({
+        authUserId: session.user.id,
+        ...limitInput,
+        processor: getDeliveryProcessor()
+      });
+
+      if (!result.ok) {
+        reply.code(403);
+      }
+
+      return result;
+    } catch (error) {
+      server.log.warn({ err: error }, "Stream schedule provider delivery processing failed.");
       reply.code(503);
       return {
         ok: false,

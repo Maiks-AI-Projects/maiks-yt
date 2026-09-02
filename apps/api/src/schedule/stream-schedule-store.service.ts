@@ -19,6 +19,7 @@ import type {
 } from "@maiks-yt/domain/schedule";
 
 import type {
+  StreamScheduleProviderDeliveryStatusProjection,
   StreamScheduleAdminActor,
   StreamScheduleRepository
 } from "./stream-schedule.types.js";
@@ -75,6 +76,18 @@ type StreamScheduleChannelTargetRow = {
   handle?: string | null;
 };
 
+type StreamProviderDeliveryStatusRow = {
+  scheduleEntryId: string;
+  channelRef: string;
+  provider: "twitch" | "youtube";
+  status: StreamScheduleProviderDeliveryStatusProjection["status"];
+  lastAttemptAt?: Date | null;
+  lastSuccessAt?: Date | null;
+  lastErrorCode?: string | null;
+  lastErrorMessage?: string | null;
+  operatorActionAvailable?: boolean | number | null;
+};
+
 const mapStream = (
   row: StreamScheduleRow,
   gameLinks: readonly StreamScheduleGameLink[] = [],
@@ -119,6 +132,20 @@ const mapGameLink = (row: StreamScheduleGameLinkRow): StreamScheduleGameLink => 
   relationship: row.relationship,
   publicNote: row.publicNote ?? null,
   sortOrder: row.sortOrder
+});
+
+const mapProviderDeliveryStatus = (
+  row: StreamProviderDeliveryStatusRow
+): StreamScheduleProviderDeliveryStatusProjection => ({
+  scheduleEntryId: row.scheduleEntryId,
+  channelRef: row.channelRef,
+  provider: row.provider,
+  status: row.status,
+  lastAttemptAt: row.lastAttemptAt?.toISOString() ?? null,
+  lastSuccessAt: row.lastSuccessAt?.toISOString() ?? null,
+  lastErrorCode: row.lastErrorCode ?? null,
+  lastErrorMessage: row.lastErrorMessage ?? null,
+  operatorActionAvailable: row.operatorActionAvailable === true || row.operatorActionAvailable === 1
 });
 
 const selectStreamFields = `
@@ -531,6 +558,35 @@ export const createStreamScheduleRepository = (
 
     return Array.isArray(rows)
       ? await mapStreamsWithGameLinks(pool, rows as StreamScheduleRow[], false)
+      : [];
+  },
+
+  async listProviderDeliveryStatuses() {
+    const [rows] = await pool.execute(
+      `
+        SELECT
+          stream_provider_delivery_bindings.schedule_entry_id AS scheduleEntryId,
+          stream_provider_delivery_bindings.channel_ref AS channelRef,
+          stream_provider_delivery_bindings.provider,
+          stream_provider_delivery_bindings.status,
+          stream_provider_delivery_bindings.last_attempt_at AS lastAttemptAt,
+          stream_provider_delivery_bindings.last_success_at AS lastSuccessAt,
+          stream_provider_delivery_bindings.last_error_code AS lastErrorCode,
+          stream_provider_delivery_bindings.last_error_message AS lastErrorMessage,
+          EXISTS (
+            SELECT 1
+            FROM stream_provider_delivery_intents
+            WHERE stream_provider_delivery_intents.delivery_binding_id = stream_provider_delivery_bindings.id
+              AND stream_provider_delivery_intents.status IN ('pending', 'retry-wait')
+              AND stream_provider_delivery_intents.available_at <= NOW()
+          ) AS operatorActionAvailable
+        FROM stream_provider_delivery_bindings
+        ORDER BY stream_provider_delivery_bindings.updated_at DESC, stream_provider_delivery_bindings.schedule_entry_id, stream_provider_delivery_bindings.channel_ref
+      `
+    );
+
+    return Array.isArray(rows)
+      ? (rows as StreamProviderDeliveryStatusRow[]).map(mapProviderDeliveryStatus)
       : [];
   },
 

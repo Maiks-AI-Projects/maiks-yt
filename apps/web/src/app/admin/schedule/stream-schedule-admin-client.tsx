@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FiChevronDown, FiClock, FiEdit2, FiExternalLink, FiFolder, FiGlobe, FiLock,
-  FiPlayCircle, FiPlus, FiSearch, FiXCircle
+  FiPlayCircle, FiPlus, FiRefreshCw, FiSearch, FiXCircle
 } from "react-icons/fi";
 import type {
+  StreamProviderDeliveryStatus,
   StreamScheduleCancellationReasonCode, StreamScheduleChannelOption, StreamScheduleEntry, StreamScheduleGameOption,
   StreamScheduleProjectOption, StreamScheduleStatus, StreamScheduleVisibility
 } from "@maiks-yt/domain/schedule";
@@ -27,9 +28,39 @@ import {
 } from "./stream-schedule-form.rules";
 
 type AdminScheduleResponse =
-  | { ok: true; streams: readonly StreamScheduleEntry[]; projectOptions: readonly StreamScheduleProjectOption[]; gameOptions: readonly StreamScheduleGameOption[]; channelOptions?: readonly StreamScheduleChannelOption[] }
+  | {
+    ok: true;
+    streams: readonly StreamScheduleEntry[];
+    providerDeliveries?: readonly StreamScheduleProviderDeliveryStatusProjection[];
+    projectOptions: readonly StreamScheduleProjectOption[];
+    gameOptions: readonly StreamScheduleGameOption[];
+    channelOptions?: readonly StreamScheduleChannelOption[];
+  }
   | { ok: false; reason: string };
 type AdminScheduleMutationResponse = { ok: true; stream: StreamScheduleEntry } | { ok: false; reason: string; issues?: readonly string[] };
+type AdminProviderDeliveryProcessResponse = {
+  ok: true;
+  result: {
+    claimed: number;
+    degraded: number;
+    dispatched: number;
+    failed: number;
+    ready: number;
+    superseded: number;
+    unsupported: number;
+  };
+} | { ok: false; reason: string };
+type StreamScheduleProviderDeliveryStatusProjection = {
+  scheduleEntryId: string;
+  channelRef: string;
+  provider: "twitch" | "youtube";
+  status: StreamProviderDeliveryStatus;
+  lastAttemptAt: string | null;
+  lastSuccessAt: string | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  operatorActionAvailable: boolean;
+};
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 type ScheduleFilter = "upcoming" | "all" | "cancelled";
 type ScheduleSort = "soonest" | "latest";
@@ -159,9 +190,26 @@ const getStatusClassName = (status: StreamScheduleStatus): string => {
   if (status === "live") return styles.statusLive ?? "";
   return styles.statusPlanned ?? "";
 };
+const formatProviderDeliveryStatus = (
+  status: StreamProviderDeliveryStatus
+): string => formatScheduleLabel(status);
+const getProviderDeliveryClassName = (
+  status: StreamProviderDeliveryStatus
+): string => {
+  if (status === "ready") return styles.deliveryReady ?? "";
+  if (status === "degraded") return styles.deliveryDegraded ?? "";
+  if (status === "failed") return styles.deliveryFailed ?? "";
+  if (status === "removed") return styles.deliveryRemoved ?? "";
+  return styles.deliveryPending ?? "";
+};
+const formatProviderDeliverySummary = (
+  result: Extract<AdminProviderDeliveryProcessResponse, { ok: true }>["result"]
+): string =>
+  `Provider delivery processed: ${result.claimed} claimed, ${result.ready} ready, ${result.dispatched} syncing, ${result.degraded} degraded, ${result.failed} failed, ${result.unsupported} unsupported, ${result.superseded} superseded.`;
 
 const StreamScheduleAdminClient = (): React.ReactNode => {
   const [streams, setStreams] = useState<readonly StreamScheduleEntry[]>([]);
+  const [providerDeliveries, setProviderDeliveries] = useState<readonly StreamScheduleProviderDeliveryStatusProjection[]>([]);
   const [projectOptions, setProjectOptions] = useState<readonly StreamScheduleProjectOption[]>([]);
   const [gameOptions, setGameOptions] = useState<readonly StreamScheduleGameOption[]>([]);
   const [channelOptions, setChannelOptions] = useState<readonly StreamScheduleChannelOption[]>([]);
@@ -178,10 +226,18 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
   const [sort, setSort] = useState<ScheduleSort>("soonest");
   const [searchQuery, setSearchQuery] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [deliveryConfirmArmed, setDeliveryConfirmArmed] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<readonly ScheduleFormError[]>([]);
 
   const selectedStream = useMemo(() => streams.find((stream) => stream.id === selectedStreamId) ?? null, [streams, selectedStreamId]);
+  const selectedProviderDeliveries = useMemo(() => selectedStream
+    ? providerDeliveries.filter((delivery) => delivery.scheduleEntryId === selectedStream.id)
+    : [],
+  [providerDeliveries, selectedStream]);
+  const hasAvailableProviderAction = useMemo(() =>
+    providerDeliveries.some((delivery) => delivery.operatorActionAvailable),
+  [providerDeliveries]);
   const visibleStreams = useMemo(() => {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -237,6 +293,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       const payload = await parseJson<AdminScheduleResponse>(response);
       if (response.ok && payload?.ok) {
         setStreams(payload.streams);
+        setProviderDeliveries(payload.providerDeliveries ?? []);
         setProjectOptions(payload.projectOptions);
         setGameOptions(payload.gameOptions);
         setChannelOptions(payload.channelOptions ?? []);
@@ -288,6 +345,9 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [busyAction, cancelDialogOpen]);
+  useEffect(() => {
+    setDeliveryConfirmArmed(false);
+  }, [scheduleForm, selectedChannelRefs, selectedStreamId]);
 
   const runMutation = async (label: string, path: string, options: {
     method: "POST" | "PATCH" | "PUT";
@@ -328,6 +388,40 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       setMessage(`${label} failed. Your entries were kept.`);
       return null;
     } finally { setBusyAction(null); }
+  };
+  const processPendingProviderDeliveries = async (): Promise<void> => {
+    if (!deliveryConfirmArmed) {
+      setDeliveryConfirmArmed(true);
+      setMessage("Confirm provider delivery processing. This only processes already-persisted pending intents.");
+      return;
+    }
+
+    setDeliveryConfirmArmed(false);
+    setBusyAction("Processing provider deliveries");
+    setMessage("Processing provider deliveries...");
+    try {
+      const response = await fetch(`${apiBaseUrl}/admin/schedule/provider-deliveries/process-pending`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({})
+      });
+      const payload = await parseJson<AdminProviderDeliveryProcessResponse>(response);
+      if (response.ok && payload?.ok) {
+        await loadStreams();
+        setMessage(formatProviderDeliverySummary(payload.result));
+        return;
+      }
+      const reason = payload?.ok === false ? payload.reason : undefined;
+      setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
+      setFormErrors([{ field: "global", message: getFailureMessage(response, reason) }]);
+      setMessage("Provider delivery processing failed.");
+    } catch (error) {
+      setFormErrors([{ field: "global", message: error instanceof Error ? error.message : "Provider delivery processing failed." }]);
+      setMessage("Provider delivery processing failed.");
+    } finally {
+      setBusyAction(null);
+    }
   };
 
   const selectStream = (streamId: string): void => {
@@ -431,6 +525,14 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       <div><h1>Stream Schedule</h1><p>Manage the next few streams shown on the public schedule.</p></div>
       <div className={styles.headerActions}>
         <a className={styles.publicLink} href="/schedule">View public schedule <FiExternalLink aria-hidden="true" /></a>
+        <button
+          aria-pressed={deliveryConfirmArmed}
+          disabled={busyAction !== null || !hasAvailableProviderAction}
+          type="button"
+          onClick={() => void processPendingProviderDeliveries()}
+        >
+          <FiRefreshCw aria-hidden="true" />{deliveryConfirmArmed ? "Confirm provider processing" : "Process provider deliveries"}
+        </button>
         <button type="button" onClick={startNewStream}><FiPlus aria-hidden="true" />New stream</button>
       </div>
     </header>
@@ -530,6 +632,34 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
                 <span><strong>{option.displayName}</strong><small>{option.provider === "youtube" ? "YouTube" : "Twitch"}{option.handle ? ` · ${option.handle}` : ""}</small></span>
               </label>)}</div>}
           </fieldset>
+          {selectedStream ? <section className={styles.providerDeliveryPanel} aria-label="Provider delivery status">
+            <div className={styles.providerDeliveryHeading}>
+              <h3>Provider Delivery</h3>
+              <span>{selectedProviderDeliveries.some((delivery) => delivery.operatorActionAvailable) ? "Action available" : "No pending action"}</span>
+            </div>
+            {selectedProviderDeliveries.length === 0 ? <p className={styles.providerDeliveryEmpty}>No provider delivery has been queued for this stream.</p>
+              : <ul className={styles.providerDeliveryList}>
+                {selectedProviderDeliveries.map((delivery) => {
+                  const channel = selectedStream.channelTargets?.find((target) => target.channelRef === delivery.channelRef)
+                    ?? channelOptions.find((option) => option.channelRef === delivery.channelRef);
+                  return <li key={`${delivery.scheduleEntryId}-${delivery.channelRef}-${delivery.provider}`}>
+                    <span>
+                      <strong>{delivery.provider === "youtube" ? "YouTube" : "Twitch"}</strong>
+                      <small>{channel?.displayName ?? "Connected channel"}</small>
+                    </span>
+                    <span className={`${styles.providerDeliveryPill} ${getProviderDeliveryClassName(delivery.status)}`}>
+                      {formatProviderDeliveryStatus(delivery.status)}
+                    </span>
+                    <span className={styles.providerDeliveryDetail}>
+                      {delivery.lastErrorCode ? `${delivery.lastErrorCode}: ${delivery.lastErrorMessage ?? "No detail available."}`
+                        : delivery.lastSuccessAt ? `Last success ${formatScheduleDate(delivery.lastSuccessAt)}`
+                        : delivery.lastAttemptAt ? `Last attempt ${formatScheduleDate(delivery.lastAttemptAt)}`
+                        : "No delivery attempt yet."}
+                    </span>
+                  </li>;
+                })}
+              </ul>}
+          </section> : null}
           <details className={styles.technicalFields}><summary>Topic &amp; theme</summary><div className={styles.twoColumnFields}>
             <label>Topic<input maxLength={80} value={scheduleForm.topicKey} onChange={(event) => setScheduleForm((current) => ({ ...current, topicKey: event.target.value }))} /><small>Spaces and capitals are accepted.</small></label>
             <label>Theme<input maxLength={80} value={scheduleForm.themeKey} onChange={(event) => setScheduleForm((current) => ({ ...current, themeKey: event.target.value }))} /><small>Spaces and capitals are accepted.</small></label>

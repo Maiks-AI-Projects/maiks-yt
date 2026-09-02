@@ -198,6 +198,73 @@
 .channelSelector input { flex: 0 0 auto; min-height: 1rem; width: 1rem; }
 .channelSelector label > span { display: grid; gap: 0.1rem; }
 .channelSelector label strong { font-size: 0.8rem; }
+.providerDeliveryPanel {
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+}
+
+.providerDeliveryHeading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.providerDeliveryHeading h3 {
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.providerDeliveryHeading span,
+.providerDeliveryEmpty,
+.providerDeliveryDetail {
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+}
+
+.providerDeliveryEmpty { margin: 0; }
+.providerDeliveryList {
+  display: grid;
+  gap: 0.45rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.providerDeliveryList li {
+  align-items: center;
+  background: var(--admin-surface-raised);
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: minmax(8rem, 0.7fr) auto minmax(10rem, 1fr);
+  padding: 0.55rem 0.6rem;
+}
+
+.providerDeliveryList li > span:first-child {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.providerDeliveryList strong { font-size: 0.8rem; }
+.providerDeliveryList small { color: var(--admin-muted); }
+.providerDeliveryPill {
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.12rem 0.4rem;
+  text-transform: uppercase;
+}
+
+.deliveryPending { background: var(--admin-surface-active); border-color: var(--admin-line-strong); color: var(--admin-text); }
+.deliveryReady { background: rgb(69 214 173 / 8%); border-color: #238a70; color: var(--admin-mint); }
+.deliveryDegraded { background: #322b18; border-color: #8d702a; color: #f1c96c; }
+.deliveryFailed { background: #341d21; border-color: #a33c45; color: #ff777e; }
+.deliveryRemoved { background: var(--admin-surface); color: var(--admin-muted); }
 .editorHeading { justify-content: space-between; min-height: 3.5rem; }
 .editorHeading > div { gap: 0.6rem; }
 .editorHeading h2 { font-size: 1.25rem; }
@@ -300,4 +367,5 @@
   .streamRow { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
   .streamMeta { gap: 0.45rem; }
   .dateTimeField > div { grid-template-columns: 1fr; }
+  .providerDeliveryList li { grid-template-columns: 1fr; }
 }

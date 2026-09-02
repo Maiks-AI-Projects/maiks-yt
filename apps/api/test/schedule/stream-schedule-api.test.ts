@@ -13,6 +13,7 @@ import { StreamScheduleService } from "../../src/schedule/stream-schedule.servic
 import { createStreamScheduleRepository } from "../../src/schedule/stream-schedule-store.service.js";
 import type {
   StreamScheduleAdminActor,
+  StreamScheduleProviderDeliveryStatusProjection,
   StreamScheduleRepository
 } from "../../src/schedule/stream-schedule.types.js";
 
@@ -59,12 +60,23 @@ const createPayload = (overrides: Partial<StreamScheduleInput> = {}): StreamSche
   ...overrides
 });
 
+const processedProviderDeliveries = {
+  claimed: 2,
+  degraded: 1,
+  dispatched: 0,
+  failed: 0,
+  ready: 0,
+  superseded: 1,
+  unsupported: 0
+};
+
 class FakeStreamScheduleRepository implements StreamScheduleRepository {
   public actor: StreamScheduleAdminActor | null = {
     domainUserId: "domain-user",
     rolePermissionValues: [["*"]]
   };
   public readonly streams = new Map<string, StreamScheduleEntry>();
+  public providerDeliveries: readonly StreamScheduleProviderDeliveryStatusProjection[] = [];
   public lastCreated: (StreamScheduleInput & { actorUserId: string; creationRequestId: string }) | null = null;
   public lastUpdated: StreamScheduleUpdateInput | null = null;
   public lastCancellation: StreamScheduleCancellationInput | null = null;
@@ -95,6 +107,10 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
 
   public async listAdminStreams(): Promise<readonly StreamScheduleEntry[]> {
     return [...this.streams.values()];
+  }
+
+  public async listProviderDeliveryStatuses(): Promise<readonly StreamScheduleProviderDeliveryStatusProjection[]> {
+    return structuredClone(this.providerDeliveries);
   }
 
   public async listProjectOptions() {
@@ -273,6 +289,79 @@ describe("StreamScheduleService", () => {
       provider: "twitch",
       displayName: "MaiksPlays"
     }));
+  });
+
+  it("returns sanitized provider delivery status on the admin schedule path", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    repository.providerDeliveries = [{
+      scheduleEntryId: "stream-1",
+      channelRef: "11111111-1111-4111-8111-111111111111",
+      provider: "twitch",
+      status: "degraded",
+      lastAttemptAt: "2026-09-02T12:00:00.000Z",
+      lastSuccessAt: null,
+      lastErrorCode: "twitch-provider-rate-limited",
+      lastErrorMessage: "Twitch asked us to retry this delivery later.",
+      operatorActionAvailable: false
+    }, {
+      scheduleEntryId: "stream-1",
+      channelRef: "22222222-2222-4222-8222-222222222222",
+      provider: "youtube",
+      status: "pending",
+      lastAttemptAt: null,
+      lastSuccessAt: null,
+      lastErrorCode: "provider-adapter-unavailable",
+      lastErrorMessage: "No YouTube provider delivery adapter is configured for schedule delivery yet.",
+      operatorActionAvailable: true
+    }];
+    const service = new StreamScheduleService(repository);
+
+    const result = await service.listAdminStreams({ authUserId: "auth-user" });
+
+    expect(result).toMatchObject({
+      ok: true,
+      providerDeliveries: repository.providerDeliveries
+    });
+    expect(JSON.stringify(result)).not.toContain("providerResourceId");
+    expect(JSON.stringify(result)).not.toContain("providerStreamId");
+    expect(JSON.stringify(result)).not.toContain("providerCategoryId");
+    expect(JSON.stringify(result)).not.toContain("receipt");
+    expect(JSON.stringify(result)).not.toContain("accessToken");
+  });
+
+  it("processes pending provider deliveries only after schedule admin authorization", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const processor = {
+      processPending: vi.fn(async () => processedProviderDeliveries)
+    };
+    const service = new StreamScheduleService(repository);
+
+    await expect(service.processPendingProviderDeliveries({
+      authUserId: "auth-user",
+      limit: 7,
+      now: new Date("2026-09-02T12:00:00.000Z"),
+      processor
+    })).resolves.toEqual({
+      ok: true,
+      result: processedProviderDeliveries
+    });
+    expect(processor.processPending).toHaveBeenCalledWith({
+      limit: 7,
+      now: new Date("2026-09-02T12:00:00.000Z")
+    });
+
+    repository.actor = {
+      domainUserId: "domain-user",
+      rolePermissionValues: [[]]
+    };
+    await expect(service.processPendingProviderDeliveries({
+      authUserId: "auth-user",
+      processor
+    })).resolves.toEqual({
+      ok: false,
+      reason: "stream_schedule_admin_forbidden"
+    });
+    expect(processor.processPending).toHaveBeenCalledTimes(1);
   });
 
   it("normalizes selected connected channel references on create", async () => {
@@ -648,6 +737,65 @@ describe("stream schedule store boundaries", () => {
     expect(calls[1]?.sql).toContain("AND game_library_entries.visibility = 'public'");
     expect(calls[1]?.parameters).toEqual(["live-stream", "cancelled-stream"]);
   });
+
+  it("reads safe provider delivery status without receipt resource columns", async () => {
+    const execute = vi.fn().mockResolvedValueOnce([[
+      {
+        scheduleEntryId: "stream-1",
+        channelRef: "channel-1",
+        provider: "twitch",
+        status: "ready",
+        lastAttemptAt: new Date("2026-09-02T12:00:00.000Z"),
+        lastSuccessAt: new Date("2026-09-02T12:00:01.000Z"),
+        lastErrorCode: null,
+        lastErrorMessage: null,
+        operatorActionAvailable: 0
+      },
+      {
+        scheduleEntryId: "stream-1",
+        channelRef: "channel-2",
+        provider: "youtube",
+        status: "degraded",
+        lastAttemptAt: new Date("2026-09-02T12:05:00.000Z"),
+        lastSuccessAt: null,
+        lastErrorCode: "provider-adapter-unavailable",
+        lastErrorMessage: "No YouTube provider delivery adapter is configured for schedule delivery yet.",
+        operatorActionAvailable: 1
+      }
+    ], []]);
+    const repository = createStreamScheduleRepository({ execute } as never);
+
+    await expect(repository.listProviderDeliveryStatuses()).resolves.toEqual([
+      {
+        scheduleEntryId: "stream-1",
+        channelRef: "channel-1",
+        provider: "twitch",
+        status: "ready",
+        lastAttemptAt: "2026-09-02T12:00:00.000Z",
+        lastSuccessAt: "2026-09-02T12:00:01.000Z",
+        lastErrorCode: null,
+        lastErrorMessage: null,
+        operatorActionAvailable: false
+      },
+      {
+        scheduleEntryId: "stream-1",
+        channelRef: "channel-2",
+        provider: "youtube",
+        status: "degraded",
+        lastAttemptAt: "2026-09-02T12:05:00.000Z",
+        lastSuccessAt: null,
+        lastErrorCode: "provider-adapter-unavailable",
+        lastErrorMessage: "No YouTube provider delivery adapter is configured for schedule delivery yet.",
+        operatorActionAvailable: true
+      }
+    ]);
+    const query = String(execute.mock.calls[0]?.[0]);
+    expect(query).toContain("stream_provider_delivery_bindings.status");
+    expect(query).toContain("stream_provider_delivery_intents.status IN ('pending', 'retry-wait')");
+    expect(query).not.toContain("provider_resource_id");
+    expect(query).not.toContain("provider_stream_id");
+    expect(query).not.toContain("provider_category_id");
+  });
 });
 
 describe("stream schedule route boundary", () => {
@@ -734,12 +882,16 @@ describe("stream schedule route boundary", () => {
   });
 
   it("returns 401 without a session and 403 without schedule permission", async () => {
+    const deniedProcessor = {
+      processPending: vi.fn(async () => processedProviderDeliveries)
+    };
     const unauthenticatedServer = Fastify();
     registerStreamScheduleRoutes(unauthenticatedServer, {
       getAuthSession: async () => null,
       getDatabasePool: () => {
         throw new Error("pool should not be used");
-      }
+      },
+      createDeliveryProcessor: () => deniedProcessor
     });
 
     const unauthenticatedResponse = await unauthenticatedServer.inject({
@@ -748,6 +900,16 @@ describe("stream schedule route boundary", () => {
     });
     expect(unauthenticatedResponse.statusCode).toBe(401);
     expect(unauthenticatedResponse.json()).toEqual({
+      ok: false,
+      reason: "not_authenticated"
+    });
+    const unauthenticatedProcessResponse = await unauthenticatedServer.inject({
+      method: "POST",
+      url: "/admin/schedule/provider-deliveries/process-pending",
+      payload: {}
+    });
+    expect(unauthenticatedProcessResponse.statusCode).toBe(401);
+    expect(unauthenticatedProcessResponse.json()).toEqual({
       ok: false,
       reason: "not_authenticated"
     });
@@ -764,7 +926,8 @@ describe("stream schedule route boundary", () => {
       getDatabasePool: () => {
         throw new Error("pool should not be used");
       },
-      createService: () => new StreamScheduleService(repository)
+      createService: () => new StreamScheduleService(repository),
+      createDeliveryProcessor: () => deniedProcessor
     });
 
     const forbiddenResponse = await forbiddenServer.inject({
@@ -776,7 +939,103 @@ describe("stream schedule route boundary", () => {
       ok: false,
       reason: "stream_schedule_admin_forbidden"
     });
+    const forbiddenProcessResponse = await forbiddenServer.inject({
+      method: "POST",
+      url: "/admin/schedule/provider-deliveries/process-pending",
+      payload: {}
+    });
+    expect(forbiddenProcessResponse.statusCode).toBe(403);
+    expect(forbiddenProcessResponse.json()).toEqual({
+      ok: false,
+      reason: "stream_schedule_admin_forbidden"
+    });
+    expect(deniedProcessor.processPending).not.toHaveBeenCalled();
     await forbiddenServer.close();
+  });
+
+  it("projects delivery status safely and only runs the processor from the explicit operator POST", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    repository.providerDeliveries = [{
+      scheduleEntryId: "stream-1",
+      channelRef: "11111111-1111-4111-8111-111111111111",
+      provider: "twitch",
+      status: "ready",
+      lastAttemptAt: "2026-09-02T12:00:00.000Z",
+      lastSuccessAt: "2026-09-02T12:00:01.000Z",
+      lastErrorCode: null,
+      lastErrorMessage: null,
+      operatorActionAvailable: false
+    }, {
+      scheduleEntryId: "stream-1",
+      channelRef: "22222222-2222-4222-8222-222222222222",
+      provider: "youtube",
+      status: "degraded",
+      lastAttemptAt: "2026-09-02T12:05:00.000Z",
+      lastSuccessAt: null,
+      lastErrorCode: "provider-adapter-unavailable",
+      lastErrorMessage: "No YouTube provider delivery adapter is configured for schedule delivery yet.",
+      operatorActionAvailable: true
+    }];
+    const processor = {
+      processPending: vi.fn(async () => processedProviderDeliveries)
+    };
+    const server = Fastify();
+    registerStreamScheduleRoutes(server, {
+      getAuthSession: async () => ({ user: { id: "auth-user" } }),
+      getDatabasePool: () => {
+        throw new Error("pool should not be used");
+      },
+      createService: () => new StreamScheduleService(repository),
+      createDeliveryProcessor: () => processor
+    });
+
+    const listResponse = await server.inject({
+      method: "GET",
+      url: "/admin/schedule"
+    });
+    const createResponse = await server.inject({
+      method: "POST",
+      url: "/admin/schedule",
+      payload: createPayload()
+    });
+    const updateResponse = await server.inject({
+      method: "PATCH",
+      url: "/admin/schedule/stream-1",
+      payload: { title: "Updated without processing" }
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(createResponse.statusCode).toBe(200);
+    expect(updateResponse.statusCode).toBe(200);
+    expect(processor.processPending).not.toHaveBeenCalled();
+    expect(listResponse.json()).toMatchObject({
+      ok: true,
+      providerDeliveries: repository.providerDeliveries
+    });
+    expect(JSON.stringify(listResponse.json())).not.toContain("providerResourceId");
+    expect(JSON.stringify(listResponse.json())).not.toContain("providerStreamId");
+    expect(JSON.stringify(listResponse.json())).not.toContain("providerCategoryId");
+    expect(JSON.stringify(listResponse.json())).not.toContain("providerActionId");
+    expect(JSON.stringify(listResponse.json())).not.toContain("receipt");
+
+    const processResponse = await server.inject({
+      method: "POST",
+      url: "/admin/schedule/provider-deliveries/process-pending",
+      payload: { limit: 3 }
+    });
+
+    expect(processResponse.statusCode).toBe(200);
+    expect(processResponse.json()).toEqual({
+      ok: true,
+      result: processedProviderDeliveries
+    });
+    expect(processor.processPending).toHaveBeenCalledTimes(1);
+    expect(processor.processPending).toHaveBeenCalledWith({
+      limit: 3
+    });
+    expect(JSON.stringify(processResponse.json())).not.toContain("providerResourceId");
+    expect(JSON.stringify(processResponse.json())).not.toContain("receipt");
+    await server.close();
   });
 
   it("routes successful public schedule changes and cancellations through real website events", async () => {

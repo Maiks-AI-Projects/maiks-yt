@@ -70,6 +70,64 @@ const twoLinkStream: StreamScheduleEntry = {
   updatedAt: "2026-08-28T12:00:00.000Z"
 };
 
+const providerDeliveries = [
+  {
+    scheduleEntryId: twoLinkStream.id,
+    channelRef: "11111111-1111-4111-8111-111111111111",
+    provider: "twitch",
+    status: "pending",
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    lastErrorCode: null,
+    lastErrorMessage: null,
+    operatorActionAvailable: true
+  },
+  {
+    scheduleEntryId: twoLinkStream.id,
+    channelRef: "youtube-channel",
+    provider: "youtube",
+    status: "degraded",
+    lastAttemptAt: "2026-09-02T12:00:00.000Z",
+    lastSuccessAt: null,
+    lastErrorCode: "provider-adapter-unavailable",
+    lastErrorMessage: "No YouTube provider delivery adapter is configured for schedule delivery yet.",
+    operatorActionAvailable: false
+  },
+  {
+    scheduleEntryId: twoLinkStream.id,
+    channelRef: "failed-channel",
+    provider: "twitch",
+    status: "failed",
+    lastAttemptAt: "2026-09-02T12:10:00.000Z",
+    lastSuccessAt: null,
+    lastErrorCode: "twitch-auth-invalid",
+    lastErrorMessage: "Twitch rejected the configured broadcaster credential.",
+    operatorActionAvailable: false
+  },
+  {
+    scheduleEntryId: twoLinkStream.id,
+    channelRef: "ready-channel",
+    provider: "twitch",
+    status: "ready",
+    lastAttemptAt: "2026-09-02T12:20:00.000Z",
+    lastSuccessAt: "2026-09-02T12:20:01.000Z",
+    lastErrorCode: null,
+    lastErrorMessage: null,
+    operatorActionAvailable: false
+  },
+  {
+    scheduleEntryId: twoLinkStream.id,
+    channelRef: "removed-channel",
+    provider: "twitch",
+    status: "removed",
+    lastAttemptAt: null,
+    lastSuccessAt: null,
+    lastErrorCode: null,
+    lastErrorMessage: null,
+    operatorActionAvailable: false
+  }
+] as const;
+
 const renderScheduleEditor = async (
   fetchMock: ReturnType<typeof vi.fn>
 ): Promise<ReactTestRenderer> => {
@@ -98,6 +156,7 @@ const createScheduleFetchMock = () => vi.fn((
     return Promise.resolve(createJsonResponse({
       ok: true,
       streams: [twoLinkStream],
+      providerDeliveries,
       projectOptions: [],
       gameOptions: [
         {
@@ -146,6 +205,13 @@ const createScheduleFetchMock = () => vi.fn((
   return Promise.reject(new Error(`Unexpected request: ${init?.method ?? "GET"} ${url}`));
 });
 
+const findButtonByText = (
+  renderer: ReactTestRenderer,
+  text: string
+) => renderer.root.findAllByType("button").find((button) =>
+  button.children.some((child) => child === text)
+);
+
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 });
@@ -156,6 +222,128 @@ afterEach(() => {
 });
 
 describe("stream schedule admin client game focus saving", () => {
+  it("renders provider delivery states without private receipt fields", async () => {
+    const fetchMock = createScheduleFetchMock();
+    const renderer = await renderScheduleEditor(fetchMock);
+    const markup = JSON.stringify(renderer.toJSON());
+
+    expect(markup).toContain("Provider Delivery");
+    expect(markup).toContain("Pending");
+    expect(markup).toContain("Degraded");
+    expect(markup).toContain("Failed");
+    expect(markup).toContain("Ready");
+    expect(markup).toContain("Removed");
+    expect(markup).toContain("provider-adapter-unavailable");
+    expect(markup).not.toContain("providerResourceId");
+    expect(markup).not.toContain("providerStreamId");
+    expect(markup).not.toContain("providerCategoryId");
+    expect(markup).not.toContain("receipt");
+    expect(markup).not.toContain("accessToken");
+
+    await act(async () => { renderer.unmount(); });
+  });
+
+  it("does not process provider deliveries on load and requires confirmation before one session POST", async () => {
+    const baseFetchMock = createScheduleFetchMock();
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/admin/schedule/provider-deliveries/process-pending") && init?.method === "POST") {
+        return Promise.resolve(createJsonResponse({
+          ok: true,
+          result: {
+            claimed: 1,
+            degraded: 0,
+            dispatched: 0,
+            failed: 0,
+            ready: 1,
+            superseded: 0,
+            unsupported: 0
+          }
+        }));
+      }
+
+      return baseFetchMock(input, init);
+    });
+    const renderer = await renderScheduleEditor(fetchMock);
+    expect(fetchMock.mock.calls.filter((call) =>
+      String(call[0]).endsWith("/admin/schedule/provider-deliveries/process-pending")
+    )).toHaveLength(0);
+
+    const processButton = findButtonByText(renderer, "Process provider deliveries");
+    expect(processButton).toBeDefined();
+    await act(async () => {
+      processButton?.props.onClick();
+    });
+    expect(fetchMock.mock.calls.filter((call) =>
+      String(call[0]).endsWith("/admin/schedule/provider-deliveries/process-pending")
+    )).toHaveLength(0);
+    expect(findButtonByText(renderer, "Confirm provider processing")).toBeDefined();
+
+    await act(async () => {
+      findButtonByText(renderer, "Confirm provider processing")?.props.onClick();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const processRequests = fetchMock.mock.calls.filter((call) =>
+      String(call[0]).endsWith("/admin/schedule/provider-deliveries/process-pending")
+    );
+    expect(processRequests).toHaveLength(1);
+    expect(processRequests[0]?.[1]).toMatchObject({
+      method: "POST",
+      credentials: "include"
+    });
+    expect(new Headers(processRequests[0]?.[1]?.headers).get("Authorization")).toBeNull();
+    expect(JSON.stringify(renderer.toJSON())).toContain("1 claimed");
+
+    await act(async () => { renderer.unmount(); });
+  });
+
+  it("keeps provider delivery processing disabled when no pending action is available", async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(createJsonResponse({
+      ok: true,
+      streams: [twoLinkStream],
+      providerDeliveries: providerDeliveries.map((delivery) => ({
+        ...delivery,
+        operatorActionAvailable: false
+      })),
+      projectOptions: [],
+      gameOptions: [],
+      channelOptions: twoLinkStream.channelTargets
+    })));
+    const renderer = await renderScheduleEditor(fetchMock);
+
+    expect(findButtonByText(renderer, "Process provider deliveries")?.props.disabled).toBe(true);
+
+    await act(async () => { renderer.unmount(); });
+  });
+
+  it("shows a truthful forbidden message when provider delivery processing is denied", async () => {
+    const baseFetchMock = createScheduleFetchMock();
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/admin/schedule/provider-deliveries/process-pending") && init?.method === "POST") {
+        return Promise.resolve(createJsonResponse({
+          ok: false,
+          reason: "stream_schedule_admin_forbidden"
+        }, 403));
+      }
+
+      return baseFetchMock(input, init);
+    });
+    const renderer = await renderScheduleEditor(fetchMock);
+
+    await act(async () => {
+      findButtonByText(renderer, "Process provider deliveries")?.props.onClick();
+    });
+    await act(async () => {
+      findButtonByText(renderer, "Confirm provider processing")?.props.onClick();
+      await Promise.resolve();
+    });
+
+    expect(JSON.stringify(renderer.toJSON())).toContain("Your account does not have stream schedule permission.");
+
+    await act(async () => { renderer.unmount(); });
+  });
+
   it("opens a new stream form instead of editing a hidden historical stream", async () => {
     const historicalStream: StreamScheduleEntry = {
       ...twoLinkStream,
