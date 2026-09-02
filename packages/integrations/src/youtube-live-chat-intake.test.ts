@@ -4,6 +4,7 @@ import { projectYouTubeLiveChatMessage } from "./youtube-live-chat-intake.rules.
 import {
   createYouTubeActiveBroadcastListRequest,
   isYouTubeQuotaExceededError,
+  isYouTubeStreamRateLimitedError,
   projectYouTubeLiveChatStreamResponse,
   YouTubeLiveChatReadOnlyIntakeService
 } from "./youtube-live-chat-intake.service.js";
@@ -122,6 +123,15 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
     })).toBe(false);
   });
 
+  it("classifies the documented streamList RESOURCE_EXHAUSTED response as rate limited", () => {
+    expect(isYouTubeStreamRateLimitedError({
+      code: 8,
+      details: "Resource has been exhausted (e.g. check quota).",
+      message: "8 RESOURCE_EXHAUSTED: Resource has been exhausted (e.g. check quota)."
+    })).toBe(true);
+    expect(isYouTubeStreamRateLimitedError({ code: 7, details: "Permission denied" })).toBe(false);
+  });
+
   it("uses one compatible active-broadcast filter", () => {
     expect(createYouTubeActiveBroadcastListRequest()).toEqual({
       part: ["snippet"],
@@ -156,6 +166,68 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
         text: "Hello"
       }],
       nextPageToken: "resume-1"
+    });
+  });
+
+  it("projects author avatars from lower-camel protobuf objects", () => {
+    expect(projectYouTubeLiveChatStreamResponse({
+      items: [{
+        authorDetails: {
+          channelId: "author-channel-1",
+          displayName: "Viewer",
+          profileImageUrl: "https://yt3.ggpht.com/viewer=s88"
+        },
+        id: "message-1",
+        snippet: {
+          displayMessage: "Hello",
+          publishedAt: "2026-07-04T12:00:00Z"
+        }
+      }],
+      nextPageToken: "resume-1"
+    })).toEqual({
+      messages: [{
+        authorChannelId: "author-channel-1",
+        authorName: "Viewer",
+        avatarUrl: "https://yt3.ggpht.com/viewer=s88",
+        createdAt: "2026-07-04T12:00:00Z",
+        id: "message-1",
+        text: "Hello"
+      }],
+      nextPageToken: "resume-1"
+    });
+  });
+
+  it("backs off a documented streamList rate limit at the maximum interval", async () => {
+    const deferred = createDeferredStream();
+    const delays: number[] = [];
+    const service = new YouTubeLiveChatReadOnlyIntakeService({
+      contextResolver: async () => context,
+      liveChatApi: {
+        findActiveLiveChat: async () => ({ liveChatId: "live-chat-1", title: "Live stream" }),
+        openMessageStream: async () => deferred.stream
+      },
+      streamReconnectBaseMs: 2_000,
+      streamReconnectMaxMs: 60_000,
+      setTimeoutFn: (_callback, delayMs) => {
+        delays.push(delayMs);
+        return 1;
+      },
+      clearTimeoutFn: () => undefined
+    });
+
+    service.start();
+    await flushAsyncWork();
+    deferred.reject({
+      code: 8,
+      details: "Resource has been exhausted (e.g. check quota).",
+      message: "8 RESOURCE_EXHAUSTED: Resource has been exhausted (e.g. check quota)."
+    });
+    await flushAsyncWork();
+
+    expect(delays).toEqual([60_000]);
+    expect(service.getStatus()).toMatchObject({
+      state: "connecting",
+      nextPollAt: expect.any(String)
     });
   });
 

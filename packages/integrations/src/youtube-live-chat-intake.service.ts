@@ -69,6 +69,18 @@ export const isYouTubeQuotaExceededError = (error: unknown): boolean =>
     /(?:quota[\s_-]*exceeded|daily[\s_-]*limit[\s_-]*exceeded)/i.test(value)
   );
 
+export const isYouTubeStreamRateLimitedError = (error: unknown): boolean => {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const candidate = error as { code?: unknown; details?: unknown; message?: unknown };
+  return candidate.code === 8
+    && [candidate.details, candidate.message].some((value) =>
+      typeof value === "string" && /resource[_\s-]*exhausted/i.test(value)
+    );
+};
+
 const sanitizeError = (error: unknown): string => {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message.trim().slice(0, 180);
@@ -107,18 +119,27 @@ const createYouTubeClient = (context: YouTubeLiveChatContext) => {
 
 type StreamListGrpcResponse = {
   items?: Array<{
-    author_details?: {
-      channel_id?: string;
-      display_name?: string;
-      profile_image_url?: string;
-    };
+    author_details?: StreamListAuthorDetails;
+    authorDetails?: StreamListAuthorDetails;
     id?: string;
     snippet?: {
       display_message?: string;
       published_at?: string;
+      displayMessage?: string;
+      publishedAt?: string;
     };
   }>;
+  nextPageToken?: string;
   next_page_token?: string;
+};
+
+type StreamListAuthorDetails = {
+  channel_id?: string;
+  display_name?: string;
+  profile_image_url?: string;
+  channelId?: string;
+  displayName?: string;
+  profileImageUrl?: string;
 };
 
 type StreamListGrpcClient = Client & {
@@ -166,15 +187,19 @@ const streamListPackage = loadPackageDefinition(streamListDefinition) as unknown
 export const projectYouTubeLiveChatStreamResponse = (
   response: StreamListGrpcResponse
 ): YouTubeLiveChatMessageBatch => ({
-  messages: (response.items ?? []).map((item) => ({
-    authorChannelId: item.author_details?.channel_id ?? null,
-    authorName: item.author_details?.display_name ?? null,
-    avatarUrl: item.author_details?.profile_image_url ?? null,
-    createdAt: item.snippet?.published_at ?? null,
-    id: item.id ?? null,
-    text: item.snippet?.display_message ?? ""
-  })),
-  nextPageToken: response.next_page_token ?? null
+  messages: (response.items ?? []).map((item) => {
+    const authorDetails = item.author_details ?? item.authorDetails;
+
+    return {
+      authorChannelId: authorDetails?.channel_id ?? authorDetails?.channelId ?? null,
+      authorName: authorDetails?.display_name ?? authorDetails?.displayName ?? null,
+      avatarUrl: authorDetails?.profile_image_url ?? authorDetails?.profileImageUrl ?? null,
+      createdAt: item.snippet?.published_at ?? item.snippet?.publishedAt ?? null,
+      id: item.id ?? null,
+      text: item.snippet?.display_message ?? item.snippet?.displayMessage ?? ""
+    };
+  }),
+  nextPageToken: response.next_page_token ?? response.nextPageToken ?? null
 });
 
 export const createYouTubeActiveBroadcastListRequest = () => ({
@@ -482,6 +507,14 @@ export class YouTubeLiveChatReadOnlyIntakeService {
         return;
       }
 
+      if (isYouTubeStreamRateLimitedError(error)) {
+        this.lastError = sanitizeError(error);
+        this.state = "connecting";
+        this.clearActiveStream();
+        this.scheduleStreamReconnect(generation, this.streamReconnectMaxMs);
+        return;
+      }
+
       this.lastError = sanitizeError(error);
       this.state = this.activeLiveChatId ? "connecting" : "waiting";
       if (this.activeLiveChatId) {
@@ -544,12 +577,12 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     }
   }
 
-  private scheduleStreamReconnect(generation: number): void {
+  private scheduleStreamReconnect(generation: number, minimumDelayMs = 0): void {
     const exponent = Math.min(this.streamReconnectAttempt, 10);
-    const delayMs = Math.min(
+    const delayMs = Math.max(minimumDelayMs, Math.min(
       this.streamReconnectBaseMs * (2 ** exponent),
       this.streamReconnectMaxMs
-    );
+    ));
     this.streamReconnectAttempt += 1;
     this.scheduleNext(delayMs, generation);
   }
