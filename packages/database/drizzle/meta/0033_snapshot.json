@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "931f411e-925c-4a37-9f18-be264947d48a",
+  "id": "01fa44bf-04b9-466b-b7d6-12cd124cffb2",
   "prevId": "8e69ece7-8067-4464-aaf5-e7af1e40d5bc",
   "tables": {
     "profile_handle_operations": {
@@ -4951,21 +4951,7 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "stream_schedule_channel_targets_schedule_entry_id_stream_schedule_entries_id_fk": {
-          "name": "stream_schedule_channel_targets_schedule_entry_id_stream_schedule_entries_id_fk",
-          "tableFrom": "stream_schedule_channel_targets",
-          "tableTo": "stream_schedule_entries",
-          "columnsFrom": [
-            "schedule_entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
         "stream_schedule_channel_targets_id": {
           "name": "stream_schedule_channel_targets_id",

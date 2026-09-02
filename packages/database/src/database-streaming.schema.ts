@@ -115,8 +115,7 @@ export const streamScheduleChannelTargets = mysqlTable(
   "stream_schedule_channel_targets",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
-    scheduleEntryId: varchar("schedule_entry_id", { length: 36 }).notNull()
-      .references(() => streamScheduleEntries.id, { onDelete: "cascade" }),
+    scheduleEntryId: varchar("schedule_entry_id", { length: 36 }).notNull(),
     channelRef: varchar("channel_ref", { length: 36 }).notNull(),
     provider: mysqlEnum("provider", ["youtube", "twitch"]).notNull(),
     providerChannelIdSnapshot: varchar("provider_channel_id_snapshot", { length: 191 }).notNull(),

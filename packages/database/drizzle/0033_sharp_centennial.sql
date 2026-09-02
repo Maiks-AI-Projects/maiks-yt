@@ -13,6 +13,5 @@ CREATE TABLE `stream_schedule_channel_targets` (
 	CONSTRAINT `stream_schedule_channel_target_uidx` UNIQUE(`schedule_entry_id`,`channel_ref`)
 );
 --> statement-breakpoint
-ALTER TABLE `stream_schedule_channel_targets` ADD CONSTRAINT `stream_schedule_channel_targets_schedule_entry_id_stream_schedule_entries_id_fk` FOREIGN KEY (`schedule_entry_id`) REFERENCES `stream_schedule_entries`(`id`) ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX `stream_schedule_channel_schedule_idx` ON `stream_schedule_channel_targets` (`schedule_entry_id`,`sort_order`);--> statement-breakpoint
 CREATE INDEX `stream_schedule_channel_ref_idx` ON `stream_schedule_channel_targets` (`channel_ref`);
