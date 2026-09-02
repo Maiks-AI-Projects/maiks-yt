@@ -13,7 +13,7 @@ type TwitchChatListener = ReturnType<ChatClient["onConnect"]>;
 
 type TwitchChatClientLike = Pick<
   ChatClient,
-  "connect" | "isConnected" | "isConnecting" | "onConnect" | "onDisconnect" | "onMessage" | "quit"
+  "connect" | "currentChannels" | "isConnected" | "isConnecting" | "onConnect" | "onDisconnect" | "onJoin" | "onJoinFailure" | "onMessage" | "quit"
 > & {
   removeListener: (listener: TwitchChatListener) => void;
 };
@@ -22,6 +22,7 @@ type TwitchChatReadOnlyIntakeOptions = {
   createClient?: (channelNames: readonly string[]) => TwitchChatClientLike;
   env?: Record<string, string | undefined>;
   maxRecentMessages?: number;
+  joinTimeoutMs?: number;
   maxUnexpectedDisconnectsInWindow?: number;
   onMessage?: (message: TwitchChatProjectedMessage) => void;
   onReconnectSuppressed?: (status: TwitchChatIntakeStatus) => void;
@@ -37,6 +38,10 @@ const sanitizeError = (error: unknown): string => {
     return error.message.trim().slice(0, 180);
   }
 
+  if (typeof error === "string" && error.trim().length > 0) {
+    return error.trim().slice(0, 180);
+  }
+
   return "Twitch chat intake unavailable.";
 };
 
@@ -46,6 +51,7 @@ export class TwitchChatReadOnlyIntakeService {
   private readonly createClient: (channelNames: readonly string[]) => TwitchChatClientLike;
   private readonly maxUnexpectedDisconnectsInWindow: number;
   private readonly maxRecentMessages: number;
+  private readonly joinTimeoutMs: number;
   private readonly now: () => Date;
   private readonly onProjectedMessage: ((message: TwitchChatProjectedMessage) => void) | undefined;
   private readonly onReconnectSuppressed: ((status: TwitchChatIntakeStatus) => void) | undefined;
@@ -64,6 +70,7 @@ export class TwitchChatReadOnlyIntakeService {
   private readonly recentMessages: TwitchChatProjectedMessage[] = [];
   private reconnectSuppressed = false;
   private reconnectTimer: unknown | null = null;
+  private joinTimer: unknown | null = null;
 
   public constructor(options: TwitchChatReadOnlyIntakeOptions = {}) {
     this.channelNames = resolveTwitchChatChannelNames(options.env ?? process.env);
@@ -76,6 +83,7 @@ export class TwitchChatReadOnlyIntakeService {
     }));
     this.maxUnexpectedDisconnectsInWindow = options.maxUnexpectedDisconnectsInWindow ?? 10;
     this.maxRecentMessages = options.maxRecentMessages ?? 25;
+    this.joinTimeoutMs = options.joinTimeoutMs ?? 15_000;
     this.now = options.now ?? (() => new Date());
     this.onProjectedMessage = options.onMessage;
     this.onReconnectSuppressed = options.onReconnectSuppressed;
@@ -91,6 +99,7 @@ export class TwitchChatReadOnlyIntakeService {
       return {
         channelName: null,
         channelNames: [],
+        joinedChannelNames: [],
         connectedAt: null,
         disconnectsInWindow: 0,
         lastError: "TWITCH_CHAT_CHANNEL is empty.",
@@ -106,6 +115,7 @@ export class TwitchChatReadOnlyIntakeService {
     return {
       channelName: primaryChannelName,
       channelNames: [...this.channelNames],
+      joinedChannelNames: this.getJoinedChannelNames(),
       connectedAt: this.connectedAt,
       disconnectsInWindow: this.getDisconnectsInWindow(),
       lastError: this.lastError,
@@ -114,9 +124,9 @@ export class TwitchChatReadOnlyIntakeService {
       nextReconnectAt: this.nextReconnectAt,
       recentMessages: this.recentMessages.map((message) => ({ ...message })),
       reconnectSuppressed: this.reconnectSuppressed,
-      state: this.client?.isConnected
+      state: this.hasJoinedEveryConfiguredChannel()
         ? "connected"
-        : this.client?.isConnecting
+        : this.client?.isConnecting || this.client?.isConnected
           ? "connecting"
           : "stopped"
     };
@@ -128,6 +138,7 @@ export class TwitchChatReadOnlyIntakeService {
 
   public stop(): TwitchChatIntakeStatus {
     this.manualStopRequested = true;
+    this.clearJoinTimer();
     this.clearReconnectTimer();
 
     if (this.client) {
@@ -171,11 +182,17 @@ export class TwitchChatReadOnlyIntakeService {
     this.nextReconnectAt = null;
 
     this.listenerIds.push(nextClient.onConnect(() => {
-      this.connectedAt = this.now().toISOString();
-      this.lastError = null;
+      this.startJoinTimer(nextClient);
+    }));
+    this.listenerIds.push(nextClient.onJoin(() => {
+      this.refreshJoinedState(nextClient);
+    }));
+    this.listenerIds.push(nextClient.onJoinFailure((channel, reason) => {
+      this.failJoin(nextClient, `Twitch chat failed to join #${channel.replace(/^#/, "")}: ${reason}`);
     }));
     this.listenerIds.push(nextClient.onDisconnect((manually, reason) => {
       this.connectedAt = null;
+      this.clearJoinTimer();
       if (reason) {
         this.lastError = sanitizeError(reason);
       }
@@ -220,6 +237,7 @@ export class TwitchChatReadOnlyIntakeService {
         this.clearListeners();
         this.client = null;
         this.connectedAt = null;
+        this.clearJoinTimer();
         this.scheduleReconnect(error);
       });
     } catch (error) {
@@ -227,6 +245,7 @@ export class TwitchChatReadOnlyIntakeService {
       this.clearListeners();
       this.client = null;
       this.connectedAt = null;
+      this.clearJoinTimer();
       this.scheduleReconnect(error);
     }
 
@@ -253,6 +272,72 @@ export class TwitchChatReadOnlyIntakeService {
       this.reconnectTimer = null;
     }
     this.nextReconnectAt = null;
+  }
+
+  private clearJoinTimer(): void {
+    if (this.joinTimer) {
+      this.clearTimeoutFn(this.joinTimer);
+      this.joinTimer = null;
+    }
+  }
+
+  private getJoinedChannelNames(client = this.client): string[] {
+    if (!client) {
+      return [];
+    }
+
+    return [...new Set(client.currentChannels
+      .map((channel) => channel.replace(/^#/, "").trim().toLowerCase())
+      .filter((channel) => channel.length > 0))];
+  }
+
+  private hasJoinedEveryConfiguredChannel(client = this.client): boolean {
+    const joined = new Set(this.getJoinedChannelNames(client));
+    return this.channelNames.length > 0 && this.channelNames.every((channel) => joined.has(channel));
+  }
+
+  private refreshJoinedState(client: TwitchChatClientLike): void {
+    if (this.client !== client || !this.hasJoinedEveryConfiguredChannel(client)) {
+      return;
+    }
+
+    this.clearJoinTimer();
+    this.connectedAt ??= this.now().toISOString();
+    this.lastError = null;
+  }
+
+  private startJoinTimer(client: TwitchChatClientLike): void {
+    this.clearJoinTimer();
+    this.refreshJoinedState(client);
+    if (this.client !== client || this.hasJoinedEveryConfiguredChannel(client)) {
+      return;
+    }
+
+    this.joinTimer = this.setTimeoutFn(() => {
+      this.joinTimer = null;
+      if (this.client === client && !this.hasJoinedEveryConfiguredChannel(client)) {
+        const missing = this.channelNames.filter((channel) => !this.getJoinedChannelNames(client).includes(channel));
+        this.failJoin(client, `Twitch chat did not join ${missing.map((channel) => `#${channel}`).join(", ")} within ${Math.ceil(this.joinTimeoutMs / 1_000)} seconds.`);
+      }
+    }, this.joinTimeoutMs);
+  }
+
+  private failJoin(client: TwitchChatClientLike, reason: string): void {
+    if (this.client !== client) {
+      return;
+    }
+
+    this.clearJoinTimer();
+    this.lastError = sanitizeError(new Error(reason));
+    this.clearListeners();
+    try {
+      client.quit();
+    } catch {
+      // The reconnect below owns recovery even if the failed socket cannot close cleanly.
+    }
+    this.client = null;
+    this.connectedAt = null;
+    this.scheduleReconnect(this.lastError);
   }
 
   private getDisconnectsInWindow(): number {

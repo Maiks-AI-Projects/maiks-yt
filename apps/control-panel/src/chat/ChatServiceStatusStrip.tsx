@@ -316,6 +316,7 @@ export const ChatServiceStatusStrip = ({ apiBaseUrl }: ChatServiceStatusStripPro
   const twitchDetail = [
     status ? twitchIntakeStateLabels[status.state] : "Loading",
     status?.targetLabel ?? null,
+    status?.joinedTargetLabel ? `joined ${status.joinedTargetLabel}` : null,
     status?.lastMessageAt ? `last ${formatChatTime(status.lastMessageAt)}` : null,
     status?.nextRetryAt ? `retry ${formatChatTime(status.nextRetryAt)}` : null,
     status?.reconnectSuppressed ? "reconnect paused" : null,

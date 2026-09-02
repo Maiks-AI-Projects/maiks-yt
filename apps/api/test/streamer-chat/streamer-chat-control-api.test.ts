@@ -51,6 +51,7 @@ const createTwitchStatusRuntime = () => ({
   start: vi.fn(() => ({
     channelName: "maiksmc",
     channelNames: ["maiksmc", "maiksplays"],
+    joinedChannelNames: ["maiksmc", "maiksplays"],
     connectedAt: "2026-08-27T00:00:00.000Z",
     disconnectsInWindow: 0,
     lastDisconnectAt: null,
@@ -414,6 +415,7 @@ describe("streamer chat control API", () => {
         provider: "twitch",
         state: "connected",
         targetLabel: "#maiksmc + #maiksplays",
+        joinedTargetLabel: "#maiksmc + #maiksplays",
         lastMessageAt: "2026-08-27T00:02:00.000Z",
         nextRetryAt: null,
         reconnectSuppressed: false,
