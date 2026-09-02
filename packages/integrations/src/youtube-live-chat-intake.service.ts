@@ -52,15 +52,16 @@ const createYouTubeClient = (context: YouTubeLiveChatContext) => {
   });
 };
 
+export const createYouTubeActiveBroadcastListRequest = () => ({
+  part: ["snippet"],
+  broadcastStatus: "active" as const,
+  broadcastType: "all" as const
+});
+
 export const createGoogleYouTubeLiveChatApi = (): YouTubeLiveChatApi => ({
   async findActiveLiveChat({ context }) {
     const youtube = createYouTubeClient(context);
-    const response = await youtube.liveBroadcasts.list({
-      part: ["snippet"],
-      broadcastStatus: "active",
-      broadcastType: "all",
-      mine: true
-    });
+    const response = await youtube.liveBroadcasts.list(createYouTubeActiveBroadcastListRequest());
     const broadcast = response.data.items?.find((item) =>
       item.snippet?.liveChatId
       && (!item.snippet.channelId || item.snippet.channelId === context.selectedChannel.id)

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { projectYouTubeLiveChatMessage } from "./youtube-live-chat-intake.rules.js";
-import { YouTubeLiveChatReadOnlyIntakeService } from "./youtube-live-chat-intake.service.js";
+import {
+  createYouTubeActiveBroadcastListRequest,
+  YouTubeLiveChatReadOnlyIntakeService
+} from "./youtube-live-chat-intake.service.js";
 import type { YouTubeLiveChatContext } from "./youtube-live-chat-intake.types.js";
 
 const context: YouTubeLiveChatContext = {
@@ -64,6 +67,15 @@ describe("projectYouTubeLiveChatMessage", () => {
 });
 
 describe("YouTubeLiveChatReadOnlyIntakeService", () => {
+  it("uses one compatible active-broadcast filter", () => {
+    expect(createYouTubeActiveBroadcastListRequest()).toEqual({
+      part: ["snippet"],
+      broadcastStatus: "active",
+      broadcastType: "all"
+    });
+    expect(createYouTubeActiveBroadcastListRequest()).not.toHaveProperty("mine");
+  });
+
   it("polls active live chat and emits projected messages", async () => {
     const emitted: unknown[] = [];
     const scheduled: Array<() => void> = [];
