@@ -127,6 +127,16 @@ class FakeStreamScheduleRepository implements StreamScheduleRepository {
     ];
   }
 
+  public async listChannelOptions() {
+    return [{
+      channelRef: "11111111-1111-4111-8111-111111111111",
+      provider: "twitch" as const,
+      providerChannelId: "1531201792",
+      displayName: "MaiksPlays",
+      handle: "maiksplays"
+    }];
+  }
+
   public async createStream(input: StreamScheduleInput & { actorUserId: string }): Promise<StreamScheduleEntry> {
     this.lastCreated = structuredClone(input);
     const stream = createStream({
@@ -254,6 +264,22 @@ describe("StreamScheduleService", () => {
       id: "game-1",
       slug: "satisfactory"
     }));
+    expect(adminResult.ok ? adminResult.channelOptions : []).toContainEqual(expect.objectContaining({
+      provider: "twitch",
+      displayName: "MaiksPlays"
+    }));
+  });
+
+  it("normalizes selected connected channel references on create", async () => {
+    const repository = new FakeStreamScheduleRepository();
+    const service = new StreamScheduleService(repository);
+    const channelRef = "11111111-1111-4111-8111-111111111111";
+
+    await expect(service.createStream({
+      authUserId: "auth-user",
+      ...createPayload({ channelRefs: [` ${channelRef} `] })
+    })).resolves.toMatchObject({ ok: true });
+    expect(repository.lastCreated?.channelRefs).toEqual([channelRef]);
   });
 
   it("replaces stream game links through an owner-gated mutation", async () => {
@@ -392,6 +418,41 @@ describe("StreamScheduleService", () => {
 });
 
 describe("stream schedule store boundaries", () => {
+  it("lists only the owner connected Twitch and YouTube channel identities", async () => {
+    const execute = vi.fn().mockResolvedValueOnce([[
+      {
+        channelRef: "11111111-1111-4111-8111-111111111111",
+        provider: "twitch",
+        providerChannelId: "617410645",
+        displayName: "MaiksMC",
+        handle: "maiksmc"
+      }
+    ], []]);
+    const repository = createStreamScheduleRepository({ execute } as never);
+
+    await expect(repository.listChannelOptions("domain-user")).resolves.toEqual([{
+      channelRef: "11111111-1111-4111-8111-111111111111",
+      provider: "twitch",
+      providerChannelId: "617410645",
+      displayName: "MaiksMC",
+      handle: "maiksmc"
+    }]);
+    expect(String(execute.mock.calls[0]?.[0])).toContain("owner_user_id = ?");
+    expect(execute.mock.calls[0]?.[1]).toEqual(["domain-user", "domain-user"]);
+  });
+
+  it("rejects a schedule target that is not owned by the schedule owner before writing", async () => {
+    const execute = vi.fn().mockResolvedValueOnce([[], []]);
+    const repository = createStreamScheduleRepository({ execute } as never);
+
+    await expect(repository.createStream({
+      ...createPayload({ channelRefs: ["11111111-1111-4111-8111-111111111111"] }),
+      actorUserId: "domain-user"
+    })).resolves.toBe("invalid-channel");
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(String(execute.mock.calls[0]?.[0])).toContain("provider_channel_identities");
+  });
+
   it("loads only active delegated grants while preserving schedule access", async () => {
     const execute = vi.fn().mockResolvedValue([[
       {

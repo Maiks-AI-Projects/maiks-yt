@@ -173,6 +173,31 @@
 }
 
 .editorForm textarea, .dialogFields textarea { resize: vertical; }
+.editorForm small { color: var(--admin-muted); font-size: 0.7rem; font-weight: 500; }
+.formErrorSummary {
+  background: #341d21;
+  border: 1px solid #a33c45;
+  border-radius: 7px;
+  color: #ffd9d9;
+  padding: 0.75rem 0.85rem;
+}
+.formErrorSummary strong { display: block; font-size: 0.9rem; }
+.formErrorSummary ul { margin: 0.35rem 0 0; padding-left: 1.2rem; }
+.formErrorSummary li { font-size: 0.78rem; line-height: 1.45; }
+.editorForm [aria-invalid="true"] { border-color: #d34b56 !important; box-shadow: 0 0 0 1px #d34b56; }
+.dateTimeField { border: 0; margin: 0; min-width: 0; padding: 0; }
+.dateTimeField legend { color: var(--admin-text); font-size: 0.78rem; font-weight: 750; margin-bottom: 0.3rem; }
+.dateTimeField > div { display: grid; gap: 0.45rem; grid-template-columns: minmax(9rem, 1fr) minmax(7rem, 0.55fr); }
+.dateTimeField label span { color: var(--admin-muted); font-size: 0.68rem; }
+.channelSelector { border: 1px solid var(--admin-line); border-radius: 7px; margin: 0; padding: 0.7rem; }
+.channelSelector[aria-invalid="true"] { border-color: #d34b56; box-shadow: 0 0 0 1px #d34b56; }
+.channelSelector legend { font-size: 0.78rem; font-weight: 750; padding: 0 0.25rem; }
+.channelSelector > p { color: #ffd9d9; font-size: 0.78rem; margin: 0; }
+.channelSelector > div { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+.channelSelector label { align-items: center; background: var(--admin-surface-raised); border: 1px solid var(--admin-line); border-radius: 6px; cursor: pointer; display: flex; gap: 0.55rem; padding: 0.6rem; }
+.channelSelector input { flex: 0 0 auto; min-height: 1rem; width: 1rem; }
+.channelSelector label > span { display: grid; gap: 0.1rem; }
+.channelSelector label strong { font-size: 0.8rem; }
 .editorHeading { justify-content: space-between; min-height: 3.5rem; }
 .editorHeading > div { gap: 0.6rem; }
 .editorHeading h2 { font-size: 1.25rem; }
@@ -274,4 +299,5 @@
   .headerActions a, .headerActions button { justify-content: center; }
   .streamRow { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
   .streamMeta { gap: 0.45rem; }
+  .dateTimeField > div { grid-template-columns: 1fr; }
 }

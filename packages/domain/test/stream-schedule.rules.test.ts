@@ -103,6 +103,17 @@ describe("stream schedule rules", () => {
     expect(isValidStreamScheduleUpdateInput({})).toBe(false);
   });
 
+  it("normalizes unique connected channel references and rejects empty selections", () => {
+    const channelRef = "11111111-1111-4111-8111-111111111111";
+    expect(normalizeStreamScheduleInput({
+      ...baseInput,
+      channelRefs: [` ${channelRef} `]
+    }).channelRefs).toEqual([channelRef]);
+    expect(isValidStreamScheduleInput({ ...baseInput, channelRefs: [channelRef] })).toBe(true);
+    expect(isValidStreamScheduleInput({ ...baseInput, channelRefs: [] })).toBe(false);
+    expect(isValidStreamScheduleInput({ ...baseInput, channelRefs: [channelRef, channelRef] })).toBe(false);
+  });
+
   it("normalizes and bounds stream game links", () => {
     expect(normalizeStreamScheduleGameLinkInputs([
       {

@@ -14,11 +14,23 @@ export const streamScheduleCancellationReasonCodes = [
   "other"
 ] as const;
 export const streamScheduleGameLinkRelationships = ["planned", "current", "played", "completed-showcase"] as const;
+export const streamScheduleChannelProviders = ["twitch", "youtube"] as const;
 
 export type StreamScheduleVisibility = typeof streamScheduleVisibilities[number];
 export type StreamScheduleStatus = typeof streamScheduleStatuses[number];
 export type StreamScheduleCancellationReasonCode = typeof streamScheduleCancellationReasonCodes[number];
 export type StreamScheduleGameLinkRelationship = typeof streamScheduleGameLinkRelationships[number];
+export type StreamScheduleChannelProvider = typeof streamScheduleChannelProviders[number];
+
+export type StreamScheduleChannelOption = {
+  channelRef: string;
+  provider: StreamScheduleChannelProvider;
+  providerChannelId: string;
+  displayName: string;
+  handle: string | null;
+};
+
+export type StreamScheduleChannelTarget = StreamScheduleChannelOption;
 
 export type StreamScheduleEntry = {
   id: string;
@@ -34,6 +46,7 @@ export type StreamScheduleEntry = {
   focusNote: string | null;
   focusProject: StreamScheduleFocusProject | null;
   gameLinks: readonly StreamScheduleGameLink[];
+  channelTargets?: readonly StreamScheduleChannelTarget[];
   visibility: StreamScheduleVisibility;
   status: StreamScheduleStatus;
   cancellationReasonCode: StreamScheduleCancellationReasonCode | null;
@@ -126,6 +139,7 @@ export type StreamScheduleInput = {
   status: StreamScheduleStatus;
   cancellationReasonCode?: StreamScheduleCancellationReasonCode | null | undefined;
   cancellationReason?: string | null | undefined;
+  channelRefs?: readonly string[] | undefined;
 };
 
 export type StreamScheduleUpdateInput = {
@@ -143,6 +157,7 @@ export type StreamScheduleUpdateInput = {
   status?: StreamScheduleStatus | undefined;
   cancellationReasonCode?: StreamScheduleCancellationReasonCode | null | undefined;
   cancellationReason?: string | null | undefined;
+  channelRefs?: readonly string[] | undefined;
 };
 
 export type StreamScheduleCancellationInput = {

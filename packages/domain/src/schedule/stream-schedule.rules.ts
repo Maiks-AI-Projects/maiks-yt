@@ -96,7 +96,8 @@ export const isValidStreamScheduleInput = (input: StreamScheduleInput): boolean 
   && isValidOptionalText(input.focusNote, streamScheduleFocusNoteMaxLength)
   && streamScheduleVisibilities.includes(input.visibility)
   && streamScheduleStatuses.includes(input.status)
-  && hasValidCancellation(input);
+  && hasValidCancellation(input)
+  && isValidStreamScheduleChannelRefs(input.channelRefs);
 
 export const isValidStreamScheduleUpdateInput = (input: StreamScheduleUpdateInput): boolean =>
   Object.keys(input).length > 0
@@ -117,7 +118,16 @@ export const isValidStreamScheduleUpdateInput = (input: StreamScheduleUpdateInpu
     || input.cancellationReasonCode === null
     || streamScheduleCancellationReasonCodes.includes(input.cancellationReasonCode)
   )
-  && isValidOptionalText(input.cancellationReason, streamScheduleCancellationReasonMaxLength);
+  && isValidOptionalText(input.cancellationReason, streamScheduleCancellationReasonMaxLength)
+  && isValidStreamScheduleChannelRefs(input.channelRefs);
+
+const isValidStreamScheduleChannelRefs = (refs: readonly string[] | undefined): boolean => {
+  if (refs === undefined) return true;
+  if (refs.length === 0 || refs.length > 8) return false;
+  const normalized = refs.map((ref) => ref.trim());
+  return normalized.every((ref) => ref.length > 0 && ref.length <= 36)
+    && new Set(normalized).size === normalized.length;
+};
 
 export const isValidStreamScheduleCancellationInput = (
   input: StreamScheduleCancellationInput
@@ -163,7 +173,8 @@ export const normalizeStreamScheduleInput = (input: StreamScheduleInput): Stream
   focusLabel: input.focusLabel?.trim() || null,
   focusNote: input.focusNote?.trim() || null,
   cancellationReasonCode: input.status === "cancelled" ? input.cancellationReasonCode ?? null : null,
-  cancellationReason: input.status === "cancelled" ? input.cancellationReason?.trim() ?? "" : null
+  cancellationReason: input.status === "cancelled" ? input.cancellationReason?.trim() ?? "" : null,
+  channelRefs: input.channelRefs?.map((ref) => ref.trim())
 });
 
 export const normalizeStreamScheduleUpdateInput = (
@@ -178,7 +189,8 @@ export const normalizeStreamScheduleUpdateInput = (
   ...(input.projectId === undefined ? {} : { projectId: input.projectId?.trim() || null }),
   ...(input.focusLabel === undefined ? {} : { focusLabel: input.focusLabel?.trim() || null }),
   ...(input.focusNote === undefined ? {} : { focusNote: input.focusNote?.trim() || null }),
-  ...(input.cancellationReason === undefined ? {} : { cancellationReason: input.cancellationReason?.trim() || null })
+  ...(input.cancellationReason === undefined ? {} : { cancellationReason: input.cancellationReason?.trim() || null }),
+  ...(input.channelRefs === undefined ? {} : { channelRefs: input.channelRefs.map((ref) => ref.trim()) })
 });
 
 export const normalizeStreamScheduleGameLinkInputs = (

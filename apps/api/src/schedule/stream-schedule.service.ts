@@ -77,7 +77,8 @@ export class StreamScheduleService {
       ok: true,
       streams: await this.repository.listAdminStreams(),
       projectOptions: await this.repository.listProjectOptions(),
-      gameOptions: await this.repository.listGameOptions()
+      gameOptions: await this.repository.listGameOptions(),
+      channelOptions: await this.repository.listChannelOptions(actor.domainUserId)
     };
   }
 
@@ -102,13 +103,14 @@ export class StreamScheduleService {
       };
     }
 
-    return {
-      ok: true,
-      stream: await this.repository.createStream({
-        ...stream,
-        actorUserId: actor.domainUserId
-      })
-    };
+    const created = await this.repository.createStream({
+      ...stream,
+      actorUserId: actor.domainUserId
+    });
+
+    return created === "invalid-channel"
+      ? { ok: false, reason: "stream_schedule_invalid_input" }
+      : { ok: true, stream: created };
   }
 
   public async updateStream(input: {
@@ -146,13 +148,18 @@ export class StreamScheduleService {
       };
     }
 
-    const result = await this.repository.updateStream(input.id, stream);
+    const result = await this.repository.updateStream(input.id, stream, actor.domainUserId);
 
     return result === "not-found"
       ? {
         ok: false,
         reason: "stream_schedule_not_found"
       }
+      : result === "invalid-channel"
+        ? {
+          ok: false,
+          reason: "stream_schedule_invalid_input"
+        }
       : {
         ok: true,
         stream: result
@@ -288,5 +295,6 @@ const toFullStreamScheduleInput = (
     : update.cancellationReasonCode,
   cancellationReason: update.cancellationReason === undefined
     ? existingStream.cancellationReason
-    : update.cancellationReason
+    : update.cancellationReason,
+  channelRefs: update.channelRefs ?? existingStream.channelTargets?.map((target) => target.channelRef)
 });

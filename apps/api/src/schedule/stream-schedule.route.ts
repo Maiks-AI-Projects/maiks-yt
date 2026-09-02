@@ -85,7 +85,8 @@ const streamPayloadSchema = z.object({
   visibility: z.enum(["draft", "public", "private"]),
   status: z.enum(["planned", "live", "completed", "cancelled"]).default("planned"),
   cancellationReasonCode: z.enum(["health", "family", "energy", "technical", "schedule-conflict", "other"]).nullable().optional(),
-  cancellationReason: z.string().trim().min(1).max(500).nullable().optional()
+  cancellationReason: z.string().trim().min(1).max(500).nullable().optional(),
+  channelRefs: z.array(z.string().uuid()).max(8).optional()
 }).strict();
 
 const streamUpdatePayloadSchema = streamPayloadSchema.partial().refine(
@@ -106,6 +107,29 @@ const gameLinksPayloadSchema = z.object({
     sortOrder: z.number().int().min(-10_000).max(10_000).optional()
   }).strict()).max(12)
 }).strict();
+
+const streamPayloadIssueMessages: Record<string, string> = {
+  title: "Enter a stream title.",
+  description: "The description is too long.",
+  startsAt: "Choose a valid start date and 24-hour time.",
+  endsAt: "Choose a valid end date and 24-hour time.",
+  channelKey: "Choose a valid connected channel.",
+  topicKey: "The topic could not be saved.",
+  themeKey: "The theme could not be saved.",
+  projectId: "Choose a valid stream project.",
+  focusLabel: "The focus label is too long.",
+  focusNote: "The focus note is too long.",
+  visibility: "Choose draft, public, or private visibility.",
+  status: "Choose a valid stream status.",
+  cancellationReasonCode: "Choose a valid cancellation reason.",
+  cancellationReason: "Add a cancellation explanation.",
+  channelRefs: "Choose at least one connected Twitch or YouTube channel."
+};
+
+const toStreamPayloadIssueMessages = (error: z.ZodError): string[] => [...new Set(error.issues.map((issue) => {
+  const field = String(issue.path[0] ?? "");
+  return streamPayloadIssueMessages[field] ?? "One or more schedule fields could not be saved.";
+}))];
 
 const sendMutationResult = (
   result: StreamScheduleMutationResult,
@@ -237,7 +261,8 @@ export const registerStreamScheduleRoutes = (
       reply.code(400);
       return {
         ok: false,
-        reason: "stream_schedule_invalid_input"
+        reason: "stream_schedule_invalid_input",
+        issues: toStreamPayloadIssueMessages(parsedBody.error)
       };
     }
 
@@ -277,7 +302,10 @@ export const registerStreamScheduleRoutes = (
       reply.code(400);
       return {
         ok: false,
-        reason: "stream_schedule_invalid_input"
+        reason: "stream_schedule_invalid_input",
+        issues: parsedBody.success
+          ? ["The selected scheduled stream is invalid."]
+          : toStreamPayloadIssueMessages(parsedBody.error)
       };
     }
 

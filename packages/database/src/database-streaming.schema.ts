@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  int,
   json,
   mysqlEnum,
   mysqlTable,
@@ -107,6 +108,28 @@ export const streamScheduleEntries = mysqlTable(
         )
       )`
     )
+  ]
+);
+
+export const streamScheduleChannelTargets = mysqlTable(
+  "stream_schedule_channel_targets",
+  {
+    id: varchar("id", { length: 36 }).primaryKey(),
+    scheduleEntryId: varchar("schedule_entry_id", { length: 36 }).notNull()
+      .references(() => streamScheduleEntries.id, { onDelete: "cascade" }),
+    channelRef: varchar("channel_ref", { length: 36 }).notNull(),
+    provider: mysqlEnum("provider", ["youtube", "twitch"]).notNull(),
+    providerChannelIdSnapshot: varchar("provider_channel_id_snapshot", { length: 191 }).notNull(),
+    displayNameSnapshot: varchar("display_name_snapshot", { length: 191 }).notNull(),
+    handleSnapshot: varchar("handle_snapshot", { length: 191 }),
+    sortOrder: int("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow().onUpdateNow()
+  },
+  (table) => [
+    uniqueIndex("stream_schedule_channel_target_uidx").on(table.scheduleEntryId, table.channelRef),
+    index("stream_schedule_channel_schedule_idx").on(table.scheduleEntryId, table.sortOrder),
+    index("stream_schedule_channel_ref_idx").on(table.channelRef)
   ]
 );
 

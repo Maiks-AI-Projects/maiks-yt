@@ -4,6 +4,9 @@ import type { DatabasePool } from "@maiks-yt/database";
 import type {
   StreamScheduleCancellationInput,
   StreamScheduleCancellationReasonCode,
+  StreamScheduleChannelOption,
+  StreamScheduleChannelProvider,
+  StreamScheduleChannelTarget,
   StreamScheduleEntry,
   StreamScheduleGameLink,
   StreamScheduleGameLinkRelationship,
@@ -62,9 +65,19 @@ type StreamScheduleGameLinkRow = {
 
 type StreamScheduleGameOptionRow = StreamScheduleGameOption;
 
+type StreamScheduleChannelTargetRow = {
+  scheduleEntryId: string;
+  channelRef: string;
+  provider: StreamScheduleChannelProvider;
+  providerChannelId: string;
+  displayName: string;
+  handle?: string | null;
+};
+
 const mapStream = (
   row: StreamScheduleRow,
-  gameLinks: readonly StreamScheduleGameLink[] = []
+  gameLinks: readonly StreamScheduleGameLink[] = [],
+  channelTargets: readonly StreamScheduleChannelTarget[] = []
 ): StreamScheduleEntry => ({
   id: row.id,
   title: row.title,
@@ -85,6 +98,7 @@ const mapStream = (
     }
     : null,
   gameLinks,
+  channelTargets,
   visibility: row.visibility,
   status: row.status,
   cancellationReasonCode: row.cancellationReasonCode ?? null,
@@ -168,7 +182,48 @@ const readStream = async (
   }
 
   const linksByStreamId = await readGameLinksForStreams(executor, [id], false);
-  return mapStream(rows[0] as StreamScheduleRow, linksByStreamId.get(id) ?? []);
+  const targetsByStreamId = await readChannelTargetsForStreams(executor, [id]);
+  return mapStream(rows[0] as StreamScheduleRow, linksByStreamId.get(id) ?? [], targetsByStreamId.get(id) ?? []);
+};
+
+const readChannelTargetsForStreams = async (
+  executor: QueryExecutor,
+  streamIds: readonly string[]
+): Promise<Map<string, StreamScheduleChannelTarget[]>> => {
+  const uniqueStreamIds = [...new Set(streamIds)].filter((id) => id.length > 0);
+  const targetsByStreamId = new Map<string, StreamScheduleChannelTarget[]>();
+  if (uniqueStreamIds.length === 0) return targetsByStreamId;
+
+  const placeholders = uniqueStreamIds.map(() => "?").join(", ");
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        schedule_entry_id AS scheduleEntryId,
+        channel_ref AS channelRef,
+        provider,
+        provider_channel_id_snapshot AS providerChannelId,
+        display_name_snapshot AS displayName,
+        handle_snapshot AS handle
+      FROM stream_schedule_channel_targets
+      WHERE schedule_entry_id IN (${placeholders})
+      ORDER BY schedule_entry_id, sort_order, display_name_snapshot
+    `,
+    uniqueStreamIds
+  );
+
+  if (!Array.isArray(rows)) return targetsByStreamId;
+  for (const row of rows as StreamScheduleChannelTargetRow[]) {
+    const current = targetsByStreamId.get(row.scheduleEntryId) ?? [];
+    current.push({
+      channelRef: row.channelRef,
+      provider: row.provider,
+      providerChannelId: row.providerChannelId,
+      displayName: row.displayName,
+      handle: row.handle ?? null
+    });
+    targetsByStreamId.set(row.scheduleEntryId, current);
+  }
+  return targetsByStreamId;
 };
 
 const readGameLinksForStreams = async (
@@ -231,8 +286,13 @@ const mapStreamsWithGameLinks = async (
     rows.map((row) => row.id),
     publicOnly
   );
+  const targetsByStreamId = await readChannelTargetsForStreams(executor, rows.map((row) => row.id));
 
-  return rows.map((row) => mapStream(row, linksByStreamId.get(row.id) ?? []));
+  return rows.map((row) => mapStream(
+    row,
+    linksByStreamId.get(row.id) ?? [],
+    targetsByStreamId.get(row.id) ?? []
+  ));
 };
 
 const resolveActor = async (
@@ -275,6 +335,82 @@ const resolveActor = async (
     domainUserId,
     rolePermissionValues: actorRows.map((row) => row.rolePermissions)
   };
+};
+
+const readOwnedChannelOptions = async (
+  executor: QueryExecutor,
+  ownerUserId: string,
+  channelRefs?: readonly string[]
+): Promise<StreamScheduleChannelOption[]> => {
+  const refs = channelRefs ? [...new Set(channelRefs)] : null;
+  if (refs && refs.length === 0) return [];
+  const refFilter = refs ? `AND connected.channelRef IN (${refs.map(() => "?").join(", ")})` : "";
+  const [rows] = await executor.execute(
+    `
+      SELECT
+        connected.channelRef,
+        connected.provider,
+        connected.providerChannelId,
+        connected.displayName,
+        connected.handle
+      FROM (
+        SELECT
+          id AS channelRef,
+          provider,
+          provider_channel_id AS providerChannelId,
+          display_name AS displayName,
+          handle
+        FROM provider_channel_identities
+        WHERE owner_user_id = ?
+          AND provider IN ('youtube', 'twitch')
+
+        UNION ALL
+
+        SELECT
+          accounts.id AS channelRef,
+          'twitch' AS provider,
+          accounts.provider_account_id AS providerChannelId,
+          accounts.display_name AS displayName,
+          accounts.channel_key AS handle
+        FROM linked_accounts accounts
+        WHERE accounts.user_id = ?
+          AND accounts.provider = 'twitch'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM provider_channel_identities identities
+            WHERE identities.owner_user_id = accounts.user_id
+              AND identities.provider = 'twitch'
+              AND identities.provider_channel_id = accounts.provider_account_id
+          )
+      ) connected
+      WHERE 1 = 1
+        ${refFilter}
+      ORDER BY connected.provider, connected.displayName, connected.channelRef
+    `,
+    [ownerUserId, ownerUserId, ...(refs ?? [])]
+  );
+  const options = Array.isArray(rows) ? rows as StreamScheduleChannelOption[] : [];
+  return refs
+    ? options.slice().sort((left, right) => refs.indexOf(left.channelRef) - refs.indexOf(right.channelRef))
+    : options;
+};
+
+const replaceChannelTargets = async (
+  executor: QueryExecutor,
+  streamId: string,
+  options: readonly StreamScheduleChannelOption[]
+): Promise<void> => {
+  await executor.execute("DELETE FROM stream_schedule_channel_targets WHERE schedule_entry_id = ?", [streamId]);
+  for (const [index, option] of options.entries()) {
+    await executor.execute(
+      `
+        INSERT INTO stream_schedule_channel_targets
+          (id, schedule_entry_id, channel_ref, provider, provider_channel_id_snapshot, display_name_snapshot, handle_snapshot, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [randomUUID(), streamId, option.channelRef, option.provider, option.providerChannelId, option.displayName, option.handle, index]
+    );
+  }
 };
 
 const writeValues = (input: StreamScheduleInput) => [
@@ -410,59 +546,91 @@ export const createStreamScheduleRepository = (
       : [];
   },
 
-  async createStream(input) {
-    const id = randomUUID();
-    await pool.execute(
-      `
-        INSERT INTO stream_schedule_entries
-          (id, title, description, starts_at, ends_at, channel_key, topic_key, theme_key, project_id, focus_label, focus_note, visibility, status, cancellation_reason_code, cancellation_reason, created_by_user_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [id, ...writeValues(input), input.actorUserId]
-    );
-
-    const stream = await readStream(pool, id);
-
-    if (!stream) {
-      throw new Error("stream_schedule_mutation_reread_failed");
-    }
-
-    return stream;
+  async listChannelOptions(ownerUserId) {
+    return await readOwnedChannelOptions(pool, ownerUserId);
   },
 
-  async updateStream(id, input) {
+  async createStream(input) {
+    const channelOptions = input.channelRefs === undefined
+      ? null
+      : await readOwnedChannelOptions(pool, input.actorUserId, input.channelRefs);
+    if (channelOptions && channelOptions.length !== input.channelRefs?.length) return "invalid-channel";
+    const connection = await pool.getConnection();
+    const id = randomUUID();
+    try {
+      await connection.beginTransaction();
+      await connection.execute(
+        `
+          INSERT INTO stream_schedule_entries
+            (id, title, description, starts_at, ends_at, channel_key, topic_key, theme_key, project_id, focus_label, focus_note, visibility, status, cancellation_reason_code, cancellation_reason, created_by_user_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [id, ...writeValues(input), input.actorUserId]
+      );
+      if (channelOptions) await replaceChannelTargets(connection, id, channelOptions);
+
+      const stream = await readStream(connection, id);
+      if (!stream) throw new Error("stream_schedule_mutation_reread_failed");
+      await connection.commit();
+      return stream;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  },
+
+  async updateStream(id, input, actorUserId) {
+    const channelOptions = input.channelRefs === undefined
+      ? null
+      : await readOwnedChannelOptions(pool, actorUserId, input.channelRefs);
+    if (channelOptions && channelOptions.length !== input.channelRefs?.length) return "invalid-channel";
+    const connection = await pool.getConnection();
     const { assignments, values } = toUpdateAssignments(input);
-    const [result] = await pool.execute(
-      `
-        UPDATE stream_schedule_entries
-        SET ${assignments.join(", ")}, updated_at = NOW()
-        WHERE id = ?
-      `,
-      [...values, id]
-    );
+    try {
+      await connection.beginTransaction();
+      const [result] = assignments.length > 0
+        ? await connection.execute(
+          `
+            UPDATE stream_schedule_entries
+            SET ${assignments.join(", ")}, updated_at = NOW()
+            WHERE id = ?
+          `,
+          [...values, id]
+        )
+        : await connection.execute("SELECT id FROM stream_schedule_entries WHERE id = ?", [id]);
 
-    if (typeof result === "object"
-      && result !== null
-      && "affectedRows" in result
-      && result.affectedRows === 0) {
-      return "not-found";
+      if ((Array.isArray(result) && result.length === 0) || (typeof result === "object"
+        && result !== null
+        && "affectedRows" in result
+        && result.affectedRows === 0)) {
+        await connection.rollback();
+        return "not-found";
+      }
+
+      if (channelOptions) await replaceChannelTargets(connection, id, channelOptions);
+
+      const stream = await readStream(connection, id);
+      if (!stream) throw new Error("stream_schedule_mutation_reread_failed");
+      await connection.commit();
+      return stream;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
     }
-
-    const stream = await readStream(pool, id);
-
-    if (!stream) {
-      throw new Error("stream_schedule_mutation_reread_failed");
-    }
-
-    return stream;
   },
 
   async cancelStream(id, input: StreamScheduleCancellationInput) {
-    return await this.updateStream(id, {
+    const result = await this.updateStream(id, {
       status: "cancelled",
       cancellationReasonCode: input.cancellationReasonCode,
       cancellationReason: input.cancellationReason
-    });
+    }, "");
+    if (result === "invalid-channel") throw new Error("stream_schedule_unreachable_channel_validation");
+    return result;
   },
 
   async replaceGameLinks(input) {

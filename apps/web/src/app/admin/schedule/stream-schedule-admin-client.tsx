@@ -6,7 +6,7 @@ import {
   FiPlayCircle, FiPlus, FiSearch, FiXCircle
 } from "react-icons/fi";
 import type {
-  StreamScheduleCancellationReasonCode, StreamScheduleEntry, StreamScheduleGameOption,
+  StreamScheduleCancellationReasonCode, StreamScheduleChannelOption, StreamScheduleEntry, StreamScheduleGameOption,
   StreamScheduleProjectOption, StreamScheduleStatus, StreamScheduleVisibility
 } from "@maiks-yt/domain/schedule";
 
@@ -18,11 +18,18 @@ import {
   toGameLinkForm,
   type GameLinkFormState
 } from "./stream-schedule-admin.rules";
+import {
+  combineLocalDateAndTime,
+  normalizeScheduleKey,
+  splitLocalDateTime,
+  validateScheduleForm,
+  type ScheduleFormError
+} from "./stream-schedule-form.rules";
 
 type AdminScheduleResponse =
-  | { ok: true; streams: readonly StreamScheduleEntry[]; projectOptions: readonly StreamScheduleProjectOption[]; gameOptions: readonly StreamScheduleGameOption[] }
+  | { ok: true; streams: readonly StreamScheduleEntry[]; projectOptions: readonly StreamScheduleProjectOption[]; gameOptions: readonly StreamScheduleGameOption[]; channelOptions?: readonly StreamScheduleChannelOption[] }
   | { ok: false; reason: string };
-type AdminScheduleMutationResponse = { ok: true; stream: StreamScheduleEntry } | { ok: false; reason: string };
+type AdminScheduleMutationResponse = { ok: true; stream: StreamScheduleEntry } | { ok: false; reason: string; issues?: readonly string[] };
 type LoadState = "loading" | "ready" | "signed-out" | "forbidden" | "failed";
 type ScheduleFilter = "upcoming" | "all" | "cancelled";
 type ScheduleSort = "soonest" | "latest";
@@ -44,6 +51,7 @@ type ScheduleFormState = {
 type CancellationFormState = { cancellationReasonCode: StreamScheduleCancellationReasonCode; cancellationReason: string };
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api.maiks.yt";
+const scheduleDraftStorageKey = "maiks-yt:admin:schedule:unfinished-form:v1";
 const visibilities = ["draft", "public", "private"] satisfies StreamScheduleVisibility[];
 const editableStatuses = ["planned", "live", "completed"] satisfies StreamScheduleStatus[];
 const cancellationReasonCodes = ["health", "family", "energy", "technical", "schedule-conflict", "other"] satisfies StreamScheduleCancellationReasonCode[];
@@ -53,6 +61,35 @@ const emptyScheduleForm: ScheduleFormState = {
 };
 const defaultCancellationForm: CancellationFormState = { cancellationReasonCode: "energy", cancellationReason: "" };
 const defaultGameLinkForm: GameLinkFormState = { gameId: "", publicNote: "" };
+
+type PersistedScheduleDraft = {
+  selectedStreamId: string;
+  scheduleForm: ScheduleFormState;
+  gameLinkForm: GameLinkFormState;
+  selectedChannelRefs: readonly string[];
+};
+
+const readPersistedScheduleDraft = (): PersistedScheduleDraft | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = JSON.parse(window.localStorage.getItem(scheduleDraftStorageKey) ?? "null") as Partial<PersistedScheduleDraft> | null;
+    if (!value || typeof value.selectedStreamId !== "string" || !value.scheduleForm || !value.gameLinkForm || !Array.isArray(value.selectedChannelRefs)) return null;
+    if (typeof value.scheduleForm.title !== "string" || typeof value.scheduleForm.startsAt !== "string") return null;
+    return value as PersistedScheduleDraft;
+  } catch {
+    return null;
+  }
+};
+
+const removePersistedScheduleDraft = (): void => {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.removeItem(scheduleDraftStorageKey); } catch { /* draft persistence is best effort */ }
+};
+
+const writePersistedScheduleDraft = (draft: PersistedScheduleDraft): void => {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(scheduleDraftStorageKey, JSON.stringify(draft)); } catch { /* form state remains in memory */ }
+};
 
 const toDateTimeLocal = (value: string | null): string => {
   if (!value) return "";
@@ -119,10 +156,12 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
   const [streams, setStreams] = useState<readonly StreamScheduleEntry[]>([]);
   const [projectOptions, setProjectOptions] = useState<readonly StreamScheduleProjectOption[]>([]);
   const [gameOptions, setGameOptions] = useState<readonly StreamScheduleGameOption[]>([]);
+  const [channelOptions, setChannelOptions] = useState<readonly StreamScheduleChannelOption[]>([]);
   const [selectedStreamId, setSelectedStreamId] = useState("");
   const [scheduleForm, setScheduleForm] = useState<ScheduleFormState>(emptyScheduleForm);
   const [cancellationForm, setCancellationForm] = useState<CancellationFormState>(defaultCancellationForm);
   const [gameLinkForm, setGameLinkForm] = useState<GameLinkFormState>(defaultGameLinkForm);
+  const [selectedChannelRefs, setSelectedChannelRefs] = useState<readonly string[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("Loading stream schedule admin...");
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -131,6 +170,7 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
   const [searchQuery, setSearchQuery] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<readonly ScheduleFormError[]>([]);
 
   const selectedStream = useMemo(() => streams.find((stream) => stream.id === selectedStreamId) ?? null, [streams, selectedStreamId]);
   const visibleStreams = useMemo(() => {
@@ -156,9 +196,11 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     return groups;
   }, [visibleStreams]);
   const hasUnsavedChanges = useMemo(() => selectedStream
-    ? JSON.stringify(scheduleForm) !== JSON.stringify(toScheduleForm(selectedStream)) || JSON.stringify(gameLinkForm) !== JSON.stringify(toGameLinkForm(selectedStream))
+    ? JSON.stringify(scheduleForm) !== JSON.stringify(toScheduleForm(selectedStream))
+      || JSON.stringify(gameLinkForm) !== JSON.stringify(toGameLinkForm(selectedStream))
+      || JSON.stringify(selectedChannelRefs) !== JSON.stringify(selectedStream.channelTargets?.map((target) => target.channelRef) ?? [])
     : scheduleForm.title.trim().length > 0,
-  [gameLinkForm, scheduleForm, selectedStream]);
+  [gameLinkForm, scheduleForm, selectedChannelRefs, selectedStream]);
 
   const replaceStream = useCallback((stream: StreamScheduleEntry): void => {
     setStreams((current) => {
@@ -170,7 +212,9 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     setSelectedStreamId(stream.id);
     setScheduleForm(toScheduleForm(stream));
     setGameLinkForm(toGameLinkForm(stream));
+    setSelectedChannelRefs(stream.channelTargets?.map((target) => target.channelRef) ?? []);
     setCancellationForm({ cancellationReasonCode: stream.cancellationReasonCode ?? "energy", cancellationReason: stream.cancellationReason ?? "" });
+    removePersistedScheduleDraft();
   }, []);
 
   const parseJson = async <ResponseBody,>(response: Response): Promise<ResponseBody | null> => {
@@ -186,13 +230,28 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
         setStreams(payload.streams);
         setProjectOptions(payload.projectOptions);
         setGameOptions(payload.gameOptions);
-        const firstStream = payload.streams.find((stream) => new Date(stream.startsAt) >= new Date() && stream.status !== "completed") ?? payload.streams[0] ?? null;
-        setSelectedStreamId(firstStream?.id ?? "");
-        setScheduleForm(firstStream ? toScheduleForm(firstStream) : emptyScheduleForm);
-        setGameLinkForm(firstStream ? toGameLinkForm(firstStream) : defaultGameLinkForm);
-        setCancellationForm(firstStream ? { cancellationReasonCode: firstStream.cancellationReasonCode ?? "energy", cancellationReason: firstStream.cancellationReason ?? "" } : defaultCancellationForm);
+        setChannelOptions(payload.channelOptions ?? []);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const firstStream = payload.streams.find((stream) =>
+          new Date(stream.startsAt) >= startOfToday && stream.status !== "completed" && stream.status !== "cancelled"
+        ) ?? null;
+        const persistedDraft = readPersistedScheduleDraft();
+        const persistedStream = persistedDraft?.selectedStreamId
+          ? payload.streams.find((stream) => stream.id === persistedDraft.selectedStreamId) ?? null
+          : null;
+        const canRestoreDraft = Boolean(persistedDraft && (!persistedDraft.selectedStreamId || persistedStream));
+        const initialStream = canRestoreDraft ? persistedStream : firstStream;
+        setSelectedStreamId(canRestoreDraft ? persistedDraft?.selectedStreamId ?? "" : firstStream?.id ?? "");
+        setScheduleForm(canRestoreDraft ? persistedDraft?.scheduleForm ?? createNewScheduleForm() : firstStream ? toScheduleForm(firstStream) : createNewScheduleForm());
+        setGameLinkForm(canRestoreDraft ? persistedDraft?.gameLinkForm ?? defaultGameLinkForm : firstStream ? toGameLinkForm(firstStream) : defaultGameLinkForm);
+        setSelectedChannelRefs(canRestoreDraft ? persistedDraft?.selectedChannelRefs ?? [] : firstStream?.channelTargets?.map((target) => target.channelRef) ?? []);
+        setCancellationForm(initialStream ? { cancellationReasonCode: initialStream.cancellationReasonCode ?? "energy", cancellationReason: initialStream.cancellationReason ?? "" } : defaultCancellationForm);
+        if (persistedStream && new Date(persistedStream.startsAt) < startOfToday) setFilter("all");
         setLoadState("ready");
-        setMessage(payload.streams.length === 0 ? "No scheduled streams exist yet." : "Schedule ready.");
+        setMessage(canRestoreDraft ? "Your unfinished stream form was restored." : firstStream ? "Schedule ready." : payload.streams.length === 0
+          ? "No scheduled streams exist yet. Creating a new draft stream."
+          : "No upcoming streams. Creating a new draft stream; older streams remain under All.");
         return;
       }
       const reason = payload?.ok === false ? payload.reason : undefined;
@@ -204,6 +263,14 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     }
   }, []);
   useEffect(() => { captureDevAuthTokenFromUrl(); void loadStreams(); }, [loadStreams]);
+  useEffect(() => {
+    if (loadState !== "ready" || typeof window === "undefined") return;
+    if (!hasUnsavedChanges && selectedStream) {
+      removePersistedScheduleDraft();
+      return;
+    }
+    writePersistedScheduleDraft({ selectedStreamId, scheduleForm, gameLinkForm, selectedChannelRefs });
+  }, [gameLinkForm, hasUnsavedChanges, loadState, scheduleForm, selectedChannelRefs, selectedStream, selectedStreamId]);
   useEffect(() => {
     if (!cancelDialogOpen) return;
     const closeOnEscape = (event: KeyboardEvent): void => { if (event.key === "Escape" && busyAction === null) setCancelDialogOpen(false); };
@@ -225,15 +292,22 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       if (response.ok && payload?.ok) {
         replaceStream(payload.stream);
         setLoadState("ready");
-        setMessage(`${label} saved.`);
+        setFormErrors([]);
+        setMessage(`${label} saved successfully.`);
         return payload.stream;
       }
       const reason = payload?.ok === false ? payload.reason : undefined;
       setLoadState((current) => current === "ready" ? current : getLoadStateForFailure(response, reason));
-      setMessage(getFailureMessage(response, reason));
+      const failureMessage = getFailureMessage(response, reason);
+      setFormErrors([{ field: "global", message: payload?.ok === false && payload.issues?.length
+        ? payload.issues.join(" ")
+        : failureMessage }]);
+      setMessage(`${label} failed. Your entries were kept.`);
       return null;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : `${label} failed.`);
+      const failureMessage = error instanceof Error ? error.message : `${label} failed.`;
+      setFormErrors([{ field: "global", message: `${failureMessage} Your entries were kept.` }]);
+      setMessage(`${label} failed. Your entries were kept.`);
       return null;
     } finally { setBusyAction(null); }
   };
@@ -244,6 +318,8 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     if (!stream) return;
     setScheduleForm(toScheduleForm(stream));
     setGameLinkForm(toGameLinkForm(stream));
+    setSelectedChannelRefs(stream.channelTargets?.map((target) => target.channelRef) ?? []);
+    setFormErrors([]);
     setCancellationForm({ cancellationReasonCode: stream.cancellationReasonCode ?? "energy", cancellationReason: stream.cancellationReason ?? "" });
   };
   const startNewStream = (): void => {
@@ -251,25 +327,32 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
     setScheduleForm(createNewScheduleForm());
     setCancellationForm(defaultCancellationForm);
     setGameLinkForm(defaultGameLinkForm);
+    setSelectedChannelRefs([]);
+    setFormErrors([]);
     setMessage("Creating a new draft stream.");
   };
   const discardChanges = (): void => {
     if (selectedStream) {
       setScheduleForm(toScheduleForm(selectedStream));
       setGameLinkForm(toGameLinkForm(selectedStream));
+      setSelectedChannelRefs(selectedStream.channelTargets?.map((target) => target.channelRef) ?? []);
       setMessage("Unsaved changes discarded.");
     } else {
       setScheduleForm(createNewScheduleForm());
       setGameLinkForm(defaultGameLinkForm);
+      setSelectedChannelRefs([]);
     }
+    setFormErrors([]);
   };
   const buildSchedulePayload = (): Record<string, unknown> => ({
     ...scheduleForm,
     description: scheduleForm.description.trim() || null,
     startsAt: fromDateTimeLocal(scheduleForm.startsAt),
     endsAt: scheduleForm.endsAt ? fromDateTimeLocal(scheduleForm.endsAt) : null,
-    topicKey: scheduleForm.topicKey.trim() || null,
-    themeKey: scheduleForm.themeKey.trim() || null,
+    channelKey: normalizeScheduleKey(channelOptions.find((option) => option.channelRef === selectedChannelRefs[0])?.displayName ?? scheduleForm.channelKey),
+    channelRefs: selectedChannelRefs,
+    topicKey: normalizeScheduleKey(scheduleForm.topicKey) || null,
+    themeKey: normalizeScheduleKey(scheduleForm.themeKey) || null,
     projectId: scheduleForm.projectId || null,
     focusLabel: scheduleForm.focusLabel.trim() || null,
     focusNote: scheduleForm.focusNote.trim() || null,
@@ -282,6 +365,16 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
   });
   const saveStream = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
+    const validationErrors = validateScheduleForm({ ...scheduleForm, channelRefs: selectedChannelRefs });
+    if (validationErrors.length > 0) {
+      setFormErrors(validationErrors);
+      setMessage("Stream was not saved. Fix the highlighted fields; your entries were kept.");
+      if (typeof document !== "undefined" && validationErrors[0]?.field !== "global") {
+        document.getElementById(`schedule-${validationErrors[0]?.field}`)?.focus();
+      }
+      return;
+    }
+    setFormErrors([]);
     const gameLinkChanged = JSON.stringify(gameLinkForm) !== JSON.stringify(selectedStream ? toGameLinkForm(selectedStream) : defaultGameLinkForm);
     const savedStream = selectedStream
       ? await runMutation("Saving stream", `/admin/schedule/${encodeURIComponent(selectedStream.id)}`, { method: "PATCH", body: buildSchedulePayload() })
@@ -369,13 +462,23 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
       </section>
 
       <section className={styles.editorPane} aria-label={selectedStream ? "Edit stream" : "Create stream"}>
-        <form className={styles.editorForm} onSubmit={(event) => void saveStream(event)}>
+        <form className={styles.editorForm} noValidate onSubmit={(event) => void saveStream(event)}>
           <div className={styles.editorHeading}><div><h2>{selectedStream ? "Edit stream" : "Create stream"}</h2><span className={`${styles.statusPill} ${getStatusClassName(scheduleForm.status)}`}>{formatScheduleLabel(scheduleForm.status)}</span></div></div>
+          {formErrors.length > 0 ? <section className={styles.formErrorSummary} role="alert" aria-live="assertive">
+            <strong>Stream not saved</strong>
+            <ul>{formErrors.map((error, index) => <li key={`${error.field}-${index}`}>{error.message}</li>)}</ul>
+          </section> : null}
           <div className={styles.twoColumnFields}>
-            <label>Title<input required maxLength={191} value={scheduleForm.title} onChange={(event) => setScheduleForm((current) => ({ ...current, title: event.target.value }))} /></label>
+            <label>Title<input aria-invalid={formErrors.some((error) => error.field === "title")} id="schedule-title" required maxLength={191} value={scheduleForm.title} onChange={(event) => setScheduleForm((current) => ({ ...current, title: event.target.value }))} /></label>
             <label>Description<textarea maxLength={2000} rows={2} value={scheduleForm.description} onChange={(event) => setScheduleForm((current) => ({ ...current, description: event.target.value }))} /></label>
-            <label>Starts<input required type="datetime-local" value={scheduleForm.startsAt} onChange={(event) => setScheduleForm((current) => ({ ...current, startsAt: event.target.value }))} /></label>
-            <label>Ends<input type="datetime-local" value={scheduleForm.endsAt} onChange={(event) => setScheduleForm((current) => ({ ...current, endsAt: event.target.value }))} /></label>
+            <fieldset className={styles.dateTimeField}><legend>Starts</legend><div>
+              <label><span>Date</span><input aria-invalid={formErrors.some((error) => error.field === "startsAt")} id="schedule-startsAt" required type="date" value={splitLocalDateTime(scheduleForm.startsAt).date} onChange={(event) => setScheduleForm((current) => ({ ...current, startsAt: combineLocalDateAndTime(event.target.value, splitLocalDateTime(current.startsAt).time) }))} /></label>
+              <label><span>Time (24-hour)</span><input aria-label="Start time (24-hour)" inputMode="numeric" maxLength={5} pattern="(?:[01]\\d|2[0-3]):[0-5]\\d" placeholder="21:00" required type="text" value={splitLocalDateTime(scheduleForm.startsAt).time} onChange={(event) => setScheduleForm((current) => ({ ...current, startsAt: combineLocalDateAndTime(splitLocalDateTime(current.startsAt).date, event.target.value) || `${splitLocalDateTime(current.startsAt).date}T${event.target.value}` }))} /></label>
+            </div></fieldset>
+            <fieldset className={styles.dateTimeField}><legend>Ends</legend><div>
+              <label><span>Date</span><input aria-invalid={formErrors.some((error) => error.field === "endsAt")} id="schedule-endsAt" type="date" value={splitLocalDateTime(scheduleForm.endsAt).date} onChange={(event) => setScheduleForm((current) => ({ ...current, endsAt: event.target.value ? combineLocalDateAndTime(event.target.value, splitLocalDateTime(current.endsAt).time || "00:00") : "" }))} /></label>
+              <label><span>Time (24-hour)</span><input aria-label="End time (24-hour)" inputMode="numeric" maxLength={5} pattern="(?:[01]\\d|2[0-3]):[0-5]\\d" placeholder="00:00" type="text" value={splitLocalDateTime(scheduleForm.endsAt).time} onChange={(event) => setScheduleForm((current) => ({ ...current, endsAt: combineLocalDateAndTime(splitLocalDateTime(current.endsAt).date, event.target.value) || `${splitLocalDateTime(current.endsAt).date}T${event.target.value}` }))} /></label>
+            </div></fieldset>
             <label>Stream focus / project<select value={scheduleForm.projectId} onChange={(event) => setScheduleForm((current) => ({ ...current, projectId: event.target.value }))}>
               <option value="">No linked project</option>{projectOptions.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select></label>
             <label>Focus label<input maxLength={120} placeholder="Stream focus" value={scheduleForm.focusLabel} onChange={(event) => setScheduleForm((current) => ({ ...current, focusLabel: event.target.value }))} /></label>
@@ -387,16 +490,25 @@ const StreamScheduleAdminClient = (): React.ReactNode => {
             <label>Public game note<input disabled={!gameLinkForm.gameId} maxLength={280} placeholder={gameLinkForm.gameId ? "Optional public context" : "Available after linking a game"}
               value={gameLinkForm.publicNote} onChange={(event) => setGameLinkForm((current) => ({ ...current, publicNote: event.target.value }))} /></label>
           </div>
-          <div className={styles.threeColumnFields}>
+          <div className={styles.twoColumnFields}>
             <label>Visibility<select value={scheduleForm.visibility} onChange={(event) => setScheduleForm((current) => ({ ...current, visibility: event.target.value as StreamScheduleVisibility }))}>
               {visibilities.map((visibility) => <option key={visibility} value={visibility}>{formatScheduleLabel(visibility)}</option>)}</select></label>
             <label>Status<select value={scheduleForm.status} onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value as StreamScheduleStatus }))}>
               {scheduleForm.status === "cancelled" ? <option value="cancelled">Cancelled</option> : null}{editableStatuses.map((status) => <option key={status} value={status}>{formatScheduleLabel(status)}</option>)}</select></label>
-            <label>Channel<input required maxLength={80} pattern="[a-z0-9][a-z0-9-]{0,79}" value={scheduleForm.channelKey} onChange={(event) => setScheduleForm((current) => ({ ...current, channelKey: event.target.value }))} /></label>
           </div>
+          <fieldset aria-invalid={formErrors.some((error) => error.field === "channelKey")} className={styles.channelSelector} id="schedule-channelKey">
+            <legend>Channels</legend>
+            {channelOptions.length === 0 ? <p>No connected Twitch or YouTube channels were found. Connect a provider before saving this stream.</p>
+              : <div>{channelOptions.map((option) => <label key={option.channelRef}>
+                <input checked={selectedChannelRefs.includes(option.channelRef)} type="checkbox" onChange={() => setSelectedChannelRefs((current) => current.includes(option.channelRef)
+                  ? current.filter((channelRef) => channelRef !== option.channelRef)
+                  : [...current, option.channelRef])} />
+                <span><strong>{option.displayName}</strong><small>{option.provider === "youtube" ? "YouTube" : "Twitch"}{option.handle ? ` · ${option.handle}` : ""}</small></span>
+              </label>)}</div>}
+          </fieldset>
           <details className={styles.technicalFields}><summary>Topic &amp; theme</summary><div className={styles.twoColumnFields}>
-            <label>Topic<input maxLength={80} pattern="[a-z0-9][a-z0-9-]{0,79}" value={scheduleForm.topicKey} onChange={(event) => setScheduleForm((current) => ({ ...current, topicKey: event.target.value }))} /></label>
-            <label>Theme<input maxLength={80} pattern="[a-z0-9][a-z0-9-]{0,79}" value={scheduleForm.themeKey} onChange={(event) => setScheduleForm((current) => ({ ...current, themeKey: event.target.value }))} /></label>
+            <label>Topic<input maxLength={80} value={scheduleForm.topicKey} onChange={(event) => setScheduleForm((current) => ({ ...current, topicKey: event.target.value }))} /><small>Spaces and capitals are accepted.</small></label>
+            <label>Theme<input maxLength={80} value={scheduleForm.themeKey} onChange={(event) => setScheduleForm((current) => ({ ...current, themeKey: event.target.value }))} /><small>Spaces and capitals are accepted.</small></label>
           </div></details>
           <div className={styles.saveBar}><span>{hasUnsavedChanges ? "Unsaved changes" : "No unsaved changes"}</span><div>
             <button className="secondary-action" disabled={!hasUnsavedChanges || busyAction !== null} type="button" onClick={discardChanges}>Discard</button>
