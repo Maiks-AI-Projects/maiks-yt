@@ -68,6 +68,27 @@ describe("ChatCommandRuntime", () => {
     });
   });
 
+  it("keeps ordinary broadcaster chat when the broadcaster also supplies the bot credential", () => {
+    const runtime = new ChatCommandRuntime({
+      botIdentity: {
+        displayNames: ["MaiksMC"],
+        providerUserLogins: ["maiksmc"]
+      },
+      delivery: {
+        send: vi.fn()
+      }
+    });
+
+    expect(runtime.classifyProviderMessage(createTwitchMessage({
+      authorName: "MaiksMC",
+      message: "maiks twitch intake 4",
+      userName: "maiksmc"
+    }))).toEqual({
+      consume: false,
+      reason: "ordinary_chat"
+    });
+  });
+
   it("applies cooldowns without sending repeated provider replies", async () => {
     let nowMs = 1_000;
     const send = vi.fn(async () => ({

@@ -148,6 +148,17 @@ export class ChatCommandRuntime {
 
     const parsedCommand = this.parseProviderMessage(message);
 
+    if (parsedCommand.ok === false && parsedCommand.reason === "self_or_bot_message") {
+      const parsedWithoutBotIdentity = this.parseProviderMessage(message, {});
+
+      if (parsedWithoutBotIdentity.ok === false && parsedWithoutBotIdentity.reason === "ordinary_chat") {
+        return {
+          consume: false,
+          reason: "ordinary_chat"
+        };
+      }
+    }
+
     return parsedCommand.ok || parsedCommand.reason !== "ordinary_chat"
       ? {
         consume: true,
@@ -228,11 +239,14 @@ export class ChatCommandRuntime {
     };
   }
 
-  private parseProviderMessage(message: ChatCommandRuntimeMessage): ReturnType<typeof parseChatCommand> {
+  private parseProviderMessage(
+    message: ChatCommandRuntimeMessage,
+    botIdentity: ChatCommandBotIdentity = this.botIdentity
+  ): ReturnType<typeof parseChatCommand> {
     return parseChatCommand({
       actorKind: message.authorKind,
       authorName: message.authorName,
-      botIdentity: this.botIdentity,
+      botIdentity,
       message: message.message,
       provider: message.source,
       providerUserId: resolveProviderUserId(message),
