@@ -13,12 +13,14 @@ describe("OBS widget bridge API", () => {
   let server: ReturnType<typeof Fastify>;
   let overlayTokenValidationDelayMs: number;
   let controlStatusAuthenticated: boolean;
+  let recordedCountdownStarts: Array<Record<string, unknown>>;
   const validToken = "a".repeat(32);
 
   beforeEach(async () => {
     server = Fastify();
     overlayTokenValidationDelayMs = 0;
     controlStatusAuthenticated = true;
+    recordedCountdownStarts = [];
     const overlayRuntime = new OverlayRuntime();
     const runtime = new ObsWidgetBridgeRuntime({
       createOverlaySnapshot: () => overlayRuntime.createSnapshotFromRequestedState({
@@ -32,6 +34,11 @@ describe("OBS widget bridge API", () => {
 
     await server.register(fastifyWebsocket);
     registerObsWidgetBridgeRoute(server, {
+      recordCountdownStarted: async (payload) => {
+        const duplicate = recordedCountdownStarts.some((entry) => entry.occurrenceId === payload.occurrenceId);
+        if (!duplicate) recordedCountdownStarts.push(payload);
+        return duplicate ? "duplicate" : "accepted";
+      },
       requireUrlAccessTokenForRequest: async (_request, { token, surface, scope, deniedReason }) => {
         if (token === validToken && surface === "control-panel" && scope === "control:open") {
           if (!controlStatusAuthenticated) {
@@ -178,6 +185,66 @@ describe("OBS widget bridge API", () => {
         effectDelivery: "master-overlay"
       }
     });
+
+    socket.close();
+    await new Promise<void>((resolve) => socket.once("close", () => resolve()));
+  });
+
+  it("acknowledges one durable countdown start and reports an idempotent replay", async () => {
+    const address = await server.listen({ host: "127.0.0.1", port: 0 });
+    const socket = new WebSocket(
+      `${address.replace("http://", "ws://")}/obs-bridge/live?protocolVersion=1`,
+      { headers: { Authorization: `Bearer ${validToken}` } }
+    );
+    await new Promise<void>((resolve, reject) => {
+      socket.once("open", resolve);
+      socket.once("error", reject);
+    });
+    socket.send(JSON.stringify({
+      type: "obs.bridge.hello",
+      payload: {
+        protocolVersion: 1,
+        installationId: "test-installation",
+        clientVersion: "test-client",
+        supportedWidgets: [],
+        readyWidgets: []
+      }
+    }));
+    await new Promise<void>((resolve) => {
+      socket.on("message", (raw) => {
+        if (JSON.parse(raw.toString()).type === "obs.bridge.welcome") resolve();
+      });
+    });
+
+    const occurrenceId = "11111111-1111-4111-8111-111111111111";
+    const message = {
+      type: "stream.countdown.started",
+      payload: {
+        occurrenceId,
+        countdownRuntimeId: "last-caretaker-runtime-v2",
+        durationSeconds: 600,
+        startedAt: "2026-09-02T16:00:00.000Z",
+        endsAt: "2026-09-02T16:10:00.000Z",
+        triggerSource: "stream_deck"
+      }
+    };
+    const readAck = (): Promise<Record<string, unknown>> => new Promise((resolve) => {
+      const listener = (raw: WebSocket.RawData): void => {
+        const parsed = JSON.parse(raw.toString()) as Record<string, unknown>;
+        if (parsed.type !== "stream.countdown.started.ack") return;
+        socket.off("message", listener);
+        resolve(parsed);
+      };
+      socket.on("message", listener);
+    });
+
+    const firstAck = readAck();
+    socket.send(JSON.stringify(message));
+    await expect(firstAck).resolves.toMatchObject({ payload: { occurrenceId, status: "accepted" } });
+    const secondAck = readAck();
+    socket.send(JSON.stringify(message));
+    await expect(secondAck).resolves.toMatchObject({ payload: { occurrenceId, status: "duplicate" } });
+    expect(recordedCountdownStarts).toHaveLength(1);
 
     socket.close();
     await new Promise<void>((resolve) => socket.once("close", () => resolve()));
