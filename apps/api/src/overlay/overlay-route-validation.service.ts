@@ -4,7 +4,7 @@ import type { FastifyRequest } from "fastify";
 import { z } from "zod";
 
 import type { OverlayRuntime } from "./index.js";
-import type { StreamerChatModerationAction, StreamerChatRuntime } from "../streamer-chat/index.js";
+import type { StreamerChatModerationAction } from "../streamer-chat/index.js";
 import type { RequireUrlAccessTokenForRequest } from "../url-access-token-request-access.service.js";
 
 export const overlaySceneKeySchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/);
@@ -166,6 +166,5 @@ export type OverlayRouteDependencies = {
   recordFakeLocalStreamerChatMessage: (event: import("@maiks-yt/events").OverlayFakeChatMessageReceivedEvent) => import("@maiks-yt/events").StreamerChatMessage | null;
   requireStreamerChatModerationPermission: RequireStreamerChatModerationPermission;
   requireUrlAccessTokenForRequest: RequireUrlAccessTokenForRequest;
-  streamerChatRuntime: StreamerChatRuntime;
   validateUrlAccessToken: ValidateUrlAccessToken;
 };

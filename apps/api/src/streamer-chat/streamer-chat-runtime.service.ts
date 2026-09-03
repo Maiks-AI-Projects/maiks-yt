@@ -20,7 +20,6 @@ export class StreamerChatRuntime {
   private readonly messages: StreamerChatMessage[] = [];
   private readonly sessionId = randomUUID();
   private readonly stateListeners = new Set<StreamerChatStateListener>();
-  private emergencyClearEnabled = false;
   private revision = 0;
   private visibilityFilter: StreamerChatVisibilityFilter = () => true;
 
@@ -41,10 +40,6 @@ export class StreamerChatRuntime {
   }
 
   public appendMessage(message: StreamerChatMessage): StreamerChatMessage {
-    if (this.emergencyClearEnabled) {
-      return message;
-    }
-
     this.messages.unshift(message);
     this.messages.splice(this.options.maxHistory);
     this.revision += 1;
@@ -56,22 +51,6 @@ export class StreamerChatRuntime {
     this.notifyStateListeners();
 
     return message;
-  }
-
-  public setEmergencyClearEnabled(enabled: boolean): boolean {
-    if (this.emergencyClearEnabled === enabled) {
-      return this.emergencyClearEnabled;
-    }
-
-    this.emergencyClearEnabled = enabled;
-
-    if (enabled) {
-      this.messages.splice(0);
-    }
-
-    this.broadcastSnapshot();
-
-    return this.emergencyClearEnabled;
   }
 
   public findMessage(messageId: string): StreamerChatMessage | null {

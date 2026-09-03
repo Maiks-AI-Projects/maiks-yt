@@ -6,7 +6,6 @@ import {
   registerOverlayRoutes
 } from "../../src/overlay/index.js";
 import { registerOverlayTestRoutes } from "../../src/overlay/overlay-test.route.js";
-import { StreamerChatRuntime } from "../../src/streamer-chat/index.js";
 
 const servers: ReturnType<typeof Fastify>[] = [];
 
@@ -148,7 +147,6 @@ describe("GET /overlay/state", () => {
       recordFakeLocalStreamerChatMessage: () => null,
       requireStreamerChatModerationPermission: async () => ({ ok: true }),
       requireUrlAccessTokenForRequest,
-      streamerChatRuntime: new StreamerChatRuntime({ maxHistory: 10 }),
       validateUrlAccessToken
     });
     servers.push(server);
@@ -183,19 +181,8 @@ describe("production overlay route registration", () => {
     try {
       const server = Fastify();
       const overlayRuntime = new OverlayRuntime();
-      const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: 10 });
       const setActiveGoal = vi.spyOn(overlayRuntime, "setActiveGoal");
       const setSponsorVisible = vi.spyOn(overlayRuntime, "setSponsorVisible");
-
-      streamerChatRuntime.appendMessage({
-        id: "before-emergency-clear",
-        authorKind: "human",
-        authorName: "Test chatter",
-        createdAt: "2026-09-03T00:00:00.000Z",
-        message: "This must leave the presentation buffer.",
-        source: "youtube",
-        visibleOnOverlayByDefault: true
-      });
 
       registerOverlayRoutes(server, {
         fakeLocalModerationRuntime: {
@@ -215,7 +202,6 @@ describe("production overlay route registration", () => {
             avatarUrl: null
           }
         }),
-        streamerChatRuntime,
         validateUrlAccessToken: async () => ({ valid: true, requiresLogin: false })
       });
       servers.push(server);
@@ -286,7 +272,6 @@ describe("production overlay route registration", () => {
         })
       ]);
       expect(retainedMutationResponses.map((response) => response.statusCode)).toEqual([200, 200, 200, 200, 200, 200]);
-      expect(streamerChatRuntime.listAllMessages()).toEqual([]);
 
       const scenesResponse = await server.inject({
         method: "GET",
@@ -342,7 +327,6 @@ describe("GET /overlay/status", () => {
       recordFakeLocalStreamerChatMessage: () => null,
       requireStreamerChatModerationPermission: async () => ({ ok: true }),
       requireUrlAccessTokenForRequest,
-      streamerChatRuntime: new StreamerChatRuntime({ maxHistory: 10 }),
       validateUrlAccessToken: async () => ({ valid: false, requiresLogin: false })
     });
     servers.push(server);
@@ -388,7 +372,6 @@ describe("GET /overlay/scenes", () => {
       recordFakeLocalStreamerChatMessage: () => null,
       requireStreamerChatModerationPermission: async () => ({ ok: true }),
       requireUrlAccessTokenForRequest,
-      streamerChatRuntime: new StreamerChatRuntime({ maxHistory: 10 }),
       validateUrlAccessToken
     });
     servers.push(server);
