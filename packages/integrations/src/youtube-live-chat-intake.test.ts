@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { projectYouTubeLiveChatMessage } from "./youtube-live-chat-intake.rules.js";
 import {
   createCachedYouTubeClientResolver,
+  createSingletonClientLease,
   createYouTubeActiveBroadcastListRequest,
   isYouTubeQuotaExceededError,
   isYouTubeStreamRateLimitedError,
@@ -162,6 +163,24 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
 
     expect(refreshedAccessToken).toBe(first);
     expect(rotatedRefreshToken).not.toBe(first);
+    expect(createClient).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps one gRPC client lease across clean stream calls and releases it intentionally", () => {
+    const firstClient = { close: vi.fn() };
+    const secondClient = { close: vi.fn() };
+    const createClient = vi.fn()
+      .mockReturnValueOnce(firstClient)
+      .mockReturnValueOnce(secondClient);
+    const lease = createSingletonClientLease(createClient);
+
+    expect(lease.get()).toBe(firstClient);
+    expect(lease.get()).toBe(firstClient);
+    expect(createClient).toHaveBeenCalledTimes(1);
+
+    lease.close();
+    expect(firstClient.close).toHaveBeenCalledTimes(1);
+    expect(lease.get()).toBe(secondClient);
     expect(createClient).toHaveBeenCalledTimes(2);
   });
 
@@ -610,6 +629,10 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
       streams[index]!.resolve();
       await flushAsyncWork();
       expect(scheduled[0]?.ms).toBe(expectedDelay);
+      expect(service.getStatus()).toMatchObject({
+        activeLiveChatId: "live-chat-1",
+        state: "connected"
+      });
       scheduled.shift()?.callback();
       await flushAsyncWork();
     }
@@ -774,9 +797,11 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
   it("stops an active stream without scheduling a reconnect", async () => {
     const deferred = createDeferredStream();
     const scheduled: Array<() => void> = [];
+    const close = vi.fn();
     const service = new YouTubeLiveChatReadOnlyIntakeService({
       contextResolver: async () => context,
       liveChatApi: {
+        close,
         findActiveLiveChat: async () => ({ liveChatId: "live-chat-1", title: "Live stream" }),
         openMessageStream: async () => deferred.stream
       },
@@ -794,6 +819,7 @@ describe("YouTubeLiveChatReadOnlyIntakeService", () => {
     expect(service.stop().state).toBe("stopped");
     await flushAsyncWork();
     expect(deferred.cancel).toHaveBeenCalledTimes(1);
+    expect(close).toHaveBeenCalledTimes(1);
     expect(scheduled).toHaveLength(0);
   });
 });

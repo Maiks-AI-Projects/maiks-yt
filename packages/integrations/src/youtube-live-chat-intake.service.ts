@@ -156,6 +156,23 @@ export const createCachedYouTubeClientResolver = <Client>(
   };
 };
 
+export const createSingletonClientLease = <Client extends { close(): void }>(
+  createClient: () => Client
+) => {
+  let client: Client | null = null;
+
+  return {
+    close(): void {
+      client?.close();
+      client = null;
+    },
+    get(): Client {
+      client ??= createClient();
+      return client;
+    }
+  };
+};
+
 type StreamListGrpcResponse = {
   items?: Array<{
     author_details?: StreamListAuthorDetails;
@@ -249,8 +266,15 @@ export const createYouTubeActiveBroadcastListRequest = () => ({
 
 export const createGoogleYouTubeLiveChatApi = (): YouTubeLiveChatApi => {
   const resolveOAuthClient = createCachedYouTubeClientResolver(createYouTubeOAuthClient);
+  const streamListClientLease = createSingletonClientLease(() => {
+    const StreamListClient = streamListPackage.youtube.api.v3.V3DataLiveChatMessageService;
+    return new StreamListClient("youtube.googleapis.com:443", credentials.createSsl());
+  });
 
   return {
+    close() {
+      streamListClientLease.close();
+    },
     async findActiveLiveChat({ context }) {
       const youtube = google.youtube({
         version: "v3",
@@ -279,8 +303,7 @@ export const createGoogleYouTubeLiveChatApi = (): YouTubeLiveChatApi => {
 
       const metadata = new Metadata();
       metadata.set("authorization", `Bearer ${accessToken.token}`);
-      const StreamListClient = streamListPackage.youtube.api.v3.V3DataLiveChatMessageService;
-      const client = new StreamListClient("youtube.googleapis.com:443", credentials.createSsl());
+      const client = streamListClientLease.get();
       const call = client.streamList({
         live_chat_id: liveChatId,
         ...(pageToken ? { page_token: pageToken } : {}),
@@ -299,7 +322,6 @@ export const createGoogleYouTubeLiveChatApi = (): YouTubeLiveChatApi => {
           return;
         }
         settled = true;
-        client.close();
         if (error) {
           rejectCompletion?.(error);
         } else {
@@ -429,6 +451,7 @@ export class YouTubeLiveChatReadOnlyIntakeService {
     this.operationGeneration += 1;
     this.clearTimer();
     this.clearActiveStream();
+    this.liveChatApi.close?.();
     this.activeLiveChatId = null;
     this.connectedAt = null;
     this.nextPageToken = null;
@@ -478,6 +501,7 @@ export class YouTubeLiveChatReadOnlyIntakeService {
       }
 
       if (!context) {
+        this.liveChatApi.close?.();
         this.state = "unconfigured";
         this.activeLiveChatId = null;
         this.connectedAt = null;
@@ -542,7 +566,7 @@ export class YouTubeLiveChatReadOnlyIntakeService {
       if (!this.isCurrentOperation(generation)) {
         return;
       }
-      this.state = "connecting";
+      this.state = "connected";
       this.scheduleStreamReconnect(
         generation,
         0,
@@ -576,6 +600,7 @@ export class YouTubeLiveChatReadOnlyIntakeService {
       if (isYouTubeTerminalLiveChatError(error)) {
         this.lastError = sanitizeError(error);
         this.clearActiveStream();
+        this.liveChatApi.close?.();
         this.clearActiveLiveChat();
         this.state = "waiting";
         this.scheduleNext(this.pollWhenNoActiveChatMs, generation);
@@ -717,6 +742,7 @@ export class YouTubeLiveChatReadOnlyIntakeService {
   private setQuotaExhausted(): void {
     this.clearTimer();
     this.clearActiveStream();
+    this.liveChatApi.close?.();
     this.connectedAt = null;
     this.nextPollAt = null;
     this.lastError = "YouTube API quota is exhausted. Retry manually after the quota resets.";

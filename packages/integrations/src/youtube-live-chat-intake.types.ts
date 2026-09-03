@@ -72,6 +72,7 @@ export type YouTubeLiveChatMessageStream = {
 };
 
 export type YouTubeLiveChatApi = {
+  close?(): void;
   findActiveLiveChat(input: {
     context: YouTubeLiveChatContext;
   }): Promise<YouTubeActiveLiveChat | null>;
