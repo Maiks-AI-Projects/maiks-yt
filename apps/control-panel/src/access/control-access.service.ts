@@ -54,6 +54,7 @@ const isSignedInAccountSession = (
 
 export const controlAccessRetryDelaysMs = [2_000, 5_000, 10_000, 20_000, 30_000] as const;
 export const controlAccessSessionRefreshIntervalMs = 10 * 60 * 1_000;
+export const controlAccessMissingSessionConfirmationCount = 3;
 
 export const getControlAccessRetryDelay = (attempt: number): number =>
   controlAccessRetryDelaysMs[Math.min(Math.max(attempt, 0), controlAccessRetryDelaysMs.length - 1)]!;
@@ -68,10 +69,12 @@ type ControlSessionRefreshResult = {
   ok: false;
   kind: "unavailable";
   message: string;
+  cause?: "missing-session";
 };
 
 type ControlSessionRefreshRecord = {
   backoffUntilMs: number;
+  consecutiveMissingSessionCount: number;
   inFlight: Promise<ControlSessionRefreshResult> | null;
   transientFailureCount: number;
   transientFailure: Extract<ControlSessionRefreshResult, { ok: false; kind: "unavailable" }> | null;
@@ -88,6 +91,7 @@ const getControlSessionRefreshRecord = (apiBaseUrl: string): ControlSessionRefre
 
   const record: ControlSessionRefreshRecord = {
     backoffUntilMs: 0,
+    consecutiveMissingSessionCount: 0,
     inFlight: null,
     transientFailureCount: 0,
     transientFailure: null
@@ -114,6 +118,25 @@ const requestControlSessionRefresh = async (apiBaseUrl: string): Promise<Control
         message: response.status === 401 || response.status === 403
           ? "Your sign-in needs to be renewed."
           : `Session refresh failed with ${response.status}.`
+      };
+    }
+
+    const session: unknown = await response.json();
+
+    if (session === null) {
+      return {
+        ok: false,
+        kind: "unavailable",
+        message: "The account session is being rechecked.",
+        cause: "missing-session"
+      };
+    }
+
+    if (!session || typeof session !== "object") {
+      return {
+        ok: false,
+        kind: "unavailable",
+        message: "The account service returned an invalid refresh response."
       };
     }
 
@@ -156,15 +179,44 @@ export const refreshControlSessionCookie = async (apiBaseUrl: string): Promise<{
 
   if (result.ok || result.kind === "login-required") {
     record.backoffUntilMs = 0;
+    record.consecutiveMissingSessionCount = 0;
     record.transientFailureCount = 0;
     record.transientFailure = null;
     return result;
   }
 
   if (!result.ok && result.kind === "unavailable") {
-    record.transientFailure = result;
+    const isMissingSession = result.cause === "missing-session";
+
+    if (isMissingSession) {
+      record.consecutiveMissingSessionCount += 1;
+
+      if (record.consecutiveMissingSessionCount >= controlAccessMissingSessionConfirmationCount) {
+        record.backoffUntilMs = 0;
+        record.transientFailureCount = 0;
+        record.transientFailure = null;
+        return {
+          ok: false,
+          kind: "login-required",
+          message: "Your sign-in needs to be renewed."
+        };
+      }
+    } else {
+      record.consecutiveMissingSessionCount = 0;
+    }
+
+    const unavailableResult = isMissingSession
+      ? {
+        ok: false as const,
+        kind: "unavailable" as const,
+        message: "Checking whether the account session is still valid."
+      }
+      : result;
+
+    record.transientFailure = unavailableResult;
     record.backoffUntilMs = Date.now() + getControlAccessRetryDelay(record.transientFailureCount);
     record.transientFailureCount += 1;
+    return unavailableResult;
   }
 
   return result;
@@ -231,8 +283,9 @@ export const validateControlPanelAccess = async (apiBaseUrl: string): Promise<Co
     if (session === null) {
       return {
         status: "blocked",
-        kind: "login-required",
-        message: "Your sign-in needs to be renewed."
+        kind: "unavailable",
+        message: "The account session changed while it was being checked.",
+        preserveOperationalShell: true
       };
     }
 

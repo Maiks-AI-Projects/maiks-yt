@@ -106,11 +106,13 @@ const dispatchWindowEvent = (eventName: string): void => {
 };
 
 const AccessProbe = ({
+  onConfirmedLoginRequired,
   onSnapshot
 }: {
+  readonly onConfirmedLoginRequired?: () => void;
   readonly onSnapshot: (snapshot: ControlAccessSnapshot) => void;
 }): null => {
-  const access = useControlAccess("https://api.example.test");
+  const access = useControlAccess("https://api.example.test", onConfirmedLoginRequired);
 
   useEffect(() => {
     onSnapshot({
@@ -323,6 +325,7 @@ describe("control access mounted recovery", () => {
 
   it("renders a neutral retry state for an initial transient failure before any verified in-memory shell", async () => {
     const snapshots: ControlAccessSnapshot[] = [];
+    const onConfirmedLoginRequired = vi.fn();
 
     validateControlPanelAccessMock.mockResolvedValueOnce({
       status: "blocked",
@@ -332,7 +335,12 @@ describe("control access mounted recovery", () => {
     });
 
     await act(async () => {
-      mountedProbe = create(<AccessProbe onSnapshot={(snapshot) => snapshots.push(snapshot)} />);
+      mountedProbe = create(
+        <AccessProbe
+          onConfirmedLoginRequired={onConfirmedLoginRequired}
+          onSnapshot={(snapshot) => snapshots.push(snapshot)}
+        />
+      );
       await flushPromises();
     });
 
@@ -343,10 +351,12 @@ describe("control access mounted recovery", () => {
       },
       transientIssue: null
     });
+    expect(onConfirmedLoginRequired).not.toHaveBeenCalled();
   });
 
   it("fails closed and clears the preserved shell on genuine sign-in loss", async () => {
     const snapshots: ControlAccessSnapshot[] = [];
+    const onConfirmedLoginRequired = vi.fn();
 
     validateControlPanelAccessMock
       .mockResolvedValueOnce({
@@ -360,7 +370,12 @@ describe("control access mounted recovery", () => {
       });
 
     await act(async () => {
-      mountedProbe = create(<AccessProbe onSnapshot={(snapshot) => snapshots.push(snapshot)} />);
+      mountedProbe = create(
+        <AccessProbe
+          onConfirmedLoginRequired={onConfirmedLoginRequired}
+          onSnapshot={(snapshot) => snapshots.push(snapshot)}
+        />
+      );
       await flushPromises();
     });
 
@@ -380,6 +395,7 @@ describe("control access mounted recovery", () => {
       transientIssue: null
     });
     expect(storedValues.has("maiks.yt.control.lastAllowedSessionShell")).toBe(false);
+    expect(onConfirmedLoginRequired).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed and clears the preserved shell on role loss", async () => {

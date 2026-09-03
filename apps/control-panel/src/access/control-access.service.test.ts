@@ -86,6 +86,51 @@ describe("control access recovery", () => {
     await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({ ok: true });
     expect(apiFetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it("requires three consecutive null session responses before confirming sign-in loss", async () => {
+    let nowMs = 1_000;
+    vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+    apiFetchMock.mockImplementation(async () => jsonResponse(null));
+
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({
+      ok: false,
+      kind: "unavailable",
+      message: "Checking whether the account session is still valid."
+    });
+
+    nowMs += getControlAccessRetryDelay(0) + 1;
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({
+      ok: false,
+      kind: "unavailable",
+      message: "Checking whether the account session is still valid."
+    });
+
+    nowMs += getControlAccessRetryDelay(1) + 1;
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({
+      ok: false,
+      kind: "login-required",
+      message: "Your sign-in needs to be renewed."
+    });
+    expect(apiFetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("recovers after a transient null session without confirming sign-in loss", async () => {
+    let nowMs = 1_000;
+    vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+    apiFetchMock
+      .mockResolvedValueOnce(jsonResponse(null))
+      .mockResolvedValueOnce(jsonResponse({
+        session: { id: "session-1" },
+        user: { id: "auth-owner" }
+      }));
+
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toMatchObject({
+      ok: false,
+      kind: "unavailable"
+    });
+    nowMs += getControlAccessRetryDelay(0) + 1;
+    await expect(refreshControlSessionCookie("https://api.example.test")).resolves.toEqual({ ok: true });
+  });
 });
 
 describe("login-required control access", () => {
@@ -206,7 +251,7 @@ describe("login-required control access", () => {
     });
   });
 
-  it("denies a signed-out null session", async () => {
+  it("retries a null projection after a valid refresh instead of projecting permanent auth loss", async () => {
     apiFetchMock
       .mockResolvedValueOnce(jsonResponse({
         session: { id: "session-1" },
@@ -216,8 +261,9 @@ describe("login-required control access", () => {
 
     await expect(validateControlPanelAccess("https://api.example.test")).resolves.toEqual({
       status: "blocked",
-      kind: "login-required",
-      message: "Your sign-in needs to be renewed."
+      kind: "unavailable",
+      message: "The account session changed while it was being checked.",
+      preserveOperationalShell: true
     });
   });
 

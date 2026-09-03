@@ -36,9 +36,11 @@ const getBearerToken = (request: FastifyRequest): string | null => {
 };
 
 export const createApiAuthRuntime = ({
-  getDatabasePool
+  getDatabasePool,
+  handleAuthRequest = (request) => auth.handler(request)
 }: {
   getDatabasePool: () => DatabasePool;
+  handleAuthRequest?: (request: Request) => Promise<Response>;
 }): {
   getAuthSession: (request: FastifyRequest) => Promise<AuthSessionSnapshot>;
   validateUrlAccessTokenForRequest: (input: {
@@ -93,14 +95,16 @@ export const createApiAuthRuntime = ({
       method: "GET",
       headers: fromNodeHeaders(request.headers)
     });
-    const sessionResponse = await auth.handler(sessionRequest);
+    const sessionResponse = await handleAuthRequest(sessionRequest);
 
-    if (sessionResponse.ok) {
-      const session = await sessionResponse.json() as AuthSessionSnapshot;
+    if (!sessionResponse.ok) {
+      throw new Error(`Auth session lookup failed with ${sessionResponse.status}.`);
+    }
 
-      if (session) {
-        return session;
-      }
+    const session = await sessionResponse.json() as AuthSessionSnapshot;
+
+    if (session) {
+      return session;
     }
 
     return await getDevAuthSession(request);

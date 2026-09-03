@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import {
   resolveControlPanelPage,
   type ControlPanelPageKey
@@ -186,7 +186,16 @@ const ReconnectingAccessStatus = ({
 );
 
 const App = (): React.ReactNode => {
-  const { authState, retryAccess, transientIssue } = useControlAccess(apiBaseUrl);
+  const handOffConfirmedLogin = useCallback((): void => {
+    window.location.assign(createAccessRecoveryUrl({
+      currentHref: window.location.href,
+      webBaseUrl
+    }));
+  }, []);
+  const { authState, retryAccess, transientIssue } = useControlAccess(
+    apiBaseUrl,
+    handOffConfirmedLogin
+  );
   const [panelMode, setPanelMode] = useState<PanelMode>(defaultPanelMode);
   const [controlPage, setControlPage] = useState<ControlPanelPageKey>(getInitialControlPage);
   const [loadedControlNavigation, setLoadedControlNavigation] = useState<LoadedControlNavigation | null>(null);

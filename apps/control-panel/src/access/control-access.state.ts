@@ -22,7 +22,10 @@ const clearLastAllowedAuthState = (): void => {
   }
 };
 
-export const useControlAccess = (apiBaseUrl: string): {
+export const useControlAccess = (
+  apiBaseUrl: string,
+  onConfirmedLoginRequired?: () => void
+): {
   authState: ControlPanelAuthState;
   transientIssue: ControlAccessTransientIssue | null;
   retryAccess: () => void;
@@ -104,7 +107,10 @@ export const useControlAccess = (apiBaseUrl: string): {
     }
 
     setAuthState(nextState);
-  }, [apiBaseUrl, clearRetry]);
+    if (nextState.status === "blocked" && nextState.kind === "login-required") {
+      onConfirmedLoginRequired?.();
+    }
+  }, [apiBaseUrl, clearRetry, onConfirmedLoginRequired]);
 
   const checkAccess = useCallback(async (showChecking: boolean): Promise<void> => {
     if (inFlightCheck.current) {
