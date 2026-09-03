@@ -41,5 +41,6 @@ export const revealProviderRuntimeCredentialTokens = (
   refreshToken: transformToken(tokens.refreshToken, "refreshToken", cipher, "decrypt")
 });
 
-export const createProviderRuntimeCredentialCipherFromEnvironment = (): AuthDataCipher | null =>
-  createAuthDataCipherFromEnvironment();
+export const createProviderRuntimeCredentialCipherFromEnvironment = (
+  environment: NodeJS.ProcessEnv = process.env
+): AuthDataCipher | null => createAuthDataCipherFromEnvironment(environment);

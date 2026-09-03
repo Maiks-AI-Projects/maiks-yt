@@ -3,6 +3,7 @@ import { describe, expect, it, vi, type Mock } from "vitest";
 import { projectTwitchChatMessage, resolveTwitchChatChannelName, resolveTwitchChatChannelNames } from "./twitch-chat-intake.rules.js";
 import {
   resolveTwitchChatAuthentication,
+  resolveTwitchChatCredential,
   TwitchChatReadOnlyIntakeService
 } from "./twitch-chat-intake.service.js";
 
@@ -199,6 +200,22 @@ describe("projectTwitchChatMessage", () => {
     });
     expect(resolveTwitchChatAuthentication({ TWITCH_CLIENT_ID: "twitch-client" })).toBeNull();
     expect(resolveTwitchChatAuthentication({ TWITCH_CHAT_BOT_ACCESS_TOKEN: "token" })).toBeNull();
+  });
+
+  it("resolves the refreshable Twitch chat credential without logging token material", () => {
+    expect(resolveTwitchChatCredential({
+      TWITCH_CLIENT_ID: "client-id",
+      TWITCH_CLIENT_SECRET: "client-secret",
+      TWITCH_CHAT_BOT_ACCESS_TOKEN: "access-token",
+      TWITCH_CHAT_BOT_REFRESH_TOKEN: "refresh-token",
+      TWITCH_CHAT_BOT_TOKEN_EXPIRES_AT: "2026-09-03T18:00:00.000Z"
+    })).toEqual({
+      accessToken: "access-token",
+      accessTokenExpiresAt: Date.parse("2026-09-03T18:00:00.000Z"),
+      clientId: "client-id",
+      clientSecret: "client-secret",
+      refreshToken: "refresh-token"
+    });
   });
 });
 
@@ -487,5 +504,102 @@ describe("TwitchChatReadOnlyIntakeService", () => {
 
     expect(scheduled).toHaveLength(1);
     expect(clearTimeoutFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes an expiring credential once, persists the rotation, and connects with the new token", async () => {
+    const now = new Date("2026-09-03T16:00:00.000Z");
+    const clients: FakeChatClient[] = [];
+    const authentications: Array<{ accessToken: string; clientId: string }> = [];
+    const onCredentialRefreshed = vi.fn(async () => undefined);
+    const refreshCredential = vi.fn(async () => ({
+      accessToken: "rotated-access-token",
+      expiresIn: 14_400,
+      obtainmentTimestamp: now.getTime(),
+      refreshToken: "rotated-refresh-token",
+      scope: ["chat:read"]
+    }));
+    const service = new TwitchChatReadOnlyIntakeService({
+      credential: {
+        accessToken: "expiring-access-token",
+        accessTokenExpiresAt: now.getTime() + 30_000,
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        refreshToken: "refresh-token"
+      },
+      createClient: (_channels, authentication) => {
+        if (authentication) {
+          authentications.push(authentication);
+        }
+        const client = new FakeChatClient();
+        clients.push(client);
+        return client as never;
+      },
+      env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
+      now: () => now,
+      onCredentialRefreshed,
+      refreshCredential
+    });
+
+    expect(service.start().state).toBe("stopped");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(refreshCredential).toHaveBeenCalledTimes(1);
+    expect(onCredentialRefreshed).toHaveBeenCalledWith(expect.objectContaining({
+      accessToken: "rotated-access-token",
+      accessTokenExpiresAt: now.getTime() + 14_400_000,
+      refreshToken: "rotated-refresh-token"
+    }));
+    expect(clients).toHaveLength(1);
+    expect(authentications).toEqual([expect.objectContaining({
+      accessToken: "rotated-access-token",
+      clientId: "client-id"
+    })]);
+    expect(service.getStatus().state).toBe("connected");
+  });
+
+  it("retries persistence of one rotated credential without rotating it again", async () => {
+    const now = new Date("2026-09-03T16:00:00.000Z");
+    const scheduled: Array<() => void> = [];
+    const onCredentialRefreshed = vi.fn()
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValue(undefined);
+    const refreshCredential = vi.fn(async () => ({
+      accessToken: "rotated-access-token",
+      expiresIn: 14_400,
+      obtainmentTimestamp: now.getTime(),
+      refreshToken: "rotated-refresh-token",
+      scope: ["chat:read"]
+    }));
+    const service = new TwitchChatReadOnlyIntakeService({
+      credential: {
+        accessToken: "expiring-access-token",
+        accessTokenExpiresAt: now.getTime() + 30_000,
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        refreshToken: "refresh-token"
+      },
+      createClient: () => new FakeChatClient() as never,
+      env: { TWITCH_CHAT_CHANNEL: "maiksmc" },
+      now: () => now,
+      onCredentialRefreshed,
+      refreshCredential,
+      setTimeoutFn: (callback) => {
+        scheduled.push(callback);
+        return scheduled.length;
+      }
+    });
+
+    service.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(refreshCredential).toHaveBeenCalledTimes(1);
+    expect(onCredentialRefreshed).toHaveBeenCalledTimes(1);
+
+    const persistenceRetry = scheduled[0];
+    expect(persistenceRetry).toBeDefined();
+    persistenceRetry?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(onCredentialRefreshed).toHaveBeenCalledTimes(2);
+    expect(refreshCredential).toHaveBeenCalledTimes(1);
   });
 });

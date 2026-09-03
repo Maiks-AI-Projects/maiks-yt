@@ -1,4 +1,4 @@
-import { StaticAuthProvider } from "@twurple/auth";
+import { refreshUserToken, StaticAuthProvider, type AccessToken } from "@twurple/auth";
 import { ChatClient } from "@twurple/chat";
 
 import {
@@ -24,7 +24,10 @@ type TwitchChatClientLike = Pick<
 };
 
 type TwitchChatReadOnlyIntakeOptions = {
-  createClient?: (channelNames: readonly string[]) => TwitchChatClientLike;
+  credential?: TwitchChatCredential | null;
+  credentialRefreshLeadMs?: number;
+  credentialRefreshRetryMs?: number;
+  createClient?: (channelNames: readonly string[], authentication: TwitchChatAuthentication | null) => TwitchChatClientLike;
   env?: Record<string, string | undefined>;
   maxRecentMessages?: number;
   joinTimeoutMs?: number;
@@ -37,6 +40,19 @@ type TwitchChatReadOnlyIntakeOptions = {
   now?: () => Date;
   setTimeoutFn?: (callback: () => void, ms: number) => unknown;
   resolveAvatarUrl?: TwitchChatAvatarResolver;
+  onCredentialRefreshed?: (credential: TwitchChatCredential) => void | Promise<void>;
+  refreshCredential?: (clientId: string, clientSecret: string, refreshToken: string) => Promise<AccessToken>;
+};
+
+export type TwitchChatAuthentication = {
+  accessToken: string;
+  clientId: string;
+};
+
+export type TwitchChatCredential = TwitchChatAuthentication & {
+  accessTokenExpiresAt: number | null;
+  clientSecret: string;
+  refreshToken: string;
 };
 
 const sanitizeError = (error: unknown): string => {
@@ -53,9 +69,23 @@ const sanitizeError = (error: unknown): string => {
 
 const normalizeEnv = (value: string | undefined): string => value?.trim() ?? "";
 
+const parseExpiration = (value: string | undefined): number | null => {
+  const normalized = normalizeEnv(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const numeric = Number(normalized);
+  const parsed = Number.isFinite(numeric)
+    ? (numeric < 10_000_000_000 ? numeric * 1_000 : numeric)
+    : Date.parse(normalized);
+
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 export const resolveTwitchChatAuthentication = (
   env: Record<string, string | undefined>
-): { accessToken: string; clientId: string } | null => {
+): TwitchChatAuthentication | null => {
   const clientId = normalizeEnv(env.TWITCH_CLIENT_ID);
   const accessToken = normalizeEnv(
     env.TWITCH_CHAT_BOT_ACCESS_TOKEN
@@ -66,10 +96,30 @@ export const resolveTwitchChatAuthentication = (
   return clientId && accessToken ? { accessToken, clientId } : null;
 };
 
+export const resolveTwitchChatCredential = (
+  env: Record<string, string | undefined>
+): TwitchChatCredential | null => {
+  const authentication = resolveTwitchChatAuthentication(env);
+  const clientSecret = normalizeEnv(env.TWITCH_CLIENT_SECRET);
+  const refreshToken = normalizeEnv(env.TWITCH_CHAT_BOT_REFRESH_TOKEN);
+
+  return authentication && clientSecret && refreshToken
+    ? {
+        ...authentication,
+        accessTokenExpiresAt: parseExpiration(env.TWITCH_CHAT_BOT_TOKEN_EXPIRES_AT),
+        clientSecret,
+        refreshToken
+      }
+    : null;
+};
+
 export class TwitchChatReadOnlyIntakeService {
   private readonly channelNames: readonly string[];
   private readonly clearTimeoutFn: (handle: unknown) => void;
-  private readonly createClient: (channelNames: readonly string[]) => TwitchChatClientLike;
+  private readonly createClient: (channelNames: readonly string[], authentication: TwitchChatAuthentication | null) => TwitchChatClientLike;
+  private readonly requiresAuthentication: boolean;
+  private readonly credentialRefreshLeadMs: number;
+  private readonly credentialRefreshRetryMs: number;
   private readonly maxUnexpectedDisconnectsInWindow: number;
   private readonly maxRecentMessages: number;
   private readonly joinTimeoutMs: number;
@@ -79,7 +129,10 @@ export class TwitchChatReadOnlyIntakeService {
   private readonly reconnectDelayMs: number;
   private readonly reconnectWindowMs: number;
   private readonly resolveAvatarUrl: TwitchChatAvatarResolver | null;
+  private readonly onCredentialRefreshed: ((credential: TwitchChatCredential) => void | Promise<void>) | undefined;
+  private readonly refreshCredentialFn: (clientId: string, clientSecret: string, refreshToken: string) => Promise<AccessToken>;
   private readonly setTimeoutFn: (callback: () => void, ms: number) => unknown;
+  private authentication: TwitchChatAuthentication | null;
   private client: TwitchChatClientLike | null = null;
   private connectedAt: string | null = null;
   private readonly disconnectTimestamps: number[] = [];
@@ -93,16 +146,23 @@ export class TwitchChatReadOnlyIntakeService {
   private reconnectSuppressed = false;
   private reconnectTimer: unknown | null = null;
   private joinTimer: unknown | null = null;
+  private credential: TwitchChatCredential | null;
+  private credentialPersistenceTimer: unknown | null = null;
+  private credentialRefreshInFlight: Promise<boolean> | null = null;
+  private credentialRefreshTimer: unknown | null = null;
 
   public constructor(options: TwitchChatReadOnlyIntakeOptions = {}) {
     const env = options.env ?? process.env;
     this.channelNames = resolveTwitchChatChannelNames(env);
+    this.credential = options.credential === undefined
+      ? resolveTwitchChatCredential(env)
+      : options.credential;
+    this.authentication = this.credential ?? resolveTwitchChatAuthentication(env);
     this.clearTimeoutFn = options.clearTimeoutFn ?? ((handle) => {
       clearTimeout(handle as ReturnType<typeof setTimeout>);
     });
-    this.createClient = options.createClient ?? ((channelNames) => {
-      const authentication = resolveTwitchChatAuthentication(env);
-
+    this.requiresAuthentication = !options.createClient;
+    this.createClient = options.createClient ?? ((channelNames, authentication) => {
       if (!authentication) {
         throw new Error("Authenticated Twitch chat intake is not configured.");
       }
@@ -113,12 +173,15 @@ export class TwitchChatReadOnlyIntakeService {
         readOnly: true
       });
     });
+    this.credentialRefreshLeadMs = options.credentialRefreshLeadMs ?? 5 * 60 * 1_000;
+    this.credentialRefreshRetryMs = options.credentialRefreshRetryMs ?? 60_000;
     this.maxUnexpectedDisconnectsInWindow = options.maxUnexpectedDisconnectsInWindow ?? 10;
     this.maxRecentMessages = options.maxRecentMessages ?? 25;
     this.joinTimeoutMs = options.joinTimeoutMs ?? 15_000;
     this.now = options.now ?? (() => new Date());
     this.onProjectedMessage = options.onMessage;
     this.onReconnectSuppressed = options.onReconnectSuppressed;
+    this.onCredentialRefreshed = options.onCredentialRefreshed;
     this.reconnectDelayMs = options.reconnectDelayMs ?? 5_000;
     this.reconnectWindowMs = options.reconnectWindowMs ?? 10 * 60 * 1_000;
     const avatarClientId = normalizeEnv(env.TWITCH_CLIENT_ID);
@@ -129,6 +192,7 @@ export class TwitchChatReadOnlyIntakeService {
         : null,
       authentication: resolveTwitchChatAuthentication(env)
     });
+    this.refreshCredentialFn = options.refreshCredential ?? refreshUserToken;
     this.setTimeoutFn = options.setTimeoutFn ?? ((callback, ms) => setTimeout(callback, ms));
   }
 
@@ -180,6 +244,8 @@ export class TwitchChatReadOnlyIntakeService {
     this.manualStopRequested = true;
     this.clearJoinTimer();
     this.clearReconnectTimer();
+    this.clearCredentialRefreshTimer();
+    this.clearCredentialPersistenceTimer();
 
     if (this.client) {
       try {
@@ -208,6 +274,17 @@ export class TwitchChatReadOnlyIntakeService {
     }
 
     this.manualStopRequested = false;
+
+    if (!this.authentication && this.requiresAuthentication) {
+      this.lastError = "Authenticated Twitch chat intake is not configured.";
+      return this.getStatus();
+    }
+
+    if (this.shouldRefreshCredential()) {
+      void this.refreshCredentialAndStart(resetDisconnectWindow);
+      return this.getStatus();
+    }
+
     this.clearReconnectTimer();
     if (resetDisconnectWindow) {
       this.disconnectTimestamps.splice(0);
@@ -216,7 +293,7 @@ export class TwitchChatReadOnlyIntakeService {
     }
 
     this.clearListeners();
-    const nextClient = this.createClient(this.channelNames);
+    const nextClient = this.createClient(this.channelNames, this.authentication);
     this.client = nextClient;
     this.lastError = null;
     this.nextReconnectAt = null;
@@ -302,7 +379,126 @@ export class TwitchChatReadOnlyIntakeService {
       this.scheduleReconnect(error);
     }
 
+    this.scheduleCredentialRefresh();
+
     return this.getStatus();
+  }
+
+  private async refreshCredentialAndStart(resetDisconnectWindow: boolean): Promise<void> {
+    const refreshed = await this.refreshCredential();
+    if (refreshed && !this.manualStopRequested) {
+      this.startInternal({ resetDisconnectWindow });
+    }
+  }
+
+  private shouldRefreshCredential(): boolean {
+    return Boolean(
+      this.credential
+      && this.credential.accessTokenExpiresAt !== null
+      && this.credential.accessTokenExpiresAt <= this.now().getTime() + this.credentialRefreshLeadMs
+    );
+  }
+
+  private async refreshCredential(): Promise<boolean> {
+    if (this.credentialRefreshInFlight) {
+      return this.credentialRefreshInFlight;
+    }
+
+    const current = this.credential;
+    if (!current) {
+      return false;
+    }
+
+    this.clearCredentialRefreshTimer();
+    this.credentialRefreshInFlight = (async () => {
+      try {
+        const refreshed = await this.refreshCredentialFn(
+          current.clientId,
+          current.clientSecret,
+          current.refreshToken
+        );
+        const nextCredential: TwitchChatCredential = {
+          accessToken: refreshed.accessToken,
+          accessTokenExpiresAt: refreshed.expiresIn === null
+            ? null
+            : refreshed.obtainmentTimestamp + refreshed.expiresIn * 1_000,
+          clientId: current.clientId,
+          clientSecret: current.clientSecret,
+          refreshToken: refreshed.refreshToken ?? current.refreshToken
+        };
+
+        this.credential = nextCredential;
+        this.authentication = nextCredential;
+        this.lastError = null;
+        await this.persistCredential(nextCredential);
+        this.scheduleCredentialRefresh();
+        return true;
+      } catch (error) {
+        this.lastError = sanitizeError(error);
+        this.credentialRefreshTimer = this.setTimeoutFn(() => {
+          this.credentialRefreshTimer = null;
+          void this.refreshCredential().then((refreshed) => {
+            if (refreshed && !this.client && !this.manualStopRequested) {
+              this.startInternal({ resetDisconnectWindow: false });
+            }
+          });
+        }, this.credentialRefreshRetryMs);
+        return false;
+      } finally {
+        this.credentialRefreshInFlight = null;
+      }
+    })();
+
+    return this.credentialRefreshInFlight;
+  }
+
+  private async persistCredential(credential: TwitchChatCredential): Promise<void> {
+    if (!this.onCredentialRefreshed) {
+      return;
+    }
+
+    this.clearCredentialPersistenceTimer();
+    try {
+      await this.onCredentialRefreshed({ ...credential });
+    } catch (error) {
+      this.lastError = `Twitch credential persistence failed: ${sanitizeError(error)}`;
+      this.credentialPersistenceTimer = this.setTimeoutFn(() => {
+        this.credentialPersistenceTimer = null;
+        if (this.credential === credential && !this.manualStopRequested) {
+          void this.persistCredential(credential);
+        }
+      }, this.credentialRefreshRetryMs);
+    }
+  }
+
+  private scheduleCredentialRefresh(): void {
+    this.clearCredentialRefreshTimer();
+    if (!this.credential || this.credential.accessTokenExpiresAt === null || this.manualStopRequested) {
+      return;
+    }
+
+    const delayMs = Math.max(
+      0,
+      this.credential.accessTokenExpiresAt - this.now().getTime() - this.credentialRefreshLeadMs
+    );
+    this.credentialRefreshTimer = this.setTimeoutFn(() => {
+      this.credentialRefreshTimer = null;
+      void this.refreshCredential();
+    }, delayMs);
+  }
+
+  private clearCredentialRefreshTimer(): void {
+    if (this.credentialRefreshTimer) {
+      this.clearTimeoutFn(this.credentialRefreshTimer);
+      this.credentialRefreshTimer = null;
+    }
+  }
+
+  private clearCredentialPersistenceTimer(): void {
+    if (this.credentialPersistenceTimer) {
+      this.clearTimeoutFn(this.credentialPersistenceTimer);
+      this.credentialPersistenceTimer = null;
+    }
   }
 
   private clearListeners(): void {

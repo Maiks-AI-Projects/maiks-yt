@@ -18,6 +18,7 @@ export * from "./twitch-chat-intake-control.route.js";
 export * from "./twitch-chat-intake-control.service.js";
 export * from "./twitch-chat-intake-control-store.service.js";
 export * from "./twitch-chat-intake-control.types.js";
+export * from "./twitch-chat-credential-store.service.js";
 export * from "./twitch-eventsub-webhook.route.js";
 export * from "./twitch-eventsub-subscriptions.route.js";
 export * from "./twitch-eventsub-subscriptions.service.js";

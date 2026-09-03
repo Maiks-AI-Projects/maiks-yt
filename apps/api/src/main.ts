@@ -13,6 +13,7 @@ import {
   YouTubeLiveChatReadOnlyIntakeService,
   type DiscordGatewayProjectedEvent,
   type DiscordChatProjectedMessage,
+  type TwitchChatCredential,
   type TwitchChatProjectedMessage,
   type YouTubeLiveChatProjectedMessage
 } from "@maiks-yt/integrations";
@@ -62,6 +63,7 @@ import { ObsWidgetBridgeRuntime } from "./obs-bridge/index.js";
 import { OverlayRuntime } from "./overlay/index.js";
 import {
   createProviderEventIntakeLogRepository,
+  createTwitchChatCredentialStore,
   createYouTubeLiveChatContextRepository,
   createYouTubeLiveChatQuotaGuard,
   ProviderEventIntakeLogService
@@ -403,8 +405,17 @@ const deliverAcceptedProviderChatMessage = (message: AcceptedProviderChatMessage
   });
 };
 
+const twitchChatCredentialStore = createTwitchChatCredentialStore(getDatabasePool());
+let twitchChatCredential: TwitchChatCredential | null | undefined;
+try {
+  twitchChatCredential = await twitchChatCredentialStore.loadOrSeed();
+} catch (error) {
+  server.log.warn({ err: error }, "Twitch chat credential store unavailable; using protected environment credential.");
+}
 const twitchChatIntakeRuntime = new TwitchChatReadOnlyIntakeService({
+  ...(twitchChatCredential ? { credential: twitchChatCredential } : {}),
   onMessage: deliverAcceptedProviderChatMessage,
+  onCredentialRefreshed: twitchChatCredentialStore.save,
   onReconnectSuppressed: createProviderReconnectSuppressedNotifier("twitch", "Twitch")
 });
 const discordChatIntakeRuntime = new DiscordChatReadOnlyIntakeService({
