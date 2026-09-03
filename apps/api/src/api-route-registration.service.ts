@@ -349,6 +349,7 @@ export const registerApplicationRoutes = ({
     recordFakeLocalStreamerChatMessage,
     requireStreamerChatModerationPermission,
     requireUrlAccessTokenForRequest,
+    streamerChatRuntime,
     validateUrlAccessToken: validateUrlAccessTokenForRequest
   });
   registerObsWidgetBridgeRoute(server, {

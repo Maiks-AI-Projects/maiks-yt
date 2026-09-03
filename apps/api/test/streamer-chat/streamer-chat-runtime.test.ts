@@ -101,4 +101,38 @@ describe("StreamerChatRuntime", () => {
     expect(lastMessage.payload?.messages?.map((message) => message.id)).toEqual(["message-2"]);
     expect(lastMessage.revision).toBe(3);
   });
+
+  it("purges the viewer buffer and suppresses messages until emergency clear is restored", () => {
+    const runtime = new StreamerChatRuntime({ maxHistory: 10 });
+    runtime.appendMessage(createMessage({ id: "before-clear" }));
+    const socket = new FakeStreamerChatSocket();
+    runtime.registerLiveClient("connection-1", socket);
+
+    expect(runtime.setEmergencyClearEnabled(true)).toBe(true);
+    expect(runtime.listAllMessages()).toEqual([]);
+    runtime.appendMessage(createMessage({ id: "while-cleared" }));
+    expect(runtime.listAllMessages()).toEqual([]);
+
+    expect(runtime.setEmergencyClearEnabled(false)).toBe(false);
+    expect(runtime.listAllMessages()).toEqual([]);
+    runtime.appendMessage(createMessage({ id: "after-restore" }));
+
+    const parsedMessages = socket.sentMessages.map((message) => JSON.parse(message) as {
+      payload: StreamerChatMessage | { messages: StreamerChatMessage[] };
+      type: string;
+    });
+    expect(parsedMessages).toHaveLength(4);
+    expect(parsedMessages[1]).toMatchObject({
+      type: "streamer-chat.snapshot",
+      payload: { messages: [] }
+    });
+    expect(parsedMessages[2]).toMatchObject({
+      type: "streamer-chat.snapshot",
+      payload: { messages: [] }
+    });
+    expect(parsedMessages[3]).toMatchObject({
+      type: "streamer-chat.message.received",
+      payload: { id: "after-restore" }
+    });
+  });
 });
