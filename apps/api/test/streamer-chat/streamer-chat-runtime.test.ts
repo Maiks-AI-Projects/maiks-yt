@@ -101,4 +101,26 @@ describe("StreamerChatRuntime", () => {
     expect(lastMessage.payload?.messages?.map((message) => message.id)).toEqual(["message-2"]);
     expect(lastMessage.revision).toBe(3);
   });
+
+  it("clears all messages and broadcasts one empty snapshot", () => {
+    const runtime = new StreamerChatRuntime({ maxHistory: 10 });
+    runtime.appendMessage(createMessage({ id: "message-1" }));
+    runtime.appendMessage(createMessage({ id: "message-2" }));
+    const socket = new FakeStreamerChatSocket();
+    runtime.registerLiveClient("connection-1", socket);
+
+    expect(runtime.clearMessages()).toBe(2);
+    expect(runtime.listAllMessages()).toEqual([]);
+
+    const lastMessage = JSON.parse(socket.sentMessages.at(-1) ?? "{}") as {
+      payload?: { messages?: StreamerChatMessage[] };
+      revision?: number;
+      type?: string;
+    };
+    expect(lastMessage).toMatchObject({
+      type: "streamer-chat.snapshot",
+      revision: 3,
+      payload: { messages: [] }
+    });
+  });
 });

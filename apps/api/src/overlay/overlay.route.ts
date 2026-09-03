@@ -22,6 +22,7 @@ export const registerOverlayRoutes = (
   dependencies: OverlayRouteDependencies
 ): void => {
   const {
+    clearStreamerChat,
     overlayRuntime,
     requireStreamerChatModerationPermission,
     requireUrlAccessTokenForRequest,
@@ -237,10 +238,12 @@ export const registerOverlayRoutes = (
       };
     }
 
+    const clearedMessageCount = parsedRequest.data.enabled ? clearStreamerChat() : 0;
     const emergencyCleanModeEnabled = overlayRuntime.setEmergencyCleanModeEnabled(parsedRequest.data.enabled);
 
     return {
       ok: true,
+      clearedMessageCount,
       emergencyCleanModeEnabled,
       activeOverlayConnections: overlayRuntime.getActiveConnectionCount()
     };

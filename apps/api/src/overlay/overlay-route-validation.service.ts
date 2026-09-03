@@ -161,6 +161,7 @@ type FakeLocalModerationRuntime = {
 };
 
 export type OverlayRouteDependencies = {
+  clearStreamerChat: () => number;
   fakeLocalModerationRuntime: FakeLocalModerationRuntime;
   overlayRuntime: OverlayRuntime;
   recordFakeLocalStreamerChatMessage: (event: import("@maiks-yt/events").OverlayFakeChatMessageReceivedEvent) => import("@maiks-yt/events").StreamerChatMessage | null;

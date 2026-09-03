@@ -140,6 +140,7 @@ describe("GET /overlay/state", () => {
     }));
 
     registerOverlayRoutes(server, {
+      clearStreamerChat: () => 0,
       fakeLocalModerationRuntime: {
         isAuthorMuted: () => null
       },
@@ -181,10 +182,12 @@ describe("production overlay route registration", () => {
     try {
       const server = Fastify();
       const overlayRuntime = new OverlayRuntime();
+      const clearStreamerChat = vi.fn(() => 6);
       const setActiveGoal = vi.spyOn(overlayRuntime, "setActiveGoal");
       const setSponsorVisible = vi.spyOn(overlayRuntime, "setSponsorVisible");
 
       registerOverlayRoutes(server, {
+        clearStreamerChat,
         fakeLocalModerationRuntime: {
           isAuthorMuted: () => null
         },
@@ -272,6 +275,12 @@ describe("production overlay route registration", () => {
         })
       ]);
       expect(retainedMutationResponses.map((response) => response.statusCode)).toEqual([200, 200, 200, 200, 200, 200]);
+      expect(clearStreamerChat).toHaveBeenCalledOnce();
+      expect(retainedMutationResponses[4]?.json()).toMatchObject({
+        ok: true,
+        clearedMessageCount: 6,
+        emergencyCleanModeEnabled: true
+      });
 
       const scenesResponse = await server.inject({
         method: "GET",
@@ -320,6 +329,7 @@ describe("GET /overlay/status", () => {
     }));
 
     registerOverlayRoutes(server, {
+      clearStreamerChat: () => 0,
       fakeLocalModerationRuntime: {
         isAuthorMuted: () => null
       },
@@ -365,6 +375,7 @@ describe("GET /overlay/scenes", () => {
     });
 
     registerOverlayRoutes(server, {
+      clearStreamerChat: () => 0,
       fakeLocalModerationRuntime: {
         isAuthorMuted: () => null
       },

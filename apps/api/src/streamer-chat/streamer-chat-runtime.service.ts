@@ -84,6 +84,14 @@ export class StreamerChatRuntime {
     return { ...message };
   }
 
+  public clearMessages(): number {
+    const clearedMessageCount = this.messages.length;
+    this.messages.splice(0);
+    this.broadcastSnapshot();
+
+    return clearedMessageCount;
+  }
+
   public createSnapshot(): StreamerChatSnapshotEvent {
     return {
       type: "streamer-chat.snapshot",

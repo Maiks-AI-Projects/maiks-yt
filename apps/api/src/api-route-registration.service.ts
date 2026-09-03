@@ -344,6 +344,7 @@ export const registerApplicationRoutes = ({
     youtubeWarningDeliveryService: youtubeChatWarningDeliveryService
   });
   registerOverlayRoutes(server, {
+    clearStreamerChat: () => streamerChatRuntime.clearMessages(),
     fakeLocalModerationRuntime,
     overlayRuntime,
     recordFakeLocalStreamerChatMessage,
