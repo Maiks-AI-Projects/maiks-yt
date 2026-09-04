@@ -387,6 +387,14 @@ export const StreamerChatViewer = ({
               chatAttention.baselineMessages(liveMessage.payload.messages);
               attentionBaselineEstablishedRef.current = true;
             }
+            chatAttention.reconcileMessages(nextState.messages);
+            if (nextState.messages.length === 0) {
+              liveFollowPausedRef.current = false;
+              setLiveFollowPaused(false);
+              setNewWhilePausedCount(0);
+              setOpenOptionsMessageId(null);
+              setSelectedMessageId(null);
+            }
             versionedState = nextState;
             setMessages(versionedState.messages);
             return;
@@ -423,7 +431,13 @@ export const StreamerChatViewer = ({
       disposed = true;
       disconnectLiveFeed?.();
     };
-  }, [apiBaseUrl, chatAttention.baselineMessages, chatAttention.notifyMessage, variant]);
+  }, [
+    apiBaseUrl,
+    chatAttention.baselineMessages,
+    chatAttention.notifyMessage,
+    chatAttention.reconcileMessages,
+    variant
+  ]);
 
   const handleMessageListScroll = (): void => {
     if (variant !== "standalone") {

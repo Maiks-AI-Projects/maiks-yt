@@ -140,7 +140,6 @@ describe("GET /overlay/state", () => {
     }));
 
     registerOverlayRoutes(server, {
-      clearStreamerChat: () => 0,
       fakeLocalModerationRuntime: {
         isAuthorMuted: () => null
       },
@@ -148,6 +147,7 @@ describe("GET /overlay/state", () => {
       recordFakeLocalStreamerChatMessage: () => null,
       requireStreamerChatModerationPermission: async () => ({ ok: true }),
       requireUrlAccessTokenForRequest,
+      setStreamerChatEmergencyClearEnabled: (enabled) => ({ clearedMessageCount: 0, enabled }),
       validateUrlAccessToken
     });
     servers.push(server);
@@ -182,12 +182,14 @@ describe("production overlay route registration", () => {
     try {
       const server = Fastify();
       const overlayRuntime = new OverlayRuntime();
-      const clearStreamerChat = vi.fn(() => 6);
+      const setStreamerChatEmergencyClearEnabled = vi.fn((enabled: boolean) => ({
+        clearedMessageCount: enabled ? 6 : 0,
+        enabled
+      }));
       const setActiveGoal = vi.spyOn(overlayRuntime, "setActiveGoal");
       const setSponsorVisible = vi.spyOn(overlayRuntime, "setSponsorVisible");
 
       registerOverlayRoutes(server, {
-        clearStreamerChat,
         fakeLocalModerationRuntime: {
           isAuthorMuted: () => null
         },
@@ -205,6 +207,7 @@ describe("production overlay route registration", () => {
             avatarUrl: null
           }
         }),
+        setStreamerChatEmergencyClearEnabled,
         validateUrlAccessToken: async () => ({ valid: true, requiresLogin: false })
       });
       servers.push(server);
@@ -275,7 +278,8 @@ describe("production overlay route registration", () => {
         })
       ]);
       expect(retainedMutationResponses.map((response) => response.statusCode)).toEqual([200, 200, 200, 200, 200, 200]);
-      expect(clearStreamerChat).toHaveBeenCalledOnce();
+      expect(setStreamerChatEmergencyClearEnabled).toHaveBeenCalledOnce();
+      expect(setStreamerChatEmergencyClearEnabled).toHaveBeenCalledWith(true);
       expect(retainedMutationResponses[4]?.json()).toMatchObject({
         ok: true,
         clearedMessageCount: 6,
@@ -329,7 +333,6 @@ describe("GET /overlay/status", () => {
     }));
 
     registerOverlayRoutes(server, {
-      clearStreamerChat: () => 0,
       fakeLocalModerationRuntime: {
         isAuthorMuted: () => null
       },
@@ -337,6 +340,7 @@ describe("GET /overlay/status", () => {
       recordFakeLocalStreamerChatMessage: () => null,
       requireStreamerChatModerationPermission: async () => ({ ok: true }),
       requireUrlAccessTokenForRequest,
+      setStreamerChatEmergencyClearEnabled: (enabled) => ({ clearedMessageCount: 0, enabled }),
       validateUrlAccessToken: async () => ({ valid: false, requiresLogin: false })
     });
     servers.push(server);
@@ -375,7 +379,6 @@ describe("GET /overlay/scenes", () => {
     });
 
     registerOverlayRoutes(server, {
-      clearStreamerChat: () => 0,
       fakeLocalModerationRuntime: {
         isAuthorMuted: () => null
       },
@@ -383,6 +386,7 @@ describe("GET /overlay/scenes", () => {
       recordFakeLocalStreamerChatMessage: () => null,
       requireStreamerChatModerationPermission: async () => ({ ok: true }),
       requireUrlAccessTokenForRequest,
+      setStreamerChatEmergencyClearEnabled: (enabled) => ({ clearedMessageCount: 0, enabled }),
       validateUrlAccessToken
     });
     servers.push(server);

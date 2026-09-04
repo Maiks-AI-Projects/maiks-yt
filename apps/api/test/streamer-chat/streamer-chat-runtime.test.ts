@@ -123,4 +123,62 @@ describe("StreamerChatRuntime", () => {
       payload: { messages: [] }
     });
   });
+
+  it("purges presentation state and suppresses messages until emergency clear is restored", () => {
+    const runtime = new StreamerChatRuntime({ maxHistory: 10 });
+    runtime.appendMessage(createMessage({ id: "before-clear" }));
+    const socket = new FakeStreamerChatSocket();
+    runtime.registerLiveClient("connection-1", socket);
+
+    expect(runtime.setEmergencyClearEnabled(true)).toEqual({
+      clearedMessageCount: 1,
+      enabled: true
+    });
+    expect(runtime.listAllMessages()).toEqual([]);
+
+    runtime.appendMessage(createMessage({ id: "while-cleared" }));
+    expect(runtime.listAllMessages()).toEqual([]);
+
+    expect(runtime.setEmergencyClearEnabled(true)).toEqual({
+      clearedMessageCount: 0,
+      enabled: true
+    });
+    expect(runtime.setEmergencyClearEnabled(false)).toEqual({
+      clearedMessageCount: 0,
+      enabled: false
+    });
+    expect(runtime.listAllMessages()).toEqual([]);
+
+    const reconnectedSocket = new FakeStreamerChatSocket();
+    runtime.registerLiveClient("connection-2", reconnectedSocket);
+    expect(JSON.parse(reconnectedSocket.sentMessages[0] ?? "{}")).toMatchObject({
+      type: "streamer-chat.snapshot",
+      payload: { messages: [] }
+    });
+
+    runtime.appendMessage(createMessage({ id: "after-restore" }));
+    expect(runtime.listAllMessages().map((message) => message.id)).toEqual(["after-restore"]);
+    expect(JSON.parse(reconnectedSocket.sentMessages[1] ?? "{}")).toMatchObject({
+      type: "streamer-chat.message.received",
+      payload: { id: "after-restore" }
+    });
+
+    const parsedMessages = socket.sentMessages.map((message) => JSON.parse(message) as {
+      payload: StreamerChatMessage | { messages: StreamerChatMessage[] };
+      type: string;
+    });
+    expect(parsedMessages).toHaveLength(4);
+    expect(parsedMessages[1]).toMatchObject({
+      type: "streamer-chat.snapshot",
+      payload: { messages: [] }
+    });
+    expect(parsedMessages[2]).toMatchObject({
+      type: "streamer-chat.snapshot",
+      payload: { messages: [] }
+    });
+    expect(parsedMessages[3]).toMatchObject({
+      type: "streamer-chat.message.received",
+      payload: { id: "after-restore" }
+    });
+  });
 });

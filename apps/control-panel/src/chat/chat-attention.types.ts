@@ -10,5 +10,6 @@ export type ChatAttentionPreferences = {
 export type ChatAttentionControlsProps = {
   baselineMessages: (messages: readonly StreamerChatMessage[]) => void;
   notifyMessage: (message: StreamerChatMessage) => void;
+  reconcileMessages: (messages: readonly StreamerChatMessage[]) => void;
   controls: ReactNode;
 };

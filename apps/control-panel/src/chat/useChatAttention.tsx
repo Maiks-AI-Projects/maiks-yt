@@ -1,5 +1,5 @@
 import type { StreamerChatMessage } from "@maiks-yt/events";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   createChatAttentionReadout,
@@ -7,7 +7,10 @@ import {
   normalizeChatAttentionText,
   shouldAnnounceChatMessage
 } from "./chat-attention.service.js";
-import type { ChatAttentionPreferences } from "./chat-attention.types.js";
+import type {
+  ChatAttentionControlsProps,
+  ChatAttentionPreferences
+} from "./chat-attention.types.js";
 import {
   getAudioOutputStorageKey,
   normalizeAudioOutputLabel,
@@ -68,22 +71,23 @@ const playAttentionCue = async (deviceId: string | null): Promise<void> => {
   oscillator.addEventListener("ended", () => void context.close(), { once: true });
 };
 
-const speakMessage = (message: StreamerChatMessage): void => {
+const speakMessage = (message: StreamerChatMessage): boolean => {
   if (!("speechSynthesis" in window)) {
-    return;
+    return false;
   }
 
-  const utterance = new SpeechSynthesisUtterance(createChatAttentionReadout(message));
-  utterance.rate = 1.06;
-  utterance.volume = 1;
-  window.speechSynthesis.speak(utterance);
+  try {
+    const utterance = new SpeechSynthesisUtterance(createChatAttentionReadout(message));
+    utterance.rate = 1.06;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
-export const useChatAttention = (enabled: boolean): {
-  baselineMessages: (messages: readonly StreamerChatMessage[]) => void;
-  notifyMessage: (message: StreamerChatMessage) => void;
-  controls: ReactNode;
-} => {
+export const useChatAttention = (enabled: boolean): ChatAttentionControlsProps => {
   const [preferences, setPreferences] = useState<ChatAttentionPreferences>(readPreferences);
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestMessage, setLatestMessage] = useState<StreamerChatMessage | null>(null);
@@ -94,6 +98,7 @@ export const useChatAttention = (enabled: boolean): {
   );
   const preferencesRef = useRef(preferences);
   const seenMessageIds = useRef(new Set<string>());
+  const unreadMessageIds = useRef(new Set<string>());
   const baselineReady = useRef(false);
 
   useEffect(() => {
@@ -112,7 +117,7 @@ export const useChatAttention = (enabled: boolean): {
     };
   }, [enabled, unreadCount]);
 
-  const deliverAttention = useCallback((message: StreamerChatMessage): void => {
+  const deliverAttention = useCallback((message: StreamerChatMessage): { speechAccepted: boolean } => {
     const currentPreferences = preferencesRef.current;
 
     if (currentPreferences.cueEnabled) {
@@ -121,9 +126,7 @@ export const useChatAttention = (enabled: boolean): {
       });
     }
 
-    if (currentPreferences.speechEnabled) {
-      speakMessage(message);
-    }
+    const speechAccepted = currentPreferences.speechEnabled && speakMessage(message);
 
     if (currentPreferences.desktopEnabled && "Notification" in window && Notification.permission === "granted") {
       const notification = new Notification(`${message.authorName} · ${message.source}`, {
@@ -135,7 +138,35 @@ export const useChatAttention = (enabled: boolean): {
         notification.close();
       };
     }
+
+    return { speechAccepted };
   }, [audioOutput]);
+
+  const markMessageConsumed = useCallback((messageId: string): void => {
+    unreadMessageIds.current.delete(messageId);
+    setUnreadCount(unreadMessageIds.current.size);
+  }, []);
+
+  const markAllMessagesRead = useCallback((): void => {
+    unreadMessageIds.current.clear();
+    setUnreadCount(0);
+  }, []);
+
+  const reconcileMessages = useCallback((messages: readonly StreamerChatMessage[]): void => {
+    const currentMessageIds = new Set(messages.map((message) => message.id));
+
+    for (const messageId of unreadMessageIds.current) {
+      if (!currentMessageIds.has(messageId)) {
+        unreadMessageIds.current.delete(messageId);
+      }
+    }
+    setUnreadCount(unreadMessageIds.current.size);
+    setLatestMessage((current) => current && currentMessageIds.has(current.id) ? current : null);
+
+    if (messages.length === 0) {
+      setStatus("Listening for new human messages.");
+    }
+  }, []);
 
   const selectAudioOutput = async (): Promise<void> => {
     const mediaDevices = navigator.mediaDevices as SelectableMediaDevices | undefined;
@@ -173,8 +204,9 @@ export const useChatAttention = (enabled: boolean): {
     for (const message of messages) {
       seenMessageIds.current.add(message.id);
     }
+    reconcileMessages(messages);
     baselineReady.current = true;
-  }, []);
+  }, [reconcileMessages]);
 
   const notifyMessage = useCallback((message: StreamerChatMessage): void => {
     if (seenMessageIds.current.has(message.id)) {
@@ -187,10 +219,17 @@ export const useChatAttention = (enabled: boolean): {
     }
 
     setLatestMessage(message);
-    setUnreadCount((current) => current + 1);
     setStatus(`${message.authorName}: ${normalizeChatAttentionText(message.message)}`);
-    deliverAttention(message);
-  }, [deliverAttention, enabled]);
+    const { speechAccepted } = deliverAttention(message);
+
+    if (speechAccepted) {
+      markMessageConsumed(message.id);
+      return;
+    }
+
+    unreadMessageIds.current.add(message.id);
+    setUnreadCount(unreadMessageIds.current.size);
+  }, [deliverAttention, enabled, markMessageConsumed]);
 
   const requestDesktopNotifications = async (): Promise<void> => {
     if (!("Notification" in window)) {
@@ -259,14 +298,23 @@ export const useChatAttention = (enabled: boolean): {
         ) : null}
         <button type="button" onClick={runTest}>Test</button>
         {latestMessage && preferences.speechEnabled ? (
-          <button type="button" onClick={() => speakMessage(latestMessage)}>Read latest</button>
+          <button
+            type="button"
+            onClick={() => {
+              if (speakMessage(latestMessage)) {
+                markMessageConsumed(latestMessage.id);
+              }
+            }}
+          >
+            Read latest
+          </button>
         ) : null}
         {unreadCount > 0 ? (
-          <button type="button" onClick={() => setUnreadCount(0)}>Mark read</button>
+          <button type="button" onClick={markAllMessagesRead}>Mark read</button>
         ) : null}
       </div>
     </details>
   );
 
-  return { baselineMessages, notifyMessage, controls };
+  return { baselineMessages, notifyMessage, reconcileMessages, controls };
 };

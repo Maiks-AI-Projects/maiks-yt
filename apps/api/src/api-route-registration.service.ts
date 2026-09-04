@@ -344,12 +344,13 @@ export const registerApplicationRoutes = ({
     youtubeWarningDeliveryService: youtubeChatWarningDeliveryService
   });
   registerOverlayRoutes(server, {
-    clearStreamerChat: () => streamerChatRuntime.clearMessages(),
     fakeLocalModerationRuntime,
     overlayRuntime,
     recordFakeLocalStreamerChatMessage,
     requireStreamerChatModerationPermission,
     requireUrlAccessTokenForRequest,
+    setStreamerChatEmergencyClearEnabled: (enabled) =>
+      streamerChatRuntime.setEmergencyClearEnabled(enabled),
     validateUrlAccessToken: validateUrlAccessTokenForRequest
   });
   registerObsWidgetBridgeRoute(server, {
