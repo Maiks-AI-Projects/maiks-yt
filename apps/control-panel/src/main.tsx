@@ -4,6 +4,7 @@ import { AiControlsWindow } from "./ai/AiControlsWindow.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
+import { getControlShellDataAttributes } from "./control-shell-surface.js";
 import { captureDevAuthTokenFromUrl, createApiHeaders, withDevAuthToken } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
 import { OperationsPanel } from "./operations/OperationsPanel.js";
@@ -20,6 +21,7 @@ const currentRoutePath = window.location.pathname.replace(/\/+$/, "") || "/";
 const isStandaloneChatRoute = currentRoutePath === "/chat";
 const isModerationRulesRoute = currentRoutePath === "/moderation";
 const isAiControlsRoute = currentRoutePath === "/ai";
+const controlShellDataAttributes = getControlShellDataAttributes(currentRoutePath);
 const defaultPanelMode = "creator";
 type PanelMode = "creator" | "advanced";
 type ControlPanelAuthState =
@@ -128,7 +130,10 @@ const getCurrentSurfaceLabel = (): string =>
 type ControlPanelBlockedState = Exclude<ControlPanelAuthState, { status: "allowed" }>;
 
 const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }): React.ReactNode => (
-  <main className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRulesRoute || isAiControlsRoute ? "chat-surface" : ""}`}>
+  <main
+    {...controlShellDataAttributes}
+    className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRulesRoute || isAiControlsRoute ? "chat-surface" : ""}`}
+  >
     <section className="access-required-panel">
       <p className="access-required-eyebrow">{getCurrentSurfaceLabel()}</p>
       <h1>Access Required</h1>
@@ -187,7 +192,7 @@ const App = (): React.ReactNode => {
 
   if (isStandaloneChatRoute) {
     return (
-    <main className="surface chat-surface chat-window-surface">
+    <main {...controlShellDataAttributes} className="surface chat-surface chat-window-surface">
       <ChatWindowHeader apiBaseUrl={apiBaseUrl} />
       <ChatServiceStatusStrip apiBaseUrl={apiBaseUrl} />
       <StreamerChatViewer apiBaseUrl={apiBaseUrl} newestOnTop maxMessages={60} variant="standalone" />
@@ -197,7 +202,7 @@ const App = (): React.ReactNode => {
 
   if (isModerationRulesRoute) {
     return (
-      <main className="surface chat-surface chat-window-surface">
+      <main {...controlShellDataAttributes} className="surface chat-surface chat-window-surface">
         <div className="surface-header chat-surface-header">
           <div className="surface-title">
             <h1>Moderation</h1>
@@ -215,7 +220,7 @@ const App = (): React.ReactNode => {
 
   if (isAiControlsRoute) {
     return (
-      <main className="surface chat-surface chat-window-surface">
+      <main {...controlShellDataAttributes} className="surface chat-surface chat-window-surface">
         <div className="surface-header chat-surface-header">
           <div className="surface-title">
             <h1>AI Controls</h1>
@@ -233,7 +238,7 @@ const App = (): React.ReactNode => {
   }
 
   return (
-    <main className="surface">
+    <main {...controlShellDataAttributes} className="surface">
       <div className="surface-header">
         <div className="surface-title">
           <h1>Maiks.yt Control Panel</h1>

@@ -3,6 +3,7 @@ import "./globals.css";
 import { headers } from "next/headers";
 
 import OAuthLoginPanel from "./oauth-login-panel";
+import { classifySiteSurface } from "./site-surface";
 
 export const metadata = {
   title: "Maiks.yt",
@@ -16,11 +17,16 @@ type RootLayoutProps = {
 const RootLayout = async ({ children }: RootLayoutProps): Promise<React.ReactNode> => {
   const requestHeaders = await headers();
   const pathname = requestHeaders.get("x-maiks-pathname") ?? "";
-  const isToolSurface = pathname.startsWith("/tools/");
+  const siteSurface = classifySiteSurface(pathname);
+  const isToolSurface = siteSurface.surface === "tool";
 
   return (
     <html lang="en">
-      <body className={isToolSurface ? "tool-surface-body" : undefined}>
+      <body
+        className={isToolSurface ? "tool-surface-body" : undefined}
+        data-site-surface={siteSurface.surface}
+        data-site-theme={siteSurface.theme}
+      >
         {isToolSurface ? null : (
           <header className="site-header">
             <nav aria-label="Primary" className="site-nav">
