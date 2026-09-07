@@ -22,7 +22,6 @@ export const buildPublicUpdateDetail = (
   }
 
   return {
-    id: update.id,
     slug: update.slug,
     title: update.title,
     summary: update.summary,
@@ -30,7 +29,6 @@ export const buildPublicUpdateDetail = (
     kind: update.kind,
     publishedAt: update.publishedAt,
     isPinned: update.isPinned,
-    isExample: update.isExample,
     updatedAt: update.updatedAt
   };
 };

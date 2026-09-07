@@ -38,7 +38,10 @@ class FakePublicUpdateReadRepository implements PublicUpdateReadRepository {
   }
 }
 
-const createServer = (updates: readonly PublicUpdateSource[]) => {
+const createServer = (
+  updates: readonly PublicUpdateSource[],
+  nodeEnvironment = "test"
+) => {
   const server = Fastify();
   const repository = new FakePublicUpdateReadRepository(updates);
 
@@ -46,7 +49,8 @@ const createServer = (updates: readonly PublicUpdateSource[]) => {
     getDatabasePool: () => {
       throw new Error("pool should not be used");
     },
-    createService: () => new PublicUpdateReadService(repository)
+    createService: () => new PublicUpdateReadService(repository),
+    getNodeEnv: () => nodeEnvironment
   });
 
   return server;
@@ -65,10 +69,12 @@ describe("public update read API", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       ok: true,
-      updates: [{ slug: "visible", kind: "announcement", isExample: true }]
+      updates: [{ slug: "visible", kind: "announcement" }]
     });
     expect(response.body).not.toContain("Body visible");
     expect(response.body).not.toContain("Body draft");
+    expect(response.body).not.toContain("\"id\"");
+    expect(response.body).not.toContain("isExample");
     await server.close();
   });
 
@@ -86,8 +92,38 @@ describe("public update read API", () => {
       ok: true,
       update: { slug: "visible", body: "Body visible" }
     });
+    expect(visibleResponse.body).not.toContain("\"id\"");
+    expect(visibleResponse.body).not.toContain("isExample");
     expect(draftResponse.statusCode).toBe(404);
     expect(draftResponse.json()).toEqual({ ok: false, reason: "update_not_found" });
+    await server.close();
+  });
+
+  it("does not publish example records in production", async () => {
+    const server = createServer([
+      createUpdate("real"),
+      createUpdate("example", { isExample: true })
+    ], "production");
+
+    const listResponse = await server.inject({ method: "GET", url: "/updates" });
+    const exampleResponse = await server.inject({ method: "GET", url: "/updates/example" });
+    const realResponse = await server.inject({ method: "GET", url: "/updates/real" });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json()).toMatchObject({
+      ok: true,
+      updates: [{ slug: "real" }]
+    });
+    expect(listResponse.body).not.toContain("\"id\"");
+    expect(listResponse.body).not.toContain("isExample");
+    expect(listResponse.body).not.toContain("example");
+    expect(exampleResponse.statusCode).toBe(404);
+    expect(exampleResponse.json()).toEqual({ ok: false, reason: "update_not_found" });
+    expect(realResponse.statusCode).toBe(200);
+    expect(realResponse.json()).toMatchObject({ ok: true, update: { slug: "real" } });
+    expect(realResponse.body).not.toContain("\"id\"");
+    expect(realResponse.body).not.toContain("isExample");
+
     await server.close();
   });
 

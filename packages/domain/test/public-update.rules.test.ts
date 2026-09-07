@@ -1,6 +1,9 @@
 import {
+  buildPublicUpdateAdminPreview,
   buildPublicUpdateDetail,
   buildPublicUpdateSummaryList,
+  canManagePublicUpdates,
+  normalizePublicUpdateAdminInput,
   type PublicUpdateSource
 } from "../src/updates/index.js";
 import { describe, expect, it } from "vitest";
@@ -47,12 +50,79 @@ describe("public update rules", () => {
     expect(updates.map(({ slug }) => slug)).toEqual(["pinned", "newer", "older"]);
   });
 
-  it("keeps the body only in the detail projection", () => {
+  it("keeps raw identity and fixture markers out of public projections", () => {
     const source = createUpdate("detail", { isExample: true, kind: "announcement" });
     const detail = buildPublicUpdateDetail(source);
     const [summary] = buildPublicUpdateSummaryList([source]);
 
-    expect(detail).toMatchObject({ body: "Body detail", isExample: true, kind: "announcement" });
+    expect(detail).toMatchObject({ body: "Body detail", kind: "announcement" });
+    expect(detail).not.toHaveProperty("id");
+    expect(detail).not.toHaveProperty("isExample");
     expect(summary).not.toHaveProperty("body");
+    expect(summary).not.toHaveProperty("id");
+    expect(summary).not.toHaveProperty("isExample");
+  });
+
+  it("keeps the admin preview tied to its private update source", () => {
+    const source = createUpdate("detail", { isExample: true, kind: "announcement" });
+    const preview = buildPublicUpdateAdminPreview(source);
+
+    expect(preview).toMatchObject({
+      id: "detail",
+      isExample: true,
+      body: "Body detail",
+      kind: "announcement"
+    });
+  });
+
+  it("normalizes valid owner input and rejects malformed content", () => {
+    expect(normalizePublicUpdateAdminInput({
+      slug: "  Launch-Note ",
+      title: " Launch note ",
+      summary: " What changed ",
+      body: " The full update. ",
+      kind: "announcement",
+      isPinned: true
+    })).toEqual({
+      ok: true,
+      update: {
+        slug: "launch-note",
+        title: "Launch note",
+        summary: "What changed",
+        body: "The full update.",
+        kind: "announcement",
+        isPinned: true
+      }
+    });
+
+    expect(normalizePublicUpdateAdminInput({
+      slug: "Bad slug",
+      title: "",
+      summary: "Summary",
+      body: "Body",
+      kind: "post",
+      isPinned: false
+    })).toEqual({ ok: false, reason: "public_update_invalid_input" });
+  });
+
+  it("builds a saved draft preview without making the source public", () => {
+    const draft = createUpdate("draft-preview", {
+      status: "draft",
+      visibility: "hidden",
+      publishedAt: null
+    });
+
+    expect(buildPublicUpdateAdminPreview(draft)).toMatchObject({
+      slug: "draft-preview",
+      body: "Body draft-preview",
+      publishedAt: draft.updatedAt
+    });
+    expect(buildPublicUpdateDetail(draft)).toBeNull();
+  });
+
+  it("recognizes owner wildcard and delegated update management", () => {
+    expect(canManagePublicUpdates(["*"])).toBe(true);
+    expect(canManagePublicUpdates(["updates:manage"])).toBe(true);
+    expect(canManagePublicUpdates(["page-creator:manage"])).toBe(false);
   });
 });

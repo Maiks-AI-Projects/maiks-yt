@@ -21,7 +21,7 @@ export type PublicUpdateSource = {
 
 export type PublicUpdateSummary = Pick<
   PublicUpdateSource,
-  "id" | "slug" | "title" | "summary" | "kind" | "isPinned" | "isExample" | "updatedAt"
+  "slug" | "title" | "summary" | "kind" | "isPinned" | "updatedAt"
 > & {
   publishedAt: string;
 };
@@ -29,3 +29,8 @@ export type PublicUpdateSummary = Pick<
 export type PublicUpdateDetail = PublicUpdateSummary & {
   body: string;
 };
+
+export type PublicUpdateAdminPreview = PublicUpdateDetail & Pick<
+  PublicUpdateSource,
+  "id" | "isExample"
+>;

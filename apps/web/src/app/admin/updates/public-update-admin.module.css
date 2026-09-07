@@ -1,0 +1,864 @@
+.updatesAdmin {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.header {
+  align-items: center;
+  border-bottom: 1px solid var(--admin-line);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: 0.2rem 0 0.7rem 0.35rem;
+}
+
+.headerCopy,
+.workspaceTitle,
+.updateIdentity,
+.previewHeading div {
+  display: grid;
+  gap: 0.14rem;
+  min-width: 0;
+}
+
+.headerTitle,
+.headerActions,
+.workspaceActions,
+.footerActions,
+.previewMeta,
+.pinField,
+.updateRowKind {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.headerTitle {
+  gap: 0.55rem;
+}
+
+.headerCopy h1,
+.workspaceTitle h2,
+.previewHeading h3,
+.previewHeading p,
+.previewArticle h3,
+.previewArticle p {
+  margin: 0;
+}
+
+.headerCopy h1 {
+  font-size: 1.65rem;
+  line-height: 1.1;
+}
+
+.headerTitle span {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.headerActions,
+.workspaceActions,
+.footerActions {
+  gap: 0.45rem;
+}
+
+.headerActions button,
+.workspaceActions button,
+.workspaceActions a {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.layout {
+  background: var(--admin-surface);
+  display: grid;
+  grid-template-columns: minmax(20rem, 23.75rem) minmax(0, 1fr);
+  height: calc(100vh - 7.5rem);
+  min-height: 42rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.inventory {
+  border-right: 1px solid var(--admin-line);
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+}
+
+.searchWrap {
+  padding: 0.85rem 0.35rem 0.55rem;
+  position: relative;
+}
+
+.visuallyHidden {
+  clip: rect(0 0 0 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.searchIcon {
+  color: var(--admin-quiet);
+  height: 1rem;
+  left: 1.1rem;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-39%);
+  width: 1rem;
+}
+
+.searchWrap input {
+  min-height: 2.25rem;
+  padding-left: 2.25rem;
+  width: 100%;
+}
+
+.filterList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0 0.35rem 0.7rem;
+}
+
+.filterButton {
+  background: var(--admin-surface-raised) !important;
+  border: 1px solid var(--admin-line) !important;
+  border-radius: 5px !important;
+  color: var(--admin-muted) !important;
+  min-height: 2.2rem !important;
+  padding: 0.38rem 0.72rem !important;
+}
+
+.filterButton[data-active="true"] {
+  background: var(--admin-surface-active) !important;
+  border-color: #2f6958 !important;
+  color: var(--admin-text) !important;
+}
+
+.columnHeader {
+  border-bottom: 1px solid var(--admin-line);
+  border-top: 1px solid var(--admin-line);
+  color: var(--admin-muted);
+  display: grid;
+  font-size: 0.72rem;
+  font-weight: 650;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 0.46rem 0.78rem;
+}
+
+.columnHeader span:last-child {
+  text-align: right;
+}
+
+.updateList {
+  align-content: start;
+  display: grid;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.updateRow {
+  align-items: center;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--admin-line) !important;
+  border-left: 3px solid transparent !important;
+  border-radius: 0 !important;
+  color: var(--admin-text) !important;
+  display: grid !important;
+  gap: 0.7rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 3.65rem !important;
+  padding: 0.45rem 0.75rem !important;
+  text-align: left;
+  width: 100%;
+}
+
+.updateRow:hover,
+.updateRow:focus-visible {
+  background: var(--admin-surface-raised) !important;
+  filter: none !important;
+}
+
+.updateRow[data-selected="true"] {
+  background: var(--admin-surface-active) !important;
+  border-left-color: var(--admin-mint) !important;
+}
+
+.updateIdentity strong,
+.updateIdentity > span,
+.message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.updateIdentity strong {
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.updateIdentity > span,
+.updateDate {
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+}
+
+.updateRowKind {
+  gap: 0.45rem;
+}
+
+.updateRowKind > :first-child {
+  background: #203443;
+  border-radius: 3px;
+  color: #bcd7e8;
+  line-height: 1.45;
+  padding: 0 0.35rem;
+}
+
+.updateRowMeta {
+  align-items: flex-end;
+  display: grid;
+  gap: 0.2rem;
+  justify-items: end;
+}
+
+.statusLabel,
+.pinnedLabel,
+.statusPill,
+.dirtyPill,
+.previewHeading > span {
+  align-items: center;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 850;
+  gap: 0.32rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.statusLabel[data-published="true"] {
+  color: var(--admin-mint);
+}
+
+.pinnedLabel {
+  color: var(--admin-quiet);
+  text-transform: none;
+}
+
+.pinnedLabel svg {
+  height: 0.72rem;
+  width: 0.72rem;
+}
+
+.listEmpty,
+.fieldHint,
+.workflowHint,
+.message,
+.previewHeading p {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.listEmpty {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 0.9rem;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.workspaceHeader {
+  border-bottom: 1px solid var(--admin-line);
+  display: grid;
+  gap: 0;
+}
+
+.workspaceHeaderTop {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  min-height: 3.95rem;
+  padding: 0.75rem 1rem 0.75rem 2rem;
+}
+
+.titleLine {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.workspaceTitle h2 {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.statusPill,
+.dirtyPill,
+.previewHeading > span {
+  background: #2b2514;
+  border: 0;
+  border-radius: 4px;
+  color: #f0bd46;
+  padding: 0.18rem 0.48rem;
+}
+
+.statusPill[data-published="true"],
+.previewHeading > span[data-current="true"] {
+  background: var(--admin-surface-active);
+  color: var(--admin-mint);
+}
+
+.statusPill[data-example="true"] {
+  background: var(--admin-surface-raised);
+  color: var(--admin-muted);
+}
+
+.dirtyPill {
+  background: #203443;
+  color: #cce5ef;
+}
+
+.workflowArea {
+  display: grid;
+  gap: 0;
+}
+
+.workflow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 4.6rem;
+  padding: 0.85rem 2.5rem 0.75rem;
+  width: 100%;
+}
+
+.workflowStep {
+  align-items: center;
+  color: var(--admin-quiet);
+  display: flex;
+  gap: 0.65rem;
+  min-width: 0;
+  padding: 0 1rem 0 0;
+  position: relative;
+  text-align: left;
+}
+
+.workflowStep:not(:last-child)::after {
+  background: var(--admin-line-strong);
+  content: "";
+  height: 1px;
+  margin-left: auto;
+  min-width: 2.5rem;
+}
+
+.workflowMarker {
+  align-items: center;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 50%;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 850;
+  flex: 0 0 2.1rem;
+  height: 2.1rem;
+  justify-content: center;
+  position: relative;
+  width: 2.1rem;
+  z-index: 1;
+}
+
+.workflowMarker svg {
+  height: 1rem;
+  width: 1rem;
+}
+
+.workflowCopy {
+  display: grid;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.workflowCopy strong {
+  color: inherit;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.workflowCopy small {
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.workflowStep[data-complete="true"] {
+  color: var(--admin-mint);
+}
+
+.workflowStep[data-current="true"] {
+  color: #f0bd46;
+}
+
+.workflowStep[data-complete="true"] .workflowMarker {
+  border-color: #2f6958;
+}
+
+.workflowStep[data-current="true"] .workflowMarker {
+  border-color: #8b6d25;
+}
+
+.workflowHint {
+  align-items: center;
+  background: #101b21;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 4px;
+  color: var(--admin-muted);
+  display: flex;
+  font-size: 0.76rem;
+  gap: 0.55rem;
+  margin: 0 1rem 0 1.65rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+}
+
+.workflowHint svg {
+  color: #75a9ff;
+  flex: 0 0 1rem;
+  height: 1rem;
+  width: 1rem;
+}
+
+.editorBody {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.65rem 1rem 0.8rem 1.65rem;
+}
+
+.form {
+  align-content: start;
+  display: grid;
+  gap: 0.58rem;
+  min-width: 0;
+}
+
+.previewPanel {
+  align-content: start;
+  display: grid;
+  gap: 0.72rem;
+  min-width: 0;
+}
+
+.field,
+.bodyField {
+  align-items: start;
+  color: var(--admin-text);
+  display: grid;
+  font-size: 0.8rem;
+  font-weight: 650;
+  gap: 0.25rem 0.8rem;
+  grid-template-columns: 6.4rem minmax(0, 1fr);
+  min-width: 0;
+}
+
+.fieldLabel {
+  line-height: 1.25;
+  padding-top: 0.58rem;
+}
+
+.field input,
+.field select,
+.field textarea,
+.bodyField textarea,
+.readOnlyField {
+  grid-column: 2;
+  min-height: 2.25rem;
+  width: 100%;
+}
+
+.field textarea,
+.bodyField textarea {
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.field textarea {
+  min-height: 3.35rem;
+}
+
+.bodyField textarea {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  min-height: 18rem;
+}
+
+.fieldHint {
+  grid-column: 2;
+  line-height: 1.25;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fieldHintValue {
+  color: var(--admin-mint);
+}
+
+.readOnlyField {
+  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  position: relative;
+}
+
+.readOnlyField svg {
+  color: var(--admin-quiet);
+  height: 0.9rem;
+  left: 0.8rem;
+  pointer-events: none;
+  position: absolute;
+  width: 0.9rem;
+  z-index: 1;
+}
+
+.readOnlyField input {
+  color: var(--admin-quiet);
+  padding-left: 2.2rem;
+}
+
+.pinField {
+  display: grid;
+  font-size: 0.8rem;
+  gap: 0.8rem;
+  grid-template-columns: 6.4rem minmax(0, 1fr) auto;
+  min-height: 2.3rem;
+  width: 100%;
+}
+
+.pinField .fieldLabel {
+  padding-top: 0.48rem;
+}
+
+.pinHint {
+  align-self: center;
+  color: var(--admin-muted);
+}
+
+.switchField {
+  align-items: center;
+  display: flex;
+  justify-self: end;
+}
+
+.switchField input {
+  appearance: none;
+  background: #26363e;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  height: 1.25rem;
+  position: relative;
+  width: 2.25rem;
+}
+
+.switchField input::after {
+  background: var(--admin-text);
+  border-radius: 50%;
+  content: "";
+  height: 0.86rem;
+  left: 0.16rem;
+  position: absolute;
+  top: 0.14rem;
+  transition: transform 120ms ease;
+  width: 0.86rem;
+}
+
+.switchField input:checked {
+  background: #1b6b58;
+  border-color: #45d6ad;
+}
+
+.switchField input:checked::after {
+  transform: translateX(0.95rem);
+}
+
+.switchField input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.formIssue {
+  color: #f0bd46;
+  font-size: 0.75rem;
+  margin-left: 7.2rem;
+}
+
+.previewPanel {
+  background: #0b1317;
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  margin-top: 1rem;
+  padding: 0.75rem;
+}
+
+.previewHeading {
+  align-items: start;
+  border-bottom: 1px solid var(--admin-line);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding-bottom: 0.65rem;
+}
+
+.previewArticle {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.previewArticle header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.previewKind {
+  color: var(--admin-mint);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.previewArticle h3 {
+  font-size: 1.25rem;
+  line-height: 1.15;
+}
+
+.previewArticle p {
+  color: var(--admin-muted);
+  line-height: 1.45;
+}
+
+.previewMeta {
+  color: var(--admin-quiet);
+  font-size: 0.74rem;
+  gap: 0.5rem;
+}
+
+.previewArticle :global(.content-page-markdown) {
+  background: #091116;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  gap: 0.75rem;
+  line-height: 1.55;
+  max-height: 24rem;
+  overflow-y: auto;
+  padding: 0.85rem;
+}
+
+.previewArticle :global(.content-page-markdown) h1 {
+  font-size: 1.35rem;
+}
+
+.previewArticle :global(.content-page-markdown) h2 {
+  font-size: 1.1rem;
+}
+
+.previewArticle :global(.content-page-markdown) h3,
+.previewArticle :global(.content-page-markdown) p,
+.previewArticle :global(.content-page-markdown) li {
+  font-size: 0.9rem;
+}
+
+.workspaceFooter {
+  align-items: center;
+  border-top: 1px solid var(--admin-line);
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  min-height: 4.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.footerActions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.footerActions button {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+button.discardAction {
+  background: transparent;
+  border-color: transparent;
+  color: var(--admin-text);
+}
+
+.message {
+  margin: 0;
+}
+
+.loadState {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+  padding: 1rem;
+}
+
+.loadState h2,
+.loadState p {
+  margin: 0;
+}
+
+@media (max-width: 980px) {
+  .layout {
+    grid-template-columns: minmax(17rem, 20rem) minmax(0, 1fr);
+  }
+
+  .workspaceHeaderTop {
+    align-items: stretch;
+    flex-direction: column;
+    padding-left: 1rem;
+  }
+
+  .workflow {
+    padding-inline: 1rem;
+  }
+
+  .workflowStep:not(:last-child)::after {
+    min-width: 1rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .header,
+  .workspaceHeaderTop,
+  .workspaceFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .layout {
+    display: block;
+    height: auto;
+    min-height: 0;
+  }
+
+  .inventory {
+    border-bottom: 1px solid var(--admin-line);
+    border-right: 0;
+    max-height: 23rem;
+  }
+
+  .workflowCopy strong {
+    font-size: 0.7rem;
+  }
+
+  .workflowCopy small {
+    font-size: 0.62rem;
+  }
+
+  .footerActions {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 560px) {
+  .header {
+    padding-left: 0;
+  }
+
+  .workspaceHeaderTop,
+  .editorBody {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .workflow {
+    padding-inline: 0.5rem;
+  }
+
+  .workflowStep {
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0 0.15rem;
+    text-align: center;
+  }
+
+  .workflowStep:not(:last-child)::after {
+    left: calc(50% + 1.25rem);
+    margin: 0;
+    min-width: 0;
+    position: absolute;
+    right: calc(-50% + 1.25rem);
+    top: 1.05rem;
+  }
+
+  .workflowCopy strong {
+    white-space: normal;
+  }
+
+  .workflowHint {
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
+  }
+
+  .field,
+  .bodyField {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fieldLabel {
+    padding-top: 0;
+  }
+
+  .field input,
+  .field select,
+  .field textarea,
+  .bodyField textarea,
+  .readOnlyField,
+  .fieldHint {
+    grid-column: 1;
+  }
+
+  .pinField {
+    gap: 0.35rem 0.75rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pinField .fieldLabel,
+  .pinHint {
+    grid-column: 1;
+  }
+
+  .switchField {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  .formIssue {
+    margin-left: 0;
+  }
+}
