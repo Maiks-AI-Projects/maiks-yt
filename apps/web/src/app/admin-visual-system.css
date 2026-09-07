@@ -1,0 +1,857 @@
+/*
+ * Operations visual system
+ *
+ * Presentation-only layer for owner admin, development consoles, and
+ * standalone tools. Route body classes keep these dense work surfaces from
+ * leaking into the public site.
+ */
+
+:is(.admin-surface-body, .dev-surface-body) {
+  --ops-ink: #17231f;
+  --ops-muted: #5a6862;
+  --ops-canvas: #f0f2ee;
+  --ops-paper: #fbfcf9;
+  --ops-paper-raised: #ffffff;
+  --ops-line: #cbd2cc;
+  --ops-line-strong: #9eaaa2;
+  --ops-accent: #086b52;
+  --ops-accent-dark: #064d3c;
+  --ops-accent-soft: #e1f1ea;
+  --ops-info: #315f84;
+  --ops-info-soft: #e6eff6;
+  --ops-warning: #835b0a;
+  --ops-warning-soft: #fff3d5;
+  --ops-danger: #9a312d;
+  --ops-danger-dark: #74221f;
+  --ops-danger-soft: #fbe9e7;
+  --ops-success: #267049;
+  --ops-success-soft: #e4f2e9;
+  --ops-shadow: 0 1px 2px rgb(23 35 31 / 8%);
+  background:
+    linear-gradient(90deg, rgb(23 35 31 / 2.5%) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--ops-canvas);
+  color: var(--ops-ink);
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+}
+
+.dev-surface-body {
+  --ops-accent: #315f84;
+  --ops-accent-dark: #234762;
+  --ops-accent-soft: #e6eff6;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .site-header {
+  background: #17231f;
+  border-bottom: 3px solid var(--ops-accent);
+  box-shadow: 0 2px 8px rgb(12 24 19 / 18%);
+  color: #f5f7f4;
+  min-height: 3.5rem;
+  padding-block: 0.55rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .site-links a {
+  color: #c6d0ca;
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .site-links a:hover,
+:is(.admin-surface-body, .dev-surface-body) .site-links a:focus-visible,
+:is(.admin-surface-body, .dev-surface-body) .site-links a[aria-current="page"] {
+  color: #ffffff;
+  text-decoration-color: #75c7aa;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .environment-badge {
+  background: #fff3d5;
+  border: 1px solid #e2bd63;
+  border-radius: 2px;
+  color: #503600;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  padding: 0.28rem 0.5rem;
+  text-transform: uppercase;
+}
+
+:is(.admin-surface-body, .dev-surface-body) main.project-admin-page {
+  gap: 0.85rem;
+  margin-inline: auto;
+  max-width: 94rem;
+  padding: clamp(1rem, 2.4vw, 2rem);
+  width: 100%;
+}
+
+:is(.admin-surface-body, .dev-surface-body) section {
+  margin-block: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-shell {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-header {
+  align-items: end;
+  border-bottom: 1px solid var(--ops-line-strong);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.25rem 0 0.85rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-header > :first-child {
+  min-width: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-header h1 {
+  color: var(--ops-ink);
+  font-size: clamp(1.55rem, 2.3vw, 2.15rem);
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .eyebrow {
+  color: var(--ops-accent);
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.35rem !important;
+  text-transform: uppercase;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-header p:not(.eyebrow) {
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin-top: 0.4rem;
+  max-width: 72ch;
+}
+
+/* Dense work regions use separators and aligned rows instead of card stacks. */
+:is(.admin-surface-body, .dev-surface-body) :is(
+  .project-admin-panel,
+  .project-admin-sidebar,
+  .project-admin-state,
+  .project-admin-preview
+) {
+  background: var(--ops-paper-raised);
+  border: 1px solid var(--ops-line);
+  border-radius: 3px;
+  box-shadow: var(--ops-shadow);
+  gap: 0.7rem;
+  min-width: 0;
+  padding: 0.85rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-panel-heading,
+:is(.admin-surface-body, .dev-surface-body) .project-admin-sidebar-heading {
+  border-bottom: 1px solid var(--ops-line);
+  gap: 0.5rem;
+  min-height: 2rem;
+  padding-bottom: 0.6rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(.project-admin-panel, .project-admin-preview) h2,
+:is(.admin-surface-body, .dev-surface-body) .project-admin-sidebar h2 {
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(.project-admin-panel, .project-admin-sidebar, .project-admin-state) p,
+:is(.admin-surface-body, .dev-surface-body) .project-admin-record-list span {
+  color: var(--ops-muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-layout {
+  gap: 0.85rem;
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-workspace {
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-sidebar {
+  max-height: calc(100vh - 6rem);
+  overflow: auto;
+  scrollbar-gutter: stable;
+  top: 4.5rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-grid {
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-selector {
+  gap: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-selector button {
+  background: var(--ops-paper);
+  border: 0;
+  border-bottom: 1px solid var(--ops-line);
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  color: var(--ops-ink);
+  min-height: 3rem;
+  padding: 0.55rem 0.65rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-selector button:hover {
+  background: #f0f5f1;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-selector button.selected {
+  background: var(--ops-accent-soft);
+  border-color: var(--ops-line);
+  border-left-color: var(--ops-accent);
+  color: var(--ops-accent-dark);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-selector span {
+  color: var(--ops-muted);
+  font-size: 0.78rem;
+}
+
+/* Forms retain persistent labels, compact controls, and a clear action edge. */
+:is(.admin-surface-body, .dev-surface-body) :is(
+  .project-admin-form,
+  .project-admin-inline-form,
+  .testing-session-notes,
+  .dev-test-console-controls
+) label {
+  color: #28362f;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(
+  .project-admin-form,
+  .project-admin-inline-form,
+  .project-admin-record-list,
+  .testing-session-notes,
+  .dev-test-console-controls,
+  .connections-intake-controls
+) :is(input, textarea, select) {
+  background: #ffffff;
+  border: 1px solid var(--ops-line-strong);
+  border-radius: 2px;
+  color: var(--ops-ink);
+  font: inherit;
+  min-height: 2.45rem;
+  padding: 0.48rem 0.6rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) textarea {
+  line-height: 1.45;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-form-grid,
+:is(.admin-surface-body, .dev-surface-body) .project-admin-inline-form {
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-checkbox,
+:is(.admin-surface-body, .dev-surface-body) .checkbox-row {
+  align-items: start;
+  background: var(--ops-paper);
+  border: 1px solid var(--ops-line);
+  border-radius: 2px;
+  font-size: 0.84rem;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.65rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--ops-accent);
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(button, .button-link, .admin-dashboard-link) {
+  border-radius: 2px;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(button, .button-link) {
+  background: var(--ops-accent-dark);
+  border: 1px solid var(--ops-accent-dark);
+  font-size: 0.84rem;
+  font-weight: 750;
+  min-height: 2.4rem;
+  padding: 0.48rem 0.72rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(button, .button-link):hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .secondary-action {
+  background: #f4f6f3;
+  border-color: var(--ops-line-strong);
+  color: var(--ops-ink);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .danger-action {
+  background: var(--ops-danger-dark);
+  border-color: var(--ops-danger-dark);
+  color: #ffffff;
+  margin-left: 0.35rem;
+  outline: 1px solid #dca29d;
+  outline-offset: 2px;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(button, input, textarea, select, a):focus-visible,
+.tool-surface-body :is(button, input, textarea, select, a):focus-visible {
+  outline: 3px solid #f1b83c;
+  outline-offset: 2px;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(button, input, textarea, select):disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  opacity: 0.58;
+}
+
+/* Records and dashboard links are compact, table-like rows. */
+:is(.admin-surface-body, .dev-surface-body) .project-admin-record-list {
+  border: 1px solid var(--ops-line);
+  gap: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-record-list li {
+  background: #ffffff;
+  border-top: 1px solid var(--ops-line);
+  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1fr) minmax(8rem, auto);
+  padding: 0.65rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-record-list li:nth-child(even) {
+  background: #f7f9f6;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-record-list li:first-child {
+  border-top: 0;
+  padding-top: 0.65rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-record-list code,
+:is(.admin-surface-body, .dev-surface-body) .provider-env-item span,
+:is(.admin-surface-body, .dev-surface-body) .connections-event-row code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  overflow-wrap: anywhere;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-list {
+  border: 1px solid var(--ops-line);
+  gap: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-list-item {
+  background: #ffffff;
+  border: 0;
+  border-bottom: 1px solid var(--ops-line);
+  border-left: 3px solid transparent;
+  border-radius: 0;
+  gap: 0.3rem;
+  min-height: 3.4rem;
+  padding: 0.62rem 0.7rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-list-item:last-child {
+  border-bottom: 0;
+}
+
+:is(.admin-surface-body, .dev-surface-body) a.admin-list-item:hover,
+:is(.admin-surface-body, .dev-surface-body) a.admin-list-item:focus-visible {
+  background: var(--ops-accent-soft);
+  border-left-color: var(--ops-accent);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-link-heading strong {
+  color: var(--ops-ink);
+  font-size: 0.9rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-link-badge,
+:is(.admin-surface-body, .dev-surface-body) .provider-integration-state,
+:is(.admin-surface-body, .dev-surface-body) .dev-test-console-badges span,
+:is(.admin-surface-body, .dev-surface-body) .live-helper-pill {
+  border-radius: 2px;
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-status-grid,
+:is(.admin-surface-body, .dev-surface-body) :is(.live-helper-summary-grid, .provider-integrations-summary-grid) {
+  gap: 0;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-status-card,
+:is(.admin-surface-body, .dev-surface-body) .live-helper-kpi {
+  background: #ffffff;
+  border: 1px solid var(--ops-line);
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 5.1rem;
+  padding: 0.65rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-status-card strong {
+  font-size: 0.98rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .live-helper-kpi strong {
+  font-size: 1.45rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-status-card.ok {
+  background: var(--ops-success-soft);
+  border-top: 3px solid var(--ops-success);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-status-card.warn {
+  background: var(--ops-warning-soft);
+  border-top: 3px dashed var(--ops-warning);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-status-card.bad {
+  background: var(--ops-danger-soft);
+  border: 2px solid var(--ops-danger);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-dashboard-status-card.loading {
+  border-top: 3px dotted var(--ops-muted);
+}
+
+/* State messages use border patterns as well as color. */
+:is(.admin-surface-body, .dev-surface-body) .project-admin-state {
+  border-left: 5px solid var(--ops-info);
+  box-shadow: none;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-state:is(.forbidden, .failed),
+:is(.admin-surface-body, .dev-surface-body) :is(.link-admin-warning, .dev-test-console-warning) {
+  background: var(--ops-warning-soft);
+  border: 1px dashed var(--ops-warning);
+  border-left: 5px solid var(--ops-warning);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .project-admin-note {
+  background: var(--ops-info-soft);
+  border-left: 4px solid var(--ops-info);
+  box-shadow: none;
+}
+
+/* High-density comparison surfaces retain columns and scroll when required. */
+:is(.admin-surface-body, .dev-surface-body) .connections-event-table {
+  border-color: var(--ops-line-strong);
+  border-radius: 2px;
+  overflow-x: auto;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .connections-event-row {
+  border-color: var(--ops-line);
+  gap: 0.55rem;
+  min-width: 54rem;
+  padding: 0.58rem 0.65rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .connections-event-row:nth-child(odd) {
+  background: #f7f9f6;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .connections-event-row.header {
+  background: #e7ebe7;
+  color: #3f4e47;
+  font-size: 0.68rem;
+  letter-spacing: 0.055em;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+:is(.admin-surface-body, .dev-surface-body) :is(
+  .connections-action-card,
+  .connections-intake-health-card,
+  .connections-intake-row,
+  .provider-integration-row,
+  .provider-env-item,
+  .provider-capability-card,
+  .provider-chat-status-grid > div
+) {
+  border-radius: 2px;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .connections-action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+:is(.admin-surface-body, .dev-surface-body) .connections-intake-list,
+:is(.admin-surface-body, .dev-surface-body) .provider-integrations-list {
+  gap: 0.5rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .connections-intake-row {
+  border-left: 3px solid var(--ops-info);
+  padding: 0.65rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .provider-integration-row.configured {
+  border-left: 5px solid var(--ops-success);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .provider-integration-row:is(.missing, .disabled) {
+  border-left: 5px dashed var(--ops-warning);
+}
+
+:is(.admin-surface-body, .dev-surface-body) .provider-integration-row:is(.invalid, .error) {
+  border: 2px solid var(--ops-danger);
+}
+
+/* Dev console: explicit sandbox identity and inspectable machine output. */
+.dev-surface-body .dev-test-console-header {
+  border-top: 5px solid var(--ops-accent);
+  padding-top: 0.7rem;
+}
+
+.dev-surface-body .dev-test-console-event-list {
+  gap: 0.4rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+}
+
+.dev-surface-body .dev-test-console-event-list button {
+  background: #f7f9fa;
+  border: 1px solid var(--ops-line);
+  border-left: 3px solid transparent;
+  border-radius: 2px;
+  color: var(--ops-ink);
+  min-height: 3.6rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.dev-surface-body .dev-test-console-event-list button.selected {
+  background: var(--ops-accent-soft);
+  border-left-color: var(--ops-accent);
+}
+
+.dev-surface-body .dev-test-console-safety,
+.dev-surface-body .dev-test-console-preview-card {
+  border-radius: 2px;
+  padding: 0.75rem;
+}
+
+.dev-surface-body .dev-test-console-preview pre {
+  background: #101b21;
+  border: 1px solid #3b535e;
+  border-radius: 2px;
+  color: #d9f2e7;
+  font: 0.78rem/1.5 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  max-height: 32rem;
+  padding: 0.8rem;
+}
+
+/* Standalone operation windows: chrome-free, high contrast, and compact. */
+.tool-surface-body {
+  --tool-ink: #e8eeea;
+  --tool-muted: #a9b7af;
+  --tool-canvas: #101713;
+  --tool-paper: #18221d;
+  --tool-paper-raised: #202c26;
+  --tool-line: #405047;
+  --tool-accent: #5bc39a;
+  --tool-warning: #f1bc55;
+  --tool-danger: #ff7b72;
+  background: var(--tool-canvas);
+  color: var(--tool-ink);
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.tool-surface-body .tool-surface-page {
+  background:
+    linear-gradient(rgb(255 255 255 / 2.5%) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--tool-canvas);
+  margin: 0;
+  min-width: 0;
+  padding: clamp(0.65rem, 2vw, 1.15rem);
+}
+
+.tool-surface-body :is(.actions-page, .notification-panel) {
+  gap: 0.65rem;
+  margin-inline: auto;
+  max-width: 84rem;
+}
+
+.tool-surface-body :is(
+  .action-panel-toolbar,
+  .action-alert,
+  .action-state-card,
+  .action-history,
+  .action-item-card,
+  .notification-panel-header,
+  .notification-toolbar,
+  .notification-push-panel,
+  .notification-card,
+  .notification-summary div,
+  .notification-empty
+) {
+  background: var(--tool-paper);
+  border-color: var(--tool-line);
+  border-radius: 3px;
+  color: var(--tool-ink);
+  padding: 0.75rem;
+}
+
+.tool-surface-body :is(.action-panel-toolbar, .notification-panel-header) {
+  border-top: 4px solid var(--tool-accent);
+}
+
+.tool-surface-body :is(.action-panel-toolbar, .action-item-card, .notification-card) {
+  gap: 0.65rem;
+}
+
+.tool-surface-body :is(.action-panel-toolbar p, .action-count, .action-decision-note, .action-history p, .action-history span, .action-history time),
+.tool-surface-body :is(.notification-panel-kicker, .notification-card-main p, .notification-push-panel p, .notification-card-meta span, .notification-card-meta time) {
+  color: var(--tool-muted);
+}
+
+.tool-surface-body .notification-panel-kicker {
+  color: var(--tool-accent);
+  letter-spacing: 0.1em;
+}
+
+.tool-surface-body .notification-summary {
+  gap: 0;
+}
+
+.tool-surface-body .notification-summary div {
+  min-height: 4.25rem;
+}
+
+.tool-surface-body .notification-summary span {
+  color: #ffffff;
+  font-size: 1.65rem;
+}
+
+.tool-surface-body .notification-summary div.critical {
+  background: #321b1b;
+  border: 2px solid var(--tool-danger);
+}
+
+.tool-surface-body .notification-card {
+  border-left: 4px solid #668074;
+}
+
+.tool-surface-body .notification-card.unread {
+  background: #1b2a23;
+  border-left-color: var(--tool-accent);
+}
+
+.tool-surface-body .notification-card.warning {
+  border-left-color: var(--tool-warning);
+}
+
+.tool-surface-body .notification-card.critical {
+  background: #2a1b1a;
+  border: 1px solid var(--tool-danger);
+  border-left-width: 5px;
+}
+
+.tool-surface-body .notification-card.archived {
+  filter: saturate(0.35);
+  opacity: 0.68;
+}
+
+.tool-surface-body .notification-card-meta span,
+.tool-surface-body .notification-card-meta time,
+.tool-surface-body .action-history-note {
+  background: var(--tool-paper-raised);
+  border-radius: 2px;
+}
+
+.tool-surface-body :is(
+  .notification-icon-button,
+  .notification-push-actions button,
+  .notification-card-actions button,
+  .notification-action-link,
+  .action-item-actions button,
+  .action-toolbar-controls button,
+  .action-toolbar-controls select
+) {
+  border-radius: 2px;
+  font-size: 0.82rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.tool-surface-body :is(
+  .notification-icon-button,
+  .notification-push-actions button,
+  .notification-card-actions button,
+  .notification-action-link,
+  .action-item-actions button,
+  .action-toolbar-controls button
+) {
+  background: #d7eee4;
+  border: 1px solid #8cc8ae;
+  color: #102119;
+}
+
+.tool-surface-body .secondary-action {
+  background: var(--tool-paper-raised);
+  border-color: #64776c;
+  color: var(--tool-ink);
+}
+
+.tool-surface-body .danger-action {
+  background: #5e201e;
+  border: 2px solid var(--tool-danger);
+  color: #ffffff;
+}
+
+.tool-surface-body .action-priority {
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+}
+
+.tool-surface-body .action-priority:is(.low, .normal) {
+  background: #293630;
+  color: #c8d3cd;
+}
+
+.tool-surface-body .action-priority.high {
+  background: #3c3016;
+  color: #ffd47b;
+}
+
+.tool-surface-body .action-priority.urgent {
+  background: #4a201e;
+  color: #ff9d96;
+}
+
+.tool-surface-body .action-item-card p,
+.tool-surface-body .action-item-card dd {
+  color: var(--tool-muted);
+}
+
+.tool-surface-body .action-item-card dt {
+  color: #d9e4de;
+}
+
+.tool-surface-body .action-history-list li {
+  border-color: var(--tool-line);
+}
+
+.tool-surface-body .action-alert.stale,
+.tool-surface-body .action-state-card:is(.signed-out, .unlinked, .forbidden, .failed),
+.tool-surface-body .notification-push-panel:is(.permission-denied, .failed) {
+  background: #342918;
+  border: 1px dashed var(--tool-warning);
+  border-left: 5px solid var(--tool-warning);
+  color: #ffe1a1;
+}
+
+.tool-surface-body .notification-push-panel.subscribed {
+  background: #173124;
+  border-left: 5px solid var(--tool-accent);
+}
+
+@media (max-width: 900px) {
+  :is(.admin-surface-body, .dev-surface-body) .project-admin-layout,
+  :is(.admin-surface-body, .dev-surface-body) .live-helper-layout {
+    grid-template-columns: 1fr;
+  }
+
+  :is(.admin-surface-body, .dev-surface-body) .project-admin-sidebar {
+    max-height: 18rem;
+    position: static;
+  }
+
+  :is(.admin-surface-body, .dev-surface-body) .connections-event-row {
+    grid-template-columns: 6rem minmax(12rem, 1.1fr) minmax(12rem, 1fr) minmax(14rem, 1.2fr);
+  }
+}
+
+@media (max-width: 680px) {
+  :is(.admin-surface-body, .dev-surface-body) .site-header {
+    gap: 0.55rem;
+    padding: 0.65rem 0.8rem;
+  }
+
+  :is(.admin-surface-body, .dev-surface-body) .project-admin-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  :is(.admin-surface-body, .dev-surface-body) .admin-inline-actions,
+  :is(.admin-surface-body, .dev-surface-body) .project-admin-actions {
+    align-items: stretch;
+  }
+
+  :is(.admin-surface-body, .dev-surface-body) .project-admin-record-list li {
+    grid-template-columns: 1fr;
+  }
+
+  :is(.admin-surface-body, .dev-surface-body) .danger-action {
+    margin-left: 0;
+  }
+
+  .tool-surface-body .action-panel-toolbar,
+  .tool-surface-body .notification-push-panel,
+  .tool-surface-body .notification-card {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-surface-body .notification-panel-header,
+  .tool-surface-body .notification-toolbar {
+    align-items: stretch;
+  }
+
+  .tool-surface-body .notification-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .tool-surface-body .notification-icon-button,
+  .tool-surface-body .notification-push-actions button,
+  .tool-surface-body .notification-card-actions button,
+  .tool-surface-body .notification-action-link {
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.admin-surface-body, .dev-surface-body, .tool-surface-body) *,
+  :is(.admin-surface-body, .dev-surface-body, .tool-surface-body) *::before,
+  :is(.admin-surface-body, .dev-surface-body, .tool-surface-body) *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :is(.admin-surface-body, .dev-surface-body, .tool-surface-body) :is(
+    .project-admin-state,
+    .admin-dashboard-status-card,
+    .notification-card,
+    .action-priority,
+    .provider-integration-row
+  ) {
+    forced-color-adjust: auto;
+  }
+}
