@@ -1100,7 +1100,7 @@ const publicPageChecks = [
   ["public privacy analytics", "/privacy/analytics", ["Analytics", "Necessary Data"], false, false],
   ["public projects", "/projects", ["Projects"], false, false],
   ["public schedule", "/schedule", ["Stream Schedule"], false, false],
-  ["public updates", "/updates", ["Public Updates"], false, false]
+  ["public updates", "/updates", ["Latest updates"], false, false]
 ];
 
 const createPublicPageChecks = ({ config, http }) => publicPageChecks.map(([name, path, expectedText, critical, rejectNavbar]) =>
