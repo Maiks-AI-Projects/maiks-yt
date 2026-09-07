@@ -1,23 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { classifySiteSurface } from "./site-surface";
+import { classifySiteSurface } from "./site-surface.service";
 
 describe("site surface classifier", () => {
   it.each([
-    ["", "public", "default"],
-    ["/", "public", "default"],
-    ["/schedule", "public", "default"],
-    ["/music/player", "public", "default"],
-    ["/gemini-lab/satisfactory", "public", "satisfactory"],
-    ["/admin", "admin", "default"],
-    ["/admin/games", "admin", "default"],
-    ["/tools/actions", "tool", "default"],
-    ["/tools/notifications", "tool", "default"],
-    ["/dev/test-console", "dev", "default"]
-  ] as const)("classifies %s", (pathname, surface, theme) => {
+    ["", "public", "default", "public-surface-body"],
+    ["/", "public", "default", "public-surface-body"],
+    ["/schedule", "public", "default", "public-surface-body"],
+    ["/music/player", "public", "default", "public-surface-body"],
+    ["/gemini-lab/satisfactory", "public", "satisfactory", "public-surface-body"],
+    ["/admin", "admin", "default", "admin-surface-body"],
+    ["/admin/games", "admin", "default", "admin-surface-body"],
+    ["/tools/actions", "tool", "default", "tool-surface-body"],
+    ["/tools/notifications", "tool", "default", "tool-surface-body"],
+    ["/dev/test-console", "dev", "default", "dev-surface-body"]
+  ] as const)("classifies %s", (pathname, surface, theme, bodyClassName) => {
     expect(classifySiteSurface(pathname)).toEqual({
       surface,
-      theme
+      theme,
+      bodyClassName
     });
   });
 
@@ -26,7 +27,7 @@ describe("site surface classifier", () => {
     ["/tools", "public"],
     ["/toolbox/actions", "public"],
     ["/developer-notes", "public"]
-  ] as const)("does not classify prefix lookalike %s as a separate surface", (pathname, surface) => {
+  ] as const)("does not classify prefix lookalike %s as privileged", (pathname, surface) => {
     expect(classifySiteSurface(pathname).surface).toBe(surface);
   });
 
@@ -36,7 +37,8 @@ describe("site surface classifier", () => {
     expect(classifySiteSurface("/updates#tools").surface).toBe("public");
     expect(classifySiteSurface("/tools/actions?surface=public#top")).toEqual({
       surface: "tool",
-      theme: "default"
+      theme: "default",
+      bodyClassName: "tool-surface-body"
     });
     expect(classifySiteSurface("/gemini-lab/satisfactory?theme=default#top").theme).toBe("satisfactory");
   });

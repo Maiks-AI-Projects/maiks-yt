@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyControlShellSurface, getControlShellDataAttributes } from "./control-shell-surface.js";
+import { classifyControlShellSurface, getControlShellDataAttributes } from "./control-shell-surface.service.js";
 
 describe("control shell surface classifier", () => {
   it.each([

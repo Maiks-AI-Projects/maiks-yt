@@ -3,12 +3,19 @@ import { useEffect, useState, type ReactNode } from "react";
 import { StreamerChatViewer } from "../chat/StreamerChatViewer.js";
 import { createApiHeaders } from "../dev-auth-token.js";
 import type { OverlayStatusResponse } from "../overlay/SurfaceStatus.types.js";
+import { StreamWindowChrome } from "../window/StreamWindowChrome.js";
 import { ModerationAuditWindow } from "./ModerationAuditWindow.js";
 import { ModerationInfoPanel } from "./ModerationInfoPanel.js";
 import { ModerationRulesWindow } from "./ModerationRulesWindow.js";
 import { moderationPanelLabels, type ModerationControlWindowProps, type ModerationPanelKey, type StreamerChatModerationAccess, type StreamerChatModerationAccessResponse } from "./moderation-control.types.js";
 
-export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowProps): ReactNode => {
+export const ModerationControlWindow = ({
+  apiBaseUrl,
+  currentPath,
+  displayName,
+  navigationAccess,
+  onAccessChange
+}: ModerationControlWindowProps): ReactNode => {
   const [access, setAccess] = useState<StreamerChatModerationAccess | null>(null);
   const [emergencyCleanModeEnabled, setEmergencyCleanModeEnabled] = useState<boolean | null>(null);
   const [status, setStatus] = useState("Loading moderation access.");
@@ -30,6 +37,7 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
 
     if (!token) {
       setStatus("Control token missing.");
+      onAccessChange?.(false);
       return;
     }
 
@@ -54,9 +62,11 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
         actions: result.actions,
         panels: result.panels
       });
+      onAccessChange?.(Object.values(result.panels).some(Boolean) || Object.values(result.actions).some(Boolean));
       setStatus("Ready");
     } catch (error) {
       setAccess(null);
+      onAccessChange?.(false);
       setStatus(error instanceof Error ? error.message : "Moderation access unavailable.");
     }
   };
@@ -128,54 +138,67 @@ export const ModerationControlWindow = ({ apiBaseUrl }: ModerationControlWindowP
     }
   };
 
+  const leftAction = access?.actions.canEmergencyClear ? (
+    <button
+      type="button"
+      className={`chat-emergency-clear${emergencyCleanModeEnabled ? " active" : ""}`}
+      onClick={() => void setEmergencyCleanMode(!emergencyCleanModeEnabled)}
+    >
+      {emergencyCleanModeEnabled ? "Restore overlay" : "Emergency clear"}
+    </button>
+  ) : null;
+
+  const panelSelector = access && availablePanels.length > 0 ? (
+    <label className="stream-window-panel-selector">
+      <span>Panel</span>
+      <select
+        value={activePanel}
+        onChange={(event) => setSelectedPanel(event.currentTarget.value as ModerationPanelKey)}
+      >
+        {availablePanels.map((panel) => (
+          <option key={panel} value={panel}>{moderationPanelLabels[panel]}</option>
+        ))}
+      </select>
+    </label>
+  ) : null;
+
   return (
-    <>
-      <div className="chat-window-toolbar moderation-window-toolbar" aria-label="Moderator window controls">
-        {access?.actions.canEmergencyClear ? (
-          <button
-            type="button"
-            className={`chat-emergency-clear${emergencyCleanModeEnabled ? " active" : ""}`}
-            onClick={() => void setEmergencyCleanMode(!emergencyCleanModeEnabled)}
-          >
-            {emergencyCleanModeEnabled ? "Restore overlay" : "Emergency clear"}
-          </button>
-        ) : null}
-        <label>
-          <span>Panel</span>
-          <select
-            value={activePanel}
-            onChange={(event) => setSelectedPanel(event.currentTarget.value as ModerationPanelKey)}
-          >
-            {availablePanels.map((panel) => (
-            <option key={panel} value={panel}>{moderationPanelLabels[panel]}</option>
-            ))}
-          </select>
-        </label>
-        <a className="secondary-window-link" href="/ai">AI controls</a>
-        <span>{status}</span>
-      </div>
-      {!access ? (
-        <section className="moderation-rules-window">
-          <p>{status}</p>
-        </section>
-      ) : activePanel === "chat" ? (
-        <StreamerChatViewer
-          actionAccess={access.actions}
-          apiBaseUrl={apiBaseUrl}
-          newestOnTop
-          maxMessages={80}
-          showUnavailableActions
-          variant="standalone"
-        />
-      ) : activePanel === "rules" ? (
-        <ModerationRulesWindow apiBaseUrl={apiBaseUrl} canRetract={access.actions.canRetractRules} />
-      ) : activePanel === "audit" ? (
-        <ModerationAuditWindow apiBaseUrl={apiBaseUrl} />
-      ) : activePanel === "approvals" ? (
-        <ModerationInfoPanel apiBaseUrl={apiBaseUrl} endpoint="/admin/live-helper" title="Pending Approvals" />
-      ) : (
-        <ModerationInfoPanel apiBaseUrl={apiBaseUrl} endpoint="/admin/live-helper" title="Live Helper Summary" />
-      )}
-    </>
+    <StreamWindowChrome
+      access={navigationAccess}
+      currentPath={currentPath}
+      displayName={displayName}
+      leftAction={leftAction}
+      panelSelector={panelSelector}
+      status={<span className="stream-window-inline-status">{status}</span>}
+    >
+      <>
+        {!access ? (
+          <section className="moderation-rules-window">
+            <p>{status}</p>
+          </section>
+        ) : availablePanels.length === 0 ? (
+          <section className="moderation-rules-window">
+            <p>No moderation panels are available for this account.</p>
+          </section>
+        ) : activePanel === "chat" ? (
+          <StreamerChatViewer
+            actionAccess={access.actions}
+            apiBaseUrl={apiBaseUrl}
+            newestOnTop
+            maxMessages={80}
+            showUnavailableActions
+            variant="standalone"
+          />
+        ) : activePanel === "rules" ? (
+          <ModerationRulesWindow apiBaseUrl={apiBaseUrl} canRetract={access.actions.canRetractRules} />
+        ) : activePanel === "audit" ? (
+          <ModerationAuditWindow apiBaseUrl={apiBaseUrl} />
+        ) : activePanel === "approvals" ? (
+          <ModerationInfoPanel apiBaseUrl={apiBaseUrl} endpoint="/admin/live-helper" title="Pending Approvals" />
+        ) : (
+          <ModerationInfoPanel apiBaseUrl={apiBaseUrl} endpoint="/admin/live-helper" title="Live Helper Summary" />
+        )}
+      </>
+    </StreamWindowChrome>
   );
 };

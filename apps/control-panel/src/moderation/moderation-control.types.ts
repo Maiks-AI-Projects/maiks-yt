@@ -1,4 +1,5 @@
 import type { StreamerChatMessage } from "@maiks-yt/events";
+import type { StreamWindowAccessState } from "../window/stream-window-registry.service.js";
 
 export type StreamerChatModerationRule = {
   activeUntil?: string | null;
@@ -95,6 +96,10 @@ export type ModerationPanelKey = "chat" | "rules" | "audit" | "approvals" | "hel
 
 export type ModerationControlWindowProps = {
   apiBaseUrl: string;
+  currentPath: string;
+  displayName: string;
+  navigationAccess: StreamWindowAccessState;
+  onAccessChange?: (allowed: boolean) => void;
 };
 
 export const moderationRuleKindLabels: Record<StreamerChatModerationRule["kind"], string> = {

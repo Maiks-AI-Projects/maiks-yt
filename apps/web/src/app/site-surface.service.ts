@@ -5,6 +5,7 @@ export type SiteTheme = "default" | "satisfactory";
 export type SiteSurfaceClassification = {
   surface: SiteSurface;
   theme: SiteTheme;
+  bodyClassName: `${SiteSurface}-surface-body`;
 };
 
 const stripPathnameOnly = (pathname: string): string => {
@@ -27,26 +28,30 @@ export const classifySiteSurface = (pathname: string): SiteSurfaceClassification
   if (pathnameOnly === "/admin" || pathnameOnly.startsWith("/admin/")) {
     return {
       surface: "admin",
-      theme
+      theme,
+      bodyClassName: "admin-surface-body"
     };
   }
 
   if (pathnameOnly.startsWith("/tools/")) {
     return {
       surface: "tool",
-      theme
+      theme,
+      bodyClassName: "tool-surface-body"
     };
   }
 
   if (pathnameOnly.startsWith("/dev/")) {
     return {
       surface: "dev",
-      theme
+      theme,
+      bodyClassName: "dev-surface-body"
     };
   }
 
   return {
     surface: "public",
-    theme
+    theme,
+    bodyClassName: "public-surface-body"
   };
 };

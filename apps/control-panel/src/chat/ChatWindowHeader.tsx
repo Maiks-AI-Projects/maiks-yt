@@ -1,6 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-import { withDevAuthToken } from "../dev-auth-token.js";
 import type { OverlayStatusResponse } from "../overlay/SurfaceStatus.types.js";
 
 type ChatWindowHeaderProps = {
@@ -74,16 +73,8 @@ export const ChatWindowHeader = ({ apiBaseUrl }: ChatWindowHeaderProps): ReactNo
     }
   };
 
-  const openWindow = (value: string): void => {
-    if (!value) {
-      return;
-    }
-
-    window.location.assign(withDevAuthToken(value));
-  };
-
   return (
-    <div className="chat-window-toolbar" aria-label="Streamer chat window controls">
+    <>
       <button
         type="button"
         className={`chat-emergency-clear${emergencyCleanModeEnabled ? " active" : ""}`}
@@ -91,19 +82,7 @@ export const ChatWindowHeader = ({ apiBaseUrl }: ChatWindowHeaderProps): ReactNo
       >
         {emergencyCleanModeEnabled ? "Restore overlay" : "Emergency clear"}
       </button>
-      <label>
-        <span>Open</span>
-        <select defaultValue="" onChange={(event) => openWindow(event.currentTarget.value)}>
-          <option value="" disabled>Other window</option>
-          <option value="/control">Control panel</option>
-          <option value="/moderation">Applied rules</option>
-          <option value="/ai">AI controls</option>
-          <option value="https://web-dev.maiks.yt/tools/notifications">Notifications</option>
-          <option value="https://web-dev.maiks.yt/admin/provider-integrations">Provider admin</option>
-          <option value="https://web-dev.maiks.yt/admin/live-helper">Live helper</option>
-        </select>
-      </label>
-      <span>{status}</span>
-    </div>
+      <span className="stream-window-inline-status">{status}</span>
+    </>
   );
 };
