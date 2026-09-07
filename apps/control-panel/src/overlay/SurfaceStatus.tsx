@@ -411,7 +411,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
     }
 
     setTopBarActionStatus(result.chatVisible
-      ? `Fake chat sent to ${result.activeOverlayConnections} overlay connection(s).`
+      ? `Fake chat sent to ${result.activeOverlayConnections} OBS element connection(s).`
       : "Fake chat sent, but chat is currently hidden.");
   };
 
@@ -468,7 +468,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
     }
 
     if (overlayPresence.status !== "ready") {
-      setTopBarActionStatus("Overlay status unavailable.");
+      setTopBarActionStatus("OBS element status unavailable.");
       return;
     }
 
@@ -488,14 +488,14 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
     });
 
     if (!response.ok) {
-      setTopBarActionStatus(`Overlay target failed with ${response.status}.`);
+      setTopBarActionStatus(`OBS element target failed with ${response.status}.`);
       return;
     }
 
     const result = await response.json() as OverlayPresentationStateResponse;
 
     if (!result.ok) {
-      setTopBarActionStatus(`Overlay target failed: ${result.reason}.`);
+      setTopBarActionStatus(`OBS element target failed: ${result.reason}.`);
       return;
     }
 
@@ -505,7 +505,7 @@ export const SurfaceStatus = ({ apiBaseUrl, panelMode }: SurfaceStatusProps): Re
         presentationState: result.presentationState
       }
       : currentState);
-    setTopBarActionStatus(`Overlay target set to ${result.presentationState.scene} / ${result.presentationState.layout}.`);
+    setTopBarActionStatus(`OBS element target set to ${result.presentationState.scene} / ${result.presentationState.layout}.`);
   };
 
   const saveActiveGoal = async (): Promise<void> => {

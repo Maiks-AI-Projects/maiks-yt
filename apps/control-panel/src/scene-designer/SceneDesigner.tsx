@@ -23,7 +23,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
   const [selectedSlotId, setSelectedSlotId] = useState<OverlaySceneSlotId>("camera");
   const [dragState, setDragState] = useState<SlotDragState | null>(null);
   const [resizeState, setResizeState] = useState<SlotResizeState | null>(null);
-  const [status, setStatus] = useState<string>("Loading scenes.");
+  const [status, setStatus] = useState<string>("Loading OBS element layouts.");
 
   const selectedScene = scenes.find((scene) => scene.sceneKey === selectedSceneKey) ?? scenes[0] ?? null;
   const selectedSlot = selectedScene?.slots[selectedSlotId] ?? null;
@@ -45,7 +45,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
     const response = await fetch(url);
 
     if (!response.ok) {
-      setStatus(`Scene load failed with ${response.status}.`);
+      setStatus(`OBS element layout load failed with ${response.status}.`);
       return;
     }
 
@@ -61,7 +61,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
       result.scenes.some((scene) => scene.sceneKey === currentSceneKey)
         ? currentSceneKey
         : result.scenes[0]?.sceneKey ?? "default");
-    setStatus("Scenes loaded.");
+    setStatus("OBS element layouts loaded.");
   };
 
   useEffect(() => {
@@ -107,7 +107,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
     const defaultSlot = getDefaultThemeScene(selectedScene.sceneKey).slots[selectedSlotId];
 
     updateSceneSlot(selectedScene.sceneKey, selectedSlotId, structuredClone(defaultSlot));
-    setStatus(`${formatSlotLabel(selectedSlotId)} reset. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(selectedSlotId)} reset. Save the OBS layout to keep it.`);
   };
 
   const updateSelectedSlotAspectLock = (locked: boolean): void => {
@@ -120,7 +120,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
         ? selectedSlot.width / Math.max(1, selectedSlot.height)
         : undefined
     });
-    setStatus(`${formatSlotLabel(selectedSlotId)} aspect ratio ${locked ? "locked" : "unlocked"}. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(selectedSlotId)} aspect ratio ${locked ? "locked" : "unlocked"}. Save the OBS layout to keep it.`);
   };
 
   const startSlotDrag = (
@@ -184,7 +184,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
     }
 
     setDragState(null);
-    setStatus(`${formatSlotLabel(dragState.slotId)} moved. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(dragState.slotId)} moved. Save the OBS layout to keep it.`);
   };
 
   const startSlotResize = (
@@ -263,7 +263,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
 
     event.stopPropagation();
     setResizeState(null);
-    setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save scene to keep it.`);
+    setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save the OBS layout to keep it.`);
   };
 
   useEffect(() => {
@@ -305,7 +305,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
       }
 
       setResizeState(null);
-      setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save scene to keep it.`);
+      setStatus(`${formatSlotLabel(resizeState.slotId)} resized. Save the OBS layout to keep it.`);
     };
 
     window.addEventListener("pointermove", handlePointerMove);
@@ -321,7 +321,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
 
   const saveSelectedScene = async (): Promise<void> => {
     if (!selectedScene) {
-      setStatus("No scene selected.");
+      setStatus("No OBS layout selected.");
       return;
     }
 
@@ -344,7 +344,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
     });
 
     if (!response.ok) {
-      setStatus(`Scene save failed with ${response.status}.`);
+      setStatus(`OBS layout save failed with ${response.status}.`);
       return;
     }
 
@@ -357,12 +357,12 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
 
     setScenes((currentScenes) => currentScenes.map((scene) =>
       scene.sceneKey === result.scene.sceneKey ? cloneScene(result.scene) : scene));
-    setStatus(`Saved ${result.scene.label}. ${result.activeOverlayConnections} overlay connection(s) updated.`);
+    setStatus(`Saved ${result.scene.label}. ${result.activeOverlayConnections} OBS element connection(s) updated.`);
   };
 
   const duplicateSelectedScene = async (): Promise<void> => {
     if (!selectedScene) {
-      setStatus("No scene selected.");
+      setStatus("No OBS layout selected.");
       return;
     }
 
@@ -390,7 +390,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
     });
 
     if (!response.ok) {
-      setStatus(`Scene duplicate failed with ${response.status}.`);
+      setStatus(`OBS layout duplicate failed with ${response.status}.`);
       return;
     }
 
@@ -412,7 +412,7 @@ export const SceneDesigner = ({ apiBaseUrl }: SceneDesignerProps): React.ReactNo
   return (
     <section className="scene-designer">
       <div className="section-heading">
-        <h2>Scene Designer</h2>
+        <h2>OBS element layouts</h2>
         <span>{status}</span>
       </div>
       <SceneDesignerToolbar

@@ -67,7 +67,7 @@ export const SurfaceStatusControls = ({
       </div>
     ) : null}
     <div className={`status-pill ${overlayActive ? "active" : "idle"}`}>
-      <span>Overlay</span>
+      <span>OBS elements</span>
       <strong>{overlayPresence.status === "checking" ? "checking" : overlayActive ? "active" : "idle"}</strong>
       {overlayPresence.status === "ready" ? <small>{overlayPresence.activeOverlayConnections} connected</small> : null}
       {overlayPresence.status === "error" ? <small>{overlayPresence.message}</small> : null}
@@ -79,7 +79,7 @@ export const SurfaceStatusControls = ({
     >
       {emergencyCleanModeEnabled ? "Clean mode on" : "Emergency clean"}
     </button>
-    <div className="status-action-group critical-controls" aria-label="Critical overlay controls">
+    <div className="status-action-group critical-controls" aria-label="Critical OBS element controls">
       <button type="button" className="status-action" onClick={() => void updateTopBarEnabled(!topBarEnabled)}>
         {topBarEnabled ? "Top bar on" : "Top bar off"}
       </button>
@@ -123,8 +123,8 @@ export const OverlayTargetSettings = ({
   themedSceneOptions,
   updatePresentationState
 }: OverlayTargetSettingsProps): React.ReactNode => (
-  <div className="notification-settings overlay-presentation-settings" aria-label="Overlay target settings">
-    <strong>Overlay target</strong>
+  <div className="notification-settings overlay-presentation-settings" aria-label="OBS element target settings">
+    <strong>OBS element target</strong>
     <label>
       <span>Scene</span>
       <select

@@ -112,7 +112,7 @@ export const ModerationControlWindow = ({
       return;
     }
 
-    setStatus(enabled ? "Turning emergency clean mode on." : "Restoring overlay.");
+    setStatus(enabled ? "Turning emergency clean mode on." : "Restoring OBS elements.");
 
     try {
       const response = await fetch(`${apiBaseUrl}/overlay/emergency-clean-mode`, {
@@ -132,7 +132,7 @@ export const ModerationControlWindow = ({
       }
 
       setEmergencyCleanModeEnabled(enabled);
-      setStatus(enabled ? "Emergency clean mode on." : "Overlay restored.");
+      setStatus(enabled ? "Emergency clean mode on." : "OBS elements restored.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Emergency clear failed.");
     }
@@ -144,7 +144,7 @@ export const ModerationControlWindow = ({
       className={`chat-emergency-clear${emergencyCleanModeEnabled ? " active" : ""}`}
       onClick={() => void setEmergencyCleanMode(!emergencyCleanModeEnabled)}
     >
-      {emergencyCleanModeEnabled ? "Restore overlay" : "Emergency clear"}
+      {emergencyCleanModeEnabled ? "Restore OBS elements" : "Emergency clear"}
     </button>
   ) : null;
 

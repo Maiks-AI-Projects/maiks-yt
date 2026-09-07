@@ -225,7 +225,7 @@ const buildSurfaceList = ({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUr
       ["admin-provider-integrations", "/admin/provider-integrations", "Provider"],
       ["admin-schedule", "/admin/schedule", "Schedule"],
       ["admin-sessions", "/admin/sessions", "Session"],
-      ["admin-testing", "/admin/testing", ["Testing Guide", "Latest Readiness Evidence", "76 surfaces", "Quick Open", "Stream Windows", "Installed Window Checklist", "Manual Testing Checklist", "Session started", "Start new session", "Copy progress", "Reset marks", "Mark section done", "Clear section", "Session Notes", "Emergency clear", "Restore overlay", "Import Preview", "duplicate_reference", "possible_duplicate", "Testing note", "Copy template", "Severity: blocking / annoying / polish"]],
+      ["admin-testing", "/admin/testing", ["Testing Guide", "Latest Readiness Evidence", "76 surfaces", "Quick Open", "Stream Windows", "Installed Window Checklist", "Manual Testing Checklist", "Session started", "Start new session", "Copy progress", "Reset marks", "Mark section done", "Clear section", "Session Notes", "Emergency clear", "Restore OBS elements", "Import Preview", "duplicate_reference", "possible_duplicate", "Testing note", "Copy template", "Severity: blocking / annoying / polish"]],
       ["admin-tokens", "/admin/tokens", "Token"]
     ]) {
       surfaces.push({
@@ -475,7 +475,7 @@ const main = async () => {
   const adminUrl = options.get("admin-url") ?? process.env.DEV_VISUAL_SMOKE_ADMIN_URL ?? parseUrlAfterHeading(tokenMarkdown, "Admin Auth");
   const controlUrl = options.get("control-url") ?? process.env.DEV_VISUAL_SMOKE_CONTROL_URL ?? parseUrlAfterHeading(tokenMarkdown, "Control Panel");
   const chatUrl = options.get("chat-url") ?? process.env.DEV_VISUAL_SMOKE_CHAT_URL ?? parseUrlAfterHeading(tokenMarkdown, "Streamer Chat");
-  const overlayUrl = options.get("overlay-url") ?? process.env.DEV_VISUAL_SMOKE_OVERLAY_URL ?? parseUrlAfterHeading(tokenMarkdown, "OBS Overlay");
+  const overlayUrl = options.get("overlay-url") ?? process.env.DEV_VISUAL_SMOKE_OVERLAY_URL ?? parseUrlAfterHeading(tokenMarkdown, "OBS Elements");
   const surfaces = buildSurfaceList({ adminUrl, controlUrl, chatUrl, overlayUrl, webBaseUrl });
 
   await mkdir(outputDir, { recursive: true });

@@ -31,7 +31,7 @@ export const SceneDesignerToolbar = ({
 }: SceneDesignerToolbarProps): React.ReactNode => (
   <div className="scene-designer-toolbar">
     <label>
-      <span>Scene</span>
+      <span>OBS layout</span>
       <select value={selectedSceneKey} onChange={(event) => setSelectedSceneKey(event.currentTarget.value)}>
         {scenes.map((scene) => (
           <option key={scene.sceneKey} value={scene.sceneKey}>{scene.label}</option>
@@ -47,7 +47,7 @@ export const SceneDesignerToolbar = ({
       </select>
     </label>
     <button type="button" className="status-action" onClick={() => void saveSelectedScene()}>
-      Save scene
+      Save layout
     </button>
     <button type="button" className="status-action" onClick={() => void duplicateSelectedScene()}>
       Duplicate
@@ -93,7 +93,7 @@ export const SceneCanvasPreview = ({
 }: SceneCanvasPreviewProps): React.ReactNode => (
   <div className="scene-canvas-panel">
     <div className="scene-canvas-heading">
-      <strong>Canvas preview</strong>
+      <strong>OBS canvas preview</strong>
       <span>{selectedScene.canvas.width} x {selectedScene.canvas.height} px</span>
     </div>
     <div className="scene-canvas" aria-label={`${selectedScene.label} layout preview`}>

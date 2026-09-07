@@ -8,7 +8,7 @@ import type {
 export const urlAccessTokenAdminTargets = [
   {
     target: "overlay",
-    label: "OBS Overlay",
+    label: "OBS Elements",
     surface: "overlay",
     scope: "overlay:connect",
     requiresLogin: false,

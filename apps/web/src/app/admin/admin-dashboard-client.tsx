@@ -151,7 +151,7 @@ const groups: readonly AdminDashboardGroup[] = [
       {
         href: "https://control-dev.maiks.yt/control",
         label: "Control Panel",
-        description: "Overlay controls, scene designer, and stream tool controls."
+        description: "OBS element controls, layout editor, and stream tool controls."
       },
       {
         href: "https://control-dev.maiks.yt/ai",
@@ -160,8 +160,8 @@ const groups: readonly AdminDashboardGroup[] = [
       },
       {
         href: "https://overlay-dev.maiks.yt/",
-        label: "OBS Overlay",
-        description: "Shared overlay browser-source surface for OBS checks."
+        label: "OBS Elements",
+        description: "Compatibility browser-source surface for OBS element checks."
       },
       {
         href: "/tools/notifications",
@@ -217,7 +217,7 @@ const groups: readonly AdminDashboardGroup[] = [
       {
         href: "/admin/tokens",
         label: "Access Tokens",
-        description: "Create and rotate overlay/control URL tokens."
+        description: "Create and rotate OBS-element/control URL tokens."
       },
       {
         href: "/admin/sessions",

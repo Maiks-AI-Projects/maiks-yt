@@ -22,7 +22,7 @@ const readinessCommands = [
   },
   {
     command: "pnpm test:readiness -- --visual",
-    description: "Adds screenshot coverage for public pages, admin surfaces, chat, moderation, and overlay after the readiness gate."
+    description: "Adds screenshot coverage for public pages, admin surfaces, chat, moderation, and OBS elements after the readiness gate."
   },
   {
     command: "pnpm test:readiness -- --skip-review",
@@ -53,7 +53,7 @@ const installedWindowChecks = [
   "Confirm each installed window opens without the normal website navbar and keeps the expected route after restart.",
   "Confirm the chat and moderation windows stay signed in or show the Access Required recovery path clearly.",
   "Resize chat and moderation to 1366x768, 1600x900, and 1920x1080 if practical, and check for horizontal overflow or clipped action buttons.",
-  "Confirm provider chat remains private to chat/moderation windows and does not appear on the OBS overlay by default."
+  "Confirm provider chat remains private to chat/moderation windows and does not appear in OBS elements by default."
 ] as const;
 
 const testingPasses: readonly TestingPass[] = [
@@ -63,7 +63,7 @@ const testingPasses: readonly TestingPass[] = [
     checks: [
       "Open /admin and confirm dashboard cards render normally.",
       "Review /admin/sessions and verify revoke-others keeps the active browser alive.",
-      "Review /admin/tokens and confirm overlay/control/chat URLs can be created or rotated.",
+      "Review /admin/tokens and confirm OBS element/control/chat URLs can be created or rotated.",
       "Check backup health and download a short-lived private key-data export.",
       "Open /tools/notifications from the installed phone PWA and verify read/archive behavior."
     ]
@@ -76,13 +76,13 @@ const testingPasses: readonly TestingPass[] = [
       "Open the standalone /chat PWA and confirm newest messages are on top.",
       "Confirm Twitch, YouTube, and Discord status dots are compact and understandable.",
       "Open /moderation as a separate window and confirm the first panel is chat.",
-      "Use fake/local chat first for hide, ban, warn, retract, Emergency clear, and Restore overlay drills.",
-      "Confirm hidden or banned local messages stay off overlay chat."
+      "Use fake/local chat first for hide, ban, warn, retract, Emergency clear, and Restore OBS elements drills.",
+      "Confirm hidden or banned local messages stay off OBS element chat."
     ]
   },
   {
     title: "Provider Intake",
-    goal: "Confirm real provider intake is visible privately before any overlay routing.",
+    goal: "Confirm real provider intake is visible privately before any OBS element routing.",
     checks: [
       "Send one harmless Twitch message from a test account and confirm it appears in /chat only.",
       "Send one harmless Discord message in the configured guild/channel and confirm it appears in /chat only.",
@@ -137,14 +137,14 @@ const testingPasses: readonly TestingPass[] = [
     ]
   },
   {
-    title: "Event Routing And Overlay",
+    title: "Event Routing And OBS Elements",
     goal: "Verify public stream output still requires explicit routing or approval.",
     checks: [
       "Confirm privacy, security, and provider-token events cannot route publicly.",
       "Use /dev/test-console for safe simulated events.",
       "Test an approval-required event and approve or reject it from event routing.",
-      "Confirm safe simulated top/center overlay notifications render.",
-      "Confirm normal provider chat does not appear on overlay unless explicitly routed later."
+      "Confirm safe simulated top/center OBS element notifications render.",
+      "Confirm normal provider chat does not appear in OBS elements unless explicitly routed later."
     ]
   }
 ];

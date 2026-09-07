@@ -8,7 +8,7 @@ type AiControlItem = {
 
 const aiControlItems: readonly AiControlItem[] = [
   {
-    detail: "Local planning only. No public messages, overlays, provider chat, or stream audio.",
+    detail: "Local planning only. No public messages, OBS element text, provider chat, or stream audio.",
     label: "Assistant output",
     state: "shadow"
   },
@@ -57,7 +57,7 @@ export const AiControlsWindow = (): ReactNode => (
       </div>
       <div>
         <strong>Stream safe</strong>
-        <span>No speech, overlay text, chat replies, or moderation decisions.</span>
+        <span>No speech, OBS element text, chat replies, or moderation decisions.</span>
       </div>
     </div>
     <ol className="ai-controls-list">

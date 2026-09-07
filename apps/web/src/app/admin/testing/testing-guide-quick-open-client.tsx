@@ -30,7 +30,7 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
       {
         href: "https://control-dev.maiks.yt/control",
         label: "Control Panel",
-        description: "Overlay controls and scene designer. Requires the current control access token."
+        description: "OBS element controls and layout editor. Requires the current control access token."
       },
       {
         href: "https://control-dev.maiks.yt/ai",
@@ -39,8 +39,8 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
       },
       {
         href: "https://overlay-dev.maiks.yt/",
-        label: "OBS Overlay",
-        description: "Current shared overlay surface for OBS/browser-source checks."
+        label: "OBS Elements",
+        description: "Current compatibility surface for OBS browser-source elements."
       }
     ]
   },
@@ -50,7 +50,7 @@ const quickOpenGroups: readonly QuickOpenGroup[] = [
       {
         href: "/admin/tokens",
         label: "Access Tokens",
-        description: "Create or rotate the control/overlay URLs used by OBS and standalone stream windows."
+        description: "Create or rotate the control and OBS-element URLs used by OBS and standalone stream windows."
       },
       {
         href: "/tools/notifications",

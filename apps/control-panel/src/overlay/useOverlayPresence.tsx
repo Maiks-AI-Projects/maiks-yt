@@ -32,7 +32,7 @@ export const useOverlayPresence = (apiBaseUrl: string): UseOverlayPresenceResult
         const response = await fetch(url);
 
         if (!response.ok) {
-          throw new Error(`Overlay status failed with ${response.status}`);
+          throw new Error(`OBS element status failed with ${response.status}`);
         }
 
         const result = await response.json() as OverlayStatusResponse;
@@ -62,7 +62,7 @@ export const useOverlayPresence = (apiBaseUrl: string): UseOverlayPresenceResult
         if (!disposed) {
           setOverlayPresence({
             status: "error",
-            message: error instanceof Error ? error.message : "Overlay status unavailable."
+            message: error instanceof Error ? error.message : "OBS element status unavailable."
           });
         }
       }
@@ -79,7 +79,7 @@ export const useOverlayPresence = (apiBaseUrl: string): UseOverlayPresenceResult
         const response = await fetch(url);
 
         if (!response.ok) {
-          throw new Error(`Overlay scenes failed with ${response.status}`);
+          throw new Error(`OBS element layouts failed with ${response.status}`);
         }
 
         const result = await response.json() as OverlayScenesResponse;

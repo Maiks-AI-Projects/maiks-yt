@@ -1,7 +1,7 @@
 {
   "name": "Maiks.yt Control Panel",
   "short_name": "Maiks Control",
-  "description": "Standalone stream control panel for Maiks.yt overlays and local stream-tool checks.",
+  "description": "Standalone stream control panel for Maiks.yt OBS elements and stream operations.",
   "id": "/control",
   "start_url": "/control",
   "scope": "/control",

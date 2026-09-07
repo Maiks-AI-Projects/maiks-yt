@@ -66,16 +66,16 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "https://api-dev.maik
 
 const defaultTokenForm: TokenFormState = {
   target: "overlay",
-  label: "OBS overlay"
+  label: "OBS elements"
 };
 
 const targetLabels: Record<UrlAccessTokenAdminTarget, string> = {
-  overlay: "OBS Overlay",
+  overlay: "OBS Elements",
   "control-panel": "Control Panel"
 };
 
 const targetDefaultLabels: Record<UrlAccessTokenAdminTarget, string> = {
-  overlay: "OBS overlay",
+  overlay: "OBS elements",
   "control-panel": "Control panel"
 };
 
@@ -111,7 +111,7 @@ const getFailureMessage = (response: Response, reason?: string): string => {
   }
 
   if (reason === "url_token_unsupported_target") {
-    return "That existing token is not an overlay or control-panel token, so this first admin slice cannot rotate it.";
+    return "That existing token is not an OBS-element or control-panel token, so this first admin slice cannot rotate it.";
   }
 
   return `Scoped token request failed with ${response.status}.`;
@@ -270,7 +270,7 @@ const TokenAdminClient = (): React.ReactNode => {
     }
 
     if (!selectedToken.target) {
-      setMessage("This first admin slice can rotate only overlay and control-panel tokens.");
+      setMessage("This first admin slice can rotate only OBS-element and control-panel tokens.");
       return;
     }
 
@@ -423,7 +423,7 @@ const TokenAdminClient = (): React.ReactNode => {
                       label: targetDefaultLabels[target]
                     });
                   }}>
-                    <option value="overlay">OBS Overlay</option>
+                    <option value="overlay">OBS Elements</option>
                     <option value="control-panel">Control Panel</option>
                   </select>
                 </label>
@@ -476,7 +476,7 @@ const TokenAdminClient = (): React.ReactNode => {
                   </li>
                 </ul>
               ) : (
-                <p>Choose an existing token or create a new overlay/control-panel token.</p>
+                <p>Choose an existing token or create a new OBS-element/control-panel token.</p>
               )}
             </section>
 

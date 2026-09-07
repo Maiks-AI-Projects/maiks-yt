@@ -94,7 +94,7 @@ export const adminNavigationGroups: readonly AdminNavigationGroup[] = [
       {
         href: "/admin/tokens",
         label: "Access Tokens",
-        description: "Create and rotate overlay/control URLs.",
+        description: "Create and rotate OBS-element/control URLs.",
         icon: FaKey
       },
       {
