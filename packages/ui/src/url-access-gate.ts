@@ -7,7 +7,7 @@ export type UrlAccessGateState =
     requiresLogin: boolean;
   }
   | {
-    status: "missing-token" | "denied" | "error";
+    status: "missing-token" | "denied" | "error" | "transient-error";
     message: string;
   };
 
@@ -27,6 +27,7 @@ type UrlAccessTokenValidationResponse = {
 };
 
 const defaultQueryParam = "accessToken";
+const transientValidationStatuses = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 export const captureUrlAccessToken = ({
   storageKey,
@@ -73,8 +74,25 @@ export const validateUrlAccessGate = async (options: UrlAccessGateOptions): Prom
       })
     });
 
+    if (!response.ok && transientValidationStatuses.has(response.status)) {
+      return {
+        status: "transient-error",
+        message: `Access check temporarily unavailable (${response.status}).`
+      };
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      return {
+        status: "denied",
+        message: "Access token was not accepted."
+      };
+    }
+
     if (!response.ok) {
-      throw new Error(`Token validation failed with ${response.status}`);
+      return {
+        status: "error",
+        message: `Token validation failed with ${response.status}.`
+      };
     }
 
     const result = await response.json() as UrlAccessTokenValidationResponse;
@@ -92,7 +110,7 @@ export const validateUrlAccessGate = async (options: UrlAccessGateOptions): Prom
     };
   } catch (error) {
     return {
-      status: "error",
+      status: "transient-error",
       message: error instanceof Error ? error.message : "Access token validation failed."
     };
   }

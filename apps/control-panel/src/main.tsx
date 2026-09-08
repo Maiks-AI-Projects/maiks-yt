@@ -1,9 +1,9 @@
-import { validateUrlAccessGate } from "@maiks-yt/ui";
 import { useEffect, useState } from "react";
 import { AiControlsWindow } from "./ai/AiControlsWindow.js";
 import { ChatServiceStatusStrip } from "./chat/ChatServiceStatusStrip.js";
 import { ChatWindowHeader } from "./chat/ChatWindowHeader.js";
 import { StreamerChatViewer } from "./chat/StreamerChatViewer.js";
+import { validateControlPanelAccess, type ControlPanelAuthState } from "./control-access.service.js";
 import { getControlShellDataAttributes } from "./control-shell-surface.service.js";
 import { captureDevAuthTokenFromUrl, createApiHeaders, withDevAuthToken } from "./dev-auth-token.js";
 import { ModerationControlWindow } from "./moderation/ModerationControlWindow.js";
@@ -27,25 +27,6 @@ const isAiControlsRoute = currentRoutePath === "/ai";
 const controlShellDataAttributes = getControlShellDataAttributes(currentRoutePath);
 const defaultPanelMode = "creator";
 type PanelMode = "creator" | "advanced";
-type ControlPanelAuthState =
-  | {
-    status: "checking";
-  }
-  | {
-    status: "allowed";
-    displayName: string;
-  }
-  | {
-    status: "blocked";
-    message: string;
-  };
-
-type AccountSessionResponse = {
-  user: {
-    name?: string | null;
-    email?: string | null;
-  };
-} | null;
 
 type ModerationAccessProbeResponse = {
   ok: true;
@@ -62,61 +43,6 @@ const readStoredPanelMode = (): PanelMode => {
   return storedValue === "advanced" ? "advanced" : defaultPanelMode;
 };
 
-const validateControlPanelAccess = async (): Promise<ControlPanelAuthState> => {
-  const gateState = await validateUrlAccessGate({
-    apiBaseUrl,
-    surface: "control-panel",
-    scope: "control:open",
-    storageKey: "maiks.yt.control.accessToken"
-  });
-
-  if (gateState.status === "checking") {
-    return {
-      status: "checking"
-    };
-  }
-
-  if (gateState.status !== "allowed") {
-    return {
-      status: "blocked",
-      message: gateState.message
-    };
-  }
-
-  if (!gateState.requiresLogin) {
-    return {
-      status: "allowed",
-      displayName: "Token user"
-    };
-  }
-
-  const sessionResponse = await fetch(`${apiBaseUrl}/account/session`, {
-    credentials: "include",
-    headers: createApiHeaders()
-  });
-
-  if (!sessionResponse.ok) {
-    return {
-      status: "blocked",
-      message: "Sign in on the main site before opening the control panel."
-    };
-  }
-
-  const session = await sessionResponse.json() as AccountSessionResponse;
-
-  if (!session) {
-    return {
-      status: "blocked",
-      message: "Sign in on the main site before opening the control panel."
-    };
-  }
-
-  return {
-    status: "allowed",
-    displayName: session.user.name ?? session.user.email ?? "Signed-in user"
-  };
-};
-
 const updateManifestForRoute = (): void => {
   const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
 
@@ -129,7 +55,23 @@ const updateManifestForRoute = (): void => {
   }
 };
 
-type ControlPanelBlockedState = Exclude<ControlPanelAuthState, { status: "allowed" }>;
+type ControlPanelBlockedState = Extract<ControlPanelAuthState, { status: "blocked" }>;
+
+const AccessReconnecting = ({ authState }: { authState: Extract<ControlPanelAuthState, { status: "checking" | "reconnecting" }> }): React.ReactNode => (
+  <main
+    {...controlShellDataAttributes}
+    className={`surface access-required-surface ${isStandaloneChatRoute || isModerationRulesRoute || isAiControlsRoute ? "chat-surface" : ""}`}
+  >
+    <section className="access-required-panel">
+      <p className="access-required-eyebrow">{getStreamWindowLabel(currentRoutePath)}</p>
+      <h1>Reconnecting</h1>
+      <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
+      <p className="access-required-help">
+        Keeping private controls hidden while the session check retries.
+      </p>
+    </section>
+  </main>
+);
 
 const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }): React.ReactNode => (
   <main
@@ -139,22 +81,18 @@ const AccessRequired = ({ authState }: { authState: ControlPanelBlockedState }):
     <section className="access-required-panel">
       <p className="access-required-eyebrow">{getStreamWindowLabel(currentRoutePath)}</p>
       <h1>Access Required</h1>
-      <p>{authState.status === "checking" ? "Checking control panel access..." : authState.message}</p>
-      {authState.status === "blocked" ? (
-        <>
-          <p className="access-required-help">
-            Use the current generated Control Panel access URL from Access Tokens. Opening the bare route is expected to stop here.
-          </p>
-          <div className="access-required-actions">
-            <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/tokens")}>
-              Access Tokens
-            </a>
-            <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/testing")}>
-              Testing Guide
-            </a>
-          </div>
-        </>
-      ) : null}
+      <p>{authState.message}</p>
+      <p className="access-required-help">
+        Use the current generated Control Panel access URL from Access Tokens. Opening the bare route is expected to stop here.
+      </p>
+      <div className="access-required-actions">
+        <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/tokens")}>
+          Access Tokens
+        </a>
+        <a className="secondary-window-link" href={withDevAuthToken("https://web-dev.maiks.yt/admin/testing")}>
+          Testing Guide
+        </a>
+      </div>
     </section>
   </main>
 );
@@ -165,6 +103,26 @@ const App = (): React.ReactNode => {
   const [moderationAccess, setModerationAccess] = useState<StreamWindowAccessState["moderation"]>("unknown");
 
   useEffect(() => {
+    let disposed = false;
+    let retryTimer: number | null = null;
+
+    const checkAccess = async (): Promise<void> => {
+      const nextAuthState = await validateControlPanelAccess({ apiBaseUrl });
+
+      if (disposed) {
+        return;
+      }
+
+      setAuthState(nextAuthState);
+
+      if (nextAuthState.status === "reconnecting") {
+        retryTimer = window.setTimeout(() => {
+          retryTimer = null;
+          void checkAccess();
+        }, nextAuthState.retryAfterMs);
+      }
+    };
+
     captureDevAuthTokenFromUrl();
     updateManifestForRoute();
     document.title = isStandaloneChatRoute
@@ -174,7 +132,14 @@ const App = (): React.ReactNode => {
       : isModerationRulesRoute
         ? "Maiks.yt Moderation"
         : "Maiks.yt Control Panel";
-    void validateControlPanelAccess().then(setAuthState);
+    void checkAccess();
+
+    return () => {
+      disposed = true;
+      if (retryTimer) {
+        window.clearTimeout(retryTimer);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -229,6 +194,10 @@ const App = (): React.ReactNode => {
     setPanelMode(nextMode);
     window.localStorage.setItem(panelModeStorageKey, nextMode);
   };
+
+  if (authState.status === "checking" || authState.status === "reconnecting") {
+    return <AccessReconnecting authState={authState} />;
+  }
 
   if (authState.status !== "allowed") {
     return <AccessRequired authState={authState} />;

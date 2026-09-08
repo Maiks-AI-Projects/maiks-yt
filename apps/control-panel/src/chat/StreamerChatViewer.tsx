@@ -4,6 +4,11 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createApiHeaders } from "../dev-auth-token.js";
 import { chatSourceLabels } from "./chat-source-labels.service.js";
 import { formatChatTime } from "./chat-time.service.js";
+import {
+  getStreamerChatReconnectDelayMs,
+  getStreamerChatReconnectMessage,
+  isStreamerChatAccessDeniedClose
+} from "./streamer-chat-live-connection.service.js";
 import { createAuthenticatedWebSocketUrl, defaultActionAccess, defaultTemporaryMuteDurationSeconds } from "./streamer-chat-viewer.service.js";
 import type {
   FakeLocalModerationResponse,
@@ -308,6 +313,8 @@ export const StreamerChatViewer = ({
   useEffect(() => {
     let disposed = false;
     let webSocket: WebSocket | null = null;
+    let reconnectAttempt = 0;
+    let reconnectTimer: number | null = null;
     const token = window.localStorage.getItem("maiks.yt.control.accessToken");
 
     const loadMessages = async (): Promise<void> => {
@@ -342,16 +349,41 @@ export const StreamerChatViewer = ({
       }
     };
 
-    void loadMessages();
+    const scheduleReconnect = (): void => {
+      if (disposed || reconnectTimer !== null) {
+        return;
+      }
 
-    if (token) {
-      webSocket = new WebSocket(createAuthenticatedWebSocketUrl(apiBaseUrl, "/streamer-chat/live", token));
-      webSocket.addEventListener("open", () => {
-        if (!disposed) {
+      const delayMs = getStreamerChatReconnectDelayMs(reconnectAttempt);
+      reconnectAttempt += 1;
+      setStatus(getStreamerChatReconnectMessage(delayMs));
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        void loadMessages();
+        connectLiveFeed();
+      }, delayMs);
+    };
+
+    const connectLiveFeed = (): void => {
+      if (!token || disposed) {
+        return;
+      }
+
+      const previousWebSocket = webSocket;
+      const nextWebSocket = new WebSocket(createAuthenticatedWebSocketUrl(apiBaseUrl, "/streamer-chat/live", token));
+      webSocket = nextWebSocket;
+      previousWebSocket?.close();
+      nextWebSocket.addEventListener("open", () => {
+        if (!disposed && webSocket === nextWebSocket) {
+          reconnectAttempt = 0;
           setStatus("Streamer chat live.");
         }
       });
-      webSocket.addEventListener("message", (event) => {
+      nextWebSocket.addEventListener("message", (event) => {
+        if (disposed || webSocket !== nextWebSocket) {
+          return;
+        }
+
         const liveMessage = JSON.parse(String(event.data)) as StreamerChatLiveMessage;
 
         if (liveMessage.type === "streamer-chat.snapshot") {
@@ -364,20 +396,34 @@ export const StreamerChatViewer = ({
           ...currentMessages.filter((message) => message.id !== liveMessage.payload.id)
         ].slice(0, 75));
       });
-      webSocket.addEventListener("close", () => {
-        if (!disposed) {
-          setStatus("Streamer chat live feed closed.");
+      nextWebSocket.addEventListener("close", (event) => {
+        if (!disposed && webSocket === nextWebSocket) {
+          webSocket = null;
+          if (isStreamerChatAccessDeniedClose({
+            code: event.code,
+            reason: event.reason
+          })) {
+            setStatus("Streamer chat access denied. Reopen from the current access URL.");
+            return;
+          }
+          scheduleReconnect();
         }
       });
-      webSocket.addEventListener("error", () => {
-        if (!disposed) {
+      nextWebSocket.addEventListener("error", () => {
+        if (!disposed && webSocket === nextWebSocket) {
           setStatus("Streamer chat live feed unavailable.");
         }
       });
-    }
+    };
+
+    void loadMessages();
+    connectLiveFeed();
 
     return () => {
       disposed = true;
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
       webSocket?.close();
     };
   }, [apiBaseUrl]);
