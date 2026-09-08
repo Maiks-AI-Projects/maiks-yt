@@ -33,6 +33,10 @@ const streamerChatProviderModerationRequestSchema = streamerChatModerationReques
   durationSeconds: z.number().int().min(60).max(28 * 24 * 60 * 60).nullable().optional(),
   reason: z.string().trim().max(500).optional()
 });
+const streamerChatStreamDeckBanRequestSchema = streamerChatModerationRequestSchema.extend({
+  includeProviderAction: z.boolean().optional(),
+  reason: z.string().trim().max(500).optional()
+});
 const streamerChatModerationRuleListRequestSchema = z.object({
   accessToken: z.string().min(24)
 });
@@ -93,6 +97,20 @@ const toAuditAction = (
   return "ban_author";
 };
 
+const failedStreamDeckOutcome = (reason: string): {
+  status: "failed";
+  reason: string;
+} => ({
+  reason,
+  status: "failed"
+});
+
+const notRequestedStreamDeckOutcome = (): {
+  status: "not_requested";
+} => ({
+  status: "not_requested"
+});
+
 export const registerStreamerChatModerationRoutes = (
   server: FastifyInstance,
   dependencies: {
@@ -142,11 +160,7 @@ export const registerStreamerChatModerationRoutes = (
       panels: {
         appliedRules: canUseStreamerChatModerationAction(access.permissions, "view_rules"),
         auditHistory: canUseStreamerChatModerationAction(access.permissions, "view_audit"),
-        chat: access.permissions.includes("*") || access.permissions.includes("chat:view"),
-        liveHelper: access.permissions.includes("*")
-          || access.permissions.includes("moderators:manage")
-          || access.permissions.includes("fake-local-chat:moderate"),
-        pendingApprovals: access.permissions.includes("*") || access.permissions.includes("moderators:manage")
+        chat: access.permissions.includes("*") || access.permissions.includes("chat:view")
       },
       providerAction: false,
       checkedAt: new Date().toISOString()
@@ -504,6 +518,170 @@ export const registerStreamerChatModerationRoutes = (
       providerAction: providerResult.providerAction,
       providerActionSent: providerResult.providerActionSent,
       providerActionReason: providerResult.ok ? null : providerResult.reason
+    };
+  });
+
+  server.post("/streamer-chat/moderation/stream-deck-ban", async (request, reply) => {
+    const parsedRequest = streamerChatStreamDeckBanRequestSchema.safeParse(request.body);
+
+    if (!parsedRequest.success) {
+      reply.code(400);
+      return {
+        ok: false,
+        reason: "invalid_request",
+        local: failedStreamDeckOutcome("invalid_request"),
+        platform: notRequestedStreamDeckOutcome(),
+        providerAction: false
+      };
+    }
+
+    const targetMessage = dependencies.streamerChatRuntime.findMessage(parsedRequest.data.targetMessageId);
+    const localAccess = await dependencies.accessService.requirePermission(
+      request,
+      parsedRequest.data.accessToken,
+      "ban"
+    );
+
+    if (!localAccess.ok) {
+      reply.code(localAccess.statusCode);
+      return {
+        ok: false,
+        reason: localAccess.reason,
+        local: failedStreamDeckOutcome(localAccess.reason),
+        platform: parsedRequest.data.includeProviderAction
+          ? failedStreamDeckOutcome("local_ban_denied")
+          : notRequestedStreamDeckOutcome(),
+        providerAction: false
+      };
+    }
+
+    if (!targetMessage) {
+      return {
+        ok: true,
+        action: "stream_deck_ban",
+        targetMessageId: parsedRequest.data.targetMessageId,
+        local: failedStreamDeckOutcome("streamer_chat_message_not_found"),
+        platform: parsedRequest.data.includeProviderAction
+          ? failedStreamDeckOutcome("streamer_chat_message_not_found")
+          : notRequestedStreamDeckOutcome(),
+        providerAction: false,
+        checkedAt: new Date().toISOString()
+      };
+    }
+
+    const localResult = dependencies.moderationRuntime.banActorFromMessage(parsedRequest.data.targetMessageId);
+
+    if (localResult?.bannedMessage) {
+      const audit = await dependencies.moderationStore.appendAudit({
+        action: "ban_author",
+        message: localResult.bannedMessage,
+        note: "Applied from Stream Deck moderation controls.",
+        outcome: "applied",
+        reason: "stream_deck_author_banned"
+      });
+      await dependencies.moderationStore.upsertActiveState({
+        auditLogId: audit.id,
+        message: localResult.bannedMessage,
+        stateKind: "user_banned"
+      });
+    }
+
+    let platformOutcome:
+      | ReturnType<typeof failedStreamDeckOutcome>
+      | ReturnType<typeof notRequestedStreamDeckOutcome>
+      | {
+        status: "confirmed";
+        provider: "discord" | "twitch" | "youtube";
+        providerAction: boolean;
+        providerActionSent: boolean;
+      } = notRequestedStreamDeckOutcome();
+
+    if (parsedRequest.data.includeProviderAction) {
+      const providerAccess = await dependencies.accessService.requirePermission(
+        request,
+        parsedRequest.data.accessToken,
+        "provider_action"
+      );
+
+      if (!providerAccess.ok) {
+        platformOutcome = failedStreamDeckOutcome(providerAccess.reason);
+      } else if (!targetMessage) {
+        platformOutcome = failedStreamDeckOutcome("streamer_chat_message_not_found");
+      } else {
+        const reason = createProviderModerationReason(
+          "ban_author",
+          targetMessage.authorName,
+          parsedRequest.data.reason
+        );
+        let providerResult: ProviderChatModerationResult;
+
+        if (targetMessage.source === "discord") {
+          providerResult = await dependencies.discordModerationService.moderate({
+            action: "ban_author",
+            channelId: targetMessage.providerChannelId ?? null,
+            durationSeconds: null,
+            guildId: targetMessage.providerGuildId ?? null,
+            messageId: targetMessage.providerMessageId ?? null,
+            reason,
+            userId: targetMessage.providerUserId ?? null
+          });
+        } else if (targetMessage.source === "twitch") {
+          providerResult = await dependencies.twitchModerationService.moderate({
+            action: "ban_author",
+            durationSeconds: null,
+            messageId: targetMessage.providerMessageId ?? null,
+            reason,
+            userId: targetMessage.providerUserId ?? null
+          });
+        } else {
+          providerResult = {
+            ok: false,
+            providerAction: false,
+            providerActionId: null,
+            providerActionSent: false,
+            reason: targetMessage.source === "youtube"
+              ? "youtube_provider_moderation_gated"
+              : "provider_moderation_unsupported_source"
+          };
+        }
+
+        await dependencies.moderationStore.appendProviderActionAudit({
+          action: "ban_author",
+          actionKey: "ban_author",
+          durationSeconds: null,
+          message: targetMessage,
+          providerResult,
+          reason
+        });
+
+        const confirmedProvider = targetMessage.source === "discord"
+          || targetMessage.source === "twitch"
+          || targetMessage.source === "youtube"
+          ? targetMessage.source
+          : null;
+
+        platformOutcome = providerResult.ok && providerResult.providerActionSent && confirmedProvider
+          ? {
+            provider: confirmedProvider,
+            providerAction: providerResult.providerAction,
+            providerActionSent: providerResult.providerActionSent,
+            status: "confirmed"
+          }
+          : failedStreamDeckOutcome(providerResult.ok ? "provider_action_not_sent" : providerResult.reason);
+      }
+    }
+
+    return {
+      ok: true,
+      action: "stream_deck_ban",
+      targetMessageId: parsedRequest.data.targetMessageId,
+      local: {
+        status: "confirmed",
+        affectedCount: localResult?.affectedMessages.length ?? 0
+      },
+      platform: platformOutcome,
+      providerAction: platformOutcome.status === "confirmed" && platformOutcome.providerAction,
+      checkedAt: new Date().toISOString()
     };
   });
 

@@ -75,7 +75,12 @@ class FakeModerationStore {
   }
 }
 
-const createServer = () => {
+const createServer = (overrides: {
+  accessService?: {
+    requirePermission: ReturnType<typeof vi.fn>;
+    resolvePermissions: ReturnType<typeof vi.fn>;
+  };
+} = {}) => {
   const server = Fastify();
   const streamerChatRuntime = new StreamerChatRuntime({ maxHistory: 10 });
   const moderationRuntime = new InMemoryStreamerChatModerationRuntime({
@@ -119,7 +124,7 @@ const createServer = () => {
   }));
 
   registerStreamerChatModerationRoutes(server, {
-    accessService: {
+    accessService: overrides.accessService ?? {
       requirePermission: vi.fn(async () => ({
         ok: true,
         permissions: ["*"]
@@ -235,6 +240,143 @@ describe("streamer chat moderation API", () => {
       warningThreshold: 3
     });
     expect(moderationStore.providerAudits).toHaveLength(1);
+  });
+
+  it("handles Stream Deck local plus provider ban with separate outcomes", async () => {
+    const { moderationStore, moderateDiscord, server, streamerChatRuntime } = createServer();
+    streamerChatRuntime.appendMessage(createMessage({
+      providerChannelId: "234567890123456789",
+      providerGuildId: "345678901234567890",
+      providerMessageId: "discord-message-1",
+      providerUserId: "123456789012345678"
+    }));
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/stream-deck-ban",
+      payload: {
+        accessToken: validAccessToken,
+        includeProviderAction: true,
+        targetMessageId: "message-1"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      action: "stream_deck_ban",
+      local: {
+        status: "confirmed",
+        affectedCount: 1
+      },
+      platform: {
+        status: "confirmed",
+        provider: "discord",
+        providerAction: true,
+        providerActionSent: true
+      },
+      providerAction: true
+    });
+    expect(moderateDiscord).toHaveBeenCalledWith({
+      action: "ban_author",
+      channelId: "234567890123456789",
+      durationSeconds: null,
+      guildId: "345678901234567890",
+      messageId: "discord-message-1",
+      reason: "Test chatter banned from Maiks.yt streamer chat.",
+      userId: "123456789012345678"
+    });
+    expect(moderationStore.audits).toHaveLength(1);
+    expect(moderationStore.providerActionAudits).toHaveLength(1);
+  });
+
+  it("keeps Stream Deck local outcome confirmed when provider permission is denied", async () => {
+    const accessService = {
+      resolvePermissions: vi.fn(async () => ({
+        ok: true,
+        permissions: ["chat:ban-user-local"]
+      })),
+      requirePermission: vi.fn(async (_request: unknown, _token: string, action: string) => action === "provider_action"
+        ? {
+          ok: false,
+          reason: "streamer_chat_moderation_forbidden",
+          statusCode: 403
+        }
+        : {
+          ok: true,
+          permissions: ["chat:ban-user-local"]
+        })
+    };
+    const { moderationStore, moderateDiscord, server, streamerChatRuntime } = createServer({
+      accessService
+    });
+    streamerChatRuntime.appendMessage(createMessage({
+      providerChannelId: "234567890123456789",
+      providerGuildId: "345678901234567890",
+      providerMessageId: "discord-message-1",
+      providerUserId: "123456789012345678"
+    }));
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/stream-deck-ban",
+      payload: {
+        accessToken: validAccessToken,
+        includeProviderAction: true,
+        targetMessageId: "message-1"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      local: {
+        status: "confirmed",
+        affectedCount: 1
+      },
+      platform: {
+        status: "failed",
+        reason: "streamer_chat_moderation_forbidden"
+      },
+      providerAction: false
+    });
+    expect(moderateDiscord).not.toHaveBeenCalled();
+    expect(moderationStore.audits).toHaveLength(1);
+    expect(moderationStore.providerActionAudits).toHaveLength(0);
+  });
+
+  it("fails Stream Deck local and platform outcomes for a stale target message without attempting provider action", async () => {
+    const { moderationStore, moderateDiscord, moderateTwitch, server } = createServer();
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/streamer-chat/moderation/stream-deck-ban",
+      payload: {
+        accessToken: validAccessToken,
+        includeProviderAction: true,
+        targetMessageId: "missing-message"
+      }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      action: "stream_deck_ban",
+      targetMessageId: "missing-message",
+      local: {
+        status: "failed",
+        reason: "streamer_chat_message_not_found"
+      },
+      platform: {
+        status: "failed",
+        reason: "streamer_chat_message_not_found"
+      },
+      providerAction: false
+    });
+    expect(moderationStore.audits).toHaveLength(0);
+    expect(moderationStore.providerActionAudits).toHaveLength(0);
+    expect(moderateDiscord).not.toHaveBeenCalled();
+    expect(moderateTwitch).not.toHaveBeenCalled();
   });
 
   it("does not send provider warnings for unsupported sources", async () => {
