@@ -16,6 +16,15 @@ type AdminDashboardGroup = {
   items: readonly AdminDashboardItem[];
 };
 
+const adminSecondaryNavigation = [
+  { href: "/admin", label: "Overview" },
+  { href: "/admin/testing", label: "Testing" },
+  { href: "/admin/connections", label: "Connections" },
+  { href: "/admin/provider-integrations", label: "Provider setup" },
+  { href: "/admin/tokens", label: "Access tokens" },
+  { href: "/admin/schedule", label: "Schedule" }
+] as const;
+
 type DashboardStatusTone = "loading" | "ok" | "warn" | "bad";
 
 type DashboardStatusCard = {
@@ -690,6 +699,18 @@ const AdminDashboardClient = (): React.ReactNode => {
           </button>
         </div>
       </header>
+
+      <nav className="admin-secondary-nav" aria-label="Admin setup and operations">
+        {adminSecondaryNavigation.map((item) => (
+          <a
+            aria-current={item.href === "/admin" ? "page" : undefined}
+            href={getDashboardLinkHref({ href: item.href, label: item.label, description: "" }, devAuthToken)}
+            key={item.href}
+          >
+            {item.label}
+          </a>
+        ))}
+      </nav>
 
       <section className="project-admin-panel">
         <div className="project-admin-panel-heading">

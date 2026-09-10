@@ -132,6 +132,33 @@
   max-width: 72ch;
 }
 
+:is(.admin-surface-body, .dev-surface-body) .admin-secondary-nav {
+  align-items: center;
+  background: var(--ops-paper-raised);
+  border: 1px solid var(--ops-line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.35rem;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-secondary-nav a {
+  border: 1px solid transparent;
+  color: var(--ops-muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+  padding: 0.5rem 0.7rem;
+  text-decoration: none;
+}
+
+:is(.admin-surface-body, .dev-surface-body) .admin-secondary-nav a:hover,
+:is(.admin-surface-body, .dev-surface-body) .admin-secondary-nav a:focus-visible,
+:is(.admin-surface-body, .dev-surface-body) .admin-secondary-nav a[aria-current="page"] {
+  background: var(--ops-accent-soft);
+  border-color: var(--ops-line-strong);
+  color: var(--ops-accent-dark);
+}
+
 /* Dense work regions use separators and aligned rows instead of card stacks. */
 :is(.admin-surface-body, .dev-surface-body) :is(
   .project-admin-panel,
